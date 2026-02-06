@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UCAGS CRM - Student Enquiry & Admissions</title>
+    <link rel="stylesheet" href="css/styles.css?v=3">
+    <link rel="stylesheet" href="css/animations.css?v=3">
+    <link rel="stylesheet" href="css/sidebar.css?v=3">
+    <link rel="stylesheet" href="css/modal.css?v=3">
+    <link rel="stylesheet" href="css/receipts.css?v=3">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="loginPage" class="page active">
+        <div class="login-container">
+            <div class="login-box">
+                <div class="logo">
+                    <h1>UCAGS CRM</h1>
+                    <p>Student Enquiry & Admissions System</p>
+                </div>
+                
+                <!-- Login Form -->
+                <form id="loginForm" style="display: block;">
+                    <div class="form-group">
+                        <label for="loginEmail">Email</label>
+                        <input type="email" id="loginEmail" name="email" required placeholder="your@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Password</label>
+                        <input type="password" id="loginPassword" name="password" required placeholder="Enter your password">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                    <div id="loginError" class="error-message"></div>
+                </form>
+                
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Page -->
+    <div id="dashboardPage" class="page">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <i class="fas fa-graduation-cap"></i>
+                    <h2>UCAGS CRM</h2>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+
+            <div class="sidebar-user">
+                <div class="user-avatar">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <div class="user-info">
+                    <span class="user-name" id="sidebarUserName">Admin User</span>
+                    <span class="user-role" id="sidebarUserRole">Administrator</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-page="home">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+
+                <div class="nav-section">
+                    <div class="nav-section-header">
+                        <i class="fas fa-users"></i>
+                        <span>Contacts</span>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="nav-submenu">
+                        <a href="#" class="nav-subitem" data-page="contacts-all">
+                            <i class="fas fa-address-book"></i>
+                            <span>All Contacts</span>
+                        </a>
+                        <a href="#" class="nav-subitem" data-page="contacts-batch1">
+                            <i class="fas fa-layer-group"></i>
+                            <span>Batch 2024-01</span>
+                        </a>
+                        <a href="#" class="nav-subitem" data-page="contacts-batch2">
+                            <i class="fas fa-layer-group"></i>
+                            <span>Batch 2024-02</span>
+                        </a>
+                        <a href="#" class="nav-subitem" data-page="contacts-batch3">
+                            <i class="fas fa-layer-group"></i>
+                            <span>Batch 2024-03</span>
+                        </a>
+                        <a href="#" class="nav-subitem" data-page="contacts-archived">
+                            <i class="fas fa-archive"></i>
+                            <span>Archived</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Leads for Officers: Simple link without batches -->
+                <a href="#" class="nav-item officer-only" data-page="leads-myLeads" style="display: none;">
+                    <i class="fas fa-users"></i>
+                    <span>My Leads</span>
+                </a>
+                
+                <!-- Lead Management for Officers -->
+                <a href="#" class="nav-item officer-only" data-page="lead-management" style="display: none;">
+                    <i class="fas fa-tasks"></i>
+                    <span>Lead Management</span>
+                </a>
+
+                <!-- Leads for Admins: With batch submenu -->
+                <div class="nav-section admin-only">
+                    <div class="nav-section-header">
+                        <i class="fas fa-users"></i>
+                        <span>Leads</span>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="nav-submenu" id="leadsBatchesMenu">
+                        <a href="#" class="nav-subitem" data-page="leads-batch14">
+                            <i class="fas fa-layer-group"></i>
+                            <span>Batch 14</span>
+                        </a>
+                        <a href="#" class="nav-subitem add-batch-btn" id="addNewBatchBtn">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>Add New Batch</span>
+                        </a>
+                    </div>
+                </div>
+
+                <a href="#" class="nav-item nav-disabled" data-page="admissions" title="Coming Soon">
+                    <i class="fas fa-graduation-cap"></i>
+                    <span>Admissions</span>
+                    <span class="badge badge-secondary">Soon</span>
+                </a>
+
+                <a href="#" class="nav-item nav-disabled" data-page="students" title="Coming Soon">
+                    <i class="fas fa-user-graduate"></i>
+                    <span>Students</span>
+                    <span class="badge badge-secondary">Soon</span>
+                </a>
+
+                <a href="#" class="nav-item nav-disabled" data-page="calendar" title="Coming Soon">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Calendar</span>
+                    <span class="badge badge-secondary">Soon</span>
+                </a>
+
+                <a href="#" class="nav-item nav-disabled" data-page="gmail" title="Coming Soon">
+                    <i class="fas fa-envelope"></i>
+                    <span>Gmail</span>
+                    <span class="badge badge-secondary">Soon</span>
+                </a>
+
+                <a href="#" class="nav-item nav-disabled" data-page="call" title="Coming Soon">
+                    <i class="fas fa-phone"></i>
+                    <span>Call Center</span>
+                    <span class="badge badge-secondary">Soon</span>
+                </a>
+
+                <div class="nav-divider"></div>
+
+                <a href="#" class="nav-item admin-only" data-page="users">
+                    <i class="fas fa-users-cog"></i>
+                    <span>Staff Management</span>
+                </a>
+
+                <a href="#" class="nav-item admin-only" data-page="reports">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Reports</span>
+                </a>
+
+                <a href="#" class="nav-item admin-only" data-page="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+
+                <div class="nav-divider"></div>
+
+                <a href="#" class="nav-item admin-only" data-page="receipts">
+                    <i class="fas fa-receipt"></i>
+                    <span>Receipts</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button id="logoutBtn" class="btn btn-secondary btn-block">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <div class="top-bar-left">
+                    <button class="mobile-menu-btn" id="mobileMenuBtn">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 class="page-title" id="pageTitle">Home</h1>
+                </div>
+                <div class="top-bar-right">
+                    <button class="icon-btn" id="notificationsBtn">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge">3</span>
+                    </button>
+                    <button class="icon-btn" id="searchBtn">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <div class="user-menu">
+                        <span id="userDisplay"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="main-content">
+            <!-- Home View -->
+            <div id="homeView" class="content-view active">
+                <div class="welcome-section">
+                    <h2>Welcome back, <span id="welcomeUserName">Admin</span>! 👋</h2>
+                    <p>Here's what's happening with your student enquiries today.</p>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <i class="fas fa-inbox"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 id="statTotal">0</h3>
+                            <p>Total Enquiries</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 id="statNew">0</h3>
+                            <p>New</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon yellow">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 id="statFollowUp">0</h3>
+                            <p>Follow-up</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon purple">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 id="statRegistered">0</h3>
+                            <p>Registered</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="dashboard-card">
+                        <h3>Recent Enquiries</h3>
+                        <div id="recentEnquiries" class="recent-list">
+                            <p class="loading">Loading...</p>
+                        </div>
+                    </div>
+                    
+                    <div class="dashboard-card">
+                        <h3>Upcoming Follow-ups</h3>
+                        <div id="upcomingFollowUps" class="followup-list">
+                            <p class="loading">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-card admin-only">
+                    <h3>Officer Performance</h3>
+                    <div id="officerPerformance" class="officer-stats">
+                        <p class="loading">Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contacts Views -->
+            <div id="contacts-allView" class="content-view">
+                <div class="page-header">
+                    <h1>All Contacts</h1>
+                    <button class="btn btn-primary">
+                        <i class="fas fa-plus"></i> New Contact
+                    </button>
+                </div>
+                <div class="content-placeholder">
+                    <i class="fas fa-address-book"></i>
+                    <p>All student contacts will be displayed here</p>
+                </div>
+            </div>
+
+            <div id="contacts-batch1View" class="content-view">
+                <div class="page-header">
+                    <h1>Batch 2024-01</h1>
+                </div>
+                <div class="content-placeholder">
+                    <i class="fas fa-layer-group"></i>
+                    <p>Students from Batch 2024-01</p>
+                </div>
+            </div>
+
+            <div id="contacts-batch2View" class="content-view">
+                <div class="page-header">
+                    <h1>Batch 2024-02</h1>
+                </div>
+                <div class="content-placeholder">
+                    <i class="fas fa-layer-group"></i>
+                    <p>Students from Batch 2024-02</p>
+                </div>
+            </div>
+
+            <div id="contacts-batch3View" class="content-view">
+                <div class="page-header">
+                    <h1>Batch 2024-03</h1>
+                </div>
+                <div class="content-placeholder">
+                    <i class="fas fa-layer-group"></i>
+                    <p>Students from Batch 2024-03</p>
+                </div>
+            </div>
+
+            <div id="contacts-archivedView" class="content-view">
+                <div class="page-header">
+                    <h1>Archived Contacts</h1>
+                </div>
+                <div class="content-placeholder">
+                    <i class="fas fa-archive"></i>
+                    <p>Archived student contacts</p>
+                </div>
+            </div>
+
+            
+            <!-- Lead Management View (Officers Only) -->
+            <div id="lead-managementView" class="content-view officer-only" style="display: none;">
+                <div class="page-header">
+                    <h1><i class="fas fa-tasks"></i> Lead Management</h1>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="refreshManagementBtn" class="btn btn-secondary" onclick="loadLeadManagement()">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div class="filters-bar">
+                    <input type="text" id="managementSearchInput" placeholder="Search by name, email, phone..." class="form-control" oninput="filterManagementLeads()">
+                    <select id="managementStatusFilter" class="form-control" onchange="filterManagementLeads()">
+                        <option value="">All Status</option>
+                        <option value="New">New</option>
+                        <option value="Contacted">Contacted</option>
+                        <option value="Follow-up">Follow-up</option>
+                        <option value="Registered">Registered</option>
+                        <option value="Closed">Closed</option>
+                    </select>
+                    <select id="managementPriorityFilter" class="form-control" onchange="filterManagementLeads()">
+                        <option value="">All Priorities</option>
+                        <option value="High">High Priority</option>
+                        <option value="Medium">Medium Priority</option>
+                        <option value="Low">Low Priority</option>
+                    </select>
+                </div>
+
+                <div class="table-container">
+                    <table id="managementTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>PDF</th>
+                                <th>WA</th>
+                                <th>Email</th>
+                                <th>Next Follow-up</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="managementTableBody">
+                            <tr>
+                                <td colspan="9" class="loading">Loading leads...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Leads View Container (Shared by all batch views) -->
+            <div id="leadsView" class="content-view" style="display: none;">
+                <div class="page-header">
+                    <h1 id="leadsViewTitle">Leads</h1>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="addLeadBtn" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> New Lead
+                        </button>
+                        <button id="distributeUnassignedBtn" class="btn btn-warning admin-only" onclick="distributeUnassignedLeads()" title="Distribute all unassigned leads" style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
+                            <i class="fas fa-share-alt"></i>
+                            <span>Distribute Unassigned</span>
+                        </button>
+                        <button id="refreshLeadsBtn" class="btn btn-secondary">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div class="filters-bar">
+                    <input type="text" id="leadsSearchInput" placeholder="Search by name, email, phone..." class="form-control">
+                    <select id="leadsStatusFilter" class="form-control">
+                        <option value="">All Status</option>
+                        <option value="New">New</option>
+                        <option value="Contacted">Contacted</option>
+                        <option value="Follow-up">Follow-up</option>
+                        <option value="Registered">Registered</option>
+                        <option value="Closed">Closed</option>
+                    </select>
+                </div>
+
+                <!-- Bulk Actions Toolbar (hidden by default) -->
+                <div id="bulkActionsToolbar" style="display: none; background: #e3f2fd; padding: 12px 20px; border-radius: 8px; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span id="selectedCount" style="font-weight: 600; color: #1976d2;">0 selected</span>
+                            <button class="btn btn-secondary btn-sm" onclick="clearSelection()">
+                                <i class="fas fa-times"></i> Clear
+                            </button>
+                        </div>
+                        <div class="admin-only" style="display: flex !important; gap: 8px;">
+                            <button class="btn btn-primary btn-sm" onclick="bulkAssignLeads()">
+                                <i class="fas fa-user-tie"></i> Assign
+                            </button>
+                            <button class="btn btn-success btn-sm" onclick="bulkDistributeLeads()">
+                                <i class="fas fa-users"></i> Distribute
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="bulkDeleteLeads()">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="leadsTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;">
+                                    <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()" title="Select All">
+                                </th>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Assigned To</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leadsTableBody">
+                            <tr>
+                                <td colspan="6" class="loading">Loading leads...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Enquiries View -->
+            <div id="enquiriesView" class="content-view">
+                <div class="page-header">
+                    <h1>Enquiries</h1>
+                    <button id="newEnquiryBtn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> New Enquiry
+                    </button>
+                </div>
+
+                <div class="filters-bar">
+                    <input type="text" id="searchInput" placeholder="Search by name, email, phone...">
+                    <select id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="New">New</option>
+                        <option value="Contacted">Contacted</option>
+                        <option value="Follow-up">Follow-up</option>
+                        <option value="Registered">Registered</option>
+                        <option value="Closed">Closed</option>
+                    </select>
+                    <button id="filterBtn" class="btn btn-secondary">
+                        <i class="fas fa-filter"></i> Apply Filter
+                    </button>
+                    <button id="refreshBtn" class="btn btn-secondary">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table id="enquiriesTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Course</th>
+                                <th>Status</th>
+                                <th>Assigned To</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="enquiriesTableBody">
+                            <tr>
+                                <td colspan="9" class="loading">Loading enquiries...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Calendar View -->
+            <div id="calendarView" class="content-view">
+                <div class="page-header">
+                    <h1>Follow-up Calendar</h1>
+                </div>
+
+                <div class="calendar-container">
+                    <div class="calendar-section">
+                        <h3 class="section-title overdue">Overdue Follow-ups</h3>
+                        <div id="overdueList" class="calendar-list">
+                            <p class="loading">Loading...</p>
+                        </div>
+                    </div>
+
+                    <div class="calendar-section">
+                        <h3 class="section-title upcoming">Upcoming Follow-ups</h3>
+                        <div id="upcomingList" class="calendar-list">
+                            <p class="loading">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gmail View -->
+            <div id="gmailView" class="content-view">
+                <div class="page-header">
+                    <h1>Gmail Integration</h1>
+                    <button class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> Compose
+                    </button>
+                </div>
+                <div class="gmail-container">
+                    <div class="content-placeholder">
+                        <i class="fas fa-envelope"></i>
+                        <p>Gmail integration for sending emails to students</p>
+                        <button class="btn btn-secondary">
+                            <i class="fas fa-link"></i> Connect Gmail
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Call Center View -->
+            <div id="callView" class="content-view">
+                <div class="page-header">
+                    <h1>Call Center</h1>
+                    <button class="btn btn-primary">
+                        <i class="fas fa-phone-volume"></i> New Call
+                    </button>
+                </div>
+                <div class="call-container">
+                    <div class="call-stats-grid">
+                        <div class="call-stat-card">
+                            <i class="fas fa-phone"></i>
+                            <h3>0</h3>
+                            <p>Calls Today</p>
+                        </div>
+                        <div class="call-stat-card">
+                            <i class="fas fa-clock"></i>
+                            <h3>0m</h3>
+                            <p>Total Duration</p>
+                        </div>
+                        <div class="call-stat-card">
+                            <i class="fas fa-check-circle"></i>
+                            <h3>0</h3>
+                            <p>Successful</p>
+                        </div>
+                        <div class="call-stat-card">
+                            <i class="fas fa-times-circle"></i>
+                            <h3>0</h3>
+                            <p>Missed</p>
+                        </div>
+                    </div>
+                    <div class="content-placeholder">
+                        <i class="fas fa-headset"></i>
+                        <p>Call center integration for contacting students</p>
+                        <button class="btn btn-secondary">
+                            <i class="fas fa-link"></i> Connect Twilio
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports View (Admin Only) -->
+            <div id="reportsView" class="content-view admin-only">
+                <div class="page-header">
+                    <h1>Reports & Analytics</h1>
+                    <button class="btn btn-primary">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+                <div class="content-placeholder">
+                    <i class="fas fa-chart-line"></i>
+                    <p>Detailed reports and analytics</p>
+                </div>
+            </div>
+
+            <!-- Settings View (Admin Only) -->
+            <div id="settingsView" class="content-view admin-only">
+                <div class="page-header">
+                    <h1>Settings</h1>
+                </div>
+                <div class="content-placeholder">
+                    <i class="fas fa-cog"></i>
+                    <p>System settings and configuration</p>
+                </div>
+            </div>
+
+            <!-- Staff Management View (Admin Only) -->
+            <div id="usersView" class="content-view admin-only">
+                <div class="page-header">
+                    <h1>Staff Management</h1>
+                    <button id="addUserBtn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add New Staff
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Name</th>
+                                <th>Role</th>
+                                <th>Created</th>
+                                <th>Last Sign In</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr>
+                                <td colspan="7" class="loading">Loading users...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modal: Change Password -->
+            <div id="changePasswordModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-key"></i> Change Password</h2>
+                        <button class="close-btn" onclick="closeModal('changePasswordModal')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="changePasswordForm">
+                            <input type="hidden" id="changePasswordUserId">
+                            <div class="form-group">
+                                <label><i class="fas fa-user"></i> User</label>
+                                <input type="text" id="changePasswordUserEmail" class="form-control" readonly 
+                                       style="background: #f5f5f5;">
+                            </div>
+                            <div class="form-group">
+                                <label for="newPassword"><i class="fas fa-lock"></i> New Password *</label>
+                                <div style="position: relative;">
+                                    <input type="password" id="newPassword" class="form-control" required 
+                                           placeholder="Minimum 6 characters" minlength="6">
+                                    <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('newPassword', this)" 
+                                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #666;">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="confirmPassword"><i class="fas fa-lock"></i> Confirm Password *</label>
+                                <div style="position: relative;">
+                                    <input type="password" id="confirmPassword" class="form-control" required 
+                                           placeholder="Re-enter password" minlength="6">
+                                    <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('confirmPassword', this)" 
+                                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #666;">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div style="background: #fff3cd; padding: 15px; border-radius: 6px; border-left: 4px solid #ffc107; margin-top: 20px;">
+                                <p style="margin: 0; color: #856404; font-size: 14px;">
+                                    <i class="fas fa-exclamation-triangle" style="color: #ffc107;"></i>
+                                    <strong>Warning:</strong> The user will need to use this new password to login.
+                                </p>
+                            </div>
+                            
+                            <div class="modal-actions" style="margin-top: 20px;">
+                                <button type="button" class="btn btn-secondary" onclick="closeModal('changePasswordModal')">
+                                    Cancel
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-key"></i> Change Password
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Officers View (Admin Only) -->
+            <div id="officersView" class="content-view admin-only">
+                <div class="page-header">
+                    <h1>Admissions Officers</h1>
+                </div>
+
+                <div id="officersStats" class="officers-grid">
+                    <p class="loading">Loading officers...</p>
+                </div>
+            </div>
+
+            <!-- Receipts View (Admin Only) -->
+            <div id="receiptsView" class="content-view admin-only">
+                <div class="page-header">
+                    <h1><i class="fas fa-receipt"></i> Receipt Generator</h1>
+                </div>
+
+                <div class="receipts-page">
+                    <div class="receipt-form-container">
+                        <form id="receiptForm">
+                            <!-- Receipt Information -->
+                            <div class="form-section">
+                                <h3 class="form-section-title">
+                                    <i class="fas fa-file-invoice"></i>
+                                    Receipt Information
+                                </h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="receiptNumber">Receipt Number *</label>
+                                        <input type="text" id="receiptNumber" class="form-control" placeholder="UC7398" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="receiptDate">Receipt Date *</label>
+                                        <input type="date" id="receiptDate" class="form-control" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Student Information -->
+                            <div class="form-section">
+                                <h3 class="form-section-title">
+                                    <i class="fas fa-user-graduate"></i>
+                                    Student Information
+                                </h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="studentName">Student Name *</label>
+                                        <input type="text" id="studentName" class="form-control" placeholder="Rasenthira Kirisanth" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="studentId">Student ID *</label>
+                                        <div style="display: flex; align-items: center;">
+                                            <span style="padding: 10px 14px; background: #f0f0f0; border: 1px solid #ddd; border-right: none; border-radius: 6px 0 0 6px; font-size: 14px;">UCAGS/</span>
+                                            <input type="text" id="studentId" class="form-control" placeholder="1123" required style="border-radius: 0 6px 6px 0; flex: 1;">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="enrolledProgram">Enrolled Program *</label>
+                                        <select id="enrolledProgram" class="form-control" required>
+                                            <option value="Diploma in Psychology">Diploma in Psychology</option>
+                                            <option value="Diploma in Business Management">Diploma in Business Management</option>
+                                            <option value="Diploma in Information Technology">Diploma in Information Technology</option>
+                                            <option value="Diploma in Digital Marketing">Diploma in Digital Marketing</option>
+                                            <option value="Diploma in Human Resource Management">Diploma in Human Resource Management</option>
+                                            <option value="Certificate in Psychology">Certificate in Psychology</option>
+                                            <option value="Other">Other (specify in notes)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="paymentPlan">Payment Plan *</label>
+                                        <select id="paymentPlan" class="form-control" required>
+                                            <option value="">Select payment plan</option>
+                                            <option value="Installment with early bird offer">Installment with early bird offer</option>
+                                            <option value="Installment">Installment</option>
+                                            <option value="Full payment with early bird offer">Full payment with early bird offer</option>
+                                            <option value="Full payment">Full payment</option>
+                                            <option value="Custom">Custom</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Payment Details -->
+                            <div class="form-section">
+                                <h3 class="form-section-title">
+                                    <i class="fas fa-credit-card"></i>
+                                    Payment Details
+                                </h3>
+                                <div class="payments-section">
+                                    <div id="paymentsContainer">
+                                        <!-- Payment rows will be added dynamically -->
+                                    </div>
+                                    <button type="button" id="addPaymentBtn">
+                                        <i class="fas fa-plus"></i> Add Payment
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Form Actions -->
+                            <div class="form-actions">
+                                <button type="button" id="clearFormBtn" class="btn btn-secondary">
+                                    <i class="fas fa-eraser"></i> Clear Form
+                                </button>
+                                <button type="button" id="generateReceiptBtn" class="btn btn-primary">
+                                    <i class="fas fa-file-pdf"></i> Generate PDF
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Enquiry Details -->
+    <div id="enquiryModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2 id="modalTitle">Enquiry Details</h2>
+                <button class="close-btn" onclick="closeModal('enquiryModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="enquiryModalBody">
+                <!-- Content loaded dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: New Enquiry -->
+    <div id="newEnquiryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>New Enquiry</h2>
+                <button class="close-btn" onclick="closeModal('newEnquiryModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="newEnquiryForm">
+                    <div class="form-group">
+                        <label for="newFullName">Full Name *</label>
+                        <input type="text" id="newFullName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newEmail">Email *</label>
+                        <input type="email" id="newEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newPhone">Phone</label>
+                        <input type="tel" id="newPhone">
+                    </div>
+                    <div class="form-group">
+                        <label for="newCourse">Course Interested</label>
+                        <input type="text" id="newCourse">
+                    </div>
+                    <div class="form-group">
+                        <label for="newSource">Source</label>
+                        <select id="newSource">
+                            <option value="Website">Website</option>
+                            <option value="Google Form">Google Form</option>
+                            <option value="Phone Call">Phone Call</option>
+                            <option value="Walk-in">Walk-in</option>
+                            <option value="Referral">Referral</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="newNotes">Notes</label>
+                        <textarea id="newNotes" rows="3"></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('newEnquiryModal')">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Create Enquiry
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add Staff -->
+    <div id="addUserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-user-plus"></i> Add New Staff Member</h2>
+                <button class="close-btn" onclick="closeModal('addUserModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="addUserForm">
+                    <div class="form-group">
+                        <label for="userEmail"><i class="fas fa-envelope"></i> Email *</label>
+                        <input type="email" id="userEmail" class="form-control" required 
+                               placeholder="user@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="userName"><i class="fas fa-user"></i> Full Name *</label>
+                        <input type="text" id="userName" class="form-control" required 
+                               placeholder="John Doe">
+                    </div>
+                    <div class="form-group">
+                        <label for="userRole"><i class="fas fa-user-tag"></i> Role *</label>
+                        <select id="userRole" class="form-control" required>
+                            <option value="officer">Admissions Officer</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                        <small style="color: #666; margin-top: 8px; display: block;">
+                            Officers can view and manage leads. Admins have full system access.
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="userPassword"><i class="fas fa-lock"></i> Password *</label>
+                        <div style="position: relative;">
+                            <input type="password" id="userPassword" class="form-control" required 
+                                   placeholder="Minimum 6 characters" minlength="6">
+                            <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('userPassword', this)" 
+                                    style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #666;">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <small style="color: #666; margin-top: 8px; display: block;">
+                            User will use this password to login to the system.
+                        </small>
+                    </div>
+                    
+                    <div class="modal-actions" style="margin-top: 20px;">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('addUserModal')">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-user-plus"></i> Add Staff Member
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <!-- Unregister old service workers -->
+    <script src="js/unregister-sw.js"></script>
+    
+    <!-- Supabase JS (load first) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Supabase Client (must load after Supabase JS) -->
+    <script src="js/supabaseClient.js"></script>
+    
+    <!-- API Service -->
+    <script src="/frontend/services/apiService.js"></script>
+    
+    <!-- Page Modules -->
+    <script src="/frontend/pages/leads/leadsPage.js?v=3"></script>
+    <script src="/frontend/pages/leads/leadManagement.js?v=3"></script>
+    <script src="/frontend/pages/receipts/receiptsPage.js?v=3"></script>
+    
+    <!-- Main App -->
+    <script src="js/app.js?v=3"></script>
+    <script src="js/ui.js?v=3"></script>
+</body>
+</html>

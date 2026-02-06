@@ -1,0 +1,411 @@
+/* 
+ * UCAGS CRM - Advanced Animations & Micro-interactions
+ * Apple-inspired fluid animations
+ */
+
+/* Floating Animation for Cards */
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.stat-card,
+.dashboard-card {
+    animation: float 6s ease-in-out infinite;
+}
+
+.stat-card:nth-child(1) { animation-delay: 0s; }
+.stat-card:nth-child(2) { animation-delay: 1s; }
+.stat-card:nth-child(3) { animation-delay: 2s; }
+.stat-card:nth-child(4) { animation-delay: 3s; }
+
+/* Shimmer Loading Effect */
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+.loading-shimmer {
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.05) 0%,
+        rgba(139, 92, 246, 0.1) 50%,
+        rgba(255, 255, 255, 0.05) 100%
+    );
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite linear;
+}
+
+/* Ripple Effect */
+@keyframes ripple {
+    0% {
+        transform: scale(0);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+.btn-primary::after,
+.btn-success::after,
+.btn-danger::after,
+.btn-warning::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+}
+
+.btn-primary:active::after,
+.btn-success:active::after,
+.btn-danger:active::after,
+.btn-warning:active::after {
+    animation: ripple 0.6s ease-out;
+}
+
+/* Glow Effect */
+@keyframes glow {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 40px rgba(139, 92, 246, 0.6);
+    }
+}
+
+.stat-card:hover,
+.dashboard-card:hover {
+    animation: glow 2s ease-in-out infinite;
+}
+
+/* Bounce In Animation */
+@keyframes bounceIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.3);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+    70% {
+        transform: scale(0.9);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.modal.active .modal-content {
+    animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Fade In Up */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.recent-item,
+.followup-item {
+    animation: fadeInUp 0.4s ease;
+}
+
+.recent-item:nth-child(1) { animation-delay: 0.1s; }
+.recent-item:nth-child(2) { animation-delay: 0.2s; }
+.recent-item:nth-child(3) { animation-delay: 0.3s; }
+.recent-item:nth-child(4) { animation-delay: 0.4s; }
+.recent-item:nth-child(5) { animation-delay: 0.5s; }
+
+/* Scale In */
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.status-badge {
+    animation: scaleIn 0.3s ease;
+}
+
+/* Rotate In */
+@keyframes rotateIn {
+    from {
+        opacity: 0;
+        transform: rotate(-180deg) scale(0.5);
+    }
+    to {
+        opacity: 1;
+        transform: rotate(0) scale(1);
+    }
+}
+
+.stat-icon {
+    animation: rotateIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Gradient Animation */
+@keyframes gradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.btn-primary,
+.nav-brand h2,
+.page-header h1 {
+    background-size: 200% 200%;
+    animation: gradientShift 3s ease infinite;
+}
+
+/* Slide In From Left */
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.nav-link {
+    animation: slideInLeft 0.4s ease;
+}
+
+.nav-link:nth-child(1) { animation-delay: 0.1s; }
+.nav-link:nth-child(2) { animation-delay: 0.2s; }
+.nav-link:nth-child(3) { animation-delay: 0.3s; }
+.nav-link:nth-child(4) { animation-delay: 0.4s; }
+
+/* Breathing Effect */
+@keyframes breathe {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.02);
+    }
+}
+
+.login-box {
+    animation: breathe 4s ease-in-out infinite;
+}
+
+/* Typing Animation for Loading Text */
+@keyframes typing {
+    0%, 100% {
+        content: 'Loading';
+    }
+    25% {
+        content: 'Loading.';
+    }
+    50% {
+        content: 'Loading..';
+    }
+    75% {
+        content: 'Loading...';
+    }
+}
+
+/* Background Gradient Animation */
+@keyframes backgroundShift {
+    0%, 100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+body {
+    background-size: 200% 200%;
+    animation: backgroundShift 15s ease infinite;
+}
+
+/* Hover Lift Effect */
+.table-container:hover,
+.filters-bar:hover {
+    animation: none;
+}
+
+/* Slide Up from Bottom */
+@keyframes slideUpBottom {
+    from {
+        opacity: 0;
+        transform: translateY(100px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.data-table tbody tr {
+    animation: slideUpBottom 0.4s ease;
+}
+
+/* Smooth Border Radius Animation */
+@keyframes borderRadiusShift {
+    0%, 100% {
+        border-radius: 12px;
+    }
+    50% {
+        border-radius: 24px;
+    }
+}
+
+/* Particle Effect */
+@keyframes particles {
+    0% {
+        transform: translateY(0) translateX(0) scale(1);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-100px) translateX(20px) scale(0.3);
+        opacity: 0;
+    }
+}
+
+/* Add particles on hover */
+.stat-card::after,
+.dashboard-card::after {
+    content: '';
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: var(--primary-purple-light);
+    border-radius: 50%;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.stat-card:hover::after,
+.dashboard-card:hover::after {
+    animation: particles 2s ease-out;
+}
+
+/* Success Checkmark Animation */
+@keyframes checkmark {
+    0% {
+        stroke-dashoffset: 100;
+    }
+    100% {
+        stroke-dashoffset: 0;
+    }
+}
+
+/* Error Shake Enhanced */
+@keyframes shakeEnhanced {
+    0%, 100% {
+        transform: translateX(0) rotate(0deg);
+    }
+    10%, 30%, 50%, 70%, 90% {
+        transform: translateX(-10px) rotate(-1deg);
+    }
+    20%, 40%, 60%, 80% {
+        transform: translateX(10px) rotate(1deg);
+    }
+}
+
+.error-message {
+    animation: shakeEnhanced 0.5s ease;
+}
+
+/* Loading Spinner */
+@keyframes spinner {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.loading::after {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-left: 10px;
+    border: 3px solid rgba(139, 92, 246, 0.3);
+    border-top-color: var(--primary-purple);
+    border-radius: 50%;
+    animation: spinner 0.8s linear infinite;
+}
+
+/* Card Flip Effect (for future use) */
+@keyframes flipCard {
+    from {
+        transform: perspective(1000px) rotateY(0);
+    }
+    to {
+        transform: perspective(1000px) rotateY(180deg);
+    }
+}
+
+/* Reveal Animation */
+@keyframes reveal {
+    from {
+        clip-path: inset(0 100% 0 0);
+    }
+    to {
+        clip-path: inset(0 0 0 0);
+    }
+}
+
+.page-header h1 {
+    animation: reveal 1s cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+/* Stagger Animation Helper */
+.stagger-animation > * {
+    animation: fadeInUp 0.5s ease;
+}
+
+.stagger-animation > *:nth-child(1) { animation-delay: 0.1s; }
+.stagger-animation > *:nth-child(2) { animation-delay: 0.2s; }
+.stagger-animation > *:nth-child(3) { animation-delay: 0.3s; }
+.stagger-animation > *:nth-child(4) { animation-delay: 0.4s; }
+.stagger-animation > *:nth-child(5) { animation-delay: 0.5s; }
+.stagger-animation > *:nth-child(6) { animation-delay: 0.6s; }
