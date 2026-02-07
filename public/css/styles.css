@@ -139,6 +139,12 @@ body {
     margin-bottom: 12px;
 }
 
+/* Login screen logo should be smaller than the sidebar brand mark */
+.logo .brand-logo {
+    max-width: 220px;
+    max-height: 70px;
+}
+
 /* Legacy text logo (kept for any other pages still using <h1>) */
 .logo h1 {
     background: var(--gradient-primary);
