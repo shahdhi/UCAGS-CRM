@@ -600,7 +600,7 @@ async function loadUsers() {
                 <td>${escapeHtml(user.name || '-')}</td>
                 <td>
                     <span class="badge badge-${user.role === 'admin' ? 'primary' : 'secondary'}">
-                        ${user.role || 'officer'}
+                        ${user.role === 'admin' ? 'Admin' : 'Staff'}
                     </span>
                 </td>
                 <td>${new Date(user.created_at).toLocaleDateString()}</td>
