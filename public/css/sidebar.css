@@ -73,8 +73,8 @@
 
 /* Brand logo inside sidebar header */
 .sidebar-logo .brand-logo {
-    max-width: 140px;
-    max-height: 36px;
+    max-width: 280px;
+    max-height: 72px;
     margin: 0;
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
 }
