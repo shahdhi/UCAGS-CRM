@@ -56,7 +56,7 @@
 
 /* Sidebar Header */
 .sidebar-header {
-    padding: 16px;
+    padding: 8px 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     align-items: center;
@@ -69,7 +69,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 4px;
+    gap: 0;
 }
 
 /* Brand logo inside sidebar header */
