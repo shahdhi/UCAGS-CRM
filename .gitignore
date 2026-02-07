@@ -11,3 +11,10 @@ yarn-error.log*
 *.swo
 *~
 service-account-key.json
+
+# Never commit service account keys
+2.env
+ucags-crm-*.json
+**/ucags-crm-*.json
+**/*service-account*.json
+**/*service_account*.json

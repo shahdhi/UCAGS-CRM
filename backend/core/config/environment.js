@@ -21,10 +21,13 @@ const config = {
   },
 
   // Google Service Account Configuration
+  // IMPORTANT: Never rely on a default JSON key file in the repo.
+  // In production (Vercel), prefer GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_PRIVATE_KEY.
   google: {
-    serviceAccountFile: process.env.GOOGLE_APPLICATION_CREDENTIALS 
+    // Optional: only if you explicitly provide a path via env var AND the file exists on disk.
+    serviceAccountFile: process.env.GOOGLE_APPLICATION_CREDENTIALS
       ? path.resolve(__dirname, '../../../', process.env.GOOGLE_APPLICATION_CREDENTIALS)
-      : path.resolve(__dirname, '../../../ucags-crm-d8465dffdfea.json'),
+      : null,
     serviceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
     privateKey: process.env.GOOGLE_PRIVATE_KEY
   },

@@ -31,28 +31,7 @@ async function authenticate() {
 
   let auth;
 
-  // Option 1: Use service account JSON file
-  if (config.google.serviceAccountFile) {
-    const keyFilePath = path.resolve(config.google.serviceAccountFile);
-    
-    if (fs.existsSync(keyFilePath)) {
-      const credentials = require(keyFilePath);
-      auth = new google.auth.JWT(
-        credentials.client_email,
-        null,
-        credentials.private_key,
-        scopes
-      );
-      
-      await auth.authorize();
-      console.log(`✓ Authenticated using service account file: ${keyFilePath}`);
-      return auth;
-    } else {
-      console.warn(`Service account file not found: ${keyFilePath}`);
-    }
-  }
-
-  // Option 2: Use environment variables
+  // Option 1 (recommended for Vercel): Use environment variables
   if (config.google.serviceAccountEmail && config.google.privateKey) {
     // Normalize values (Vercel env import often wraps values in quotes)
     const normalizeEnv = (v) => {
@@ -85,7 +64,30 @@ async function authenticate() {
     return auth;
   }
 
-  throw new Error('No valid Google Service Account configuration found. Please set GOOGLE_APPLICATION_CREDENTIALS or provide service account credentials.');
+  // Option 2 (local/dev only): Use service account JSON file
+  if (config.google.serviceAccountFile) {
+    const keyFilePath = path.resolve(config.google.serviceAccountFile);
+
+    if (fs.existsSync(keyFilePath)) {
+      const credentials = require(keyFilePath);
+      auth = new google.auth.JWT(
+        credentials.client_email,
+        null,
+        credentials.private_key,
+        scopes
+      );
+
+      await auth.authorize();
+      console.log(`✓ Authenticated using service account file: ${keyFilePath}`);
+      return auth;
+    } else {
+      console.warn(`Service account file not found: ${keyFilePath}`);
+    }
+  }
+
+  throw new Error(
+    'No valid Google Service Account configuration found. Set GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_PRIVATE_KEY (recommended), or GOOGLE_APPLICATION_CREDENTIALS for local development.'
+  );
 }
 
 /**
