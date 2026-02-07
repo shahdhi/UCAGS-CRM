@@ -127,21 +127,18 @@ async function showDashboard() {
         console.log('  Body has admin class:', document.body.classList.contains('admin'));
     }
     
-    // Load batches and setup navigation
-    await loadBatchesMenu();
-    
-    // Setup navigation
-    setupNavigation();
-    
-    // Setup event listeners
-    setupEventListeners();
-    
-    // Setup staff management
-    setupUserManagement();
-    
-    // Setup URL routing
-    setupRouting();
-    
+    // Setup navigation/event listeners immediately so sidebar is clickable even if API calls are slow
+    if (!window.__navInitialized) {
+        setupNavigation();
+        setupEventListeners();
+        setupUserManagement();
+        setupRouting();
+        window.__navInitialized = true;
+    }
+
+    // Load batches (admin) in background; do not block UI interactivity
+    loadBatchesMenu();
+
     // Initialize counts
     updateEnquiriesBadge();
 }
