@@ -4,11 +4,11 @@
 let app;
 
 module.exports = async (req, res) => {
-  // Lazy-load the Express app so module-load crashes can be caught and returned as JSON
-  if (!app) {
-    app = require('../backend/index');
-  }
   try {
+    // Lazy-load the Express app so module-load crashes can be caught and returned as JSON
+    if (!app) {
+      app = require('../backend/index');
+    }
     // Depending on the runtime, req.url may be "/leads" (without /api) or "/api/leads".
     // Our Express app registers routes under "/api/*", so normalize to include "/api".
     if (req.url && !req.url.startsWith('/api')) {
