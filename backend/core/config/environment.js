@@ -5,11 +5,17 @@
 
 const path = require('path');
 
-// Load .env from parent directory (root of project)
-// Force override=true to ensure our .env takes precedence
+// Load .env for local development only.
+// On Vercel, environment variables are provided by the platform and should not be overridden.
 const envPath = path.resolve(__dirname, '../../../.env');
-require('dotenv').config({ path: envPath, override: true });
-console.log('🔧 Loaded .env from:', envPath);
+const isVercel = !!process.env.VERCEL;
+
+if (!isVercel) {
+  require('dotenv').config({ path: envPath });
+  console.log('🔧 Loaded .env from:', envPath);
+} else {
+  console.log('🔧 Running on Vercel - using platform environment variables');
+}
 
 const config = {
   // Server Configuration

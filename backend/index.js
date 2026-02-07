@@ -23,6 +23,11 @@ initializeSupabaseAdmin();
 
 const app = express();
 
+// Trust proxy when running behind Vercel/other reverse proxies (needed for secure cookies)
+if (process.env.VERCEL) {
+  app.set('trust proxy', 1);
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json());
