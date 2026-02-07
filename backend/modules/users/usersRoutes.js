@@ -23,7 +23,7 @@ let mockUsers = [
   {
     id: '2',
     email: 'officer@ucags.edu.lk',
-    name: 'Admissions Officer',
+    name: 'Academic Advisor',
     role: 'officer',
     created_at: new Date().toISOString(),
     last_sign_in_at: new Date().toISOString(),

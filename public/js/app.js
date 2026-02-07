@@ -114,7 +114,7 @@ async function showDashboard() {
     document.getElementById('sidebarUserName').textContent = currentUser.name;
     document.getElementById('welcomeUserName').textContent = currentUser.name;
     
-    const userRole = currentUser.role === 'admin' ? 'Administrator' : 'Admissions Officer';
+    const userRole = currentUser.role === 'admin' ? 'Administrator' : 'Academic Advisor';
     document.getElementById('sidebarUserRole').textContent = userRole;
     
     // Show/hide admin features

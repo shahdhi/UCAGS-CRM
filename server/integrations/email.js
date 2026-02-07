@@ -37,7 +37,7 @@ const templates = {
         <br>
         <p>Best regards,</p>
         <p><strong>${officerName}</strong><br>
-        Admissions Officer<br>
+        Academic Advisor<br>
         UCAGS - Universal College of Applied & General Studies</p>
       </div>
     `
