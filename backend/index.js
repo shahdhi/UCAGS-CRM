@@ -111,9 +111,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server
+// Start server (only when running directly; Vercel imports the app as a handler)
 const PORT = config.server.port;
-app.listen(PORT, () => {
+if (require.main === module) {
+  app.listen(PORT, () => {
   console.log('');
   console.log('=================================================');
   console.log('🚀 UCAGS CRM Server Started');
@@ -131,6 +132,7 @@ app.listen(PORT, () => {
   console.log('  ⊙ Students (Placeholder)');
   console.log('  ⊙ Analytics (Placeholder)');
   console.log('');
-});
+  });
+}
 
 module.exports = app;
