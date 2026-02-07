@@ -6,8 +6,6 @@
 const express = require('express');
 const router = express.Router();
 const { google } = require('googleapis');
-const path = require('path');
-require('dotenv').config();
 
 /**
  * POST /api/leads/create-batch
@@ -40,14 +38,40 @@ router.post('/create-batch', async (req, res) => {
       });
     }
 
-    const SPREADSHEET_ID = process.env.SHEET_ID;
-    const SERVICE_ACCOUNT_FILE = process.env.GOOGLE_APPLICATION_CREDENTIALS || './ucags-crm-d8465dffdfea.json';
+    const SPREADSHEET_ID = process.env.SHEET_ID || process.env.LEADS_SHEET_ID;
+    if (!SPREADSHEET_ID) {
+      return res.status(500).json({
+        success: false,
+        error: 'Missing SHEET_ID (or LEADS_SHEET_ID) environment variable'
+      });
+    }
 
-    // Authenticate
-    const auth = new google.auth.GoogleAuth({
-      keyFile: path.resolve(SERVICE_ACCOUNT_FILE),
-      scopes: ['https://www.googleapis.com/auth/spreadsheets']
-    });
+    const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    let privateKey = process.env.GOOGLE_PRIVATE_KEY;
+
+    if (!serviceAccountEmail || !privateKey) {
+      return res.status(500).json({
+        success: false,
+        error: 'Missing GOOGLE_SERVICE_ACCOUNT_EMAIL / GOOGLE_PRIVATE_KEY environment variables'
+      });
+    }
+
+    // Normalize private key newlines (Vercel env import uses \n)
+    privateKey = String(privateKey).trim();
+    if ((privateKey.startsWith('"') && privateKey.endsWith('"')) || (privateKey.startsWith("'") && privateKey.endsWith("'"))) {
+      privateKey = privateKey.slice(1, -1);
+    }
+    privateKey = privateKey.replace(/\\n/g, '\n').replace(/\r\n/g, '\n');
+
+    // Authenticate with JWT (works on Vercel without a JSON key file)
+    const auth = new google.auth.JWT(
+      serviceAccountEmail,
+      null,
+      privateKey,
+      ['https://www.googleapis.com/auth/spreadsheets']
+    );
+
+    await auth.authorize();
 
     const sheets = google.sheets({ version: 'v4', auth });
 
