@@ -199,6 +199,13 @@ async function loadLeads(silentRefresh = false) {
         
         renderLeadsTable();
         console.log(`✓ Loaded ${currentLeads.length} personal leads`);
+
+      // Officer batch filtering (batch value comes from officer sheet column H)
+      const batchFilter = window.officerBatchFilter;
+      if (batchFilter && batchFilter !== 'all') {
+        currentLeads = currentLeads.filter(l => (l.batch || '').toLowerCase() === batchFilter.toLowerCase());
+        console.log(`🔎 Applied officer batch filter "${batchFilter}": ${currentLeads.length} leads`);
+      }
         
       } catch (error) {
         console.error('Error loading personal leads:', error);

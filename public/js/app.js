@@ -139,8 +139,81 @@ async function showDashboard() {
     // Load batches (admin) in background; do not block UI interactivity
     loadBatchesMenu();
 
+    // Load officer batch submenus (officer-only) in background
+    loadOfficerLeadsBatchesMenu();
+
     // Initialize counts
     updateEnquiriesBadge();
+}
+
+// Load officer leads batches dynamically (officer-only)
+// Uses the officer's personal leads sheet (no new sheet; batch comes from the Batch column in that sheet).
+async function loadOfficerLeadsBatchesMenu() {
+    try {
+        if (!currentUser || currentUser.role === 'admin') {
+            // Admin uses the admin batch system (separate sheets)
+            return;
+        }
+
+        // Default filter
+        window.officerBatchFilter = window.officerBatchFilter || 'all';
+
+        const leadsMenu = document.getElementById('officerLeadsBatchesMenu');
+        const mgmtMenu = document.getElementById('officerLeadManagementBatchesMenu');
+        if (!leadsMenu || !mgmtMenu) return;
+
+        // Keep the first item ("All") and clear the rest
+        const keepLeadsAll = leadsMenu.querySelector('a[data-page="leads-myLeads"]');
+        const keepMgmtAll = mgmtMenu.querySelector('a[data-page="lead-management"]');
+        leadsMenu.innerHTML = '';
+        mgmtMenu.innerHTML = '';
+        if (keepLeadsAll) leadsMenu.appendChild(keepLeadsAll);
+        if (keepMgmtAll) mgmtMenu.appendChild(keepMgmtAll);
+
+        // Fetch officer's leads to discover available batches
+        const response = await fetch(`/api/user-leads/${encodeURIComponent(currentUser.name)}`);
+        const data = await response.json();
+        const leads = (data && data.leads) ? data.leads : [];
+
+        const batches = Array.from(new Set(
+            leads
+                .map(l => (l.batch || '').trim())
+                .filter(b => b)
+        ));
+
+        // Sort batches in a friendly way (Batch 2, Batch 10)
+        batches.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+        // Helper to create a batch nav link
+        const createBatchLink = (page, label) => {
+            const a = document.createElement('a');
+            a.href = '#';
+            a.className = 'nav-subitem';
+            a.dataset.page = page;
+            a.innerHTML = `
+                <i class="fas fa-layer-group"></i>
+                <span>${label}</span>
+            `;
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.location.hash = page;
+                navigateToPage(page);
+                closeMobileMenu();
+            });
+            return a;
+        };
+
+        batches.forEach(batchName => {
+            // My Leads -> leads-myLeads-batch-<slug>
+            const slug = encodeURIComponent(batchName);
+            leadsMenu.appendChild(createBatchLink(`leads-myLeads-batch-${slug}`, batchName));
+            mgmtMenu.appendChild(createBatchLink(`lead-management-batch-${slug}`, batchName));
+        });
+
+        console.log(`✓ Loaded ${batches.length} officer batch tabs`);
+    } catch (error) {
+        console.error('Error loading officer batch menus:', error);
+    }
 }
 
 // Load batches dynamically from spreadsheet
@@ -401,7 +474,7 @@ async function navigateToPage(page) {
     });
     
     // Reset Lead Management initialization flag when leaving the page
-    if (window.resetLeadManagementInit && page !== 'lead-management') {
+    if (window.resetLeadManagementInit && !(page === 'lead-management' || page.startsWith('lead-management-batch-'))) {
         window.resetLeadManagementInit();
     }
     
@@ -418,9 +491,14 @@ async function navigateToPage(page) {
             // Update title based on page
             const titleElement = document.getElementById('leadsViewTitle');
             if (titleElement) {
-                if (page === 'leads-myLeads') {
-                    titleElement.textContent = 'My Leads';
-                } else {
+                if (page === 'leads-myLeads' || page.startsWith('leads-myLeads-batch-')) {
+                    const batchLabel = (window.officerBatchFilter && window.officerBatchFilter !== 'all')
+                        ? ` (${window.officerBatchFilter})`
+                        : '';
+                    titleElement.textContent = `My Leads${batchLabel}`;
+                } else { 
+                    // Admin batch pages
+
                     const batchName = page.replace('leads-', '');
                     const formattedName = batchName.charAt(0).toUpperCase() + batchName.slice(1);
                     titleElement.textContent = `${formattedName} Leads`;
@@ -454,7 +532,8 @@ async function navigateToPage(page) {
             loadEnquiries();
             break;
         case 'leads-myLeads':
-            // Officer's personal leads page
+            // Officer's personal leads page (all batches)
+            window.officerBatchFilter = 'all';
             if (window.initLeadsPage) {
                 window.initLeadsPage('myLeads');
             }
@@ -465,12 +544,32 @@ async function navigateToPage(page) {
             }
             break;
         case 'lead-management':
+            window.officerBatchFilter = 'all';
             if (window.initLeadManagementPage) {
                 await window.initLeadManagementPage();
             }
             break;
         default:
-            // Handle dynamic batch pages
+            // Officer: handle per-batch pages (filtering personal leads)
+            if (page.startsWith('leads-myLeads-batch-')) {
+                const slug = page.replace('leads-myLeads-batch-', '');
+                window.officerBatchFilter = decodeURIComponent(slug);
+                if (window.initLeadsPage) {
+                    window.initLeadsPage('myLeads');
+                }
+                break;
+            }
+
+            if (page.startsWith('lead-management-batch-')) {
+                const slug = page.replace('lead-management-batch-', '');
+                window.officerBatchFilter = decodeURIComponent(slug);
+                if (window.initLeadManagementPage) {
+                    await window.initLeadManagementPage();
+                }
+                break;
+            }
+
+            // Admin: handle dynamic batch pages
             if (page.startsWith('leads-')) {
                 const batchName = page.replace('leads-', '');
                 const formattedName = batchName.charAt(0).toUpperCase() + batchName.slice(1);

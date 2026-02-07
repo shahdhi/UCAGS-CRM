@@ -78,6 +78,13 @@ async function loadLeadManagement() {
     
     managementLeads = data.leads || [];
     console.log('📦 Raw leads data:', managementLeads);
+
+    // Officer batch filtering (batch value comes from officer sheet column H)
+    const batchFilter = window.officerBatchFilter;
+    if (batchFilter && batchFilter !== 'all') {
+      managementLeads = managementLeads.filter(l => (l.batch || '').toLowerCase() === batchFilter.toLowerCase());
+      console.log(`🔎 Applied officer batch filter "${batchFilter}": ${managementLeads.length} leads`);
+    }
     
     // Add mock lead if no leads exist (for testing)
     if (managementLeads.length === 0) {

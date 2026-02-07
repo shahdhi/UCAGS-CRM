@@ -99,17 +99,36 @@
                     </div>
                 </div>
 
-                <!-- Leads for Officers: Simple link without batches -->
-                <a href="#" class="nav-item officer-only" data-page="leads-myLeads" style="display: none;">
-                    <i class="fas fa-users"></i>
-                    <span>My Leads</span>
-                </a>
+                <!-- Leads for Officers: grouped by batch (no new sheets, just filter by Batch column) -->
+                <div class="nav-section officer-only" id="officerLeadsSection">
+                    <div class="nav-section-header">
+                        <i class="fas fa-users"></i>
+                        <span>My Leads</span>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="nav-submenu" id="officerLeadsBatchesMenu">
+                        <a href="#" class="nav-subitem" data-page="leads-myLeads">
+                            <i class="fas fa-list"></i>
+                            <span>All</span>
+                        </a>
+                        <!-- Batch subitems injected dynamically -->
+                    </div>
+                </div>
                 
-                <!-- Lead Management for Officers -->
-                <a href="#" class="nav-item officer-only" data-page="lead-management" style="display: none;">
-                    <i class="fas fa-tasks"></i>
-                    <span>Lead Management</span>
-                </a>
+                <div class="nav-section officer-only" id="officerLeadManagementSection">
+                    <div class="nav-section-header">
+                        <i class="fas fa-tasks"></i>
+                        <span>Lead Management</span>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="nav-submenu" id="officerLeadManagementBatchesMenu">
+                        <a href="#" class="nav-subitem" data-page="lead-management">
+                            <i class="fas fa-list"></i>
+                            <span>All</span>
+                        </a>
+                        <!-- Batch subitems injected dynamically -->
+                    </div>
+                </div>
 
                 <!-- Leads for Admins: With batch submenu -->
                 <div class="nav-section admin-only">

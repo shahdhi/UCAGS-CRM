@@ -214,7 +214,12 @@ async function updateLead(leadId, updates, batch) {
     const oldAssignedTo = lead.assignedTo;
     
     // Merge updates with existing data
+    // Also persist the batch context on the lead object so officer personal sheets
+    // can display leads grouped by batch (stored in officer sheet column H).
     const updatedLead = { ...lead, ...updates };
+    if (batch && batch !== 'all') {
+      updatedLead.batch = batch;
+    }
     
     // Convert to row array (columns A-J)
     const row = [
@@ -261,6 +266,10 @@ async function updateLead(leadId, updates, batch) {
       // Copy to new officer's sheet (if there's a new assignment)
       if (updates.assignedTo && updates.assignedTo !== '') {
         console.log(`📋 Lead assigned to: ${updates.assignedTo} (was: ${oldAssignedTo || 'unassigned'})`);
+        // Ensure batch context is carried into the officer sheet (column H there)
+        if (batch && batch !== 'all') {
+          updatedLead.batch = batch;
+        }
         const copyResult = await copyLeadToOfficerSheet(updates.assignedTo, updatedLead);
         
         if (copyResult.success) {

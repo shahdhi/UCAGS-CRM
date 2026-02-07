@@ -1236,6 +1236,11 @@ body:not(.admin) .officer-only {
     display: flex !important;
 }
 
+/* Officer nav sections should behave like sections (not flex rows) */
+body:not(.admin) .nav-section.officer-only {
+    display: block !important;
+}
+
 /* Ensure content views also show/hide properly */
 body:not(.admin) .content-view.officer-only {
     display: block !important;
