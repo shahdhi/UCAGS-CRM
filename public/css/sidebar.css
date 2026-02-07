@@ -67,8 +67,16 @@
 
 .sidebar-logo {
     display: flex;
-    align-items: center;
-    gap: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.sidebar-brand-subtitle {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.2;
 }
 
 /* Brand logo inside sidebar header */
