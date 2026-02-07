@@ -54,15 +54,27 @@ async function authenticate() {
 
   // Option 2: Use environment variables
   if (config.google.serviceAccountEmail && config.google.privateKey) {
-    let privateKey = config.google.privateKey;
-    
-    // Handle escaped newlines
+    // Normalize values (Vercel env import often wraps values in quotes)
+    const normalizeEnv = (v) => {
+      if (v == null) return v;
+      let s = String(v).trim();
+      // Strip matching surrounding quotes
+      if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+        s = s.slice(1, -1);
+      }
+      return s;
+    };
+
+    const serviceAccountEmail = normalizeEnv(config.google.serviceAccountEmail);
+    let privateKey = normalizeEnv(config.google.privateKey);
+
+    // Handle escaped newlines and Windows newlines
     if (privateKey) {
-      privateKey = privateKey.replace(/\\n/g, '\n');
+      privateKey = privateKey.replace(/\\n/g, '\n').replace(/\r\n/g, '\n');
     }
 
     auth = new google.auth.JWT(
-      config.google.serviceAccountEmail,
+      serviceAccountEmail,
       null,
       privateKey,
       scopes
