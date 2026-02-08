@@ -220,6 +220,24 @@
 
         <!-- Main Content -->
         <div class="main-wrapper">
+
+            <!-- WhatsApp Drawer (in-app side panel) -->
+            <div id="waDrawerOverlay" class="wa-drawer-overlay" style="display:none;"></div>
+            <aside id="waDrawer" class="wa-drawer" aria-hidden="true">
+                <div class="wa-drawer-header">
+                    <div class="wa-drawer-title">
+                        <i class="fab fa-whatsapp" style="color:#25D366;"></i>
+                        <span>WhatsApp</span>
+                    </div>
+                    <button id="waDrawerCloseBtn" class="wa-drawer-close" type="button" aria-label="Close WhatsApp">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="waDrawerBody" class="wa-drawer-body">
+                    <!-- WhatsApp inbox injected here -->
+                </div>
+            </aside>
+            <!-- /WhatsApp Drawer -->
             <!-- Top Bar -->
             <div class="top-bar">
                 <div class="top-bar-left">
@@ -1018,6 +1036,8 @@
     <script src="/frontend/pages/leads/leadsPage.js?v=3"></script>
     <script src="/frontend/pages/leads/leadManagement.js?v=3"></script>
     <script src="/frontend/pages/receipts/receiptsPage.js?v=3"></script>
+    <script src="/frontend/pages/whatsapp/whatsappInbox.js?v=1"></script>
+    <script src="/frontend/pages/whatsapp/waDrawer.js?v=1"></script>
     <script src="/frontend/pages/whatsapp/whatsappPanel.js?v=1"></script>
     
     <!-- Main App -->

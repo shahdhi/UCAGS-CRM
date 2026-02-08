@@ -380,13 +380,16 @@
   };
 
   window.WAInbox = {
-    selectConversation
+    selectConversation,
+    stop: () => stopPolling(),
+    start: () => startPolling()
   };
 
   // Stop polling when navigating away (best effort)
+  // If WhatsApp is used inside the drawer, we don't rely on hash routing.
   window.addEventListener('hashchange', () => {
     const page = (window.location.hash || '').replace('#', '');
-    if (page !== 'whatsapp-inbox') {
+    if (page !== 'whatsapp-inbox' && !window.WhatsAppDrawer?.isOpen?.()) {
       stopPolling();
     }
   });

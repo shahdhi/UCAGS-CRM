@@ -1342,6 +1342,243 @@ body.admin .content-view.officer-only {
     scroll-behavior: smooth;
 }
 
+/* WhatsApp Drawer + Inbox Styles */
+.wa-drawer-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 2000;
+}
+
+.wa-drawer{
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: min(520px, 92vw);
+  background: #ffffff;
+  z-index: 2001;
+  transform: translateX(110%);
+  transition: transform .22s ease;
+  box-shadow: -10px 0 30px rgba(0,0,0,0.18);
+  display: flex;
+  flex-direction: column;
+}
+
+.wa-drawer.open{
+  transform: translateX(0);
+}
+
+.wa-drawer-header{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #eef2f7;
+  background: #f8fafc;
+}
+
+.wa-drawer-title{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.wa-drawer-close{
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  cursor: pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.wa-drawer-body{
+  flex: 1;
+  min-height: 0;
+  display:flex;
+}
+
+/* Make drawer feel like a WebView */
+body.wa-drawer-open{
+  overflow: hidden;
+}
+
+/* WhatsApp-like inbox layout */
+.wa-web{
+  width: 100%;
+  display:flex;
+  min-height: 0;
+  background: #fff;
+}
+
+.wa-web-left{
+  width: 44%;
+  min-width: 220px;
+  border-right: 1px solid #eef2f7;
+  display:flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.wa-web-right{
+  flex: 1;
+  display:flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #efeae2;
+}
+
+.wa-web-topbar{
+  padding: 10px;
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  background: #f0f2f5;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.wa-web-search{
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 999px;
+  padding: 9px 12px;
+  font-size: 13px;
+  outline: none;
+}
+
+.wa-web-convlist{
+  overflow-y: auto;
+  min-height: 0;
+  background: #fff;
+}
+
+.wa-web-conv{
+  display:flex;
+  gap: 10px;
+  padding: 10px;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.wa-web-conv:hover{ background: #f9fafb; }
+.wa-web-conv.active{ background: #e7f3ff; }
+
+.wa-web-avatar{
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #dbeafe;
+  color: #1d4ed8;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight: 800;
+}
+
+.wa-web-conv .name{ font-weight: 700; color:#111827; font-size: 13px; }
+.wa-web-conv .preview{ color:#6b7280; font-size: 12px; white-space:nowrap; overflow:hidden; text-overflow: ellipsis; }
+.wa-web-conv .meta{ color:#6b7280; font-size: 11px; }
+
+.wa-thread-header{
+  padding: 10px 12px;
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #f0f2f5;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.wa-thread-header .who{ display:flex; gap: 10px; align-items:center; min-width:0; }
+
+.wa-thread{
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  background-image: radial-gradient(rgba(0,0,0,0.03) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
+.wa-bubble-row{ display:flex; margin: 8px 0; }
+.wa-bubble-row.wa-in{ justify-content: flex-start; }
+.wa-bubble-row.wa-out{ justify-content: flex-end; }
+
+.wa-bubble{
+  max-width: 78%;
+  background: white;
+  border-radius: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 1px 1px rgba(0,0,0,0.06);
+  font-size: 13px;
+}
+
+.wa-out .wa-bubble{ background: #dcf8c6; }
+
+.wa-time{
+  margin-top: 6px;
+  font-size: 11px;
+  color: rgba(17,24,39,0.6);
+  text-align: right;
+}
+
+.wa-doc{
+  display:inline-block;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.75);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 8px;
+  color: #111827;
+  text-decoration: none;
+}
+
+.wa-compose{
+  padding: 10px;
+  background: #f0f2f5;
+  border-top: 1px solid #e5e7eb;
+  display:flex;
+  gap: 8px;
+  align-items:center;
+}
+
+.wa-compose input{
+  flex:1;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  padding: 10px 12px;
+  font-size: 13px;
+  outline: none;
+}
+
+.wa-compose button{
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  background: #22c55e;
+  color: white;
+}
+
+.wa-compose button.secondary{
+  background: #111827;
+}
+
+/* On smaller screens use full width thread */
+@media (max-width: 520px){
+  .wa-web-left{ display:none; }
+  .wa-web-right{ width: 100%; }
+}
+
 /* Selection Styles */
 ::selection {
     background: rgba(139, 92, 246, 0.2);

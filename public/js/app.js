@@ -398,6 +398,14 @@ function setupNavigation() {
             
             if (!page) return;
             
+            // WhatsApp should open in an in-app side drawer (not a separate page)
+            if (page === 'whatsapp' && window.WhatsAppDrawer) {
+                window.WhatsAppDrawer.open();
+                // Do not change hash; keep user on current page
+                closeMobileMenu();
+                return;
+            }
+
             // Update URL hash
             window.location.hash = page;
             
