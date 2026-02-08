@@ -167,6 +167,16 @@
                     <span class="badge badge-secondary">Soon</span>
                 </a>
 
+                <a href="#" class="nav-item" data-page="whatsapp-inbox">
+                    <i class="fab fa-whatsapp"></i>
+                    <span>WhatsApp Inbox</span>
+                </a>
+
+                <a href="#" class="nav-item admin-only" data-page="whatsapp-admin">
+                    <i class="fab fa-whatsapp"></i>
+                    <span>WhatsApp Monitor</span>
+                </a>
+
                 <a href="#" class="nav-item nav-disabled" data-page="gmail" title="Coming Soon">
                     <i class="fas fa-envelope"></i>
                     <span>Gmail</span>
@@ -203,15 +213,6 @@
                     <span>Receipts</span>
                 </a>
 
-                <a href="#" class="nav-item" data-page="whatsapp-inbox">
-                    <i class="fab fa-whatsapp"></i>
-                    <span>WhatsApp Inbox</span>
-                </a>
-
-                <a href="#" class="nav-item admin-only" data-page="whatsapp-admin">
-                    <i class="fab fa-whatsapp"></i>
-                    <span>WhatsApp Monitor</span>
-                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -771,40 +772,106 @@
                     </div>
                 </div>
 
-                <div style="display:grid; grid-template-columns: 360px 1fr; gap: 14px; height: calc(100vh - 220px); min-height: 520px;">
-                    <!-- Left: conversation list -->
-                    <div style="background:#fff; border:1px solid #eee; border-radius: 10px; overflow:hidden; display:flex; flex-direction:column;">
-                        <div style="padding: 10px; border-bottom:1px solid #eee;">
-                            <input id="waInboxSearch" class="form-control" placeholder="Search by name or phone" />
-                        </div>
-                        <div id="waInboxConversations" style="overflow:auto; flex:1; background:#fafafa;"></div>
-                    </div>
-
-                    <!-- Right: thread -->
-                    <div style="background:#fff; border:1px solid #eee; border-radius: 10px; overflow:hidden; display:flex; flex-direction:column;">
-                        <div style="padding: 10px 12px; border-bottom:1px solid #eee; background:#25D366; color:white; display:flex; align-items:center; justify-content:space-between; gap: 10px;">
-                            <div id="waInboxThreadHeader">
-                                <div style="font-weight:700;">Select a chat</div>
-                                <div style="font-size:12px; opacity:.9;">&nbsp;</div>
+                <div class="wa-web" style="height: calc(100vh - 220px); min-height: 560px;">
+                    <div class="wa-web-grid">
+                        <!-- Left: conversation list -->
+                        <div class="wa-web-left">
+                            <div class="wa-web-left-header">
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <div class="wa-web-avatar">WA</div>
+                                    <div>
+                                        <div style="font-weight:700;">WhatsApp</div>
+                                        <div style="font-size:12px; color:#667781;">Inbox</div>
+                                    </div>
+                                </div>
                             </div>
-                            <button id="waInboxBrochureBtn" class="btn btn-sm btn-light" type="button">
-                                <i class="fas fa-file-pdf"></i> Send Brochure
-                            </button>
+
+                            <div class="wa-web-search">
+                                <i class="fas fa-search" style="color:#667781;"></i>
+                                <input id="waInboxSearch" placeholder="Search by name or phone" />
+                            </div>
+
+                            <div id="waInboxConversations" class="wa-web-conv-list"></div>
                         </div>
 
-                        <div id="waInboxThread" style="flex:1; overflow:auto; background:#f5f5f5; padding: 10px 12px;"></div>
+                        <!-- Right: thread -->
+                        <div class="wa-web-right">
+                            <div class="wa-web-right-header">
+                                <div id="waInboxThreadHeader" class="wa-web-thread-title">
+                                    <div style="font-weight:700;">Select a chat</div>
+                                    <div style="font-size:12px; color:#667781;">&nbsp;</div>
+                                </div>
 
-                        <div style="display:flex; gap: 8px; padding: 10px; background:#fff; border-top:1px solid #eee;">
-                            <input id="waInboxMessageInput" class="form-control" placeholder="Type a message…" style="flex:1;" />
-                            <button id="waInboxSendBtn" class="btn btn-success" type="button"><i class="fas fa-paper-plane"></i></button>
+                                <div class="wa-web-actions">
+                                    <button id="waInboxBrochureBtn" class="wa-web-icon-btn" type="button" title="Send brochure">
+                                        <i class="fas fa-file-pdf"></i>
+                                    </button>
+                                    <button id="waInboxAttachBtn" class="wa-web-icon-btn" type="button" title="Attach file">
+                                        <i class="fas fa-paperclip"></i>
+                                    </button>
+                                    <input id="waInboxFileInput" type="file" style="display:none" accept="application/pdf,image/*" />
+                                </div>
+                            </div>
+
+                            <div id="waInboxThread" class="wa-web-thread"></div>
+
+                            <div class="wa-web-compose">
+                                <button id="waInboxEmojiBtn" class="wa-web-icon-btn" type="button" title="Emoji (coming soon)" disabled>
+                                    <i class="far fa-smile"></i>
+                                </button>
+                                <input id="waInboxMessageInput" placeholder="Type a message" />
+                                <button id="waInboxSendBtn" class="wa-web-send" type="button" title="Send">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <style>
-                    .wa-inbox-conv { padding: 10px 12px; border-bottom: 1px solid #eee; cursor:pointer; background:#fff; }
-                    .wa-inbox-conv:hover { background:#f3f7ff; }
-                    .wa-inbox-conv.active { background:#e8f5e9; }
+                    /* WhatsApp Web-ish styling */
+                    .wa-web { background:#0b141a; border-radius: 10px; overflow:hidden; border: 1px solid #1f2c33; }
+                    .wa-web-grid { display:grid; grid-template-columns: 360px 1fr; height:100%; }
+                    .wa-web-left { background:#111b21; display:flex; flex-direction:column; border-right: 1px solid #1f2c33; }
+                    .wa-web-right { background:#0b141a; display:flex; flex-direction:column; }
+
+                    .wa-web-left-header, .wa-web-right-header { padding: 10px 12px; background:#202c33; color:#e9edef; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+                    .wa-web-avatar { width:36px; height:36px; border-radius:50%; background:#2a3942; display:flex; align-items:center; justify-content:center; font-weight:700; color:#e9edef; }
+
+                    .wa-web-search { display:flex; gap:10px; align-items:center; padding: 8px 12px; background:#111b21; border-bottom:1px solid #1f2c33; }
+                    .wa-web-search input { width:100%; padding: 10px 12px; border-radius: 8px; border:1px solid #1f2c33; background:#202c33; color:#e9edef; outline:none; }
+
+                    .wa-web-conv-list { overflow:auto; flex:1; }
+                    .wa-web-conv { padding: 10px 12px; border-bottom: 1px solid #1f2c33; cursor:pointer; display:flex; gap:10px; }
+                    .wa-web-conv:hover { background:#111f27; }
+                    .wa-web-conv.active { background:#2a3942; }
+                    .wa-web-conv .name { color:#e9edef; font-weight:700; }
+                    .wa-web-conv .meta { color:#8696a0; font-size:12px; }
+                    .wa-web-conv .preview { color:#8696a0; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+                    .wa-web-thread { flex:1; overflow:auto; padding: 14px 16px; background:
+                        radial-gradient(circle at 0 0, rgba(11,20,26,0.9), rgba(11,20,26,0.9)),
+                        linear-gradient(rgba(11,20,26,0.96), rgba(11,20,26,0.96));
+                    }
+
+                    .wa-bubble-row { display:flex; margin: 6px 0; }
+                    .wa-bubble { max-width: 72%; padding: 7px 9px; border-radius: 7.5px; position:relative; box-shadow: 0 1px 0.5px rgba(0,0,0,.13); }
+                    .wa-in { justify-content:flex-start; }
+                    .wa-in .wa-bubble { background:#202c33; color:#e9edef; border-top-left-radius: 0; }
+                    .wa-out { justify-content:flex-end; }
+                    .wa-out .wa-bubble { background:#005c4b; color:#e9edef; border-top-right-radius: 0; }
+                    .wa-time { font-size:11px; color:#aebac1; opacity:.9; margin-top: 2px; text-align:right; }
+                    .wa-doc { color:#e9edef; text-decoration: underline; }
+
+                    .wa-web-actions { display:flex; gap:8px; }
+                    .wa-web-icon-btn { width:36px; height:36px; border-radius:50%; border: none; background: transparent; color:#aebac1; cursor:pointer; }
+                    .wa-web-icon-btn:hover { background:#2a3942; color:#e9edef; }
+                    .wa-web-icon-btn:disabled { opacity:.5; cursor:not-allowed; }
+
+                    .wa-web-compose { display:flex; gap:10px; align-items:center; padding: 10px 12px; background:#202c33; border-top:1px solid #1f2c33; }
+                    .wa-web-compose input { flex:1; padding: 10px 12px; border-radius: 8px; border:1px solid #1f2c33; background:#2a3942; color:#e9edef; outline:none; }
+                    .wa-web-send { width:42px; height:42px; border-radius:50%; border:none; background:#00a884; color:#0b141a; cursor:pointer; }
+                    .wa-web-send:hover { filter: brightness(1.05); }
                 </style>
             </div>
 

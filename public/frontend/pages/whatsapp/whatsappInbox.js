@@ -63,15 +63,17 @@
       const active = selectedDigits && digits && (selectedDigits.endsWith(digits) || digits.endsWith(selectedDigits));
 
       return `
-        <div class="wa-inbox-conv ${active ? 'active' : ''}" 
+        <div class="wa-web-conv ${active ? 'active' : ''}" 
              onclick="window.WAInbox.selectConversation('${escapeHtml(shortPhone(c))}','${escapeHtml(c.leadName || '')}')">
-          <div style="display:flex; justify-content:space-between; gap:10px;">
-            <div style="font-weight:700;">${escapeHtml(c.leadName || 'Unknown')}</div>
-            <div style="font-size:12px; color:#888; white-space:nowrap;">${escapeHtml(formatTs(c.lastTimestamp))}</div>
+          <div class="wa-web-avatar" style="width:40px;height:40px; flex:0 0 40px;">${escapeHtml((c.leadName || 'L').trim().slice(0,1).toUpperCase())}</div>
+          <div style="flex:1; min-width:0;">
+            <div style="display:flex; justify-content:space-between; gap:10px;">
+              <div class="name" style="min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(c.leadName || 'Unknown')}</div>
+              <div class="meta" style="white-space:nowrap;">${escapeHtml(new Date(c.lastTimestamp).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }))}</div>
+            </div>
+            <div class="preview">${escapeHtml(c.lastPreview || '')}</div>
+            <div class="meta" style="margin-top:2px;">${escapeHtml(shortPhone(c))}</div>
           </div>
-          <div style="font-size:12px; color:#666;">${escapeHtml(shortPhone(c))}</div>
-          <div style="margin-top:6px; font-size:13px; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(c.lastPreview || '')}</div>
-          <div style="margin-top:4px; font-size:11px; color:#999;">${escapeHtml(c.lastDirection || '')}${c.lastAdvisor ? ` • ${escapeHtml(c.lastAdvisor)}` : ''}</div>
         </div>
       `;
     }).join('');
@@ -88,23 +90,32 @@
 
     container.innerHTML = messages.map(m => {
       const isOutbound = m.direction === 'outbound';
-      const align = isOutbound ? 'flex-end' : 'flex-start';
-      const bg = isOutbound ? '#DCF8C6' : '#fff';
-      const meta = `${escapeHtml(m.advisor || (isOutbound ? 'You' : (m.leadName || 'Lead')))} • ${escapeHtml(formatTs(m.timestamp))}`;
+      const rowCls = isOutbound ? 'wa-bubble-row wa-out' : 'wa-bubble-row wa-in';
+
+      const time = (() => {
+        try { return new Date(m.timestamp).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }); } catch { return ''; }
+      })();
+
+      const statusText = m.status ? String(m.status) : '';
+      const ticks = isOutbound
+        ? (statusText === 'read' ? '✓✓' : (statusText === 'delivered' ? '✓✓' : '✓'))
+        : '';
 
       let body = '';
-      if (m.messageType === 'document' && m.documentUrl) {
-        body = `<a href="${escapeHtml(m.documentUrl)}" target="_blank" rel="noopener">📎 Document</a>`;
+      if ((m.messageType === 'image' || (m.messageType === 'document' && /\.(png|jpe?g|webp)$/i.test(m.documentUrl || ''))) && m.documentUrl) {
+        body = `<img src="${escapeHtml(m.documentUrl)}" alt="image" style="max-width:260px; border-radius:6px; display:block;" />${m.text ? `<div style=\"margin-top:6px;\">${escapeHtml(m.text)}</div>` : ''}`;
+      } else if (m.messageType === 'document' && m.documentUrl) {
+        const label = m.documentUrl.split('/').pop() || 'Document';
+        body = `<a class="wa-doc" href="${escapeHtml(m.documentUrl)}" target="_blank" rel="noopener">📎 ${escapeHtml(label)}</a>`;
       } else {
         body = `<div>${escapeHtml(m.text || '')}</div>`;
       }
 
       return `
-        <div style="display:flex; justify-content:${align}; margin: 8px 0;">
-          <div style="max-width: 75%; background:${bg}; border:1px solid #e5e5e5; border-radius: 10px; padding: 8px 10px;">
-            <div style="font-size: 12px; color:#555; margin-bottom: 4px;">${meta}</div>
+        <div class="${rowCls}">
+          <div class="wa-bubble">
             ${body}
-            ${m.status ? `<div style="font-size:11px; color:#888; margin-top:4px; text-align:right;">${escapeHtml(m.status)}</div>` : ''}
+            <div class="wa-time">${escapeHtml(time)} ${isOutbound ? `<span style=\"margin-left:6px;\">${escapeHtml(ticks)}</span>` : ''}</div>
           </div>
         </div>
       `;
@@ -254,6 +265,67 @@
     }
   }
 
+  async function uploadFile(file) {
+    const headers = await getAuthHeaders();
+
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const res = String(reader.result || '');
+        // res is like data:<mime>;base64,<data>
+        const idx = res.indexOf('base64,');
+        if (idx === -1) return reject(new Error('Invalid file encoding'));
+        resolve(res.slice(idx + 7));
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+
+    const res = await fetch('/api/whatsapp/uploads', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        filename: file.name,
+        mimeType: file.type,
+        base64
+      })
+    });
+
+    const json = await res.json().catch(() => ({}));
+    if (!json.success) throw new Error(json.error || 'Upload failed');
+    return json;
+  }
+
+  async function sendAttachment(file) {
+    const phone = state.selectedLeadPhone;
+    if (!phone) {
+      if (window.UI?.showToast) UI.showToast('Select a conversation first', 'warning');
+      return;
+    }
+
+    const up = await uploadFile(file);
+
+    const headers = await getAuthHeaders();
+    const res = await fetch(`/api/whatsapp/leads/${encodeURIComponent(phone)}/attachments`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        url: up.url,
+        filename: file.name,
+        mimeType: up.mimeType || file.type,
+        caption: '',
+        leadName: state.selectedLeadName
+      })
+    });
+
+    const json = await res.json().catch(() => ({}));
+    if (!json.success) throw new Error(json.error || 'Send failed');
+
+    state.lastThreadHash = '';
+    await loadThread(phone);
+    await loadConversations();
+  }
+
   function init() {
     const search = document.getElementById('waInboxSearch');
     if (search) {
@@ -269,6 +341,26 @@
 
     const brochureBtn = document.getElementById('waInboxBrochureBtn');
     if (brochureBtn) brochureBtn.addEventListener('click', sendBrochure);
+
+    const attachBtn = document.getElementById('waInboxAttachBtn');
+    const fileInput = document.getElementById('waInboxFileInput');
+    if (attachBtn && fileInput) {
+      attachBtn.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', async () => {
+        const file = fileInput.files && fileInput.files[0];
+        fileInput.value = '';
+        if (!file) return;
+        try {
+          if (window.UI?.showToast) UI.showToast('Uploading…', 'info');
+          await sendAttachment(file);
+          if (window.UI?.showToast) UI.showToast('Sent', 'success');
+        } catch (e) {
+          console.error(e);
+          if (window.UI?.showToast) UI.showToast(e.message, 'error');
+          else alert(e.message);
+        }
+      });
+    }
 
     const input = document.getElementById('waInboxMessageInput');
     if (input) {

@@ -13,7 +13,7 @@ const crypto = require('crypto');
 
 const { isAuthenticated, isAdmin } = require('../../../server/middleware/auth');
 const { assertLeadAccess } = require('./whatsappAccess');
-const { normalizePhoneToE164, sendTextMessage, sendDocumentMessage } = require('./whatsappClient');
+const { normalizePhoneToE164, sendTextMessage, sendDocumentMessage, sendImageMessage } = require('./whatsappClient');
 const { logMessage, getMessagesForLeadPhone, searchChats, listConversations, getThread } = require('./whatsappLogger');
 const { config } = require('../../core/config/environment');
 
@@ -76,6 +76,56 @@ router.post('/leads/:leadPhone/messages', isAuthenticated, async (req, res) => {
     res.json({ success: true, result });
   } catch (error) {
     console.error('WhatsApp send text error:', error);
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/whatsapp/leads/:leadPhone/attachments
+// body: { url, filename, mimeType, caption, leadName }
+router.post('/leads/:leadPhone/attachments', isAuthenticated, async (req, res) => {
+  try {
+    const { leadPhone } = req.params;
+    const { url, filename, mimeType, caption, leadName } = req.body || {};
+
+    if (!url) return res.status(400).json({ success: false, error: 'url is required' });
+
+    await assertLeadAccess(req, leadPhone);
+
+    const toE164 = normalizePhoneToE164(leadPhone, config.whatsapp.defaultCountryCode);
+
+    const isImage = /^image\//i.test(String(mimeType || '')) || /\.(png|jpe?g|webp)$/i.test(String(url));
+
+    let result;
+    let messageType;
+
+    if (isImage) {
+      result = await sendImageMessage({ to: leadPhone, link: url, caption });
+      messageType = 'image';
+    } else {
+      result = await sendDocumentMessage({ to: leadPhone, link: url, filename: filename || undefined });
+      messageType = 'document';
+    }
+
+    const waMessageId = result?.messages?.[0]?.id || '';
+
+    await logMessage({
+      direction: 'outbound',
+      advisor: req.user?.name || req.user?.email || '',
+      leadName: leadName || '',
+      leadPhoneRaw: leadPhone,
+      leadPhoneE164: toE164,
+      waFrom: config.whatsapp.displayPhoneNumber || '',
+      waTo: toE164,
+      messageType,
+      text: messageType === 'image' ? (caption || '') : '',
+      documentUrl: url,
+      waMessageId,
+      status: 'sent'
+    });
+
+    res.json({ success: true, result, messageType });
+  } catch (error) {
+    console.error('WhatsApp send attachment error:', error);
     res.status(error.status || 500).json({ success: false, error: error.message });
   }
 });

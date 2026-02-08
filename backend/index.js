@@ -92,6 +92,8 @@ app.use('/api/receipts', require('./modules/receipts/receiptsRoutes_v10'));
 
 // WhatsApp messaging (Meta Cloud API)
 app.use('/api/whatsapp', require('./modules/whatsapp/whatsappRoutes'));
+// WhatsApp uploads (attachments)
+app.use('/api/whatsapp', require('./modules/whatsapp/uploadRoutes'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

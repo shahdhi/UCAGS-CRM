@@ -105,8 +105,48 @@ async function sendDocumentMessage({ to, link, filename }) {
   return json;
 }
 
+async function sendImageMessage({ to, link, caption }) {
+  const { phoneNumberId, accessToken, graphApiVersion, defaultCountryCode } = config.whatsapp;
+  if (!phoneNumberId || !accessToken) {
+    throw new Error('WhatsApp configuration missing (WHATSAPP_PHONE_NUMBER_ID / WHATSAPP_ACCESS_TOKEN)');
+  }
+  if (!link) {
+    throw new Error('Image link is required');
+  }
+
+  const toE164 = normalizePhoneToE164(to, defaultCountryCode);
+  const url = `https://graph.facebook.com/${graphApiVersion}/${phoneNumberId}/messages`;
+
+  const payload = {
+    messaging_product: 'whatsapp',
+    to: toE164,
+    type: 'image',
+    image: {
+      link,
+      ...(caption ? { caption } : {})
+    }
+  };
+
+  const res = await getFetch()(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = json?.error?.message || res.statusText;
+    throw new Error(`WhatsApp image send failed: ${msg}`);
+  }
+  return json;
+}
+
 module.exports = {
   normalizePhoneToE164,
   sendTextMessage,
-  sendDocumentMessage
+  sendDocumentMessage,
+  sendImageMessage
 };
