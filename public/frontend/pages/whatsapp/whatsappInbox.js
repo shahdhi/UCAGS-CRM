@@ -170,8 +170,8 @@
     const header = document.getElementById('waInboxThreadHeader');
     if (header) {
       header.innerHTML = `
-        <div style="font-weight:700;">${escapeHtml(state.selectedLeadName || 'Chat')}</div>
-        <div style="font-size:12px; opacity:.9;">${escapeHtml(state.selectedLeadPhone || '')}</div>
+        <div style="font-weight:700; color:#111827;">${escapeHtml(state.selectedLeadName || 'Chat')}</div>
+        <div style="font-size:12px; color:#6b7280;">${escapeHtml(state.selectedLeadPhone || '')}</div>
       `;
     }
 

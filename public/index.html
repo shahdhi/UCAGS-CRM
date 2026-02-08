@@ -764,30 +764,25 @@
             </div>
 
             <!-- Receipts View (Admin Only) -->
-            <div id="whatsapp-inboxView" class="content-view" style="display:none;">
-                <div class="page-header">
-                    <div>
-                        <h2><i class="fab fa-whatsapp" style="color:#25D366;"></i> WhatsApp Inbox</h2>
-                        <p>Manage WhatsApp chats in one place (send/receive manually, like Messenger).</p>
-                    </div>
-                </div>
-
-                <div class="wa-web" style="height: calc(100vh - 220px); min-height: 560px;">
+            <div id="whatsapp-inboxView" class="content-view" style="display:none; padding: 0;">
+                <div class="wa-web wa-web-fill">
                     <div class="wa-web-grid">
                         <!-- Left: conversation list -->
                         <div class="wa-web-left">
                             <div class="wa-web-left-header">
                                 <div style="display:flex; align-items:center; gap:10px;">
-                                    <div class="wa-web-avatar">WA</div>
+                                    <div class="wa-web-avatar" style="background:#e8fff3; color:#16a34a;">
+                                        <i class="fab fa-whatsapp" aria-hidden="true"></i>
+                                    </div>
                                     <div>
                                         <div style="font-weight:700;">WhatsApp</div>
-                                        <div style="font-size:12px; color:#667781;">Inbox</div>
+                                        <div style="font-size:12px; color:#6b7280;">Inbox</div>
                                     </div>
                                 </div>
                             </div>
 
                             <div class="wa-web-search">
-                                <i class="fas fa-search" style="color:#667781;"></i>
+                                <i class="fas fa-search" style="color:#6b7280;"></i>
                                 <input id="waInboxSearch" placeholder="Search by name or phone" />
                             </div>
 
@@ -799,7 +794,7 @@
                             <div class="wa-web-right-header">
                                 <div id="waInboxThreadHeader" class="wa-web-thread-title">
                                     <div style="font-weight:700;">Select a chat</div>
-                                    <div style="font-size:12px; color:#667781;">&nbsp;</div>
+                                    <div style="font-size:12px; color:#6b7280;">&nbsp;</div>
                                 </div>
 
                                 <div class="wa-web-actions">
@@ -829,49 +824,104 @@
                 </div>
 
                 <style>
-                    /* WhatsApp Web-ish styling */
-                    .wa-web { background:#0b141a; border-radius: 10px; overflow:hidden; border: 1px solid #1f2c33; }
+                    /* WhatsApp Inbox - light theme blended with CRM */
+                    #whatsapp-inboxView { display:flex; flex-direction:column; height: 100%; }
+                    #whatsapp-inboxView .wa-web-fill { flex:1; min-height: 520px; }
+                    .wa-web { background:#ffffff; border-radius: 12px; overflow:hidden; border: 1px solid #e6e9ef; box-shadow: 0 6px 18px rgba(20, 20, 43, 0.06); }
                     .wa-web-grid { display:grid; grid-template-columns: 360px 1fr; height:100%; }
-                    .wa-web-left { background:#111b21; display:flex; flex-direction:column; border-right: 1px solid #1f2c33; }
-                    .wa-web-right { background:#0b141a; display:flex; flex-direction:column; }
+                    .wa-web-left { background:#ffffff; display:flex; flex-direction:column; border-right: 1px solid #eef1f6; }
+                    .wa-web-right { background:#ffffff; display:flex; flex-direction:column; }
 
-                    .wa-web-left-header, .wa-web-right-header { padding: 10px 12px; background:#202c33; color:#e9edef; display:flex; align-items:center; justify-content:space-between; gap:12px; }
-                    .wa-web-avatar { width:36px; height:36px; border-radius:50%; background:#2a3942; display:flex; align-items:center; justify-content:center; font-weight:700; color:#e9edef; }
+                    .wa-web-left-header, .wa-web-right-header {
+                        padding: 12px 14px;
+                        background:#ffffff;
+                        color:#1f2937;
+                        display:flex;
+                        align-items:center;
+                        justify-content:space-between;
+                        gap:12px;
+                        border-bottom: 1px solid #eef1f6;
+                    }
+                    .wa-web-avatar {
+                        width:36px;
+                        height:36px;
+                        border-radius:50%;
+                        background:#f3f4f6;
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;
+                        font-weight:700;
+                        color:#111827;
+                    }
 
-                    .wa-web-search { display:flex; gap:10px; align-items:center; padding: 8px 12px; background:#111b21; border-bottom:1px solid #1f2c33; }
-                    .wa-web-search input { width:100%; padding: 10px 12px; border-radius: 8px; border:1px solid #1f2c33; background:#202c33; color:#e9edef; outline:none; }
+                    .wa-web-search { display:flex; gap:10px; align-items:center; padding: 10px 12px; background:#ffffff; border-bottom:1px solid #eef1f6; }
+                    .wa-web-search input {
+                        width:100%;
+                        padding: 10px 12px;
+                        border-radius: 10px;
+                        border:1px solid #e5e7eb;
+                        background:#f9fafb;
+                        color:#111827;
+                        outline:none;
+                    }
+                    .wa-web-search input:focus { border-color:#c7d2fe; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
 
                     .wa-web-conv-list { overflow:auto; flex:1; }
-                    .wa-web-conv { padding: 10px 12px; border-bottom: 1px solid #1f2c33; cursor:pointer; display:flex; gap:10px; }
-                    .wa-web-conv:hover { background:#111f27; }
-                    .wa-web-conv.active { background:#2a3942; }
-                    .wa-web-conv .name { color:#e9edef; font-weight:700; }
-                    .wa-web-conv .meta { color:#8696a0; font-size:12px; }
-                    .wa-web-conv .preview { color:#8696a0; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+                    .wa-web-conv { padding: 10px 12px; border-bottom: 1px solid #f0f2f5; cursor:pointer; display:flex; gap:10px; }
+                    .wa-web-conv:hover { background:#f9fafb; }
+                    .wa-web-conv.active { background:#eef2ff; }
+                    .wa-web-conv .name { color:#111827; font-weight:700; }
+                    .wa-web-conv .meta { color:#6b7280; font-size:12px; }
+                    .wa-web-conv .preview { color:#6b7280; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-                    .wa-web-thread { flex:1; overflow:auto; padding: 14px 16px; background:
-                        radial-gradient(circle at 0 0, rgba(11,20,26,0.9), rgba(11,20,26,0.9)),
-                        linear-gradient(rgba(11,20,26,0.96), rgba(11,20,26,0.96));
+                    .wa-web-thread {
+                        flex:1;
+                        overflow:auto;
+                        padding: 14px 16px;
+                        background: #f6f7fb;
+                        /* subtle pattern so it feels like WhatsApp but still light */
+                        background-image:
+                          radial-gradient(rgba(0,0,0,0.04) 1px, transparent 1px);
+                        background-size: 18px 18px;
                     }
 
                     .wa-bubble-row { display:flex; margin: 6px 0; }
-                    .wa-bubble { max-width: 72%; padding: 7px 9px; border-radius: 7.5px; position:relative; box-shadow: 0 1px 0.5px rgba(0,0,0,.13); }
+                    .wa-bubble {
+                        max-width: 72%;
+                        padding: 8px 10px;
+                        border-radius: 12px;
+                        position:relative;
+                        border: 1px solid rgba(17,24,39,0.06);
+                        box-shadow: 0 1px 0.5px rgba(17,24,39,.06);
+                        font-size: 14px;
+                        color:#111827;
+                        background:#ffffff;
+                    }
                     .wa-in { justify-content:flex-start; }
-                    .wa-in .wa-bubble { background:#202c33; color:#e9edef; border-top-left-radius: 0; }
+                    .wa-in .wa-bubble { background:#ffffff; border-top-left-radius: 6px; }
                     .wa-out { justify-content:flex-end; }
-                    .wa-out .wa-bubble { background:#005c4b; color:#e9edef; border-top-right-radius: 0; }
-                    .wa-time { font-size:11px; color:#aebac1; opacity:.9; margin-top: 2px; text-align:right; }
-                    .wa-doc { color:#e9edef; text-decoration: underline; }
+                    .wa-out .wa-bubble { background:#dcfce7; border-top-right-radius: 6px; }
+                    .wa-time { font-size:11px; color:#6b7280; margin-top: 2px; text-align:right; }
+                    .wa-doc { color:#111827; text-decoration: underline; }
 
-                    .wa-web-actions { display:flex; gap:8px; }
-                    .wa-web-icon-btn { width:36px; height:36px; border-radius:50%; border: none; background: transparent; color:#aebac1; cursor:pointer; }
-                    .wa-web-icon-btn:hover { background:#2a3942; color:#e9edef; }
+                    .wa-web-actions { display:flex; gap:6px; }
+                    .wa-web-icon-btn { width:36px; height:36px; border-radius:10px; border: 1px solid #e5e7eb; background:#ffffff; color:#374151; cursor:pointer; }
+                    .wa-web-icon-btn:hover { background:#f9fafb; }
                     .wa-web-icon-btn:disabled { opacity:.5; cursor:not-allowed; }
 
-                    .wa-web-compose { display:flex; gap:10px; align-items:center; padding: 10px 12px; background:#202c33; border-top:1px solid #1f2c33; }
-                    .wa-web-compose input { flex:1; padding: 10px 12px; border-radius: 8px; border:1px solid #1f2c33; background:#2a3942; color:#e9edef; outline:none; }
-                    .wa-web-send { width:42px; height:42px; border-radius:50%; border:none; background:#00a884; color:#0b141a; cursor:pointer; }
-                    .wa-web-send:hover { filter: brightness(1.05); }
+                    .wa-web-compose { display:flex; gap:10px; align-items:center; padding: 12px 12px; background:#ffffff; border-top:1px solid #eef1f6; }
+                    .wa-web-compose input {
+                        flex:1;
+                        padding: 10px 12px;
+                        border-radius: 12px;
+                        border:1px solid #e5e7eb;
+                        background:#f9fafb;
+                        color:#111827;
+                        outline:none;
+                    }
+                    .wa-web-compose input:focus { border-color:#86efac; box-shadow: 0 0 0 3px rgba(34,197,94,0.12); }
+                    .wa-web-send { width:42px; height:42px; border-radius:12px; border:none; background:#22c55e; color:#ffffff; cursor:pointer; }
+                    .wa-web-send:hover { filter: brightness(0.98); }
                 </style>
             </div>
 
