@@ -400,7 +400,7 @@ function setupNavigation() {
             
             // WhatsApp: open WhatsApp Web in a right-docked reusable side window (not an in-app page)
             if (page === 'whatsapp') {
-                const opener = window.WhatsAppPanel?.open;
+                const opener = window.openWhatsAppSidePanel || window.WhatsAppPanel?.open;
                 if (typeof opener === 'function') {
                     const result = opener();
                     if (!result?.opened) {

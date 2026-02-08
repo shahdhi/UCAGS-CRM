@@ -99,10 +99,24 @@
     }
 
     // If page refreshed, try to reuse by name (best-effort)
+    // NOTE: window.open('', name) can CREATE a new about:blank window if none exists.
+    // We handle that by forcing navigation to WhatsApp Web when needed.
     try {
       const existing = window.open('', WINDOW_NAME);
       if (isWindowOpen(existing)) {
         waWindow = existing;
+
+        // If it's a blank window (newly created or navigated away), load WhatsApp Web.
+        try {
+          const href = String(waWindow.location && waWindow.location.href ? waWindow.location.href : '');
+          if (!href || href === 'about:blank') {
+            waWindow.location.replace(WHATSAPP_WEB_URL);
+          }
+        } catch {
+          // Cross-origin access might throw; in that case do nothing.
+          // If the window is on a non-accessible origin but not WhatsApp, the user can re-open.
+        }
+
         tryDockWindow(waWindow);
         return { opened: true, reused: true };
       }
