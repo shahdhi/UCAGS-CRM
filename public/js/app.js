@@ -398,10 +398,23 @@ function setupNavigation() {
             
             if (!page) return;
             
-            // WhatsApp should open in an in-app side drawer (not a separate page)
-            if (page === 'whatsapp' && window.WhatsAppDrawer) {
-                window.WhatsAppDrawer.open();
-                // Do not change hash; keep user on current page
+            // WhatsApp: open WhatsApp Web in a right-docked reusable side window (not an in-app page)
+            if (page === 'whatsapp') {
+                const opener = window.WhatsAppPanel?.open;
+                if (typeof opener === 'function') {
+                    const result = opener();
+                    if (!result?.opened) {
+                        // Popup blocked or failed
+                        if (window.UI?.showToast) UI.showToast('Popup blocked. Please allow popups to open WhatsApp.', 'error');
+                    }
+                    // Do not change hash; keep user on current page
+                    closeMobileMenu();
+                    return;
+                }
+
+                // Fallback: navigate to the in-app WhatsApp page which provides an "Open Panel" button
+                window.location.hash = page;
+                navigateToPage(page);
                 closeMobileMenu();
                 return;
             }

@@ -1090,7 +1090,7 @@ async function viewLeadDetails(leadId) {
           <div class="detail-section" style="margin-top: 20px;">
             <h3><i class="fab fa-whatsapp" style="color:#25D366;"></i> WhatsApp</h3>
             <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
-              <button class="btn btn-success" type="button" onclick="window.WhatsAppPanel && window.WhatsAppPanel.open ? window.WhatsAppPanel.open() : (window.location.hash='#whatsapp')">
+              <button class="btn btn-success" type="button" onclick="(window.openWhatsAppSidePanel ? window.openWhatsAppSidePanel() : (window.WhatsAppPanel && window.WhatsAppPanel.open ? window.WhatsAppPanel.open() : (window.location.hash='whatsapp')))">
                 <i class=\"fas fa-external-link-alt\"></i> Open WhatsApp Web
               </button>
               <span style="color:#666; font-size:13px;">Opens in a dedicated browser window and stays logged in.</span>

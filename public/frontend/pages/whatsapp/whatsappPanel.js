@@ -233,13 +233,42 @@
     }, 1000);
   }
 
+  function bindAutoRedockOnce() {
+    if (window.__waPanelAutoRedockBound) return;
+    window.__waPanelAutoRedockBound = true;
+
+    // If the CRM window resizes (user changes monitor, resizes browser), re-dock WA.
+    window.addEventListener('resize', () => {
+      if (isWindowOpen(waWindow)) {
+        // Debounce a bit
+        clearTimeout(window.__waPanelResizeT);
+        window.__waPanelResizeT = setTimeout(() => tryDockWindow(waWindow), 120);
+      }
+    });
+
+    // When returning to the CRM tab, snap WA back (helps if OS moved it).
+    window.addEventListener('focus', () => {
+      if (isWindowOpen(waWindow)) {
+        setTimeout(() => tryDockWindow(waWindow), 80);
+      }
+    });
+  }
+
   window.initWhatsAppPanelPage = function () {
+    bindAutoRedockOnce();
     renderPanel();
   };
 
   // Utility for other pages to open WhatsApp (optional)
+  // Convenience helper for inline onclick usage across the app
+  // Returns { opened: boolean, reused?: boolean, error?: string }
+  window.openWhatsAppSidePanel = function () {
+    return focusOrOpenDocked();
+  };
+
   window.WhatsAppPanel = {
     open: () => focusOrOpenDocked(),
-    redock: () => tryDockWindow(waWindow)
+    redock: () => tryDockWindow(waWindow),
+    isOpen: () => isWindowOpen(waWindow)
   };
 })();
