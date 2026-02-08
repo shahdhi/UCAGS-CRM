@@ -826,11 +826,12 @@
                 <style>
                     /* WhatsApp Inbox - light theme blended with CRM */
                     #whatsapp-inboxView { display:flex; flex-direction:column; height: 100%; }
-                    #whatsapp-inboxView .wa-web-fill { flex:1; min-height: 520px; }
+                    /* Give the inbox a real height so the thread can flex and the compose bar stays at the bottom */
+                    #whatsapp-inboxView .wa-web-fill { flex:1; height: calc(100vh - 210px); min-height: 520px; }
                     .wa-web { background:#ffffff; border-radius: 12px; overflow:hidden; border: 1px solid #e6e9ef; box-shadow: 0 6px 18px rgba(20, 20, 43, 0.06); }
                     .wa-web-grid { display:grid; grid-template-columns: 360px 1fr; height:100%; }
                     .wa-web-left { background:#ffffff; display:flex; flex-direction:column; border-right: 1px solid #eef1f6; }
-                    .wa-web-right { background:#ffffff; display:flex; flex-direction:column; }
+                    .wa-web-right { background:#ffffff; display:flex; flex-direction:column; min-height: 0; }
 
                     .wa-web-left-header, .wa-web-right-header {
                         padding: 12px 14px;
@@ -876,6 +877,7 @@
 
                     .wa-web-thread {
                         flex:1;
+                        min-height: 0;
                         overflow:auto;
                         padding: 14px 16px;
                         background: #f6f7fb;
