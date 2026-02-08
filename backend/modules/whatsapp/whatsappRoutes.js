@@ -14,7 +14,7 @@ const crypto = require('crypto');
 const { isAuthenticated, isAdmin } = require('../../../server/middleware/auth');
 const { assertLeadAccess } = require('./whatsappAccess');
 const { normalizePhoneToE164, sendTextMessage, sendDocumentMessage } = require('./whatsappClient');
-const { logMessage, getMessagesForLeadPhone, searchChats } = require('./whatsappLogger');
+const { logMessage, getMessagesForLeadPhone, searchChats, listConversations, getThread } = require('./whatsappLogger');
 const { config } = require('../../core/config/environment');
 
 function safeCompare(a, b) {
@@ -121,6 +121,56 @@ router.post('/leads/:leadPhone/brochure', isAuthenticated, async (req, res) => {
     res.json({ success: true, result });
   } catch (error) {
     console.error('WhatsApp send brochure error:', error);
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
+// --- Inbox (Messenger-like) ---
+
+// GET /api/whatsapp/inbox/conversations?search=
+router.get('/inbox/conversations', isAuthenticated, async (req, res) => {
+  try {
+    const { search } = req.query;
+
+    // Admin sees all
+    if (req.user?.role === 'admin') {
+      const items = await listConversations({ search });
+      return res.json({ success: true, items, count: items.length });
+    }
+
+    // Advisor: only assigned leads
+    const { getUserLeads } = require('../leads/userLeadsService');
+    const leads = await getUserLeads(req.user?.name);
+    const allowedPhones = (leads || []).map(l => l.phone).filter(Boolean);
+
+    const items = await listConversations({ allowedLeadPhones: allowedPhones, search });
+    return res.json({ success: true, items, count: items.length });
+  } catch (error) {
+    console.error('WhatsApp inbox conversations error:', error);
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/whatsapp/inbox/threads/:leadPhone
+router.get('/inbox/threads/:leadPhone', isAuthenticated, async (req, res) => {
+  try {
+    const { leadPhone } = req.params;
+
+    // Admin sees all
+    if (req.user?.role === 'admin') {
+      const messages = await getThread({ leadPhone });
+      return res.json({ success: true, messages });
+    }
+
+    // Advisor: verify access by assigned leads
+    const { getUserLeads } = require('../leads/userLeadsService');
+    const leads = await getUserLeads(req.user?.name);
+    const allowedPhones = (leads || []).map(l => l.phone).filter(Boolean);
+
+    const messages = await getThread({ leadPhone, allowedLeadPhones: allowedPhones });
+    return res.json({ success: true, messages });
+  } catch (error) {
+    console.error('WhatsApp inbox thread error:', error);
     res.status(error.status || 500).json({ success: false, error: error.message });
   }
 });

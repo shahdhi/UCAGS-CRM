@@ -203,6 +203,11 @@
                     <span>Receipts</span>
                 </a>
 
+                <a href="#" class="nav-item" data-page="whatsapp-inbox">
+                    <i class="fab fa-whatsapp"></i>
+                    <span>WhatsApp Inbox</span>
+                </a>
+
                 <a href="#" class="nav-item admin-only" data-page="whatsapp-admin">
                     <i class="fab fa-whatsapp"></i>
                     <span>WhatsApp Monitor</span>
@@ -758,6 +763,51 @@
             </div>
 
             <!-- Receipts View (Admin Only) -->
+            <div id="whatsapp-inboxView" class="content-view" style="display:none;">
+                <div class="page-header">
+                    <div>
+                        <h2><i class="fab fa-whatsapp" style="color:#25D366;"></i> WhatsApp Inbox</h2>
+                        <p>Manage WhatsApp chats in one place (send/receive manually, like Messenger).</p>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 360px 1fr; gap: 14px; height: calc(100vh - 220px); min-height: 520px;">
+                    <!-- Left: conversation list -->
+                    <div style="background:#fff; border:1px solid #eee; border-radius: 10px; overflow:hidden; display:flex; flex-direction:column;">
+                        <div style="padding: 10px; border-bottom:1px solid #eee;">
+                            <input id="waInboxSearch" class="form-control" placeholder="Search by name or phone" />
+                        </div>
+                        <div id="waInboxConversations" style="overflow:auto; flex:1; background:#fafafa;"></div>
+                    </div>
+
+                    <!-- Right: thread -->
+                    <div style="background:#fff; border:1px solid #eee; border-radius: 10px; overflow:hidden; display:flex; flex-direction:column;">
+                        <div style="padding: 10px 12px; border-bottom:1px solid #eee; background:#25D366; color:white; display:flex; align-items:center; justify-content:space-between; gap: 10px;">
+                            <div id="waInboxThreadHeader">
+                                <div style="font-weight:700;">Select a chat</div>
+                                <div style="font-size:12px; opacity:.9;">&nbsp;</div>
+                            </div>
+                            <button id="waInboxBrochureBtn" class="btn btn-sm btn-light" type="button">
+                                <i class="fas fa-file-pdf"></i> Send Brochure
+                            </button>
+                        </div>
+
+                        <div id="waInboxThread" style="flex:1; overflow:auto; background:#f5f5f5; padding: 10px 12px;"></div>
+
+                        <div style="display:flex; gap: 8px; padding: 10px; background:#fff; border-top:1px solid #eee;">
+                            <input id="waInboxMessageInput" class="form-control" placeholder="Type a message…" style="flex:1;" />
+                            <button id="waInboxSendBtn" class="btn btn-success" type="button"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <style>
+                    .wa-inbox-conv { padding: 10px 12px; border-bottom: 1px solid #eee; cursor:pointer; background:#fff; }
+                    .wa-inbox-conv:hover { background:#f3f7ff; }
+                    .wa-inbox-conv.active { background:#e8f5e9; }
+                </style>
+            </div>
+
             <div id="whatsapp-adminView" class="content-view admin-only">
                 <div class="page-header">
                     <div>
@@ -1045,6 +1095,7 @@
     <script src="/frontend/pages/leads/leadManagement.js?v=3"></script>
     <script src="/frontend/pages/receipts/receiptsPage.js?v=3"></script>
     <script src="/frontend/pages/whatsapp/whatsappChat.js?v=1"></script>
+    <script src="/frontend/pages/whatsapp/whatsappInbox.js?v=1"></script>
     <script src="/frontend/pages/whatsapp/whatsappAdmin.js?v=1"></script>
     
     <!-- Main App -->

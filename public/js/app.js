@@ -613,6 +613,11 @@ async function navigateToPage(page) {
         case 'receipts':
             loadReceipts();
             break;
+        case 'whatsapp-inbox':
+            if (window.initWhatsAppInboxPage) {
+                window.initWhatsAppInboxPage();
+            }
+            break;
         case 'whatsapp-admin':
             if (currentUser.role !== 'admin') {
                 alert('Access denied. Admin only.');
