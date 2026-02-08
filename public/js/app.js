@@ -613,6 +613,15 @@ async function navigateToPage(page) {
         case 'receipts':
             loadReceipts();
             break;
+        case 'whatsapp-admin':
+            if (currentUser.role !== 'admin') {
+                alert('Access denied. Admin only.');
+                return;
+            }
+            if (window.initWhatsAppAdminPage) {
+                window.initWhatsAppAdminPage();
+            }
+            break;
     }
 }
 

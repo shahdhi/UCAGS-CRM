@@ -202,6 +202,11 @@
                     <i class="fas fa-receipt"></i>
                     <span>Receipts</span>
                 </a>
+
+                <a href="#" class="nav-item admin-only" data-page="whatsapp-admin">
+                    <i class="fab fa-whatsapp"></i>
+                    <span>WhatsApp Monitor</span>
+                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -753,6 +758,38 @@
             </div>
 
             <!-- Receipts View (Admin Only) -->
+            <div id="whatsapp-adminView" class="content-view admin-only">
+                <div class="page-header">
+                    <div>
+                        <h2><i class="fab fa-whatsapp" style="color:#25D366;"></i> WhatsApp Monitoring</h2>
+                        <p>View all WhatsApp conversations, advisor activity, and search by lead name/phone.</p>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap: 10px; align-items:center; margin: 16px 0;">
+                    <input id="waAdminSearchInput" class="form-control" placeholder="Search by lead name or phone" style="max-width: 420px;" />
+                    <button id="waAdminSearchBtn" class="btn btn-success"><i class="fas fa-search"></i> Search</button>
+                </div>
+
+                <div style="overflow:auto; background:#fff; border:1px solid #eee; border-radius: 10px;">
+                    <table class="data-table" style="min-width: 900px;">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Lead</th>
+                                <th>Phone</th>
+                                <th>Direction</th>
+                                <th>Advisor</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody id="waAdminTableBody">
+                            <tr><td colspan="6" style="text-align:center; padding: 20px;">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <div id="receiptsView" class="content-view admin-only">
                 <div class="page-header">
                     <h1><i class="fas fa-receipt"></i> Receipt Generator</h1>
@@ -1007,6 +1044,8 @@
     <script src="/frontend/pages/leads/leadsPage.js?v=3"></script>
     <script src="/frontend/pages/leads/leadManagement.js?v=3"></script>
     <script src="/frontend/pages/receipts/receiptsPage.js?v=3"></script>
+    <script src="/frontend/pages/whatsapp/whatsappChat.js?v=1"></script>
+    <script src="/frontend/pages/whatsapp/whatsappAdmin.js?v=1"></script>
     
     <!-- Main App -->
     <script src="js/app.js?v=3"></script>

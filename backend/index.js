@@ -84,6 +84,9 @@ app.use('/api/analytics', require('./modules/analytics/analyticsRoutes'));
 // Use renamed module to force complete reload (bypass Node cache)
 app.use('/api/receipts', require('./modules/receipts/receiptsRoutes_v10'));
 
+// WhatsApp messaging (Meta Cloud API)
+app.use('/api/whatsapp', require('./modules/whatsapp/whatsappRoutes'));
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({

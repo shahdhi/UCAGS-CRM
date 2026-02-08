@@ -1086,6 +1086,13 @@ async function viewLeadDetails(leadId) {
               ${lead.notes ? escapeHtml(lead.notes).replace(/\n/g, '<br>') : '<em style="color: #999;">No notes available</em>'}
             </div>
           </div>
+
+          <div class="detail-section" style="margin-top: 20px;">
+            <h3><i class="fab fa-whatsapp" style="color:#25D366;"></i> WhatsApp</h3>
+            <div id="waPanelContainer_${lead.id}">
+              <em style="color:#999;">Loading WhatsApp panel…</em>
+            </div>
+          </div>
           
           <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
             <button class="btn btn-primary" onclick="editLeadDetails(${lead.id})" style="padding: 12px 24px;">
@@ -1102,6 +1109,21 @@ async function viewLeadDetails(leadId) {
   
   // Add modal to page
   document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+  // Render WhatsApp panel (after DOM insertion)
+  try {
+    const container = document.getElementById(`waPanelContainer_${lead.id}`);
+    if (container) {
+      if (lead.phone && window.WAChat && typeof window.WAChat.getPanelHTML === 'function') {
+        const panel = window.WAChat.getPanelHTML({ leadPhone: lead.phone, leadName: lead.name });
+        container.innerHTML = panel.html;
+      } else {
+        container.innerHTML = '<em style="color:#999;">WhatsApp panel unavailable (missing phone number or module not loaded).</em>';
+      }
+    }
+  } catch (e) {
+    console.error('Failed to init WhatsApp panel:', e);
+  }
   
   // Prevent body scroll
   document.body.style.overflow = 'hidden';

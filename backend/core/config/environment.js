@@ -81,6 +81,29 @@ const config = {
     url: process.env.NEXT_PUBLIC_SUPABASE_URL,
     anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY
+  },
+
+  // WhatsApp Cloud API (Meta)
+  whatsapp: {
+    // Graph API
+    graphApiVersion: process.env.WHATSAPP_GRAPH_API_VERSION || 'v19.0',
+    accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
+    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
+
+    // Webhook
+    webhookVerifyToken: process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,
+
+    // Logging (Google Sheets)
+    // Default is the spreadsheet shared by the customer
+    logsSheetId: process.env.WHATSAPP_LOGS_SHEET_ID || '19NkSoDX3sBCNcrvpC0zkvXG89_cuIq2qo9agXaHfqSY',
+
+    // Sending helpers
+    defaultCountryCode: process.env.WHATSAPP_DEFAULT_COUNTRY_CODE || '94',
+    displayPhoneNumber: process.env.WHATSAPP_DISPLAY_PHONE_NUMBER || '',
+
+    // Brochure
+    brochurePdfUrl: process.env.WHATSAPP_BROCHURE_PDF_URL || '',
+    brochureFilename: process.env.WHATSAPP_BROCHURE_FILENAME || 'UCAGS_Brochure.pdf'
   }
 };
 
