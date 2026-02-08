@@ -167,14 +167,9 @@
                     <span class="badge badge-secondary">Soon</span>
                 </a>
 
-                <a href="#" class="nav-item" data-page="whatsapp-inbox">
+                <a href="#" class="nav-item" data-page="whatsapp">
                     <i class="fab fa-whatsapp"></i>
-                    <span>WhatsApp Inbox</span>
-                </a>
-
-                <a href="#" class="nav-item admin-only" data-page="whatsapp-admin">
-                    <i class="fab fa-whatsapp"></i>
-                    <span>WhatsApp Monitor</span>
+                    <span>Whatsapp</span>
                 </a>
 
                 <a href="#" class="nav-item nav-disabled" data-page="gmail" title="Coming Soon">
@@ -764,201 +759,11 @@
             </div>
 
             <!-- Receipts View (Admin Only) -->
-            <div id="whatsapp-inboxView" class="content-view" style="display:none; padding: 0;">
-                <div class="wa-web wa-web-fill">
-                    <div class="wa-web-grid">
-                        <!-- Left: conversation list -->
-                        <div class="wa-web-left">
-                            <div class="wa-web-left-header">
-                                <div style="display:flex; align-items:center; gap:10px;">
-                                    <div class="wa-web-avatar" style="background:#e8fff3; color:#16a34a;">
-                                        <i class="fab fa-whatsapp" aria-hidden="true"></i>
-                                    </div>
-                                    <div>
-                                        <div style="font-weight:700;">WhatsApp</div>
-                                        <div style="font-size:12px; color:#6b7280;">Inbox</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="wa-web-search">
-                                <i class="fas fa-search" style="color:#6b7280;"></i>
-                                <input id="waInboxSearch" placeholder="Search by name or phone" />
-                            </div>
-
-                            <div id="waInboxConversations" class="wa-web-conv-list"></div>
-                        </div>
-
-                        <!-- Right: thread -->
-                        <div class="wa-web-right">
-                            <div class="wa-web-right-header">
-                                <div id="waInboxThreadHeader" class="wa-web-thread-title">
-                                    <div style="font-weight:700;">Select a chat</div>
-                                    <div style="font-size:12px; color:#6b7280;">&nbsp;</div>
-                                </div>
-
-                                <div class="wa-web-actions">
-                                    <button id="waInboxBrochureBtn" class="wa-web-icon-btn" type="button" title="Send brochure">
-                                        <i class="fas fa-file-pdf"></i>
-                                    </button>
-                                    <button id="waInboxAttachBtn" class="wa-web-icon-btn" type="button" title="Attach file">
-                                        <i class="fas fa-paperclip"></i>
-                                    </button>
-                                    <input id="waInboxFileInput" type="file" style="display:none" accept="application/pdf,image/*" />
-                                </div>
-                            </div>
-
-                            <div id="waInboxThread" class="wa-web-thread"></div>
-
-                            <div class="wa-web-compose">
-                                <button id="waInboxEmojiBtn" class="wa-web-icon-btn" type="button" title="Emoji (coming soon)" disabled>
-                                    <i class="far fa-smile"></i>
-                                </button>
-                                <input id="waInboxMessageInput" placeholder="Type a message" />
-                                <button id="waInboxSendBtn" class="wa-web-send" type="button" title="Send">
-                                    <i class="fas fa-paper-plane"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <style>
-                    /* WhatsApp Inbox - light theme blended with CRM */
-                    #whatsapp-inboxView { display:flex; flex-direction:column; height: 100%; }
-                    /* Give the inbox a real height so the thread can flex and the compose bar stays at the bottom */
-                    #whatsapp-inboxView .wa-web-fill { flex:1; height: calc(100vh - 210px); min-height: 520px; }
-                    .wa-web { background:#ffffff; border-radius: 12px; overflow:hidden; border: 1px solid #e6e9ef; box-shadow: 0 6px 18px rgba(20, 20, 43, 0.06); }
-                    .wa-web-grid { display:grid; grid-template-columns: 360px 1fr; height:100%; }
-                    .wa-web-left { background:#ffffff; display:flex; flex-direction:column; border-right: 1px solid #eef1f6; }
-                    .wa-web-right { background:#ffffff; display:flex; flex-direction:column; min-height: 0; }
-
-                    .wa-web-left-header, .wa-web-right-header {
-                        padding: 12px 14px;
-                        background:#ffffff;
-                        color:#1f2937;
-                        display:flex;
-                        align-items:center;
-                        justify-content:space-between;
-                        gap:12px;
-                        border-bottom: 1px solid #eef1f6;
-                    }
-                    .wa-web-avatar {
-                        width:36px;
-                        height:36px;
-                        border-radius:50%;
-                        background:#f3f4f6;
-                        display:flex;
-                        align-items:center;
-                        justify-content:center;
-                        font-weight:700;
-                        color:#111827;
-                    }
-
-                    .wa-web-search { display:flex; gap:10px; align-items:center; padding: 10px 12px; background:#ffffff; border-bottom:1px solid #eef1f6; }
-                    .wa-web-search input {
-                        width:100%;
-                        padding: 10px 12px;
-                        border-radius: 10px;
-                        border:1px solid #e5e7eb;
-                        background:#f9fafb;
-                        color:#111827;
-                        outline:none;
-                    }
-                    .wa-web-search input:focus { border-color:#c7d2fe; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
-
-                    .wa-web-conv-list { overflow:auto; flex:1; }
-                    .wa-web-conv { padding: 10px 12px; border-bottom: 1px solid #f0f2f5; cursor:pointer; display:flex; gap:10px; }
-                    .wa-web-conv:hover { background:#f9fafb; }
-                    .wa-web-conv.active { background:#eef2ff; }
-                    .wa-web-conv .name { color:#111827; font-weight:700; }
-                    .wa-web-conv .meta { color:#6b7280; font-size:12px; }
-                    .wa-web-conv .preview { color:#6b7280; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-
-                    .wa-web-thread {
-                        flex:1;
-                        min-height: 0;
-                        overflow:auto;
-                        padding: 14px 16px;
-                        background: #f6f7fb;
-                        /* subtle pattern so it feels like WhatsApp but still light */
-                        background-image:
-                          radial-gradient(rgba(0,0,0,0.04) 1px, transparent 1px);
-                        background-size: 18px 18px;
-                    }
-
-                    .wa-bubble-row { display:flex; margin: 6px 0; }
-                    .wa-bubble {
-                        max-width: 72%;
-                        padding: 8px 10px;
-                        border-radius: 12px;
-                        position:relative;
-                        border: 1px solid rgba(17,24,39,0.06);
-                        box-shadow: 0 1px 0.5px rgba(17,24,39,.06);
-                        font-size: 14px;
-                        color:#111827;
-                        background:#ffffff;
-                    }
-                    .wa-in { justify-content:flex-start; }
-                    .wa-in .wa-bubble { background:#ffffff; border-top-left-radius: 6px; }
-                    .wa-out { justify-content:flex-end; }
-                    .wa-out .wa-bubble { background:#dcfce7; border-top-right-radius: 6px; }
-                    .wa-time { font-size:11px; color:#6b7280; margin-top: 2px; text-align:right; }
-                    .wa-doc { color:#111827; text-decoration: underline; }
-
-                    .wa-web-actions { display:flex; gap:6px; }
-                    .wa-web-icon-btn { width:36px; height:36px; border-radius:10px; border: 1px solid #e5e7eb; background:#ffffff; color:#374151; cursor:pointer; }
-                    .wa-web-icon-btn:hover { background:#f9fafb; }
-                    .wa-web-icon-btn:disabled { opacity:.5; cursor:not-allowed; }
-
-                    .wa-web-compose { display:flex; gap:10px; align-items:center; padding: 12px 12px; background:#ffffff; border-top:1px solid #eef1f6; }
-                    .wa-web-compose input {
-                        flex:1;
-                        padding: 10px 12px;
-                        border-radius: 12px;
-                        border:1px solid #e5e7eb;
-                        background:#f9fafb;
-                        color:#111827;
-                        outline:none;
-                    }
-                    .wa-web-compose input:focus { border-color:#86efac; box-shadow: 0 0 0 3px rgba(34,197,94,0.12); }
-                    .wa-web-send { width:42px; height:42px; border-radius:12px; border:none; background:#22c55e; color:#ffffff; cursor:pointer; }
-                    .wa-web-send:hover { filter: brightness(0.98); }
-                </style>
+            <div id="whatsappView" class="content-view" style="display:none;">
+                <!-- WhatsApp Panel injected by /frontend/pages/whatsapp/whatsappPanel.js -->
             </div>
 
-            <div id="whatsapp-adminView" class="content-view admin-only">
-                <div class="page-header">
-                    <div>
-                        <h2><i class="fab fa-whatsapp" style="color:#25D366;"></i> WhatsApp Monitoring</h2>
-                        <p>View all WhatsApp conversations, advisor activity, and search by lead name/phone.</p>
-                    </div>
-                </div>
-
-                <div style="display:flex; gap: 10px; align-items:center; margin: 16px 0;">
-                    <input id="waAdminSearchInput" class="form-control" placeholder="Search by lead name or phone" style="max-width: 420px;" />
-                    <button id="waAdminSearchBtn" class="btn btn-success"><i class="fas fa-search"></i> Search</button>
-                </div>
-
-                <div style="overflow:auto; background:#fff; border:1px solid #eee; border-radius: 10px;">
-                    <table class="data-table" style="min-width: 900px;">
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>Lead</th>
-                                <th>Phone</th>
-                                <th>Direction</th>
-                                <th>Advisor</th>
-                                <th>Message</th>
-                            </tr>
-                        </thead>
-                        <tbody id="waAdminTableBody">
-                            <tr><td colspan="6" style="text-align:center; padding: 20px;">Loading…</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
+            
             <div id="receiptsView" class="content-view admin-only">
                 <div class="page-header">
                     <h1><i class="fas fa-receipt"></i> Receipt Generator</h1>
@@ -1213,9 +1018,7 @@
     <script src="/frontend/pages/leads/leadsPage.js?v=3"></script>
     <script src="/frontend/pages/leads/leadManagement.js?v=3"></script>
     <script src="/frontend/pages/receipts/receiptsPage.js?v=3"></script>
-    <script src="/frontend/pages/whatsapp/whatsappChat.js?v=1"></script>
-    <script src="/frontend/pages/whatsapp/whatsappInbox.js?v=1"></script>
-    <script src="/frontend/pages/whatsapp/whatsappAdmin.js?v=1"></script>
+    <script src="/frontend/pages/whatsapp/whatsappPanel.js?v=1"></script>
     
     <!-- Main App -->
     <script src="js/app.js?v=3"></script>

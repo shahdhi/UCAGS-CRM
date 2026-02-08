@@ -90,10 +90,8 @@ app.use('/api/analytics', require('./modules/analytics/analyticsRoutes'));
 // Use renamed module to force complete reload (bypass Node cache)
 app.use('/api/receipts', require('./modules/receipts/receiptsRoutes_v10'));
 
-// WhatsApp messaging (Meta Cloud API)
-app.use('/api/whatsapp', require('./modules/whatsapp/whatsappRoutes'));
-// WhatsApp uploads (attachments)
-app.use('/api/whatsapp', require('./modules/whatsapp/uploadRoutes'));
+// WhatsApp (disabled): previously used Meta Cloud API routes.
+// Replaced with simple WhatsApp Web popup panel in the frontend.
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
