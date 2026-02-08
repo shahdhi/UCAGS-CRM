@@ -30,7 +30,13 @@ if (process.env.VERCEL) {
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+// Capture raw request body for webhook signature verification (e.g., WhatsApp)
+app.use(express.json({
+  verify: (req, res, buf) => {
+    // Store raw body for signature verification (Buffer)
+    req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // Session middleware (required for authentication)

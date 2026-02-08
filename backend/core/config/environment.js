@@ -85,6 +85,9 @@ const config = {
 
   // WhatsApp Cloud API (Meta)
   whatsapp: {
+    // App Secret (optional) - used for webhook signature verification
+    appSecret: process.env.WHATSAPP_APP_SECRET || ''
+    ,
     // Graph API
     graphApiVersion: process.env.WHATSAPP_GRAPH_API_VERSION || 'v19.0',
     accessToken: process.env.WHATSAPP_ACCESS_TOKEN,

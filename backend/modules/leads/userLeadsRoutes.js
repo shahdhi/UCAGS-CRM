@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const { getUserLeads, addUserLead, getAllUsersLeads } = require('./userLeadsService');
-const { isAuthenticated } = require('../../../server/middleware/auth');
+const { isAuthenticated, isAdmin } = require('../../../server/middleware/auth');
 
 /**
  * GET /api/user-leads/:userName
@@ -78,7 +78,7 @@ router.post('/:userName', isAuthenticated, async (req, res) => {
  * GET /api/user-leads
  * Get all users' leads (admin only)
  */
-router.get('/', isAuthenticated, async (req, res) => {
+router.get('/', isAdmin, async (req, res) => {
   try {
     const usersLeads = await getAllUsersLeads();
 

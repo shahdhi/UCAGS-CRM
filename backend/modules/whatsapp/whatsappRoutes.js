@@ -88,9 +88,11 @@ router.post('/leads/:leadPhone/brochure', isAuthenticated, async (req, res) => {
 
     await assertLeadAccess(req, leadPhone);
 
-    const brochureUrl = config.whatsapp.brochurePdfUrl;
+    let brochureUrl = config.whatsapp.brochurePdfUrl;
     if (!brochureUrl) {
-      return res.status(500).json({ success: false, error: 'Brochure PDF URL not configured (WHATSAPP_BROCHURE_PDF_URL)' });
+      // Fallback: serve a static brochure from this server if present at /public/brochure.pdf
+      // (You can drop the file there or set WHATSAPP_BROCHURE_PDF_URL to any public HTTPS URL.)
+      brochureUrl = `${config.server.appUrl.replace(/\/$/, '')}/brochure.pdf`;
     }
 
     const toE164 = normalizePhoneToE164(leadPhone, config.whatsapp.defaultCountryCode);
@@ -155,11 +157,33 @@ router.get('/webhook', (req, res) => {
   return res.sendStatus(403);
 });
 
+function verifyWebhookSignature(req) {
+  const appSecret = config.whatsapp.appSecret;
+  if (!appSecret) return { ok: true, skipped: true };
+
+  const sig = req.headers['x-hub-signature-256'];
+  if (!sig || typeof sig !== 'string') {
+    return { ok: false, error: 'Missing X-Hub-Signature-256' };
+  }
+
+  const raw = req.rawBody;
+  if (!raw || !Buffer.isBuffer(raw)) {
+    return { ok: false, error: 'Missing raw body for signature verification' };
+  }
+
+  const expected = 'sha256=' + crypto.createHmac('sha256', appSecret).update(raw).digest('hex');
+  const ok = safeCompare(sig, expected);
+  return ok ? { ok: true } : { ok: false, error: 'Invalid webhook signature' };
+}
+
 // POST /api/whatsapp/webhook
 router.post('/webhook', async (req, res) => {
   try {
-    // NOTE: Signature verification requires raw body. This app uses express.json() globally,
-    // so we are not verifying X-Hub-Signature-256 here.
+    const sigCheck = verifyWebhookSignature(req);
+    if (!sigCheck.ok) {
+      console.warn('WhatsApp webhook signature verification failed:', sigCheck.error);
+      return res.sendStatus(403);
+    }
 
     const body = req.body;
 

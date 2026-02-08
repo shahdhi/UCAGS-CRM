@@ -64,9 +64,10 @@
     const res = await fetch(`/api/whatsapp/admin/chats?search=${encodeURIComponent(q)}`, { headers });
     const json = await res.json();
 
-    if (!json.success) {
+    if (!json || json.success !== true) {
       renderRows([]);
-      if (window.UI?.showToast) UI.showToast(json.error || 'Failed to load WhatsApp chats', 'error');
+      const errMsg = json?.error || json?.message || 'Failed to load WhatsApp chats';
+      if (window.UI?.showToast) UI.showToast(errMsg, 'error');
       return;
     }
 
