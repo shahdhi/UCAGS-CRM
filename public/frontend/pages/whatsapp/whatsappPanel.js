@@ -21,6 +21,10 @@
   const WINDOW_NAME = 'ucags_whatsapp_web_panel';
 
   const FIREFOX_CONTAINERS_ADDON_URL = 'https://addons.mozilla.org/en-US/firefox/addon/multi-account-containers/';
+  // Set this to your signed XPI direct URL (recommended) or AMO unlisted listing page.
+  // This is a default; the admin can override it in the UI and it will persist in localStorage.
+  const DEFAULT_UCAGS_COMPANION_INSTALL_URL = '';
+  const UCAGS_COMPANION_INSTALL_URL_STORAGE_KEY = 'ucags_companion_install_url';
   const DEFAULT_ADVISOR_CONTAINER_MAPPINGS = {
     'Advisor A': 'Advisor_A',
     'Advisor B': 'Advisor_B',
@@ -286,6 +290,20 @@
     `;
   }
 
+  function getCompanionInstallUrl() {
+    try {
+      return localStorage.getItem(UCAGS_COMPANION_INSTALL_URL_STORAGE_KEY) || DEFAULT_UCAGS_COMPANION_INSTALL_URL;
+    } catch {
+      return DEFAULT_UCAGS_COMPANION_INSTALL_URL;
+    }
+  }
+
+  function setCompanionInstallUrl(url) {
+    try {
+      localStorage.setItem(UCAGS_COMPANION_INSTALL_URL_STORAGE_KEY, String(url || '').trim());
+    } catch {}
+  }
+
   function isAdminUser() {
     // Primary: app sets window.currentUser in public/js/app.js
     if (window.currentUser && window.currentUser.role) {
@@ -306,6 +324,7 @@
     if (!root) return;
 
     const isAdmin = isAdminUser();
+    const companionInstallUrl = getCompanionInstallUrl();
 
     // Load mappings (admin-only endpoint; will be empty for non-admin users)
     const mappings = await fetchContainerMappings();
@@ -373,9 +392,25 @@
               <div style="border:1px solid #f0f0f0; border-radius: 10px; padding: 12px;">
                 <div style="font-weight:800; margin-bottom:6px;">2) Install UCAGS Companion Extension</div>
                 <div style="font-size:12px; color:#6b7280; margin-bottom: 10px;">Enables auto-creating Advisor_A..D containers.</div>
-                <button id="waStepCheckCompanion" class="btn btn-secondary" type="button">
-                  <i class="fas fa-shield-alt"></i> Check Extension
-                </button>
+
+                <div style="display:flex; gap:8px; flex-wrap: wrap; align-items:center;">
+                  <button id="waStepInstallCompanion" class="btn btn-secondary" type="button">
+                    <i class="fas fa-download"></i> Install Companion
+                  </button>
+                  <button id="waStepCheckCompanion" class="btn btn-secondary" type="button">
+                    <i class="fas fa-shield-alt"></i> Check
+                  </button>
+                </div>
+
+                <div style="margin-top:10px; font-size:12px; color:#6b7280;">
+                  Install URL (signed XPI / AMO unlisted):
+                </div>
+                <input id="waCompanionInstallUrl" type="text" value="${companionInstallUrl ? companionInstallUrl.replace(/"/g, '&quot;') : ''}"
+                  placeholder="Paste signed .xpi URL here"
+                  style="margin-top:6px; width:100%; padding:10px; border:1px solid #e5e7eb; border-radius:8px; font-size:12px;" />
+                <div style="margin-top:6px; font-size:11px; color:#9ca3af; line-height: 1.4;">
+                  Tip: Use a stable URL like <code>https://.../ucags-wa-containers-latest.xpi</code>.
+                </div>
               </div>
 
               <div style="border:1px solid #f0f0f0; border-radius: 10px; padding: 12px;">
@@ -421,7 +456,9 @@
     const containersStatusEl = document.getElementById('waContainersStatus');
 
     const stepInstallMACBtn = document.getElementById('waStepInstallMAC');
+    const stepInstallCompanionBtn = document.getElementById('waStepInstallCompanion');
     const stepCheckCompanionBtn = document.getElementById('waStepCheckCompanion');
+    const companionInstallUrlInput = document.getElementById('waCompanionInstallUrl');
     const stepCreateContainersBtn = document.getElementById('waStepCreateContainers');
     const stepScrollAdvisorsBtn = document.getElementById('waStepScrollAdvisors');
 
@@ -461,6 +498,30 @@
         try {
           window.open(FIREFOX_CONTAINERS_ADDON_URL, '_blank', 'noopener');
         } catch {}
+      });
+    }
+
+    if (companionInstallUrlInput) {
+      companionInstallUrlInput.addEventListener('change', () => {
+        setCompanionInstallUrl(companionInstallUrlInput.value);
+      });
+      companionInstallUrlInput.addEventListener('blur', () => {
+        setCompanionInstallUrl(companionInstallUrlInput.value);
+      });
+    }
+
+    if (stepInstallCompanionBtn) {
+      stepInstallCompanionBtn.addEventListener('click', () => {
+        const url = (companionInstallUrlInput && companionInstallUrlInput.value)
+          ? companionInstallUrlInput.value.trim()
+          : getCompanionInstallUrl();
+
+        if (!url) {
+          setContainersStatus('No companion install URL set. Paste the signed .xpi URL in the field first.', 'error');
+          return;
+        }
+
+        try { window.open(url, '_blank', 'noopener'); } catch {}
       });
     }
 
