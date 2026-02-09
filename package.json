@@ -9,7 +9,10 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "setup": "node scripts/setup-sheets.js",
     "test-connection": "node scripts/test-connection.js",
-    "generate-password": "node scripts/generate-password.js"
+    "generate-password": "node scripts/generate-password.js",
+
+    "ext:build": "npx web-ext build --source-dir firefox-extension/ucags-wa-containers --artifacts-dir firefox-extension/web-ext-artifacts --overwrite-dest",
+    "ext:sign": "npx web-ext sign --source-dir firefox-extension/ucags-wa-containers --artifacts-dir firefox-extension/web-ext-artifacts --channel unlisted"
   },
   "keywords": [
     "crm",

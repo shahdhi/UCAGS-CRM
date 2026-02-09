@@ -20,6 +20,14 @@
   const WHATSAPP_WEB_URL = 'https://web.whatsapp.com/';
   const WINDOW_NAME = 'ucags_whatsapp_web_panel';
 
+  const FIREFOX_CONTAINERS_ADDON_URL = 'https://addons.mozilla.org/en-US/firefox/addon/multi-account-containers/';
+  const DEFAULT_ADVISOR_CONTAINER_MAPPINGS = {
+    'Advisor A': 'Advisor_A',
+    'Advisor B': 'Advisor_B',
+    'Advisor C': 'Advisor_C',
+    'Advisor D': 'Advisor_D'
+  };
+
   // Tweak these to your preference
   const DEFAULT_DOCK_WIDTH_PX = 420; // panel width
   const DOCK_GAP_PX = 8;            // gap from CRM window edge
@@ -153,9 +161,137 @@
     return openDockedPopup();
   }
 
-  function renderPanel() {
+  async function getAuthHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    if (window.supabaseClient) {
+      try {
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+      } catch {}
+    }
+    return headers;
+  }
+
+  async function fetchContainerMappings() {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/whatsapp/containers/mappings', { headers });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json?.success) return json.mappings || {};
+    } catch {}
+    return {};
+  }
+
+  function callContainersExtension(type, payload = {}, timeoutMs = 8000) {
+    return new Promise((resolve) => {
+      const requestId = `req_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      let done = false;
+
+      function finish(result) {
+        if (done) return;
+        done = true;
+        window.removeEventListener('message', onMessage);
+        clearTimeout(t);
+        resolve(result);
+      }
+
+      function onMessage(event) {
+        try {
+          // Must match our page origin (content script posts back to origin)
+          if (!event || event.source !== window) return;
+          if (event.origin !== window.location.origin) return;
+
+          const data = event.data;
+          if (!data || typeof data !== 'object') return;
+          if (data.requestId !== requestId) return;
+
+          finish(data);
+        } catch {
+          // ignore
+        }
+      }
+
+      window.addEventListener('message', onMessage);
+      const t = setTimeout(() => finish({ ok: false, error: 'Extension timeout (not installed?)' }), timeoutMs);
+
+      window.postMessage({ type, requestId, ...payload }, window.location.origin);
+    });
+  }
+
+  async function pingContainersExtension() {
+    const resp = await callContainersExtension('UCAGS_WA_CONTAINERS_PING', {}, 2500);
+    return !!resp && resp.ok === true;
+  }
+
+  async function ensureAdvisorContainersViaExtension() {
+    const names = Object.values(DEFAULT_ADVISOR_CONTAINER_MAPPINGS);
+    const resp = await callContainersExtension('UCAGS_WA_CONTAINERS_ENSURE', { names }, 10000);
+    return resp;
+  }
+
+  async function saveDefaultContainerMappings() {
+    const headers = await getAuthHeaders();
+    const res = await fetch('/api/whatsapp/containers/setup-default', {
+      method: 'POST',
+      headers
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json?.success) {
+      throw new Error(json?.error || 'Failed to save mappings');
+    }
+    return json;
+  }
+
+  function buildFirefoxContainerUrl(containerName) {
+    const url = `https://web.whatsapp.com`;
+    return `firefox-container://open?url=${encodeURIComponent(url)}&container=${encodeURIComponent(containerName)}`;
+  }
+
+  function renderAdvisorButtons(mappings) {
+    const advisors = Object.keys(DEFAULT_ADVISOR_CONTAINER_MAPPINGS);
+    return `
+      <div style="background:#fff; border:1px solid #eee; border-radius: 12px; padding: 16px;">
+        <div style="display:flex; align-items:center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+          <div>
+            <div style="font-weight:800;">Per-advisor WhatsApp (Firefox Containers)</div>
+            <div style="color:#666; font-size: 13px; margin-top:4px;">
+              Each advisor opens WhatsApp Web in their own Firefox Container (separate login sessions).
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 12px; display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
+          ${advisors.map(a => {
+            const containerName = mappings?.[a] || DEFAULT_ADVISOR_CONTAINER_MAPPINGS[a];
+            const href = buildFirefoxContainerUrl(containerName);
+            return `
+              <div style="border:1px solid #f0f0f0; border-radius: 10px; padding: 12px;">
+                <div style="font-weight:800; margin-bottom: 8px;">${a}</div>
+                <div style="font-size:12px; color:#6b7280; margin-bottom: 10px;">Container: <code>${containerName}</code></div>
+                <a class="btn btn-success" href="${href}" target="_blank" rel="noopener">
+                  <i class="fab fa-whatsapp"></i> Open WhatsApp
+                </a>
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <div style="margin-top: 12px; font-size: 12px; color:#6b7280; line-height: 1.5;">
+          Note: These links work only in <strong>Firefox</strong> with the <strong>Multi-Account Containers</strong> add-on installed.
+          <br />
+          Auto-create requires the companion extension in this repo: <code>firefox-extension/ucags-wa-containers</code>
+          (load it via <strong>about:debugging</strong> → <strong>This Firefox</strong> → <strong>Load Temporary Add-on…</strong>).
+        </div>
+      </div>
+    `;
+  }
+
+  async function renderPanel() {
     const root = document.getElementById('whatsappView');
     if (!root) return;
+
+    // Load mappings (admin-only endpoint; will be empty for non-admin users)
+    const mappings = await fetchContainerMappings();
 
     root.innerHTML = `
       <div class="page-header">
@@ -201,6 +337,19 @@
             Status: not opened.
           </div>
 
+          <div style="margin-top: 14px; display:flex; gap: 10px; flex-wrap: wrap;">
+            <button id="waSetupContainersBtn" class="btn btn-primary" type="button">
+              <i class="fas fa-boxes"></i> Setup Firefox Containers for WhatsApp
+            </button>
+            <a class="btn btn-secondary" href="${FIREFOX_CONTAINERS_ADDON_URL}" target="_blank" rel="noopener" title="Open add-on page">
+              <i class="fas fa-puzzle-piece"></i> Multi-Account Containers Add-on
+            </a>
+          </div>
+
+          <div id="waContainersStatus" style="margin-top: 12px; padding: 10px 12px; border-radius: 10px; background:#f9fafb; border:1px solid #eef1f6; color:#374151; font-size: 13px; display:none;"></div>
+
+          ${renderAdvisorButtons(mappings)}
+
           <div style="margin-top: 14px; color:#666; font-size: 13px; line-height: 1.6;">
             <div style="font-weight:800; color:#111; margin-bottom:6px;">Smooth flow tips</div>
             <ul style="margin: 0; padding-left: 18px;">
@@ -217,6 +366,9 @@
     `;
 
     const statusEl = document.getElementById('waStatus');
+    const containersStatusEl = document.getElementById('waContainersStatus');
+    const setupContainersBtn = document.getElementById('waSetupContainersBtn');
+
     const openBtn = document.getElementById('waOpenBtn');
     const dockBtn = document.getElementById('waDockBtn');
     const closeBtn = document.getElementById('waCloseBtn');
@@ -228,9 +380,59 @@
       statusEl.textContent = text;
     }
 
+    function setContainersStatus(text, kind) {
+      if (!containersStatusEl) return;
+      containersStatusEl.style.display = 'block';
+      containersStatusEl.textContent = text;
+      const bg = kind === 'error' ? '#fef2f2' : kind === 'success' ? '#ecfdf3' : '#f9fafb';
+      const border = kind === 'error' ? '#fecaca' : kind === 'success' ? '#bbf7d0' : '#eef1f6';
+      containersStatusEl.style.background = bg;
+      containersStatusEl.style.borderColor = border;
+    }
+
     function updateStatus() {
       if (isWindowOpen(waWindow)) setStatus('Status: panel is open.');
       else setStatus('Status: not opened.');
+    }
+
+    if (setupContainersBtn) {
+      setupContainersBtn.addEventListener('click', async () => {
+        // 1) Open the add-on page (Firefox requires manual install).
+        try {
+          window.open(FIREFOX_CONTAINERS_ADDON_URL, '_blank', 'noopener');
+        } catch {
+          // ignore
+        }
+
+        // 2) Save default advisor->container mapping in CRM.
+        // 3) Create containers via the companion extension (requires installation).
+        try {
+          await saveDefaultContainerMappings();
+
+          const hasExt = await pingContainersExtension();
+          if (!hasExt) {
+            setContainersStatus(
+              'Saved Advisor mapping in CRM. Install/enable the “UCAGS CRM - WhatsApp Containers Setup” Firefox extension, then click this button again to auto-create containers.',
+              'error'
+            );
+            return;
+          }
+
+          const resp = await ensureAdvisorContainersViaExtension();
+          if (!resp?.ok) {
+            throw new Error(resp?.error || 'Extension failed to create containers');
+          }
+
+          const createdCount = (resp.ensured || []).filter(x => x.created).length;
+          setContainersStatus(
+            `Saved mappings in CRM and ensured containers: ${Object.values(DEFAULT_ADVISOR_CONTAINER_MAPPINGS).join(', ')}. Newly created: ${createdCount}.`,
+            'success'
+          );
+        } catch (e) {
+          setContainersStatus(e.message || 'Failed to setup containers', 'error');
+          if (window.UI?.showToast) UI.showToast(e.message || 'Failed to setup containers', 'error');
+        }
+      });
     }
 
     if (openBtn) {
@@ -323,9 +525,9 @@
     });
   }
 
-  window.initWhatsAppPanelPage = function () {
+  window.initWhatsAppPanelPage = async function () {
     bindAutoRedockOnce();
-    renderPanel();
+    await renderPanel();
   };
 
   // Utility for other pages to open WhatsApp (optional)
@@ -340,4 +542,8 @@
     redock: () => tryDockWindow(waWindow),
     isOpen: () => isWindowOpen(waWindow)
   };
+
+  // Expose helper for other modules (optional)
+  window.buildFirefoxContainerWhatsAppUrl = buildFirefoxContainerUrl;
+
 })();

@@ -92,6 +92,9 @@ app.use('/api/receipts', require('./modules/receipts/receiptsRoutes_v10'));
 
 // WhatsApp (disabled): previously used Meta Cloud API routes.
 // Replaced with simple WhatsApp Web popup panel in the frontend.
+//
+// Firefox Containers mapping (Admin helper)
+app.use('/api/whatsapp/containers', require('./modules/whatsappContainers/whatsappContainersRoutes'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

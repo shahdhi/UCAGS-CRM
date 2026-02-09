@@ -1,0 +1,26 @@
+{
+  "manifest_version": 2,
+  "name": "UCAGS CRM - WhatsApp Containers Setup",
+  "version": "1.0.0",
+  "description": "Creates Advisor_A..D Firefox containers for WhatsApp Web and provides a bridge for the UCAGS CRM setup button.",
+  "permissions": [
+    "contextualIdentities"
+  ],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content-script.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "applications": {
+    "gecko": {
+      "id": "ucags-wa-containers@ucags.local",
+      "strict_min_version": "91.0"
+    }
+  }
+}

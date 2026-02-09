@@ -18,3 +18,8 @@ ucags-crm-*.json
 **/ucags-crm-*.json
 **/*service-account*.json
 **/*service_account*.json
+
+# Firefox extension build/sign artifacts
+firefox-extension/web-ext-artifacts/
+firefox-extension/**/web-ext-artifacts/
+firefox-extension/**/dist/
