@@ -286,9 +286,26 @@
     `;
   }
 
+  function isAdminUser() {
+    // Primary: app sets window.currentUser in public/js/app.js
+    if (window.currentUser && window.currentUser.role) {
+      return String(window.currentUser.role).toLowerCase() === 'admin';
+    }
+
+    // Fallback: Supabase session metadata
+    try {
+      // Note: synchronous access isn’t available; so this is best-effort.
+      // If currentUser isn’t set, we default to non-admin.
+    } catch {}
+
+    return false;
+  }
+
   async function renderPanel() {
     const root = document.getElementById('whatsappView');
     if (!root) return;
+
+    const isAdmin = isAdminUser();
 
     // Load mappings (admin-only endpoint; will be empty for non-admin users)
     const mappings = await fetchContainerMappings();
@@ -337,17 +354,52 @@
             Status: not opened.
           </div>
 
-          <div style="margin-top: 14px; display:flex; gap: 10px; flex-wrap: wrap;">
-            <button id="waSetupContainersBtn" class="btn btn-primary" type="button">
-              <i class="fas fa-boxes"></i> Setup Firefox Containers for WhatsApp
-            </button>
-            <a class="btn btn-secondary" href="${FIREFOX_CONTAINERS_ADDON_URL}" target="_blank" rel="noopener" title="Open add-on page">
-              <i class="fas fa-puzzle-piece"></i> Multi-Account Containers Add-on
-            </a>
+          ${isAdmin ? `
+          <div style="margin-top: 14px; background:#fff; border:1px solid #eef1f6; border-radius: 12px; padding: 14px;">
+            <div style="font-weight:800; margin-bottom: 6px;">Firefox Containers Setup Wizard</div>
+            <div style="color:#6b7280; font-size: 13px; line-height: 1.5;">
+              Do these steps once on the admin machine. After linking WhatsApp in each container, the buttons below will always open the correct session.
+            </div>
+
+            <div style="margin-top: 12px; display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px;">
+              <div style="border:1px solid #f0f0f0; border-radius: 10px; padding: 12px;">
+                <div style="font-weight:800; margin-bottom:6px;">1) Install Multi-Account Containers</div>
+                <div style="font-size:12px; color:#6b7280; margin-bottom: 10px;">Required for per-advisor sessions.</div>
+                <button id="waStepInstallMAC" class="btn btn-secondary" type="button">
+                  <i class="fas fa-puzzle-piece"></i> Open Add-on Page
+                </button>
+              </div>
+
+              <div style="border:1px solid #f0f0f0; border-radius: 10px; padding: 12px;">
+                <div style="font-weight:800; margin-bottom:6px;">2) Install UCAGS Companion Extension</div>
+                <div style="font-size:12px; color:#6b7280; margin-bottom: 10px;">Enables auto-creating Advisor_A..D containers.</div>
+                <button id="waStepCheckCompanion" class="btn btn-secondary" type="button">
+                  <i class="fas fa-shield-alt"></i> Check Extension
+                </button>
+              </div>
+
+              <div style="border:1px solid #f0f0f0; border-radius: 10px; padding: 12px;">
+                <div style="font-weight:800; margin-bottom:6px;">3) Create Advisor Containers</div>
+                <div style="font-size:12px; color:#6b7280; margin-bottom: 10px;">Creates Advisor_A, Advisor_B, Advisor_C, Advisor_D.</div>
+                <button id="waStepCreateContainers" class="btn btn-primary" type="button">
+                  <i class="fas fa-boxes"></i> Create Containers
+                </button>
+              </div>
+
+              <div style="border:1px solid #f0f0f0; border-radius: 10px; padding: 12px;">
+                <div style="font-weight:800; margin-bottom:6px;">4) Open WhatsApp per Advisor & Link</div>
+                <div style="font-size:12px; color:#6b7280; margin-bottom: 10px;">Open each advisor once and login/scan QR.</div>
+                <button id="waStepScrollAdvisors" class="btn btn-secondary" type="button">
+                  <i class="fas fa-arrow-down"></i> Show Advisor Buttons
+                </button>
+              </div>
+            </div>
           </div>
+          ` : ''}
 
           <div id="waContainersStatus" style="margin-top: 12px; padding: 10px 12px; border-radius: 10px; background:#f9fafb; border:1px solid #eef1f6; color:#374151; font-size: 13px; display:none;"></div>
 
+          <div id="waAdvisorButtonsAnchor"></div>
           ${renderAdvisorButtons(mappings)}
 
           <div style="margin-top: 14px; color:#666; font-size: 13px; line-height: 1.6;">
@@ -367,7 +419,16 @@
 
     const statusEl = document.getElementById('waStatus');
     const containersStatusEl = document.getElementById('waContainersStatus');
-    const setupContainersBtn = document.getElementById('waSetupContainersBtn');
+
+    const stepInstallMACBtn = document.getElementById('waStepInstallMAC');
+    const stepCheckCompanionBtn = document.getElementById('waStepCheckCompanion');
+    const stepCreateContainersBtn = document.getElementById('waStepCreateContainers');
+    const stepScrollAdvisorsBtn = document.getElementById('waStepScrollAdvisors');
+
+    // Hide status box for non-admins (since wizard is hidden)
+    if (!isAdmin && containersStatusEl) {
+      containersStatusEl.style.display = 'none';
+    }
 
     const openBtn = document.getElementById('waOpenBtn');
     const dockBtn = document.getElementById('waDockBtn');
@@ -395,43 +456,68 @@
       else setStatus('Status: not opened.');
     }
 
-    if (setupContainersBtn) {
-      setupContainersBtn.addEventListener('click', async () => {
-        // 1) Open the add-on page (Firefox requires manual install).
+    if (stepInstallMACBtn) {
+      stepInstallMACBtn.addEventListener('click', () => {
         try {
           window.open(FIREFOX_CONTAINERS_ADDON_URL, '_blank', 'noopener');
-        } catch {
-          // ignore
-        }
+        } catch {}
+      });
+    }
 
-        // 2) Save default advisor->container mapping in CRM.
-        // 3) Create containers via the companion extension (requires installation).
+    if (stepCheckCompanionBtn) {
+      stepCheckCompanionBtn.addEventListener('click', async () => {
+        const hasExt = await pingContainersExtension();
+        if (hasExt) {
+          setContainersStatus('UCAGS companion extension is installed and responding.', 'success');
+        } else {
+          setContainersStatus(
+            'UCAGS companion extension not detected. If IT has force-installed it, restart Firefox. Otherwise install it (signed XPI / policy) and try again.',
+            'error'
+          );
+        }
+      });
+    }
+
+    if (stepCreateContainersBtn) {
+      stepCreateContainersBtn.addEventListener('click', async () => {
         try {
+          // Save default advisor->container mapping in CRM.
           await saveDefaultContainerMappings();
 
           const hasExt = await pingContainersExtension();
           if (!hasExt) {
             setContainersStatus(
-              'Saved Advisor mapping in CRM. Install/enable the “UCAGS CRM - WhatsApp Containers Setup” Firefox extension, then click this button again to auto-create containers.',
+              'Saved Advisor mapping in CRM, but UCAGS companion extension is not detected. Install/enable it, then retry.',
               'error'
             );
             return;
           }
 
           const resp = await ensureAdvisorContainersViaExtension();
-          if (!resp?.ok) {
-            throw new Error(resp?.error || 'Extension failed to create containers');
-          }
+          if (!resp?.ok) throw new Error(resp?.error || 'Extension failed to create containers');
 
           const createdCount = (resp.ensured || []).filter(x => x.created).length;
           setContainersStatus(
-            `Saved mappings in CRM and ensured containers: ${Object.values(DEFAULT_ADVISOR_CONTAINER_MAPPINGS).join(', ')}. Newly created: ${createdCount}.`,
+            `Containers ensured: ${Object.values(DEFAULT_ADVISOR_CONTAINER_MAPPINGS).join(', ')}. Newly created: ${createdCount}. Next: open each advisor and link WhatsApp once.`,
             'success'
           );
+
+          // Scroll to advisor buttons
+          try {
+            document.getElementById('waAdvisorButtonsAnchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } catch {}
         } catch (e) {
-          setContainersStatus(e.message || 'Failed to setup containers', 'error');
-          if (window.UI?.showToast) UI.showToast(e.message || 'Failed to setup containers', 'error');
+          setContainersStatus(e.message || 'Failed to create containers', 'error');
+          if (window.UI?.showToast) UI.showToast(e.message || 'Failed to create containers', 'error');
         }
+      });
+    }
+
+    if (stepScrollAdvisorsBtn) {
+      stepScrollAdvisorsBtn.addEventListener('click', () => {
+        try {
+          document.getElementById('waAdvisorButtonsAnchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch {}
       });
     }
 
