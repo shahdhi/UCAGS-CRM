@@ -398,8 +398,17 @@ function setupNavigation() {
             
             if (!page) return;
             
-            // WhatsApp: open WhatsApp Web in a right-docked reusable side window (not an in-app page)
+            // WhatsApp behavior:
+            // - Admins: open the in-app WhatsApp page (shows setup wizard + advisor links)
+            // - Non-admins: quick open the docked WhatsApp Web panel (popup)
             if (page === 'whatsapp') {
+                if (currentUser && currentUser.role === 'admin') {
+                    window.location.hash = page;
+                    navigateToPage(page);
+                    closeMobileMenu();
+                    return;
+                }
+
                 const opener = window.openWhatsAppSidePanel || window.WhatsAppPanel?.open;
                 if (typeof opener === 'function') {
                     const result = opener();
@@ -412,7 +421,7 @@ function setupNavigation() {
                     return;
                 }
 
-                // Fallback: navigate to the in-app WhatsApp page which provides an "Open Panel" button
+                // Fallback (non-admins): navigate to the in-app WhatsApp page which provides an "Open Panel" button
                 window.location.hash = page;
                 navigateToPage(page);
                 closeMobileMenu();
