@@ -49,7 +49,10 @@ const config = {
     leadsSheetName: process.env.LEADS_SHEET_NAME || 'Batch14', // Default to current batch
     // User-specific leads sheets
     userLeadsSheetId: process.env.USER_LEADS_SHEET_ID,
-    userLeadsTemplateSheet: process.env.USER_LEADS_TEMPLATE_SHEET || 'Shahdhi' // Template to copy
+    userLeadsTemplateSheet: process.env.USER_LEADS_TEMPLATE_SHEET || 'Shahdhi', // Template to copy
+
+    // Attendance spreadsheet (daily check-in/out)
+    attendanceSheetId: process.env.ATTENDANCE_SHEET_ID
   },
 
   // Gmail Configuration (for future modules)

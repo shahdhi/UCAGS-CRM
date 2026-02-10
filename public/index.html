@@ -203,6 +203,11 @@
 
                 <div class="nav-divider"></div>
 
+                <a href="#" class="nav-item" data-page="attendance">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Attendance</span>
+                </a>
+
                 <a href="#" class="nav-item admin-only" data-page="receipts">
                     <i class="fas fa-receipt"></i>
                     <span>Receipts</span>
@@ -386,6 +391,54 @@
             </div>
 
             
+            <!-- Attendance View (Officers + Admin) -->
+            <div id="attendanceView" class="content-view" style="display: none;">
+                <div class="page-header">
+                    <h1><i class="fas fa-clipboard-check"></i> Attendance</h1>
+                </div>
+
+                <div class="dashboard-card" style="margin-bottom: 20px;">
+                    <h3>My Today</h3>
+                    <div id="attendanceMyStatus" class="recent-list">
+                        <p class="loading">Loading...</p>
+                    </div>
+                    <div style="display:flex; gap: 10px; margin-top: 10px;">
+                        <button id="attendanceCheckInBtn" class="btn btn-success" type="button">
+                            <i class="fas fa-sign-in-alt"></i> Check In
+                        </button>
+                        <button id="attendanceCheckOutBtn" class="btn btn-warning" type="button">
+                            <i class="fas fa-sign-out-alt"></i> Check Out
+                        </button>
+                    </div>
+                </div>
+
+                <div id="attendanceAdminSection" class="dashboard-card admin-only" style="display:none;">
+                    <h3>Daily Staff Records</h3>
+                    <div class="filters-bar" style="margin-bottom: 10px;">
+                        <input type="date" id="attendanceAdminDate" class="form-control" />
+                        <button id="attendanceAdminRefreshBtn" class="btn btn-secondary" type="button">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Staff</th>
+                                    <th>Check In</th>
+                                    <th>Check Out</th>
+                                    <th>Updated</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceAdminTableBody">
+                                <tr><td colspan="5" class="loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Lead Management View (Officers Only) -->
             <div id="lead-managementView" class="content-view officer-only" style="display: none;">
                 <div class="page-header">
@@ -1025,6 +1078,7 @@
     
     <!-- Supabase JS (load first) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/frontend/pages/attendance/attendancePage.js"></script>
     
     <!-- Supabase Client (must load after Supabase JS) -->
     <script src="js/supabaseClient.js"></script>

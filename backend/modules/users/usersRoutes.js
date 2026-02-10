@@ -194,6 +194,10 @@ router.post('/', async (req, res) => {
       // Create a personal sheet for the user in the User Leads Spreadsheet
       let sheetCreated = false;
       let sheetError = null;
+
+      // Create a personal attendance sheet for the user in the Attendance Spreadsheet
+      let attendanceSheetCreated = false;
+      let attendanceSheetError = null;
       
       if (config.sheets.userLeadsSheetId && config.sheets.userLeadsTemplateSheet) {
         try {
@@ -257,6 +261,21 @@ router.post('/', async (req, res) => {
         console.log('USER_LEADS_TEMPLATE_SHEET:', config.sheets.userLeadsTemplateSheet);
       }
 
+      // Attendance sheet creation (one sheet per staff name)
+      if (config.sheets.attendanceSheetId) {
+        try {
+          const { ensureStaffSheet } = require('../attendance/attendanceService');
+          await ensureStaffSheet(name);
+          attendanceSheetCreated = true;
+        } catch (err) {
+          console.error('❌ Error creating attendance sheet:', err);
+          attendanceSheetError = err.message;
+          // Don't fail user creation if attendance sheet creation fails
+        }
+      } else {
+        console.log('⚠️  Attendance sheet creation skipped - ATTENDANCE_SHEET_ID not configured');
+      }
+
       const newUser = {
         id: data.user.id,
         email: data.user.email,
@@ -269,11 +288,15 @@ router.post('/', async (req, res) => {
 
       res.status(201).json({
         success: true,
-        message: `Staff member created successfully. Password: ${password}${sheetCreated ? ' Personal leads sheet created.' : ''}`,
+        message: `Staff member created successfully. Password: ${password}`
+          + `${sheetCreated ? ' Personal leads sheet created.' : ''}`
+          + `${attendanceSheetCreated ? ' Attendance sheet created.' : ''}`,
         user: newUser,
         emailConfirmed: !!data.user.email_confirmed_at,
         sheetCreated: sheetCreated,
         sheetError: sheetError,
+        attendanceSheetCreated,
+        attendanceSheetError,
         note: !data.user.email_confirmed_at ? 'Email confirmation may be required by Supabase settings. Please check Supabase Dashboard > Authentication > Settings.' : 'User can login immediately.',
         source: 'supabase'
       });

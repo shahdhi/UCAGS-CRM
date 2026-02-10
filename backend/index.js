@@ -86,6 +86,9 @@ app.use('/api/admissions', require('./modules/admissions/admissionsRoutes'));
 app.use('/api/students', require('./modules/students/studentsRoutes'));
 app.use('/api/analytics', require('./modules/analytics/analyticsRoutes'));
 
+// Attendance (check-in / check-out)
+app.use('/api/attendance', require('./modules/attendance/attendanceRoutes'));
+
 // Receipt generation (Admin only)
 // Use renamed module to force complete reload (bypass Node cache)
 app.use('/api/receipts', require('./modules/receipts/receiptsRoutes_v10'));

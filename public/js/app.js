@@ -631,6 +631,18 @@ async function navigateToPage(page) {
         case 'settings':
             loadSettings();
             break;
+        case 'attendance':
+            // Show admin-only section if admin
+            {
+                const adminSection = document.getElementById('attendanceAdminSection');
+                if (adminSection) {
+                    adminSection.style.display = (currentUser.role === 'admin') ? 'block' : 'none';
+                }
+                if (window.initAttendancePage) {
+                    window.initAttendancePage();
+                }
+            }
+            break;
         case 'receipts':
             loadReceipts();
             break;
