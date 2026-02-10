@@ -156,21 +156,13 @@
   window.initAttendancePage = async function () {
     init();
 
-    // If admin: hide personal check-in/out controls (admins don't need to check in/out)
+    // If admin: hide the entire "My Today" card (admins don't do check-in/out)
     const isAdmin = window.currentUser && window.currentUser.role === 'admin';
-    const btnIn = document.getElementById('attendanceCheckInBtn');
-    const btnOut = document.getElementById('attendanceCheckOutBtn');
     if (isAdmin) {
-      if (btnIn) btnIn.style.display = 'none';
-      if (btnOut) btnOut.style.display = 'none';
-    }
-
-    // Officers: load personal status
-    if (!isAdmin) {
-      await loadMyStatus();
+      const myCard = document.getElementById('attendanceMyTodayCard');
+      if (myCard) myCard.style.display = 'none';
     } else {
-      const statusEl = document.getElementById('attendanceMyStatus');
-      if (statusEl) statusEl.innerHTML = '<div>Admin account: check-in/out not required.</div>';
+      await loadMyStatus();
     }
 
     // Load admin table only if visible
