@@ -4,24 +4,179 @@
  */
 
 const { readSheet, writeSheet, appendSheet } = require('../../core/sheets/sheetsClient');
+
+function colToLetter(col) {
+  let temp = col + 1;
+  let letter = '';
+  while (temp > 0) {
+    let rem = (temp - 1) % 26;
+    letter = String.fromCharCode(65 + rem) + letter;
+    temp = Math.floor((temp - 1) / 26);
+  }
+  return letter;
+}
+
+function buildA1Range(sheetName, startRow, startCol, endRow, endCol) {
+  const start = `${colToLetter(startCol)}${startRow}`;
+  const end = `${colToLetter(endCol)}${endRow}`;
+  return `${sheetName}!${start}:${end}`;
+}
+
 const { config } = require('../../core/config/environment');
 
 /**
- * Column mapping for leads spreadsheet
- * Adjusted based on actual sheet structure: a, j columns
+ * Leads sheet schema
+ *
+ * IMPORTANT: We must not rely on fixed column indexes because the sheet column order can change.
+ * We therefore read header row (row 1) and build a dynamic header -> index mapping.
  */
-const COLUMN_MAP = {
-  ID: 0,           // Column A - ID
-  NAME: 1,         // Column B - Name  
-  EMAIL: 2,        // Column C - Email
-  PHONE: 3,        // Column D - Phone
-  COURSE: 4,       // Column E - Course
-  SOURCE: 5,       // Column F - Source
-  STATUS: 6,       // Column G - Status
-  ASSIGNED_TO: 7,  // Column H - Assigned To
-  CREATED_DATE: 8, // Column I - Created Date
-  NOTES: 9         // Column J - Notes
+
+// Requested header order (first columns)
+const REQUESTED_HEADER_ORDER = [
+  'platform',
+  'are_you_planning_to_start_immediately?',
+  'why_are_you_interested_in_this_diploma?',
+  'full_name',
+  'phone',
+  'email',
+  'ID'
+];
+
+// Common header aliases we may see in existing sheets
+const HEADER_ALIASES = {
+  id: ['id', 'ID', 'enquiry_id', 'enquiryId', 'lead_id'],
+  full_name: ['full_name', 'Full Name', 'name', 'Name', 'fullName', 'FULL_NAME'],
+  phone: ['phone', 'Phone', 'mobile', 'Mobile', 'contact', 'Contact'],
+  email: ['email', 'Email', 'e-mail', 'E-mail'],
+  platform: ['platform', 'Platform', 'source', 'Source'],
+  assigned_to: ['assigned to', 'assigned_to', 'Assigned To', 'assignedTo'],
+  status: ['status', 'Status'],
+  notes: ['notes', 'Notes', 'remarks', 'Remarks'],
+  created_date: ['created', 'created_date', 'Created Date', 'createdDate', 'date']
 };
+
+let ensuredOrderCache = new Set();
+
+async function ensureLeadsHeaderOrder(spreadsheetId, sheetName) {
+  const key = `${spreadsheetId}:${sheetName}`;
+  if (ensuredOrderCache.has(key)) return;
+
+  const headerRow = await readSheet(spreadsheetId, `${sheetName}!A1:Z1`);
+  const headers = (headerRow && headerRow[0]) ? headerRow[0].map(normalizeHeader).filter(Boolean) : [];
+  if (headers.length === 0) {
+    // Nothing to reorder
+    ensuredOrderCache.add(key);
+    return;
+  }
+
+  const requested = REQUESTED_HEADER_ORDER;
+  const requestedSet = new Set(requested.map(h => h.toLowerCase()));
+
+  // Build new header order: requested headers first (if they exist in current sheet), then the rest
+  const existingLowerToOriginal = new Map(headers.map(h => [h.toLowerCase(), h]));
+
+  const newHeaders = [];
+  for (const h of requested) {
+    const existing = existingLowerToOriginal.get(h.toLowerCase());
+    if (existing) newHeaders.push(existing);
+    else newHeaders.push(h); // if missing, we still create the column
+  }
+
+  for (const h of headers) {
+    if (!requestedSet.has(h.toLowerCase())) {
+      newHeaders.push(h);
+    }
+  }
+
+  // If header row already matches (case-insensitive) and no new columns added, skip
+  const currentNorm = headers.map(h => h.toLowerCase());
+  const desiredNorm = newHeaders.map(h => h.toLowerCase());
+  const same = currentNorm.length === desiredNorm.length && currentNorm.every((v, i) => v === desiredNorm[i]);
+
+  if (same) {
+    ensuredOrderCache.add(key);
+    return;
+  }
+
+  // Read all existing rows (including header)
+  const allRows = await readSheet(spreadsheetId, `${sheetName}!A1:Z`);
+  const dataRows = allRows.slice(1);
+
+  // Create mapping oldHeaderLower -> oldIndex
+  const oldIndexByLower = new Map();
+  headers.forEach((h, i) => oldIndexByLower.set(h.toLowerCase(), i));
+
+  // Rebuild rows according to new header order
+  const rebuilt = [newHeaders];
+  for (const r of dataRows) {
+    const newRow = new Array(newHeaders.length).fill('');
+    for (let j = 0; j < newHeaders.length; j++) {
+      const hLower = newHeaders[j].toLowerCase();
+      const oldIdx = oldIndexByLower.get(hLower);
+      if (oldIdx != null && oldIdx >= 0) {
+        newRow[j] = r[oldIdx] != null ? r[oldIdx] : '';
+      }
+    }
+    // Keep trailing empty rows out
+    if (newRow.some(v => String(v || '').trim() !== '')) {
+      rebuilt.push(newRow);
+    }
+  }
+
+  const endCol = newHeaders.length - 1;
+  const endRow = rebuilt.length;
+  const range = buildA1Range(sheetName, 1, 0, endRow, endCol);
+  await writeSheet(spreadsheetId, range, rebuilt);
+
+  ensuredOrderCache.add(key);
+}
+
+
+function normalizeHeader(h) {
+  return String(h || '').trim();
+}
+
+function findHeaderIndex(headers, candidates) {
+  const normalized = headers.map(normalizeHeader);
+  for (const c of candidates) {
+    const idx = normalized.findIndex(h => h.toLowerCase() === String(c).toLowerCase());
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+
+async function getHeaderMap(spreadsheetId, sheetName) {
+  const headerRow = await readSheet(spreadsheetId, `${sheetName}!A1:Z1`);
+  const headers = (headerRow && headerRow[0]) ? headerRow[0].map(normalizeHeader) : [];
+
+  const map = {};
+  // direct exact mapping
+  headers.forEach((h, idx) => {
+    if (h) map[h] = idx;
+  });
+
+  // canonical mapping
+  const canonical = {
+    platform: findHeaderIndex(headers, [...HEADER_ALIASES.platform, 'platform']),
+    planning: findHeaderIndex(headers, ['are_you_planning_to_start_immediately?']),
+    interest: findHeaderIndex(headers, ['why_are_you_interested_in_this_diploma?']),
+    full_name: findHeaderIndex(headers, [...HEADER_ALIASES.full_name, 'full_name']),
+    phone: findHeaderIndex(headers, [...HEADER_ALIASES.phone, 'phone']),
+    email: findHeaderIndex(headers, [...HEADER_ALIASES.email, 'email']),
+    id: findHeaderIndex(headers, [...HEADER_ALIASES.id, 'ID']),
+    assigned_to: findHeaderIndex(headers, [...HEADER_ALIASES.assigned_to, 'assigned_to']),
+    status: findHeaderIndex(headers, [...HEADER_ALIASES.status, 'status']),
+    created_date: findHeaderIndex(headers, [...HEADER_ALIASES.created_date, 'created_date']),
+    notes: findHeaderIndex(headers, [...HEADER_ALIASES.notes, 'notes'])
+  };
+
+  return { headers, map, canonical };
+}
+
+function getCell(row, idx) {
+  if (idx == null || idx < 0) return '';
+  return row[idx] != null ? row[idx] : '';
+}
 
 /**
  * Get the spreadsheet ID for leads
@@ -48,18 +203,30 @@ function getLeadsSheetName(batch) {
  * @param {number} index - Row index (for ID generation)
  * @returns {Object} Parsed lead object
  */
-function parseLeadRow(row, index) {
+function parseLeadRow(row, index, headerInfo) {
+  const c = headerInfo?.canonical || {};
+
+  const id = getCell(row, c.id) || (index + 1);
+  const fullName = getCell(row, c.full_name);
+
+  // Keep backward compatibility with existing UI fields
   return {
-    id: row[COLUMN_MAP.ID] || (index + 1),
-    name: row[COLUMN_MAP.NAME] || '',
-    email: row[COLUMN_MAP.EMAIL] || '',
-    phone: row[COLUMN_MAP.PHONE] || '',
-    course: row[COLUMN_MAP.COURSE] || '',
-    source: row[COLUMN_MAP.SOURCE] || '',
-    status: row[COLUMN_MAP.STATUS] || 'New',
-    assignedTo: row[COLUMN_MAP.ASSIGNED_TO] || '',
-    createdDate: row[COLUMN_MAP.CREATED_DATE] || '',
-    notes: row[COLUMN_MAP.NOTES] || ''
+    id,
+
+    // New fields requested
+    platform: getCell(row, c.platform),
+    are_you_planning_to_start_immediately: getCell(row, c.planning),
+    why_are_you_interested_in_this_diploma: getCell(row, c.interest),
+    full_name: fullName,
+
+    // Existing CRM fields
+    name: fullName || '',
+    email: getCell(row, c.email) || '',
+    phone: getCell(row, c.phone) || '',
+    status: getCell(row, c.status) || 'New',
+    assignedTo: getCell(row, c.assigned_to) || '',
+    createdDate: getCell(row, c.created_date) || '',
+    notes: getCell(row, c.notes) || ''
   };
 }
 
@@ -92,8 +259,12 @@ async function getAllLeads(filters = {}) {
       throw new Error('No spreadsheet ID configured. Please set SHEET_ID in environment variables.');
     }
 
+    // Ensure the spreadsheet columns are in the requested order (spreadsheet-only change)
+    await ensureLeadsHeaderOrder(spreadsheetId, sheetName);
+
+    const headerInfo = await getHeaderMap(spreadsheetId, sheetName);
+
     // Read data starting from row 2 (skip header)
-    // Try without row limit first to avoid parse errors
     const range = `${sheetName}!A2:Z`;
     console.log(`Reading from sheet: ${sheetName}, range: ${range}`);
     const rows = await readSheet(spreadsheetId, range);
@@ -104,10 +275,11 @@ async function getAllLeads(filters = {}) {
       console.log('First row length:', rows[0].length);
     }
 
-    // Parse rows into lead objects
+    // Parse rows into lead objects (header-based)
     let leads = rows
-      .filter(row => row && row.length > 0 && row[COLUMN_MAP.NAME]) // Filter out empty rows
-      .map((row, index) => parseLeadRow(row, index));
+      .filter(row => row && row.length > 0)
+      .map((row, index) => parseLeadRow(row, index, headerInfo))
+      .filter(l => l && (l.full_name || l.name || l.email || l.phone));
     
     console.log(`✓ Parsed ${leads.length} leads after filtering empty rows`);
 
@@ -184,6 +356,34 @@ async function getLeadsStats() {
  * @param {string} batch - Optional batch name to specify which sheet to update
  * @returns {Promise<Object>} Updated lead
  */
+function setCell(rowArr, idx, value) {
+  if (idx == null || idx < 0) return;
+  rowArr[idx] = value != null ? value : '';
+}
+
+function buildRowFromLead(leadObj, headerInfo) {
+  const headers = headerInfo.headers || [];
+  const c = headerInfo.canonical || {};
+  const row = new Array(headers.length).fill('');
+
+  // Requested/new fields
+  setCell(row, c.platform, leadObj.platform || leadObj.source || '');
+  setCell(row, c.planning, leadObj.are_you_planning_to_start_immediately || '');
+  setCell(row, c.interest, leadObj.why_are_you_interested_in_this_diploma || '');
+  setCell(row, c.full_name, leadObj.full_name || leadObj.name || '');
+  setCell(row, c.phone, leadObj.phone || '');
+  setCell(row, c.email, leadObj.email || '');
+  setCell(row, c.id, leadObj.id || '');
+
+  // Common CRM fields
+  setCell(row, c.assigned_to, leadObj.assignedTo || '');
+  setCell(row, c.status, leadObj.status || '');
+  setCell(row, c.created_date, leadObj.createdDate || '');
+  setCell(row, c.notes, leadObj.notes || '');
+
+  return row;
+}
+
 async function updateLead(leadId, updates, batch) {
   try {
     console.log('\n\n🔥🔥🔥 UPDATE LEAD CALLED 🔥🔥🔥');
@@ -200,6 +400,10 @@ async function updateLead(leadId, updates, batch) {
     }
     
     console.log(`📋 Looking for lead ${leadId} in sheet: ${sheetName}`);
+
+    // Ensure order + header map
+    await ensureLeadsHeaderOrder(spreadsheetId, sheetName);
+    const headerInfo = await getHeaderMap(spreadsheetId, sheetName);
 
     // Get all leads to find the row (filter by batch if provided)
     const leads = await getAllLeads(batch ? { batch } : {});
@@ -221,23 +425,13 @@ async function updateLead(leadId, updates, batch) {
       updatedLead.batch = batch;
     }
     
-    // Convert to row array (columns A-J)
-    const row = [
-      updatedLead.id || '',
-      updatedLead.name || '',
-      updatedLead.email || '',
-      updatedLead.phone || '',
-      updatedLead.course || '',
-      updatedLead.source || '',
-      updatedLead.status || '',
-      updatedLead.assignedTo || '',
-      updatedLead.createdDate || '',
-      updatedLead.notes || ''
-    ];
+    // Build row aligned to current headers
+    const row = buildRowFromLead(updatedLead, headerInfo);
 
     // Calculate actual row number (leadIndex + 2: +1 for 0-based index, +1 for header row)
     const rowNumber = leadIndex + 2;
-    const range = `${sheetName}!A${rowNumber}:J${rowNumber}`;
+    const endCol = Math.max((headerInfo.headers || []).length - 1, 0);
+    const range = buildA1Range(sheetName, rowNumber, 0, rowNumber, endCol);
     
     await writeSheet(spreadsheetId, range, [row]);
 
@@ -306,26 +500,25 @@ async function addLead(leadData) {
       throw new Error('No spreadsheet ID configured.');
     }
 
+    // Ensure order + header map
+    await ensureLeadsHeaderOrder(spreadsheetId, sheetName);
+    const headerInfo = await getHeaderMap(spreadsheetId, sheetName);
+
     // Get all leads to determine next ID
     const leads = await getAllLeads();
     const nextId = leads.length > 0 ? Math.max(...leads.map(l => parseInt(l.id) || 0)) + 1 : 1;
-    
-    // Create row array (columns A-J)
-    const row = [
-      nextId,
-      leadData.name || '',
-      leadData.email || '',
-      leadData.phone || '',
-      leadData.course || '',
-      leadData.source || '',
-      leadData.status || 'New',
-      leadData.assignedTo || '',
-      leadData.createdDate || new Date().toISOString().split('T')[0],
-      leadData.notes || ''
-    ];
 
-    // Append to sheet
-    const range = `${sheetName}!A:J`;
+    const leadObj = {
+      ...leadData,
+      id: nextId,
+      createdDate: leadData.createdDate || new Date().toISOString().split('T')[0]
+    };
+
+    const row = buildRowFromLead(leadObj, headerInfo);
+
+    // Append to sheet (entire width)
+    const endCol = Math.max((headerInfo.headers || []).length - 1, 0);
+    const range = `${sheetName}!A:${colToLetter(endCol)}`;
     await appendSheet(spreadsheetId, range, [row]);
 
     console.log(`✓ Added new lead with ID ${nextId}`);
@@ -365,9 +558,14 @@ async function deleteLead(leadId) {
     // Calculate actual row number
     const rowNumber = leadIndex + 2;
     
-    // Clear the row (delete by setting all cells to empty)
-    const emptyRow = ['', '', '', '', '', '', '', '', '', ''];
-    const range = `${sheetName}!A${rowNumber}:J${rowNumber}`;
+    // Ensure order + header map
+    await ensureLeadsHeaderOrder(spreadsheetId, sheetName);
+    const headerInfo = await getHeaderMap(spreadsheetId, sheetName);
+
+    // Clear the row by writing empty values across the header width
+    const emptyRow = new Array((headerInfo.headers || []).length).fill('');
+    const endCol = Math.max((headerInfo.headers || []).length - 1, 0);
+    const range = buildA1Range(sheetName, rowNumber, 0, rowNumber, endCol);
     
     await writeSheet(spreadsheetId, range, [emptyRow]);
 

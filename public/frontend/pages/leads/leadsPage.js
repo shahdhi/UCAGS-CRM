@@ -1066,6 +1066,18 @@ async function viewLeadDetails(leadId) {
                 <span class="detail-value">${escapeHtml(lead.source) || '-'}</span>
               </div>
               <div class="detail-row">
+                <span class="detail-label">Platform:</span>
+                <span class="detail-value">${escapeHtml(lead.platform) || '-'}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Planning to start immediately:</span>
+                <span class="detail-value">${escapeHtml(lead.are_you_planning_to_start_immediately) || '-'}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Why interested:</span>
+                <span class="detail-value">${escapeHtml(lead.why_are_you_interested_in_this_diploma) || '-'}</span>
+              </div>
+              <div class="detail-row">
                 <span class="detail-label">Status:</span>
                 <span class="detail-value"><span class="badge badge-${getStatusColor(lead.status)}">${escapeHtml(lead.status)}</span></span>
               </div>
