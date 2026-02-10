@@ -18,6 +18,60 @@ const ATT_HEADERS = [
   'Updated At (ISO)'
 ];
 
+// Google Sheets may auto-coerce values into date/time serial numbers depending on cell format.
+// To keep Date + CheckIn/Out stable and human-readable, we write them as TEXT (prefix with apostrophe)
+// and we also normalize reads in case older rows already got coerced.
+function isNumericLike(v) {
+  if (v == null) return false;
+  if (typeof v === 'number') return true;
+  const s = String(v).trim();
+  return s !== '' && /^-?\d+(\.\d+)?$/.test(s);
+}
+
+function serialDateToYMD(serial) {
+  const n = Number(serial);
+  if (!Number.isFinite(n)) return '';
+  // Google Sheets serial date: days since 1899-12-30
+  const ms = Math.round((n - 25569) * 86400 * 1000);
+  const d = new Date(ms);
+  const y = d.getUTCFullYear();
+  const m = pad2(d.getUTCMonth() + 1);
+  const day = pad2(d.getUTCDate());
+  return `${y}-${m}-${day}`;
+}
+
+function serialTimeToHMS(serial) {
+  const n = Number(serial);
+  if (!Number.isFinite(n)) return '';
+  // time-only cells are often fractional days
+  const frac = n % 1;
+  const totalSeconds = Math.round(frac * 86400);
+  const hh = pad2(Math.floor(totalSeconds / 3600) % 24);
+  const mm = pad2(Math.floor((totalSeconds % 3600) / 60));
+  const ss = pad2(totalSeconds % 60);
+  return `${hh}:${mm}:${ss}`;
+}
+
+function normalizeDateCell(v) {
+  if (!v) return '';
+  if (isNumericLike(v)) return serialDateToYMD(v);
+  return String(v).trim();
+}
+
+function normalizeTimeCell(v) {
+  if (!v) return '';
+  if (isNumericLike(v)) return serialTimeToHMS(v);
+  return String(v).trim();
+}
+
+function asTextCell(v) {
+  if (!v) return '';
+  const s = String(v);
+  // If already text-forced, keep it
+  if (s.startsWith("'")) return s;
+  return `'${s}`;
+}
+
 function requireAttendanceSheetId() {
   const spreadsheetId = config.sheets.attendanceSheetId;
   if (!spreadsheetId) {
@@ -100,9 +154,9 @@ async function getStaffRecords(staffName, { fromDate, toDate, limit } = {}) {
 
   const rows = await readSheet(spreadsheetId, `${sheetName}!A2:G`);
   const records = (rows || []).map((row) => ({
-    date: row[0] || '',
-    checkIn: row[1] || '',
-    checkOut: row[2] || '',
+    date: normalizeDateCell(row[0]),
+    checkIn: normalizeTimeCell(row[1]),
+    checkOut: normalizeTimeCell(row[2]),
     checkInIso: row[3] || '',
     checkOutIso: row[4] || '',
     createdAt: row[5] || '',
@@ -122,7 +176,7 @@ async function findRowIndexByDate(staffName, dateStr) {
   const { sheetName } = await ensureStaffSheet(staffName);
 
   const rows = await readSheet(spreadsheetId, `${sheetName}!A2:A`);
-  const idx = (rows || []).findIndex(r => (r[0] || '') === dateStr);
+  const idx = (rows || []).findIndex(r => normalizeDateCell(r[0]) === dateStr);
   if (idx === -1) return { sheetName, rowNumber: null };
   return { sheetName, rowNumber: idx + 2 }; // +2 for header + 0-based
 }
@@ -147,9 +201,9 @@ async function checkIn(staffName, now = new Date()) {
     }
 
     const updated = [
-      dateStr,
-      timeStr,
-      row[2] || '',
+      asTextCell(dateStr),
+      asTextCell(timeStr),
+      row[2] ? asTextCell(normalizeTimeCell(row[2])) : '',
       nowIso,
       row[4] || '',
       row[5] || nowIso,
@@ -159,7 +213,7 @@ async function checkIn(staffName, now = new Date()) {
     return { date: dateStr, checkIn: timeStr, checkInIso: nowIso };
   }
 
-  const newRow = [dateStr, timeStr, '', nowIso, '', nowIso, nowIso];
+  const newRow = [asTextCell(dateStr), asTextCell(timeStr), '', nowIso, '', nowIso, nowIso];
   await appendSheet(spreadsheetId, `${sheetName}!A:G`, [newRow]);
   return { date: dateStr, checkIn: timeStr, checkInIso: nowIso };
 }
@@ -194,9 +248,9 @@ async function checkOut(staffName, now = new Date()) {
   }
 
   const updated = [
-    row[0] || dateStr,
-    row[1] || '',
-    timeStr,
+    asTextCell(normalizeDateCell(row[0]) || dateStr),
+    row[1] ? asTextCell(normalizeTimeCell(row[1])) : '',
+    asTextCell(timeStr),
     row[3] || '',
     nowIso,
     row[5] || row[3] || nowIso,
@@ -221,9 +275,9 @@ async function getTodayStatus(staffName, now = new Date()) {
   const row = (existing && existing[0]) || [];
 
   const record = {
-    date: row[0] || dateStr,
-    checkIn: row[1] || '',
-    checkOut: row[2] || '',
+    date: normalizeDateCell(row[0]) || dateStr,
+    checkIn: normalizeTimeCell(row[1]),
+    checkOut: normalizeTimeCell(row[2]),
     checkInIso: row[3] || '',
     checkOutIso: row[4] || '',
     createdAt: row[5] || '',

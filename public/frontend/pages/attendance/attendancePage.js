@@ -39,7 +39,7 @@
     if (statusEl) statusEl.textContent = 'Loading…';
 
     const headers = await getAuthHeaders();
-    const res = await fetch('/api/attendance/me/today', { headers });
+    const res = await fetch('/api/attendance/me/today', { headers, cache: 'no-store' });
     const json = await res.json();
 
     if (!json?.success) {
@@ -72,7 +72,7 @@
 
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/attendance/me/checkin', { method: 'POST', headers });
+      const res = await fetch('/api/attendance/me/checkin', { method: 'POST', headers, cache: 'no-store' });
       const json = await res.json();
       if (!json?.success) throw new Error(json?.error || 'Check-in failed');
 
@@ -90,7 +90,7 @@
 
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/attendance/me/checkout', { method: 'POST', headers });
+      const res = await fetch('/api/attendance/me/checkout', { method: 'POST', headers, cache: 'no-store' });
       const json = await res.json();
       if (!json?.success) throw new Error(json?.error || 'Check-out failed');
 
@@ -114,7 +114,7 @@
     const headers = await getAuthHeaders();
     const url = date ? `/api/attendance/records?date=${encodeURIComponent(date)}` : '/api/attendance/records';
 
-    const res = await fetch(url, { headers });
+    const res = await fetch(url, { headers, cache: 'no-store' });
     const json = await res.json();
 
     if (!json?.success) {
