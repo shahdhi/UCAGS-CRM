@@ -407,14 +407,18 @@
                     <div id="attendanceMyStatus" class="recent-list">
                         <p class="loading">Loading...</p>
                     </div>
-                    <div style="display:flex; gap: 10px; margin-top: 10px;">
+                    <div style="display:flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
                         <button id="attendanceCheckInBtn" class="btn btn-success" type="button">
                             <i class="fas fa-sign-in-alt"></i> Check In
                         </button>
                         <button id="attendanceCheckOutBtn" class="btn btn-warning" type="button">
                             <i class="fas fa-sign-out-alt"></i> Check Out
                         </button>
+                        <button id="attendanceConfirmLocationBtn" class="btn btn-secondary" type="button">
+                            <i class="fas fa-map-marker-alt"></i> Confirm Location
+                        </button>
                     </div>
+                    <div id="attendanceLocationStatus" style="margin-top:10px; color:#555;"></div>
                 </div>
 
                 <div id="attendanceAdminSection" class="dashboard-card admin-only" style="display:none;">
@@ -433,10 +437,11 @@
                                     <th>Staff</th>
                                     <th>Check In</th>
                                     <th>Check Out</th>
+                                    <th>Location</th>
                                 </tr>
                             </thead>
                             <tbody id="attendanceAdminTableBody">
-                                <tr><td colspan="4" class="loading">Loading...</td></tr>
+                                <tr><td colspan="5" class="loading">Loading...</td></tr>
                             </tbody>
                         </table>
                     </div>

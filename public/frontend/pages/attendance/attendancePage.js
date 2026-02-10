@@ -62,8 +62,20 @@
 
     const btnIn = document.getElementById('attendanceCheckInBtn');
     const btnOut = document.getElementById('attendanceCheckOutBtn');
+    const btnLoc = document.getElementById('attendanceConfirmLocationBtn');
+    const locStatus = document.getElementById('attendanceLocationStatus');
+
     if (btnIn) btnIn.disabled = checkedIn;
     if (btnOut) btnOut.disabled = !checkedIn || checkedOut;
+
+    const hasLoc = !!(rec?.locationLat && rec?.locationLng);
+    if (btnLoc) btnLoc.disabled = !checkedIn || hasLoc;
+
+    if (locStatus) {
+      locStatus.innerHTML = hasLoc
+        ? `Location confirmed. <a target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(rec.locationLat)},${encodeURIComponent(rec.locationLng)}">View on map</a>`
+        : '';
+    }
   }
 
   async function doCheckIn() {
@@ -80,6 +92,52 @@
       await loadMyStatus();
     } catch (e) {
       if (window.UI?.showToast) UI.showToast(e.message || 'Check-in failed', 'error');
+      await loadMyStatus();
+    }
+  }
+
+  function getBrowserLocation() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Location not supported on this device/browser'));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          resolve({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy
+          });
+        },
+        (err) => {
+          reject(new Error(err.message || 'Failed to get location'));
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    });
+  }
+
+  async function doConfirmLocation() {
+    const btn = document.getElementById('attendanceConfirmLocationBtn');
+    if (btn) btn.disabled = true;
+
+    try {
+      const loc = await getBrowserLocation();
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/attendance/me/confirm-location', {
+        method: 'POST',
+        headers,
+        cache: 'no-store',
+        body: JSON.stringify(loc)
+      });
+      const json = await res.json();
+      if (!json?.success) throw new Error(json?.error || 'Confirm location failed');
+
+      if (window.UI?.showToast) UI.showToast('Location confirmed', 'success');
+      await loadMyStatus();
+    } catch (e) {
+      if (window.UI?.showToast) UI.showToast(e.message || 'Confirm location failed', 'error');
       await loadMyStatus();
     }
   }
@@ -106,7 +164,7 @@
     const tbody = document.getElementById('attendanceAdminTableBody');
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="4" class="loading">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="loading">Loading…</td></tr>';
 
     const dateInput = document.getElementById('attendanceAdminDate');
     const date = dateInput ? dateInput.value : '';
@@ -118,31 +176,41 @@
     const json = await res.json();
 
     if (!json?.success) {
-      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px; color:#b00;">${escapeHtml(json?.error || 'Failed to load records')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color:#b00;">${escapeHtml(json?.error || 'Failed to load records')}</td></tr>`;
       return;
     }
 
     const records = json.records || [];
     if (records.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color:#666;">No records found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px; color:#666;">No records found</td></tr>';
       return;
     }
 
-    tbody.innerHTML = records.slice(0, 500).map(r => `
-      <tr>
-        <td>${escapeHtml(r.date)}</td>
-        <td>${escapeHtml(r.staffName)}</td>
-        <td>${escapeHtml(r.checkIn || '-')}</td>
-        <td>${escapeHtml(r.checkOut || '-')}</td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = records.slice(0, 500).map(r => {
+      const hasLoc = !!(r.locationLat && r.locationLng);
+      const mapBtn = hasLoc
+        ? `<a class="btn btn-secondary btn-sm" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(r.locationLat)},${encodeURIComponent(r.locationLng)}">View on map</a>`
+        : '';
+
+      return `
+        <tr>
+          <td>${escapeHtml(r.date)}</td>
+          <td>${escapeHtml(r.staffName)}</td>
+          <td>${escapeHtml(r.checkIn || '-')}</td>
+          <td>${escapeHtml(r.checkOut || '-')}</td>
+          <td>${mapBtn}</td>
+        </tr>
+      `;
+    }).join('');
   }
 
   function init() {
     const btnIn = document.getElementById('attendanceCheckInBtn');
     const btnOut = document.getElementById('attendanceCheckOutBtn');
+    const btnLoc = document.getElementById('attendanceConfirmLocationBtn');
     if (btnIn) btnIn.addEventListener('click', doCheckIn);
     if (btnOut) btnOut.addEventListener('click', doCheckOut);
+    if (btnLoc) btnLoc.addEventListener('click', doConfirmLocation);
 
     const adminBtn = document.getElementById('attendanceAdminRefreshBtn');
     if (adminBtn) adminBtn.addEventListener('click', loadAdminRecords);

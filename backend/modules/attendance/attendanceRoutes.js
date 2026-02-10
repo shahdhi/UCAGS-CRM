@@ -13,6 +13,7 @@ const {
   ensureStaffSheet,
   checkIn,
   checkOut,
+  confirmLocation,
   getTodayStatus,
   getStaffRecords
 } = require('./attendanceService');
@@ -49,6 +50,19 @@ router.post('/me/checkin', isAuthenticated, async (req, res) => {
     res.status(201).json({ success: true, record });
   } catch (error) {
     console.error('POST /api/attendance/me/checkin error:', error);
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
+// Officer: confirm location for today (optional)
+router.post('/me/confirm-location', isAuthenticated, async (req, res) => {
+  try {
+    const staffName = req.user?.name;
+    const { lat, lng, accuracy } = req.body || {};
+    const record = await confirmLocation(staffName, { lat, lng, accuracy });
+    res.status(201).json({ success: true, record });
+  } catch (error) {
+    console.error('POST /api/attendance/me/confirm-location error:', error);
     res.status(error.status || 500).json({ success: false, error: error.message });
   }
 });

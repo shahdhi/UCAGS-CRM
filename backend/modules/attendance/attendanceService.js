@@ -15,8 +15,14 @@ const ATT_HEADERS = [
   'Check In (ISO)',
   'Check Out (ISO)',
   'Created At (ISO)',
-  'Updated At (ISO)'
+  'Updated At (ISO)',
+  'Location Confirmed At (ISO)',
+  'Location Lat',
+  'Location Lng',
+  'Location Accuracy (m)'
 ];
+
+const ATT_COL_COUNT = ATT_HEADERS.length; // 11
 
 // Google Sheets may auto-coerce values into date/time serial numbers depending on cell format.
 // To keep Date + CheckIn/Out stable and human-readable, we write them as TEXT (prefix with apostrophe)
@@ -135,14 +141,14 @@ async function ensureStaffSheet(staffName) {
 
   if (!existing) {
     await createSheet(spreadsheetId, staffName);
-    await writeSheet(spreadsheetId, `${staffName}!A1:G1`, [ATT_HEADERS]);
+    await writeSheet(spreadsheetId, `${staffName}!A1:K1`, [ATT_HEADERS]);
     return { created: true, sheetName: staffName };
   }
 
   // Ensure headers exist (safe no-op if present)
-  const headers = await readSheet(spreadsheetId, `${actualName}!A1:G1`);
+  const headers = await readSheet(spreadsheetId, `${actualName}!A1:K1`);
   if (!headers || headers.length === 0 || (headers[0] || []).join('|') !== ATT_HEADERS.join('|')) {
-    await writeSheet(spreadsheetId, `${actualName}!A1:G1`, [ATT_HEADERS]);
+    await writeSheet(spreadsheetId, `${actualName}!A1:K1`, [ATT_HEADERS]);
   }
 
   return { created: false, sheetName: actualName };
@@ -152,7 +158,7 @@ async function getStaffRecords(staffName, { fromDate, toDate, limit } = {}) {
   const spreadsheetId = requireAttendanceSheetId();
   const { sheetName } = await ensureStaffSheet(staffName);
 
-  const rows = await readSheet(spreadsheetId, `${sheetName}!A2:G`);
+  const rows = await readSheet(spreadsheetId, `${sheetName}!A2:K`);
   const records = (rows || []).map((row) => ({
     date: normalizeDateCell(row[0]),
     checkIn: normalizeTimeCell(row[1]),
@@ -160,7 +166,11 @@ async function getStaffRecords(staffName, { fromDate, toDate, limit } = {}) {
     checkInIso: row[3] || '',
     checkOutIso: row[4] || '',
     createdAt: row[5] || '',
-    updatedAt: row[6] || ''
+    updatedAt: row[6] || '',
+    locationConfirmedAt: row[7] || '',
+    locationLat: row[8] || '',
+    locationLng: row[9] || '',
+    locationAccuracy: row[10] || ''
   }));
 
   let filtered = records;
@@ -192,7 +202,7 @@ async function checkIn(staffName, now = new Date()) {
   const { rowNumber } = await findRowIndexByDate(staffName, dateStr);
   if (rowNumber) {
     // Existing record for today: ensure check-in not set
-    const existing = await readSheet(spreadsheetId, `${sheetName}!A${rowNumber}:G${rowNumber}`);
+    const existing = await readSheet(spreadsheetId, `${sheetName}!A${rowNumber}:K${rowNumber}`);
     const row = (existing && existing[0]) || [];
     if (row[1]) {
       const err = new Error('Already checked in for today');
@@ -207,14 +217,18 @@ async function checkIn(staffName, now = new Date()) {
       nowIso,
       row[4] || '',
       row[5] || nowIso,
-      nowIso
+      nowIso,
+      row[7] || '',
+      row[8] || '',
+      row[9] || '',
+      row[10] || ''
     ];
-    await writeSheet(spreadsheetId, `${sheetName}!A${rowNumber}:G${rowNumber}`, [updated]);
+    await writeSheet(spreadsheetId, `${sheetName}!A${rowNumber}:K${rowNumber}`, [updated]);
     return { date: dateStr, checkIn: timeStr, checkInIso: nowIso };
   }
 
-  const newRow = [asTextCell(dateStr), asTextCell(timeStr), '', nowIso, '', nowIso, nowIso];
-  await appendSheet(spreadsheetId, `${sheetName}!A:G`, [newRow]);
+  const newRow = [asTextCell(dateStr), asTextCell(timeStr), '', nowIso, '', nowIso, nowIso, '', '', '', ''];
+  await appendSheet(spreadsheetId, `${sheetName}!A:K`, [newRow]);
   return { date: dateStr, checkIn: timeStr, checkInIso: nowIso };
 }
 
@@ -233,7 +247,7 @@ async function checkOut(staffName, now = new Date()) {
     throw err;
   }
 
-  const existing = await readSheet(spreadsheetId, `${sheetName}!A${rowNumber}:G${rowNumber}`);
+  const existing = await readSheet(spreadsheetId, `${sheetName}!A${rowNumber}:K${rowNumber}`);
   const row = (existing && existing[0]) || [];
 
   if (!row[1]) {
@@ -254,10 +268,14 @@ async function checkOut(staffName, now = new Date()) {
     row[3] || '',
     nowIso,
     row[5] || row[3] || nowIso,
-    nowIso
+    nowIso,
+    row[7] || '',
+    row[8] || '',
+    row[9] || '',
+    row[10] || ''
   ];
 
-  await writeSheet(spreadsheetId, `${sheetName}!A${rowNumber}:G${rowNumber}`, [updated]);
+  await writeSheet(spreadsheetId, `${sheetName}!A${rowNumber}:K${rowNumber}`, [updated]);
   return { date: dateStr, checkOut: timeStr, checkOutIso: nowIso };
 }
 
@@ -271,7 +289,7 @@ async function getTodayStatus(staffName, now = new Date()) {
     return { date: dateStr, checkedIn: false, checkedOut: false, record: null };
   }
 
-  const existing = await readSheet(spreadsheetId, `${sheetName}!A${rowNumber}:G${rowNumber}`);
+  const existing = await readSheet(spreadsheetId, `${sheetName}!A${rowNumber}:K${rowNumber}`);
   const row = (existing && existing[0]) || [];
 
   const record = {
@@ -281,7 +299,11 @@ async function getTodayStatus(staffName, now = new Date()) {
     checkInIso: row[3] || '',
     checkOutIso: row[4] || '',
     createdAt: row[5] || '',
-    updatedAt: row[6] || ''
+    updatedAt: row[6] || '',
+    locationConfirmedAt: row[7] || '',
+    locationLat: row[8] || '',
+    locationLng: row[9] || '',
+    locationAccuracy: row[10] || ''
   };
 
   return {
@@ -292,11 +314,72 @@ async function getTodayStatus(staffName, now = new Date()) {
   };
 }
 
+async function confirmLocation(staffName, { lat, lng, accuracy } = {}, now = new Date()) {
+  const spreadsheetId = requireAttendanceSheetId();
+  const { sheetName } = await ensureStaffSheet(staffName);
+
+  const dateStr = formatDateSriLanka(now);
+  const { rowNumber } = await findRowIndexByDate(staffName, dateStr);
+  if (!rowNumber) {
+    const err = new Error('No attendance record found for today');
+    err.status = 409;
+    throw err;
+  }
+
+  const existing = await readSheet(spreadsheetId, `${sheetName}!A${rowNumber}:K${rowNumber}`);
+  const row = (existing && existing[0]) || [];
+
+  if (!row[1]) {
+    const err = new Error('Please check in first');
+    err.status = 409;
+    throw err;
+  }
+
+  // If already confirmed, block duplicate confirm
+  if (row[7] || row[8] || row[9]) {
+    const err = new Error('Location already confirmed for today');
+    err.status = 409;
+    throw err;
+  }
+
+  if (lat == null || lng == null) {
+    const err = new Error('lat and lng are required');
+    err.status = 400;
+    throw err;
+  }
+
+  const confirmedAtIso = now.toISOString();
+  const updated = [
+    row[0] ? asTextCell(normalizeDateCell(row[0])) : asTextCell(dateStr),
+    row[1] ? asTextCell(normalizeTimeCell(row[1])) : '',
+    row[2] ? asTextCell(normalizeTimeCell(row[2])) : '',
+    row[3] || '',
+    row[4] || '',
+    row[5] || confirmedAtIso,
+    confirmedAtIso,
+    confirmedAtIso,
+    String(lat),
+    String(lng),
+    accuracy != null ? String(accuracy) : ''
+  ];
+
+  await writeSheet(spreadsheetId, `${sheetName}!A${rowNumber}:K${rowNumber}`, [updated]);
+
+  return {
+    date: dateStr,
+    locationConfirmedAt: confirmedAtIso,
+    locationLat: String(lat),
+    locationLng: String(lng),
+    locationAccuracy: accuracy != null ? String(accuracy) : ''
+  };
+}
+
 module.exports = {
   ATT_HEADERS,
   ensureStaffSheet,
   getStaffRecords,
   checkIn,
   checkOut,
+  confirmLocation,
   getTodayStatus
 };
