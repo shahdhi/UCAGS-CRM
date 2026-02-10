@@ -383,10 +383,22 @@ async function openManageLeadModal(leadId) {
             </div>
             
             <!-- Contact Information (Read-only reference) -->
-            <div style="background: #f5f5f5; padding: 12px; border-radius: 6px; margin-bottom: 20px;">
+            <div style="background: #f5f5f5; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
               <strong>Contact:</strong> 
               ${lead.phone ? `<a href="tel:${lead.phone}"><i class="fas fa-phone"></i> ${escapeHtml(lead.phone)}</a>` : 'No phone'} | 
               ${lead.email ? `<a href="mailto:${lead.email}"><i class="fas fa-envelope"></i> ${escapeHtml(lead.email)}</a>` : 'No email'}
+            </div>
+
+            <!-- Extra Details (from lead form) -->
+            <div style="background: #fafafa; padding: 12px; border-radius: 6px; margin-bottom: 20px; border: 1px solid #eee;">
+              <div style="display:grid; grid-template-columns: 1fr 2fr; gap: 8px 12px;">
+                <div style="color:#666;">Platform</div>
+                <div>${escapeHtml(lead.platform) || '-'}</div>
+                <div style="color:#666;">Planning to start immediately</div>
+                <div>${escapeHtml(lead.are_you_planning_to_start_immediately) || '-'}</div>
+                <div style="color:#666;">Why interested</div>
+                <div>${escapeHtml(lead.why_are_you_interested_in_this_diploma) || '-'}</div>
+              </div>
             </div>
             
             <div class="modal-footer" style="border-top: 1px solid #e0e0e0; padding-top: 16px; display: flex; justify-content: flex-end; gap: 10px;">

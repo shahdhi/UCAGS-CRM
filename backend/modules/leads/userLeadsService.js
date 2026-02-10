@@ -30,6 +30,7 @@ async function getUserLeads(userName) {
     }
 
     // Transform rows to lead objects
+    // Backward compatible: additional fields may exist beyond column J
     const leads = rows.map((row, index) => ({
       id: row[0] || `lead-${index + 1}`,
       name: row[1] || '',
@@ -40,7 +41,12 @@ async function getUserLeads(userName) {
       status: row[6] || 'New',
       batch: row[7] || '',
       created: row[8] || new Date().toISOString(),
-      actions: row[9] || ''
+      actions: row[9] || '',
+
+      // New optional fields (if officer sheet has these columns)
+      platform: row[10] || '',
+      are_you_planning_to_start_immediately: row[11] || '',
+      why_are_you_interested_in_this_diploma: row[12] || ''
     }));
 
     console.log(`✓ Found ${leads.length} leads for ${userName}`);
@@ -66,7 +72,7 @@ async function addUserLead(userName, lead) {
     }
 
     const sheetName = userName;
-    const range = `${sheetName}!A2:J`; // Append to columns A-J
+    const range = `${sheetName}!A2:M`; // Append to columns A-M (extra optional fields at end)
     
     // Create row data
     const rowData = [
@@ -79,7 +85,12 @@ async function addUserLead(userName, lead) {
       lead.status || 'New',
       lead.batch || '',
       lead.created || new Date().toISOString(),
-      lead.actions || ''
+      lead.actions || '',
+
+      // New optional fields
+      lead.platform || '',
+      lead.are_you_planning_to_start_immediately || '',
+      lead.why_are_you_interested_in_this_diploma || ''
     ];
 
     console.log(`📝 Adding lead to ${userName}'s sheet`);
@@ -96,7 +107,10 @@ async function addUserLead(userName, lead) {
       status: rowData[6],
       batch: rowData[7],
       created: rowData[8],
-      actions: rowData[9]
+      actions: rowData[9],
+      platform: rowData[10],
+      are_you_planning_to_start_immediately: rowData[11],
+      why_are_you_interested_in_this_diploma: rowData[12]
     };
   } catch (error) {
     console.error(`Error adding lead for user ${userName}:`, error);
@@ -220,7 +234,7 @@ async function copyLeadToOfficerSheet(officerName, lead) {
     console.log(`📝 Preparing lead data for copy...`);
     const leadData = {
       id: lead.id || `LEAD-${Date.now()}`,
-      name: lead.name || '',
+      name: lead.full_name || lead.name || '',
       email: lead.email || '',
       phone: lead.phone || '',
       course: lead.course || '',
@@ -228,7 +242,12 @@ async function copyLeadToOfficerSheet(officerName, lead) {
       status: lead.status || 'New',
       batch: lead.batch || '',
       created: lead.createdDate || lead.created || new Date().toISOString().split('T')[0],
-      actions: lead.notes || ''
+      actions: lead.notes || '',
+
+      // carry over new fields (if available from batch lead)
+      platform: lead.platform || '',
+      are_you_planning_to_start_immediately: lead.are_you_planning_to_start_immediately || '',
+      why_are_you_interested_in_this_diploma: lead.why_are_you_interested_in_this_diploma || ''
     };
     console.log('Lead data to copy:', JSON.stringify(leadData, null, 2));
 
