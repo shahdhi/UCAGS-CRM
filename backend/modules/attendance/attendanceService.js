@@ -30,14 +30,46 @@ function pad2(n) {
   return String(n).padStart(2, '0');
 }
 
-function formatDateLocal(d) {
-  // YYYY-MM-DD in server local time
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const SRI_LANKA_TZ = 'Asia/Colombo';
+
+function getSriLankaDateParts(d) {
+  // Use Intl to avoid relying on server timezone.
+  // Returns { year, month, day, hour, minute, second } in Asia/Colombo.
+  const dtf = new Intl.DateTimeFormat('en-GB', {
+    timeZone: SRI_LANKA_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+
+  const parts = dtf.formatToParts(d);
+  const map = {};
+  for (const p of parts) {
+    if (p.type !== 'literal') map[p.type] = p.value;
+  }
+
+  return {
+    year: map.year,
+    month: map.month,
+    day: map.day,
+    hour: map.hour,
+    minute: map.minute,
+    second: map.second
+  };
 }
 
-function formatTimeLocal(d) {
-  // HH:MM:SS in server local time
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+function formatDateSriLanka(d) {
+  const p = getSriLankaDateParts(d);
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+function formatTimeSriLanka(d) {
+  const p = getSriLankaDateParts(d);
+  return `${p.hour}:${p.minute}:${p.second}`;
 }
 
 async function ensureStaffSheet(staffName) {
@@ -99,8 +131,8 @@ async function checkIn(staffName, now = new Date()) {
   const spreadsheetId = requireAttendanceSheetId();
   const { sheetName } = await ensureStaffSheet(staffName);
 
-  const dateStr = formatDateLocal(now);
-  const timeStr = formatTimeLocal(now);
+  const dateStr = formatDateSriLanka(now);
+  const timeStr = formatTimeSriLanka(now);
   const nowIso = now.toISOString();
 
   const { rowNumber } = await findRowIndexByDate(staffName, dateStr);
@@ -136,8 +168,8 @@ async function checkOut(staffName, now = new Date()) {
   const spreadsheetId = requireAttendanceSheetId();
   const { sheetName } = await ensureStaffSheet(staffName);
 
-  const dateStr = formatDateLocal(now);
-  const timeStr = formatTimeLocal(now);
+  const dateStr = formatDateSriLanka(now);
+  const timeStr = formatTimeSriLanka(now);
   const nowIso = now.toISOString();
 
   const { rowNumber } = await findRowIndexByDate(staffName, dateStr);
@@ -179,7 +211,7 @@ async function getTodayStatus(staffName, now = new Date()) {
   const spreadsheetId = requireAttendanceSheetId();
   const { sheetName } = await ensureStaffSheet(staffName);
 
-  const dateStr = formatDateLocal(now);
+  const dateStr = formatDateSriLanka(now);
   const { rowNumber } = await findRowIndexByDate(staffName, dateStr);
   if (!rowNumber) {
     return { date: dateStr, checkedIn: false, checkedOut: false, record: null };

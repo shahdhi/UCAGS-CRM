@@ -106,7 +106,7 @@
     const tbody = document.getElementById('attendanceAdminTableBody');
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="5" class="loading">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="loading">Loading…</td></tr>';
 
     const dateInput = document.getElementById('attendanceAdminDate');
     const date = dateInput ? dateInput.value : '';
@@ -118,13 +118,13 @@
     const json = await res.json();
 
     if (!json?.success) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color:#b00;">${escapeHtml(json?.error || 'Failed to load records')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px; color:#b00;">${escapeHtml(json?.error || 'Failed to load records')}</td></tr>`;
       return;
     }
 
     const records = json.records || [];
     if (records.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px; color:#666;">No records found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color:#666;">No records found</td></tr>';
       return;
     }
 
@@ -134,7 +134,6 @@
         <td>${escapeHtml(r.staffName)}</td>
         <td>${escapeHtml(r.checkIn || '-')}</td>
         <td>${escapeHtml(r.checkOut || '-')}</td>
-        <td>${escapeHtml(r.updatedAt ? fmt(r.updatedAt) : '-')}</td>
       </tr>
     `).join('');
   }
@@ -156,8 +155,23 @@
 
   window.initAttendancePage = async function () {
     init();
-    // Always load personal status (officers & admins)
-    await loadMyStatus();
+
+    // If admin: hide personal check-in/out controls (admins don't need to check in/out)
+    const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+    const btnIn = document.getElementById('attendanceCheckInBtn');
+    const btnOut = document.getElementById('attendanceCheckOutBtn');
+    if (isAdmin) {
+      if (btnIn) btnIn.style.display = 'none';
+      if (btnOut) btnOut.style.display = 'none';
+    }
+
+    // Officers: load personal status
+    if (!isAdmin) {
+      await loadMyStatus();
+    } else {
+      const statusEl = document.getElementById('attendanceMyStatus');
+      if (statusEl) statusEl.innerHTML = '<div>Admin account: check-in/out not required.</div>';
+    }
 
     // Load admin table only if visible
     const adminSection = document.getElementById('attendanceAdminSection');
