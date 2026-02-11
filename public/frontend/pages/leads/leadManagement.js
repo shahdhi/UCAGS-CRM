@@ -224,13 +224,20 @@ function renderManagementTable() {
  * Get check icon for boolean values
  */
 function getLastFollowUpComment(lead) {
-  // Prefer explicitly stored lastFollowUpComment
-  if (lead.lastFollowUpComment) return String(lead.lastFollowUpComment);
-  // Otherwise derive from the highest follow-up comment that exists
-  const c3 = lead.followUp3Comment;
-  const c2 = lead.followUp2Comment;
-  const c1 = lead.followUp1Comment;
-  return String(c3 || c2 || c1 || lead.callFeedback || '').trim();
+  // Always prefer the latest non-empty follow-up comment.
+  // Only if there are no follow-up comments at all, fall back to call feedback.
+  const c3 = (lead.followUp3Comment || '').trim();
+  const c2 = (lead.followUp2Comment || '').trim();
+  const c1 = (lead.followUp1Comment || '').trim();
+
+  const followUpComment = c3 || c2 || c1;
+  if (followUpComment) return followUpComment;
+
+  // If none exist, use stored lastFollowUpComment (backward compat) else callFeedback
+  const stored = (lead.lastFollowUpComment || '').trim();
+  if (stored) return stored;
+
+  return String(lead.callFeedback || '').trim();
 }
 
 /**
@@ -514,7 +521,7 @@ async function saveLeadManagement(event, leadId) {
     if (lead) {
       Object.assign(lead, managementData);
 
-      // Derive last follow-up comment
+      // Always derive last follow-up comment (prefer follow-up comments)
       lead.lastFollowUpComment = getLastFollowUpComment(lead);
 
       // Save to backend
