@@ -1262,6 +1262,11 @@ body {
     animation: shake 0.3s ease;
 }
 
+/* Hide error box when there's no text */
+.error-message:empty {
+    display: none;
+}
+
 @keyframes shake {
     0%, 100% { transform: translateX(0); }
     25% { transform: translateX(-5px); }

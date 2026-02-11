@@ -98,7 +98,10 @@ function showLogin() {
     if (loginForm) {
         loginForm.reset();
         const err = document.getElementById('loginError');
-        if (err) err.textContent = '';
+        if (err) {
+            err.textContent = '';
+            err.style.display = 'none';
+        }
 
         // IMPORTANT: logout can return to login screen while the submit button is still disabled
         // from a previous login attempt. Always reset it here.
@@ -463,7 +466,10 @@ function setupAuthForms() {
         }
 
         const err = document.getElementById('loginError');
-        if (err) err.textContent = '';
+        if (err) {
+            err.textContent = '';
+            err.style.display = 'none';
+        }
 
         newLoginForm.addEventListener('submit', handleLogin);
     }
@@ -482,7 +488,10 @@ async function handleLogin(e) {
     try {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
-        errorDiv.textContent = '';
+        if (errorDiv) {
+            errorDiv.textContent = '';
+            errorDiv.style.display = 'none';
+        }
         
         console.log('Attempting login for:', email);
         const result = await SupabaseAuth.signIn(email, password);
