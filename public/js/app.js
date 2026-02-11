@@ -519,14 +519,19 @@ async function navigateToPage(page) {
                         ? ` (${window.officerBatchFilter})`
                         : '';
                     titleElement.textContent = `My Leads${batchLabel}`;
-                } else { 
+                } else {
                     // Admin batch pages
-
                     const batchName = page.replace('leads-', '');
                     const formattedName = batchName.charAt(0).toUpperCase() + batchName.slice(1);
                     titleElement.textContent = `${formattedName} Leads`;
                 }
             }
+        }
+    } else if (page === 'lead-management' || page.startsWith('lead-management-batch-')) {
+        // Officer Lead Management uses a shared view container
+        const viewElement = document.getElementById('lead-managementView');
+        if (viewElement) {
+            viewElement.classList.add('active');
         }
     } else {
         const viewElement = document.getElementById(`${page}View`);
@@ -1288,24 +1293,33 @@ async function loadDashboard() {
     try {
         // Load stats
         const statsResponse = await API.dashboard.getStats();
-        document.getElementById('statTotal').textContent = statsResponse.stats.total;
-        document.getElementById('statNew').textContent = statsResponse.stats.new;
-        document.getElementById('statFollowUp').textContent = statsResponse.stats.followUp;
-        document.getElementById('statRegistered').textContent = statsResponse.stats.registered;
+        const elTotal = document.getElementById('statTotal');
+        const elNew = document.getElementById('statNew');
+        const elFU = document.getElementById('statFollowUp');
+        const elReg = document.getElementById('statRegistered');
+        if (elTotal) elTotal.textContent = statsResponse.stats.total;
+        if (elNew) elNew.textContent = statsResponse.stats.new;
+        if (elFU) elFU.textContent = statsResponse.stats.followUp;
+        if (elReg) elReg.textContent = statsResponse.stats.registered;
         
         // Update badge
-        document.getElementById('newEnquiriesCount').textContent = statsResponse.stats.new;
+        const badgeEl = document.getElementById('newEnquiriesCount');
+        if (badgeEl) badgeEl.textContent = statsResponse.stats.new;
         
         // Load recent enquiries
         const recentResponse = await API.dashboard.getRecent(5);
-        UI.renderRecentEnquiries(recentResponse.enquiries);
+        if (typeof UI?.renderRecentEnquiries === 'function') {
+            UI.renderRecentEnquiries(recentResponse.enquiries);
+        }
         
         // Load upcoming follow-ups
         const followUpsResponse = await API.dashboard.getFollowUps();
-        UI.renderUpcomingFollowUps(followUpsResponse.upcoming.slice(0, 5));
+        if (typeof UI?.renderUpcomingFollowUps === 'function') {
+            UI.renderUpcomingFollowUps(followUpsResponse.upcoming.slice(0, 5));
+        }
         
         // Load officer performance (admin only)
-        if (currentUser.role === 'admin' && statsResponse.officerStats) {
+        if (currentUser.role === 'admin' && statsResponse.officerStats && typeof UI?.renderOfficerPerformance === 'function') {
             UI.renderOfficerPerformance(statsResponse.officerStats);
         }
     } catch (error) {
