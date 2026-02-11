@@ -483,6 +483,29 @@ async function saveLeadManagement(event, leadId) {
       if (answeredEl) managementData[`followUp${num}Answered`] = answeredEl.value;
       if (commentEl) managementData[`followUp${num}Comment`] = commentEl.value;
     });
+
+    // Auto-set Next Follow-up based on Scheduled Dates that are NOT completed yet.
+    // Rule:
+    //  - If there is at least one follow-up with a scheduled date but NO actual date, nextFollowUp = latest such scheduled date.
+    //  - If all scheduled follow-ups have an actual date (i.e., no pending follow-ups), keep nextFollowUp blank.
+    const pendingSchedules = [];
+    Object.keys(managementData)
+      .filter(k => /^followUp\d+Schedule$/.test(k))
+      .forEach((scheduleKey) => {
+        const n = scheduleKey.match(/^followUp(\d+)Schedule$/)?.[1];
+        const schedule = managementData[scheduleKey];
+        const actual = n ? managementData[`followUp${n}Date`] : '';
+        if (schedule && !actual) {
+          pendingSchedules.push(schedule);
+        }
+      });
+
+    if (pendingSchedules.length > 0) {
+      pendingSchedules.sort(); // YYYY-MM-DD lexical sort works
+      managementData.nextFollowUp = pendingSchedules[pendingSchedules.length - 1];
+    } else {
+      managementData.nextFollowUp = '';
+    }
     
     console.log('Saving lead management data:', managementData);
     
