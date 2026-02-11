@@ -140,6 +140,7 @@ const UI = {
     },
 
     // Render calendar lists
+    // Legacy enquiry follow-up list renderer
     renderCalendarLists(overdue, upcoming) {
         const overdueList = document.getElementById('overdueList');
         const upcomingList = document.getElementById('upcomingList');
@@ -181,6 +182,52 @@ const UI = {
                 </div>
             `).join('');
         }
+    },
+
+    // Render lead follow-up calendar (new batch/officer leads system)
+    renderFollowUpCalendar(overdue, upcoming) {
+        const overdueList = document.getElementById('overdueList');
+        const upcomingList = document.getElementById('upcomingList');
+
+        const renderItem = (e, isOverdue) => {
+            const title = `${e.full_name || '-'} ${e.phone ? '(' + e.phone + ')' : ''}`;
+            const subtitle = `${e.batchName} / ${e.sheetName} / ${e.officerName} / FU${e.followUpNo}`;
+            const escape = (s) => {
+                const div = document.createElement('div');
+                div.textContent = String(s || '');
+                return div.innerHTML;
+            };
+            const comment = e.comment ? `<div style="color:#555; margin-top:6px; font-size:12px;">${escape(e.comment)}</div>` : '';
+
+            return `
+              <div class="followup-item" style="border-left-color: ${isOverdue ? '#dc3545' : '#1976d2'};">
+                <h4>${title}</h4>
+                <p><i class="fas fa-clock"></i> ${this.formatDateTime ? this.formatDateTime(e.date) : this.formatDate(e.date)} ${isOverdue ? '(Overdue)' : ''}</p>
+                <p style="font-size:12px; color:#666;"><i class="fas fa-layer-group"></i> ${subtitle}</p>
+                ${comment}
+              </div>
+            `;
+        };
+
+        if (overdueList) {
+            overdueList.innerHTML = overdue.length
+              ? overdue.map(e => renderItem(e, true)).join('')
+              : '<p class="loading">No overdue follow-ups</p>';
+        }
+
+        if (upcomingList) {
+            upcomingList.innerHTML = upcoming.length
+              ? upcoming.map(e => renderItem(e, false)).join('')
+              : '<p class="loading">No upcoming follow-ups</p>';
+        }
+    },
+
+    formatDateTime(dateString) {
+        if (!dateString) return '-';
+        // Accept both YYYY-MM-DD and datetime-local YYYY-MM-DDTHH:mm
+        const d = new Date(dateString);
+        if (!isNaN(d)) return d.toLocaleString();
+        return dateString;
     },
 
     // Render officer stats

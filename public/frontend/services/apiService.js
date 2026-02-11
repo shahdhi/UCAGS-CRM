@@ -355,6 +355,11 @@ const calendarAPI = {
    */
   getUpcoming: async (days = 7) => {
     return fetchAPI(`/calendar/upcoming?days=${days}`);
+  },
+
+  // New: follow-up calendar derived from officer lead sheets
+  getFollowUpCalendar: async () => {
+    return fetchAPI('/calendar/followups');
   }
 };
 

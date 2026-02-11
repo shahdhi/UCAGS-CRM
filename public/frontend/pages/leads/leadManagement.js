@@ -352,7 +352,7 @@ async function openManageLeadModal(leadId) {
               
               <div class="form-group">
                 <label for="nextFollowUp"><i class="fas fa-calendar"></i> Next Follow-up</label>
-                <input type="date" id="nextFollowUp" class="form-control" value="${lead.nextFollowUp || ''}">
+                <input type="datetime-local" id="nextFollowUp" class="form-control" value="${lead.nextFollowUp || ''}" readonly>
               </div>
             </div>
             
@@ -371,12 +371,12 @@ async function openManageLeadModal(leadId) {
                 </h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 12px;">
                   <div class="form-group">
-                    <label for="followUp1Schedule"><i class="fas fa-calendar-plus"></i> Scheduled Date</label>
-                    <input type="date" id="followUp1Schedule" class="form-control" value="${lead.followUp1Schedule || ''}">
+                    <label for="followUp1Schedule"><i class="fas fa-calendar-plus"></i> Scheduled Date & Time</label>
+                    <input type="datetime-local" id="followUp1Schedule" class="form-control" value="${lead.followUp1Schedule || ''}">
                   </div>
                   <div class="form-group">
-                    <label for="followUp1Date"><i class="fas fa-calendar-check"></i> Actual Date</label>
-                    <input type="date" id="followUp1Date" class="form-control" value="${lead.followUp1Date || ''}">
+                    <label for="followUp1Date"><i class="fas fa-calendar-check"></i> Actual Date & Time</label>
+                    <input type="datetime-local" id="followUp1Date" class="form-control" value="${lead.followUp1Date || ''}">
                   </div>
                   <div class="form-group">
                     <label for="followUp1Answered"><i class="fas fa-question-circle"></i> Answered?</label>
@@ -508,7 +508,7 @@ async function saveLeadManagement(event, leadId) {
       });
 
     if (pendingSchedules.length > 0) {
-      pendingSchedules.sort(); // YYYY-MM-DD lexical sort works
+      pendingSchedules.sort(); // datetime-local strings (YYYY-MM-DDTHH:mm) sort lexically
       managementData.nextFollowUp = pendingSchedules[pendingSchedules.length - 1];
     } else {
       managementData.nextFollowUp = '';
@@ -576,7 +576,9 @@ function formatDate(dateString) {
   if (!dateString) return '-';
   const date = new Date(dateString);
   if (isNaN(date)) return dateString;
-  return date.toLocaleDateString();
+  // If time exists, show date+time
+  const hasTime = /T\d{2}:\d{2}/.test(dateString);
+  return hasTime ? date.toLocaleString() : date.toLocaleDateString();
 }
 
 /**
@@ -624,12 +626,12 @@ function generateAdditionalFollowUps(lead, startNum) {
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 12px;">
             <div class="form-group">
-              <label for="followUp${i}Schedule"><i class="fas fa-calendar-plus"></i> Scheduled Date</label>
-              <input type="date" id="followUp${i}Schedule" class="form-control" value="${lead[`followUp${i}Schedule`] || ''}">
+              <label for="followUp${i}Schedule"><i class="fas fa-calendar-plus"></i> Scheduled Date & Time</label>
+              <input type="datetime-local" id="followUp${i}Schedule" class="form-control" value="${lead[`followUp${i}Schedule`] || ''}">
             </div>
             <div class="form-group">
-              <label for="followUp${i}Date"><i class="fas fa-calendar-check"></i> Actual Date</label>
-              <input type="date" id="followUp${i}Date" class="form-control" value="${lead[`followUp${i}Date`] || ''}">
+              <label for="followUp${i}Date"><i class="fas fa-calendar-check"></i> Actual Date & Time</label>
+              <input type="datetime-local" id="followUp${i}Date" class="form-control" value="${lead[`followUp${i}Date`] || ''}">
             </div>
             <div class="form-group">
               <label for="followUp${i}Answered"><i class="fas fa-question-circle"></i> Answered?</label>
@@ -688,12 +690,12 @@ function addMoreFollowUp() {
     </div>
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 12px;">
       <div class="form-group">
-        <label for="followUp${nextNum}Schedule"><i class="fas fa-calendar-plus"></i> Scheduled Date</label>
-        <input type="date" id="followUp${nextNum}Schedule" class="form-control">
+        <label for="followUp${nextNum}Schedule"><i class="fas fa-calendar-plus"></i> Scheduled Date & Time</label>
+        <input type="datetime-local" id="followUp${nextNum}Schedule" class="form-control">
       </div>
       <div class="form-group">
-        <label for="followUp${nextNum}Date"><i class="fas fa-calendar-check"></i> Actual Date</label>
-        <input type="date" id="followUp${nextNum}Date" class="form-control">
+        <label for="followUp${nextNum}Date"><i class="fas fa-calendar-check"></i> Actual Date & Time</label>
+        <input type="datetime-local" id="followUp${nextNum}Date" class="form-control">
       </div>
       <div class="form-group">
         <label for="followUp${nextNum}Answered"><i class="fas fa-question-circle"></i> Answered?</label>

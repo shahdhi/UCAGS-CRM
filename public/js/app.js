@@ -1633,8 +1633,43 @@ async function loadLeads() {
 // Load calendar
 async function loadCalendar() {
     try {
-        const response = await API.dashboard.getFollowUps();
-        UI.renderCalendarLists(response.overdue, response.upcoming);
+        // Admin can filter by officer
+        const controls = document.getElementById('calendarAdminControls');
+        const select = document.getElementById('calendarOfficerSelect');
+
+        if (controls) {
+            controls.style.display = (currentUser && currentUser.role === 'admin') ? 'flex' : 'none';
+        }
+
+        // Populate dropdown once
+        if (currentUser && currentUser.role === 'admin' && select && select.options.length === 0) {
+            let authHeaders = {};
+            if (window.supabaseClient) {
+                const { data: { session } } = await window.supabaseClient.auth.getSession();
+                if (session && session.access_token) {
+                    authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+                }
+            }
+
+            // Reuse batches/officers list endpoint
+            const res = await fetch('/api/batches/officers', { headers: authHeaders });
+            const data = await res.json();
+            const officers = (data && data.officers) ? data.officers : [];
+
+            // Default: current admin user only
+            const opts = [currentUser.name, ...officers.filter(o => o !== currentUser.name)];
+            select.innerHTML = opts.map(o => `<option value="${o}">${o}</option>`).join('');
+
+            select.addEventListener('change', () => loadCalendar());
+        }
+
+        let url = '/api/calendar/followups';
+        if (currentUser && currentUser.role === 'admin' && select && select.value) {
+            url += `?officer=${encodeURIComponent(select.value)}`;
+        }
+
+        const response = await fetchAPI(url.replace('/api', ''));
+        UI.renderFollowUpCalendar(response.overdue || [], response.upcoming || []);
     } catch (error) {
         console.error('Error loading calendar:', error);
         UI.showToast('Failed to load calendar', 'error');

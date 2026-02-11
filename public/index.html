@@ -69,6 +69,11 @@
                     <span>Home</span>
                 </a>
 
+                <a href="#" class="nav-item" data-page="calendar">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Calendar</span>
+                </a>
+
                 <div class="nav-section">
                     <div class="nav-section-header">
                         <i class="fas fa-users"></i>
@@ -154,12 +159,6 @@
                 <a href="#" class="nav-item nav-disabled" data-page="students" title="Coming Soon">
                     <i class="fas fa-user-graduate"></i>
                     <span>Students</span>
-                    <span class="badge badge-secondary">Soon</span>
-                </a>
-
-                <a href="#" class="nav-item nav-disabled" data-page="calendar" title="Coming Soon">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>Calendar</span>
                     <span class="badge badge-secondary">Soon</span>
                 </a>
 
@@ -624,8 +623,12 @@
 
             <!-- Calendar View -->
             <div id="calendarView" class="content-view">
-                <div class="page-header">
+                <div class="page-header" style="display:flex; justify-content: space-between; align-items:center; gap: 12px; flex-wrap: wrap;">
                     <h1>Follow-up Calendar</h1>
+                    <div class="admin-only" style="display:none; gap: 8px; align-items:center;" id="calendarAdminControls">
+                        <label style="color:#666; font-size:13px;">Officer:</label>
+                        <select id="calendarOfficerSelect" class="form-control" style="min-width: 220px;"></select>
+                    </div>
                 </div>
 
                 <div class="calendar-container">
