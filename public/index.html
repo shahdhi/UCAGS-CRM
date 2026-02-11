@@ -632,16 +632,46 @@
                 </div>
 
                 <div class="calendar-container">
+                    <!-- Month Calendar -->
+                    <div class="dashboard-card" style="margin-bottom: 16px;">
+                        <div style="display:flex; align-items:center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                            <div style="display:flex; align-items:center; gap: 8px;">
+                                <button id="calendarPrevMonthBtn" class="btn btn-secondary" type="button"><i class="fas fa-chevron-left"></i></button>
+                                <button id="calendarTodayBtn" class="btn btn-secondary" type="button">Today</button>
+                                <button id="calendarNextMonthBtn" class="btn btn-secondary" type="button"><i class="fas fa-chevron-right"></i></button>
+                            </div>
+                            <h3 id="calendarMonthLabel" style="margin:0;">Month</h3>
+                        </div>
+
+                        <div id="calendarGrid" class="followup-calendar-grid"></div>
+                        <div style="color:#666; font-size: 12px; margin-top: 8px;">Click a date to view follow-ups for that day.</div>
+                    </div>
+
+                    <!-- Day Events Panel -->
+                    <div class="dashboard-card" style="margin-bottom: 16px;">
+                        <h3 id="calendarSelectedDayTitle" style="margin-bottom: 10px;">Selected day</h3>
+                        <div id="calendarSelectedDayEvents" class="calendar-list">
+                            <p class="loading">Select a date to view follow-ups.</p>
+                        </div>
+                    </div>
+
+                    <!-- Collapsible Lists -->
                     <div class="calendar-section">
-                        <h3 class="section-title overdue">Overdue Follow-ups</h3>
-                        <div id="overdueList" class="calendar-list">
+                        <h3 class="section-title overdue" id="overdueHeader" style="cursor:pointer; user-select:none; display:flex; align-items:center; justify-content: space-between;">
+                            <span>Overdue Follow-ups</span>
+                            <i class="fas fa-chevron-down" id="overdueChevron"></i>
+                        </h3>
+                        <div id="overdueList" class="calendar-list" style="display:none;">
                             <p class="loading">Loading...</p>
                         </div>
                     </div>
 
                     <div class="calendar-section">
-                        <h3 class="section-title upcoming">Upcoming Follow-ups</h3>
-                        <div id="upcomingList" class="calendar-list">
+                        <h3 class="section-title upcoming" id="upcomingHeader" style="cursor:pointer; user-select:none; display:flex; align-items:center; justify-content: space-between;">
+                            <span>Upcoming Follow-ups</span>
+                            <i class="fas fa-chevron-down" id="upcomingChevron"></i>
+                        </h3>
+                        <div id="upcomingList" class="calendar-list" style="display:none;">
                             <p class="loading">Loading...</p>
                         </div>
                     </div>

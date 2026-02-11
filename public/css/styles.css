@@ -603,6 +603,69 @@ body {
 }
 
 .recent-item,
+.followup-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.followup-calendar-cell {
+    border: 1px solid var(--separator);
+    border-radius: 10px;
+    padding: 10px;
+    min-height: 78px;
+    background: var(--bg-primary);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    position: relative;
+}
+
+.followup-calendar-cell:hover {
+    background: var(--bg-hover);
+}
+
+.followup-calendar-cell.muted {
+    opacity: 0.35;
+}
+
+.followup-calendar-cell.selected {
+    outline: 2px solid var(--primary-purple);
+    background: var(--purple-50);
+}
+
+.followup-calendar-dow {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-align: center;
+    padding: 6px 0;
+}
+
+.followup-calendar-daynum {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.followup-calendar-badges {
+    position: absolute;
+    right: 8px;
+    top: 8px;
+    display: flex;
+    gap: 6px;
+}
+
+.followup-calendar-badge {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    color: #fff;
+}
+
+.followup-calendar-badge.overdue { background: #dc3545; }
+.followup-calendar-badge.upcoming { background: #1976d2; }
+
 .followup-item {
     padding: 12px 14px;
     border-left: 3px solid var(--primary-purple);

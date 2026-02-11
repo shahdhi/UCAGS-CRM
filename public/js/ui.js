@@ -186,40 +186,247 @@ const UI = {
 
     // Render lead follow-up calendar (new batch/officer leads system)
     renderFollowUpCalendar(overdue, upcoming) {
-        const overdueList = document.getElementById('overdueList');
-        const upcomingList = document.getElementById('upcomingList');
+        // Store events for month grid + day view
+        const all = [...(overdue || []), ...(upcoming || [])];
+        window.__followupCalendarState = window.__followupCalendarState || {};
+        window.__followupCalendarState.events = { overdue: overdue || [], upcoming: upcoming || [], all };
+
+        // Setup collapsible headers
+        const setupCollapse = (headerId, listId, chevronId) => {
+            const header = document.getElementById(headerId);
+            const list = document.getElementById(listId);
+            const chev = document.getElementById(chevronId);
+            if (!header || !list) return;
+
+            if (!header.__bound) {
+                header.addEventListener('click', () => {
+                    const open = list.style.display !== 'none';
+                    list.style.display = open ? 'none' : 'block';
+                    if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+                });
+                header.__bound = true;
+            }
+        };
+        setupCollapse('overdueHeader', 'overdueList', 'overdueChevron');
+        setupCollapse('upcomingHeader', 'upcomingList', 'upcomingChevron');
+
+        const escape = (s) => {
+            const div = document.createElement('div');
+            div.textContent = String(s || '');
+            return div.innerHTML;
+        };
 
         const renderItem = (e, isOverdue) => {
             const title = `${e.full_name || '-'} ${e.phone ? '(' + e.phone + ')' : ''}`;
             const subtitle = `${e.batchName} / ${e.sheetName} / ${e.officerName} / FU${e.followUpNo}`;
-            const escape = (s) => {
-                const div = document.createElement('div');
-                div.textContent = String(s || '');
-                return div.innerHTML;
-            };
             const comment = e.comment ? `<div style="color:#555; margin-top:6px; font-size:12px;">${escape(e.comment)}</div>` : '';
 
             return `
               <div class="followup-item" style="border-left-color: ${isOverdue ? '#dc3545' : '#1976d2'};">
-                <h4>${title}</h4>
-                <p><i class="fas fa-clock"></i> ${this.formatDateTime ? this.formatDateTime(e.date) : this.formatDate(e.date)} ${isOverdue ? '(Overdue)' : ''}</p>
-                <p style="font-size:12px; color:#666;"><i class="fas fa-layer-group"></i> ${subtitle}</p>
+                <h4>${escape(title)}</h4>
+                <p><i class="fas fa-clock"></i> ${this.formatDateTime(e.date)} ${isOverdue ? '(Overdue)' : ''}</p>
+                <p style="font-size:12px; color:#666;"><i class="fas fa-layer-group"></i> ${escape(subtitle)}</p>
                 ${comment}
               </div>
             `;
         };
 
-        if (overdueList) {
-            overdueList.innerHTML = overdue.length
-              ? overdue.map(e => renderItem(e, true)).join('')
-              : '<p class="loading">No overdue follow-ups</p>';
+        // Group by date (Today/Tomorrow/others)
+        const groupByDay = (arr) => {
+            const groups = new Map();
+            (arr || []).forEach(e => {
+                const key = String(e.date || '').slice(0, 10);
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(e);
+            });
+            const keys = Array.from(groups.keys()).sort();
+            return { groups, keys };
+        };
+
+        const now = new Date();
+        const pad2 = (n) => String(n).padStart(2, '0');
+        const today = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+        const tomorrowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+        const tomorrow = `${tomorrowDate.getFullYear()}-${pad2(tomorrowDate.getMonth() + 1)}-${pad2(tomorrowDate.getDate())}`;
+
+        const buildGroupedHtml = (arr, isOverdue) => {
+            const { groups, keys } = groupByDay(arr);
+            if (keys.length === 0) {
+                return `<p class="loading">No ${isOverdue ? 'overdue' : 'upcoming'} follow-ups</p>`;
+            }
+
+            const labelFor = (k) => (k === today ? 'Today' : (k === tomorrow ? 'Tomorrow' : k));
+
+            return keys.map(k => {
+                const items = groups.get(k) || [];
+                return `
+                  <div style="margin-bottom: 14px;">
+                    <div style="font-weight: 700; color:#444; margin: 10px 0 6px;">${escape(labelFor(k))}</div>
+                    ${items.map(e => renderItem(e, isOverdue)).join('')}
+                  </div>
+                `;
+            }).join('');
+        };
+
+        const overdueList = document.getElementById('overdueList');
+        const upcomingList = document.getElementById('upcomingList');
+        if (overdueList) overdueList.innerHTML = buildGroupedHtml(overdue, true);
+        if (upcomingList) upcomingList.innerHTML = buildGroupedHtml(upcoming, false);
+
+        // Month grid rendering
+        this.renderFollowUpMonthGrid();
+
+        // Default selected day: today
+        this.renderFollowUpDay(today);
+    },
+
+    renderFollowUpMonthGrid() {
+        const grid = document.getElementById('calendarGrid');
+        const label = document.getElementById('calendarMonthLabel');
+        if (!grid || !label) return;
+
+        window.__followupCalendarState = window.__followupCalendarState || {};
+        const state = window.__followupCalendarState;
+        const base = state.currentMonth ? new Date(state.currentMonth) : new Date();
+        const y = base.getFullYear();
+        const m = base.getMonth();
+
+        label.textContent = base.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+
+        const events = state.events?.all || [];
+        const countByDay = new Map();
+        const overdueByDay = new Map();
+        const upcomingByDay = new Map();
+        for (const e of events) {
+            const day = String(e.date || '').slice(0, 10);
+            countByDay.set(day, (countByDay.get(day) || 0) + 1);
+            // Determine overdue/upcoming based on original arrays
+            // (not perfect but sufficient): presence in overdue/upcoming arrays
+        }
+        for (const e of (state.events?.overdue || [])) {
+            const day = String(e.date || '').slice(0, 10);
+            overdueByDay.set(day, (overdueByDay.get(day) || 0) + 1);
+        }
+        for (const e of (state.events?.upcoming || [])) {
+            const day = String(e.date || '').slice(0, 10);
+            upcomingByDay.set(day, (upcomingByDay.get(day) || 0) + 1);
         }
 
-        if (upcomingList) {
-            upcomingList.innerHTML = upcoming.length
-              ? upcoming.map(e => renderItem(e, false)).join('')
-              : '<p class="loading">No upcoming follow-ups</p>';
+        const pad2 = (n) => String(n).padStart(2, '0');
+        const toYMD = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+        const first = new Date(y, m, 1);
+        const startDow = (first.getDay() + 6) % 7; // make Monday=0
+        const start = new Date(y, m, 1 - startDow);
+
+        const dows = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+        grid.innerHTML = dows.map(d => `<div class="followup-calendar-dow">${d}</div>`).join('');
+
+        const now = new Date();
+        const todayYMD = toYMD(now);
+
+        for (let i = 0; i < 42; i++) {
+            const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+            const ymd = toYMD(day);
+            const inMonth = day.getMonth() === m;
+            const selected = state.selectedDay === ymd;
+
+            const overdueCount = overdueByDay.get(ymd) || 0;
+            const upcomingCount = upcomingByDay.get(ymd) || 0;
+
+            const badges = `
+              <div class="followup-calendar-badges">
+                ${overdueCount ? `<span class="followup-calendar-badge overdue">${overdueCount}</span>` : ''}
+                ${upcomingCount ? `<span class="followup-calendar-badge upcoming">${upcomingCount}</span>` : ''}
+              </div>
+            `;
+
+            const cell = document.createElement('div');
+            cell.className = `followup-calendar-cell ${inMonth ? '' : 'muted'} ${selected ? 'selected' : ''}`;
+            cell.innerHTML = `
+              <div class="followup-calendar-daynum">${day.getDate()}</div>
+              ${badges}
+              ${ymd === todayYMD ? `<div style="margin-top: 8px; font-size:11px; color:#7C3AED; font-weight:700;">Today</div>` : ''}
+            `;
+
+            cell.addEventListener('click', () => {
+                state.selectedDay = ymd;
+                this.renderFollowUpMonthGrid();
+                this.renderFollowUpDay(ymd);
+            });
+
+            grid.appendChild(cell);
         }
+
+        // Bind month nav buttons once
+        const prev = document.getElementById('calendarPrevMonthBtn');
+        const next = document.getElementById('calendarNextMonthBtn');
+        const todayBtn = document.getElementById('calendarTodayBtn');
+
+        if (prev && !prev.__bound) {
+            prev.addEventListener('click', () => {
+                state.currentMonth = new Date(y, m - 1, 1).toISOString();
+                this.renderFollowUpMonthGrid();
+            });
+            prev.__bound = true;
+        }
+        if (next && !next.__bound) {
+            next.addEventListener('click', () => {
+                state.currentMonth = new Date(y, m + 1, 1).toISOString();
+                this.renderFollowUpMonthGrid();
+            });
+            next.__bound = true;
+        }
+        if (todayBtn && !todayBtn.__bound) {
+            todayBtn.addEventListener('click', () => {
+                state.currentMonth = new Date().toISOString();
+                state.selectedDay = todayYMD;
+                this.renderFollowUpMonthGrid();
+                this.renderFollowUpDay(todayYMD);
+            });
+            todayBtn.__bound = true;
+        }
+    },
+
+    renderFollowUpDay(ymd) {
+        const titleEl = document.getElementById('calendarSelectedDayTitle');
+        const listEl = document.getElementById('calendarSelectedDayEvents');
+        if (!titleEl || !listEl) return;
+
+        window.__followupCalendarState = window.__followupCalendarState || {};
+        const state = window.__followupCalendarState;
+        state.selectedDay = ymd;
+
+        titleEl.textContent = `Follow-ups for ${ymd}`;
+
+        const events = state.events?.all || [];
+        const dayEvents = events.filter(e => String(e.date || '').slice(0, 10) === ymd)
+          .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+
+        if (dayEvents.length === 0) {
+            listEl.innerHTML = '<p class="loading">No follow-ups for this day.</p>';
+            return;
+        }
+
+        const escape = (s) => {
+            const div = document.createElement('div');
+            div.textContent = String(s || '');
+            return div.innerHTML;
+        };
+
+        listEl.innerHTML = dayEvents.map(e => {
+            const title = `${e.full_name || '-'} ${e.phone ? '(' + e.phone + ')' : ''}`;
+            const subtitle = `${e.batchName} / ${e.sheetName} / ${e.officerName} / FU${e.followUpNo}`;
+            const comment = e.comment ? `<div style="color:#555; margin-top:6px; font-size:12px;">${escape(e.comment)}</div>` : '';
+            return `
+              <div class="followup-item">
+                <h4>${escape(title)}</h4>
+                <p><i class="fas fa-clock"></i> ${this.formatDateTime(e.date)}</p>
+                <p style="font-size:12px; color:#666;"><i class="fas fa-layer-group"></i> ${escape(subtitle)}</p>
+                ${comment}
+              </div>
+            `;
+        }).join('');
     },
 
     formatDateTime(dateString) {
