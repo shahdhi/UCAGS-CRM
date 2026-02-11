@@ -381,9 +381,17 @@ async function loadBatchesMenu() {
                 if (!sheetName) return;
 
                 try {
+                    let authHeaders = { 'Content-Type': 'application/json' };
+                    if (window.supabaseClient) {
+                        const { data: { session } } = await window.supabaseClient.auth.getSession();
+                        if (session && session.access_token) {
+                            authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+                        }
+                    }
+
                     const res = await fetch(`/api/batch-leads/${batchEnc}/sheets`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: authHeaders,
                         body: JSON.stringify({ sheetName })
                     });
                     const data = await res.json();
@@ -1222,7 +1230,7 @@ function showAddBatchModal() {
                             <input type="text" id="batchName" class="form-control" 
                                    placeholder="e.g., Batch-16, Spring-2026, Batch-A" 
                                    required
-                                   pattern="^[A-Za-z0-9_\-]+$"
+                                   pattern="^[-A-Za-z0-9_]+$"
                                    title="Only letters, numbers, hyphens, and underscores allowed (no spaces)"
                                    style="padding: 12px; font-size: 14px;">
                             <small style="color: #ff9800; margin-top: 8px; display: block; font-weight: 500;">
@@ -1234,16 +1242,27 @@ function showAddBatchModal() {
                             </small>
                         </div>
                         
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label for="adminSheetUrl"><i class=\"fas fa-link\"></i> Admin Sheet URL *</label>
+                            <input type="url" id="adminSheetUrl" class="form-control" required
+                                   placeholder="Paste admin Google Sheet URL for this batch" />
+                            <small style="color:#666; display:block; margin-top:6px;">This is where all leads for this batch are stored & assigned from.</small>
+                        </div>
+
+                        <div id="officerSheetsContainer" style="margin-top: 16px;">
+                            <div class="loading" style="padding:10px; color:#666;">Loading officers...</div>
+                        </div>
+
                         <div style="background: #f0f7ff; padding: 15px; border-radius: 6px; border-left: 4px solid #2196f3; margin-top: 20px;">
                             <p style="margin: 0; color: #333; font-size: 14px;">
                                 <i class="fas fa-info-circle" style="color: #2196f3;"></i>
                                 <strong>What will be created:</strong>
                             </p>
                             <ul style="margin: 10px 0 0 20px; color: #666; font-size: 13px;">
-                                <li>New Google Drive folder for the batch</li>
-                                <li>Admin spreadsheet for the batch</li>
-                                <li>One spreadsheet per officer (same structure)</li>
-                                <li>Linked automatically to CRM</li>
+                                <li>Links this batch to the Admin spreadsheet URL you provide</li>
+                                <li>Links this batch to each Officer spreadsheet URL you provide</li>
+                                <li>Creates default tabs (Main Leads, Extra Leads) + headers in all sheets</li>
+                                <li>Links everything automatically inside the CRM</li>
                             </ul>
                         </div>
                         
@@ -1266,6 +1285,52 @@ function showAddBatchModal() {
     setTimeout(() => {
         document.getElementById('batchName').focus();
     }, 100);
+
+    // Load officers and build sheet URL inputs
+    (async () => {
+        try {
+            let authHeaders = {};
+            if (window.supabaseClient) {
+                const { data: { session } } = await window.supabaseClient.auth.getSession();
+                if (session && session.access_token) {
+                    authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+                }
+            }
+
+            const res = await fetch('/api/batches/officers', { headers: authHeaders });
+            const data = await res.json();
+            const container = document.getElementById('officerSheetsContainer');
+            if (!container) return;
+
+            if (!data.success) {
+                container.innerHTML = `<div style="color:#b00;">Failed to load officers: ${escapeHtml(data.error || '')}</div>`;
+                return;
+            }
+
+            const officers = data.officers || [];
+            if (officers.length === 0) {
+                container.innerHTML = `<div style="color:#b00;">No officers found. Please create staff first.</div>`;
+                return;
+            }
+
+            container.innerHTML = `
+                <div style="margin-bottom: 8px;"><strong>Officer Sheet URLs (required)</strong></div>
+                <div style="display:flex; flex-direction:column; gap: 10px;">
+                    ${officers.map(o => `
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size: 13px; margin-bottom: 4px;">${escapeHtml(o)}</label>
+                            <input type="url" class="form-control officerSheetUrl" data-officer="${escapeHtml(o)}" required
+                                   placeholder="Paste Google Sheet URL for ${escapeHtml(o)}" />
+                        </div>
+                    `).join('')}
+                </div>
+                <small style="color:#666; display:block; margin-top:8px;">You must provide a sheet URL for every officer. Batch creation will fail otherwise.</small>
+            `;
+        } catch (e) {
+            const container = document.getElementById('officerSheetsContainer');
+            if (container) container.innerHTML = `<div style="color:#b00;">Failed to load officers</div>`;
+        }
+    })();
 }
 
 // Close add batch modal
@@ -1299,7 +1364,15 @@ async function handleAddBatch(event) {
     submitBtn.disabled = true;
     
     try {
-        await createNewBatch(batchName);
+        const adminSheetUrl = document.getElementById('adminSheetUrl')?.value?.trim();
+        const officerInputs = Array.from(document.querySelectorAll('.officerSheetUrl'));
+        const officerSheets = {};
+        officerInputs.forEach(inp => {
+            const officer = inp.getAttribute('data-officer');
+            officerSheets[officer] = inp.value.trim();
+        });
+
+        await createNewBatch(batchName, adminSheetUrl, officerSheets);
     } catch (error) {
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
@@ -1307,7 +1380,7 @@ async function handleAddBatch(event) {
 }
 
 // Create new batch
-async function createNewBatch(batchName) {
+async function createNewBatch(batchName, adminSpreadsheetUrl, officerSheets) {
     try {
         // Call API to create new batch sheet
         // New system: provision Drive folder + spreadsheets
@@ -1322,7 +1395,7 @@ async function createNewBatch(batchName) {
         const response = await fetch('/api/batches/create', {
             method: 'POST',
             headers: authHeaders,
-            body: JSON.stringify({ batchName })
+            body: JSON.stringify({ batchName, adminSpreadsheetUrl, officerSheets })
         });
         
         const data = await response.json();

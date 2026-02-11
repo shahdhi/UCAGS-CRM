@@ -13,12 +13,24 @@ const express = require('express');
 const router = express.Router();
 
 const { isAdmin } = require('../../../server/middleware/auth');
-const { createFolder, createSpreadsheetFile } = require('../../core/drive/driveClient');
-const { writeSheet } = require('../../core/sheets/sheetsClient');
+const { writeSheet, createSheet, sheetExists, getSpreadsheetInfo } = require('../../core/sheets/sheetsClient');
 const { listBatches, upsertBatch, upsertOfficerSheet } = require('../../core/batches/batchesStore');
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
 
-const PARENT_FOLDER_ID = process.env.BATCHES_PARENT_FOLDER_ID || '1z1GmTk7JYVNZxRU0sQ6tEC_qGBY9DDEo';
+function extractSpreadsheetId(input) {
+  if (!input) return '';
+  const s = String(input).trim();
+  // Accept raw id or full URL
+  // Typical: https://docs.google.com/spreadsheets/d/<ID>/edit
+  const m = s.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  return m ? m[1] : s;
+}
+
+async function validateSpreadsheetAccess(spreadsheetId) {
+  // throws if not accessible
+  await getSpreadsheetInfo(spreadsheetId);
+}
+
 
 const ADMIN_HEADERS = [
   'platform',
@@ -64,58 +76,81 @@ router.get('/', isAdmin, async (req, res) => {
 
 router.post('/create', isAdmin, async (req, res) => {
   try {
-    const { batchName } = req.body;
+    const { batchName, adminSpreadsheetUrl, officerSheets } = req.body || {};
     validateBatchName(batchName);
 
-    // Create folder
-    const folder = await createFolder({ name: batchName, parentFolderId: PARENT_FOLDER_ID });
+    if (!adminSpreadsheetUrl) {
+      return res.status(400).json({ success: false, error: 'Admin spreadsheet URL is required' });
+    }
 
-    // Create admin spreadsheet
-    const adminFile = await createSpreadsheetFile({ name: `${batchName}-Admin`, parentFolderId: folder.id });
+    const adminSpreadsheetId = extractSpreadsheetId(adminSpreadsheetUrl);
+    if (!adminSpreadsheetId) {
+      return res.status(400).json({ success: false, error: 'Invalid admin spreadsheet URL' });
+    }
 
-    // Initialize default sheets: Main Leads + Extra Leads
-    const { createSheet, sheetExists } = require('../../core/sheets/sheetsClient');
+    // List officers and require a URL for each
+    const officers = await listOfficers();
+    if (!officerSheets || typeof officerSheets !== 'object') {
+      return res.status(400).json({ success: false, error: 'Officer spreadsheet URLs are required' });
+    }
+
+    const missing = officers.filter(name => !officerSheets[name]);
+    if (missing.length) {
+      return res.status(400).json({ success: false, error: `Missing spreadsheet URL for officers: ${missing.join(', ')}` });
+    }
+
+    // Validate access to admin spreadsheet
+    await validateSpreadsheetAccess(adminSpreadsheetId);
 
     // Ensure default tabs exist on admin spreadsheet
     for (const tab of ['Main Leads', 'Extra Leads']) {
-      const existing = await sheetExists(adminFile.id, tab);
-      if (!existing) {
-        await createSheet(adminFile.id, tab);
-      }
-      await writeSheet(adminFile.id, `${tab}!A1:${String.fromCharCode(64 + ADMIN_HEADERS.length)}1`, [ADMIN_HEADERS]);
+      const existing = await sheetExists(adminSpreadsheetId, tab);
+      if (!existing) await createSheet(adminSpreadsheetId, tab);
+      await writeSheet(adminSpreadsheetId, `${tab}!A1:${String.fromCharCode(64 + ADMIN_HEADERS.length)}1`, [ADMIN_HEADERS]);
     }
 
-    // Create officer spreadsheets
-    const officers = await listOfficers();
-    const officerFiles = [];
+    // Validate and initialize officer spreadsheets
+    const officerResults = [];
     for (const officerName of officers) {
-      const file = await createSpreadsheetFile({ name: officerName, parentFolderId: folder.id });
-
-      const { createSheet, sheetExists } = require('../../core/sheets/sheetsClient');
-      for (const tab of ['Main Leads', 'Extra Leads']) {
-        const existing = await sheetExists(file.id, tab);
-        if (!existing) {
-          await createSheet(file.id, tab);
-        }
-        await writeSheet(file.id, `${tab}!A1:${String.fromCharCode(64 + OFFICER_HEADERS.length)}1`, [OFFICER_HEADERS]);
+      const officerSpreadsheetId = extractSpreadsheetId(officerSheets[officerName]);
+      if (!officerSpreadsheetId) {
+        return res.status(400).json({ success: false, error: `Invalid spreadsheet URL for officer: ${officerName}` });
       }
-      officerFiles.push({ officerName, spreadsheetId: file.id, url: file.webViewLink });
-      await upsertOfficerSheet({ batch_name: batchName, officer_name: officerName, spreadsheet_id: file.id });
+
+      await validateSpreadsheetAccess(officerSpreadsheetId);
+
+      for (const tab of ['Main Leads', 'Extra Leads']) {
+        const existing = await sheetExists(officerSpreadsheetId, tab);
+        if (!existing) await createSheet(officerSpreadsheetId, tab);
+        await writeSheet(officerSpreadsheetId, `${tab}!A1:${String.fromCharCode(64 + OFFICER_HEADERS.length)}1`, [OFFICER_HEADERS]);
+      }
+
+      await upsertOfficerSheet({ batch_name: batchName, officer_name: officerName, spreadsheet_id: officerSpreadsheetId });
+      officerResults.push({ officerName, spreadsheetId: officerSpreadsheetId });
     }
 
-    // Store batch
-    await upsertBatch({ name: batchName, drive_folder_id: folder.id, admin_spreadsheet_id: adminFile.id });
+    // Store batch (drive_folder_id unused in this mode)
+    await upsertBatch({ name: batchName, drive_folder_id: null, admin_spreadsheet_id: adminSpreadsheetId });
 
     res.status(201).json({
       success: true,
       batchName,
-      folder,
-      adminSpreadsheet: { id: adminFile.id, url: adminFile.webViewLink },
-      officerSpreadsheets: officerFiles
+      adminSpreadsheet: { id: adminSpreadsheetId, url: adminSpreadsheetUrl },
+      officerSpreadsheets: officerResults
     });
   } catch (e) {
     console.error('Batch create error:', e);
     res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// List officers for batch setup UI
+router.get('/officers', isAdmin, async (req, res) => {
+  try {
+    const officers = await listOfficers();
+    res.json({ success: true, officers });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 
