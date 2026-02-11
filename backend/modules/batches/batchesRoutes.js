@@ -32,7 +32,7 @@ async function validateSpreadsheetAccess(spreadsheetId) {
 }
 
 
-const ADMIN_HEADERS = [
+const ADMIN_HEADERS_CORE = [
   'platform',
   'are_you_planning_to_start_immediately?',
   'why_are_you_interested_in_this_diploma?',
@@ -46,8 +46,32 @@ const ADMIN_HEADERS = [
   'notes'
 ];
 
-// Officer spreadsheets use the SAME structure as admin for that batch
-const OFFICER_HEADERS = [...ADMIN_HEADERS];
+const OFFICER_TRACKING_HEADERS = [
+  'priority',
+  'next_follow_up',
+  'call_feedback',
+  'pdf_sent',
+  'wa_sent',
+  'email_sent',
+  'last_follow_up_comment',
+  'followup1_schedule',
+  'followup1_date',
+  'followup1_answered',
+  'followup1_comment',
+  'followup2_schedule',
+  'followup2_date',
+  'followup2_answered',
+  'followup2_comment',
+  'followup3_schedule',
+  'followup3_date',
+  'followup3_answered',
+  'followup3_comment'
+];
+
+// Admin sheets: core only
+const ADMIN_HEADERS = [...ADMIN_HEADERS_CORE];
+// Officer sheets: core + tracking
+const OFFICER_HEADERS = [...ADMIN_HEADERS_CORE, ...OFFICER_TRACKING_HEADERS];
 
 async function listOfficers() {
   const sb = getSupabaseAdmin();
@@ -121,7 +145,17 @@ router.post('/create', isAdmin, async (req, res) => {
     for (const tab of ['Main Leads', 'Extra Leads']) {
       const existing = await sheetExists(adminSpreadsheetId, tab);
       if (!existing) await createSheet(adminSpreadsheetId, tab);
-      await writeSheet(adminSpreadsheetId, `${tab}!A1:${String.fromCharCode(64 + ADMIN_HEADERS.length)}1`, [ADMIN_HEADERS]);
+      const colToLetter = (col) => {
+        let temp = col;
+        let letter = '';
+        while (temp > 0) {
+          let rem = (temp - 1) % 26;
+          letter = String.fromCharCode(65 + rem) + letter;
+          temp = Math.floor((temp - 1) / 26);
+        }
+        return letter;
+      };
+      await writeSheet(adminSpreadsheetId, `${tab}!A1:${colToLetter(ADMIN_HEADERS.length)}1`, [ADMIN_HEADERS]);
     }
 
     // Store batch first (required due to FK constraint on batch_officer_sheets)
@@ -140,7 +174,17 @@ router.post('/create', isAdmin, async (req, res) => {
       for (const tab of ['Main Leads', 'Extra Leads']) {
         const existing = await sheetExists(officerSpreadsheetId, tab);
         if (!existing) await createSheet(officerSpreadsheetId, tab);
-        await writeSheet(officerSpreadsheetId, `${tab}!A1:${String.fromCharCode(64 + OFFICER_HEADERS.length)}1`, [OFFICER_HEADERS]);
+        const colToLetter = (col) => {
+          let temp = col;
+          let letter = '';
+          while (temp > 0) {
+            let rem = (temp - 1) % 26;
+            letter = String.fromCharCode(65 + rem) + letter;
+            temp = Math.floor((temp - 1) / 26);
+          }
+          return letter;
+        };
+        await writeSheet(officerSpreadsheetId, `${tab}!A1:${colToLetter(OFFICER_HEADERS.length)}1`, [OFFICER_HEADERS]);
       }
 
       await upsertOfficerSheet({ batch_name: batchName, officer_name: officerName, spreadsheet_id: officerSpreadsheetId });

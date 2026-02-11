@@ -33,7 +33,7 @@ function normalizeHeader(h) {
 }
 
 async function getHeaderInfo(spreadsheetId, sheetName) {
-  const headerRow = await readSheet(spreadsheetId, `${sheetName}!A1:Z1`);
+  const headerRow = await readSheet(spreadsheetId, `${sheetName}!A1:AZ1`);
   const headers = (headerRow && headerRow[0]) ? headerRow[0].map(normalizeHeader) : [];
 
   const lowerToIndex = new Map();
@@ -75,6 +75,28 @@ function parseLeadRow(row, index, headerInfo) {
     assignedTo: getCell(row, headerInfo.idx('assigned_to')),
     createdDate: getCell(row, headerInfo.idx('created_date')),
     notes: getCell(row, headerInfo.idx('notes')),
+
+    // Lead Management fields
+    priority: getCell(row, headerInfo.idx('priority')),
+    nextFollowUp: getCell(row, headerInfo.idx('next_follow_up')),
+    callFeedback: getCell(row, headerInfo.idx('call_feedback')),
+    pdfSent: getCell(row, headerInfo.idx('pdf_sent')),
+    waSent: getCell(row, headerInfo.idx('wa_sent')),
+    emailSent: getCell(row, headerInfo.idx('email_sent')),
+    lastFollowUpComment: getCell(row, headerInfo.idx('last_follow_up_comment')),
+    followUp1Schedule: getCell(row, headerInfo.idx('followup1_schedule')),
+    followUp1Date: getCell(row, headerInfo.idx('followup1_date')),
+    followUp1Answered: getCell(row, headerInfo.idx('followup1_answered')),
+    followUp1Comment: getCell(row, headerInfo.idx('followup1_comment')),
+    followUp2Schedule: getCell(row, headerInfo.idx('followup2_schedule')),
+    followUp2Date: getCell(row, headerInfo.idx('followup2_date')),
+    followUp2Answered: getCell(row, headerInfo.idx('followup2_answered')),
+    followUp2Comment: getCell(row, headerInfo.idx('followup2_comment')),
+    followUp3Schedule: getCell(row, headerInfo.idx('followup3_schedule')),
+    followUp3Date: getCell(row, headerInfo.idx('followup3_date')),
+    followUp3Answered: getCell(row, headerInfo.idx('followup3_answered')),
+    followUp3Comment: getCell(row, headerInfo.idx('followup3_comment')),
+
     // For officer-side filtering UX
     batch: ''
   };
@@ -101,6 +123,30 @@ function buildRowFromLead(lead, headerInfo) {
   set('created_date', lead.createdDate || '');
   set('notes', lead.notes || '');
 
+  // Lead Management fields
+  set('priority', lead.priority || '');
+  set('next_follow_up', lead.nextFollowUp || lead.next_follow_up || '');
+  set('call_feedback', lead.callFeedback || lead.call_feedback || '');
+  set('pdf_sent', lead.pdfSent ?? lead.pdf_sent ?? '');
+  set('wa_sent', lead.waSent ?? lead.wa_sent ?? '');
+  set('email_sent', lead.emailSent ?? lead.email_sent ?? '');
+  set('last_follow_up_comment', lead.lastFollowUpComment || lead.last_follow_up_comment || '');
+
+  set('followup1_schedule', lead.followUp1Schedule || '');
+  set('followup1_date', lead.followUp1Date || '');
+  set('followup1_answered', lead.followUp1Answered || '');
+  set('followup1_comment', lead.followUp1Comment || '');
+
+  set('followup2_schedule', lead.followUp2Schedule || '');
+  set('followup2_date', lead.followUp2Date || '');
+  set('followup2_answered', lead.followUp2Answered || '');
+  set('followup2_comment', lead.followUp2Comment || '');
+
+  set('followup3_schedule', lead.followUp3Schedule || '');
+  set('followup3_date', lead.followUp3Date || '');
+  set('followup3_answered', lead.followUp3Answered || '');
+  set('followup3_comment', lead.followUp3Comment || '');
+
   return row;
 }
 
@@ -126,7 +172,7 @@ async function getOfficerSpreadsheetIdForBatch(batchName, officerName) {
 
 async function listLeadsFromSpreadsheet(spreadsheetId, sheetName, batchName) {
   const headerInfo = await getHeaderInfo(spreadsheetId, sheetName);
-  const rows = await readSheet(spreadsheetId, `${sheetName}!A2:Z`);
+  const rows = await readSheet(spreadsheetId, `${sheetName}!A2:AZ`);
   const leads = (rows || [])
     .filter(r => r && r.length)
     .map((r, i) => {

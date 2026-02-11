@@ -13,6 +13,7 @@ const { getSpreadsheetInfo, createSheet, sheetExists, writeSheet } = require('..
 const { getBatch } = require('../../core/batches/batchesStore');
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
 
+// Admin sheets (core only)
 const ADMIN_HEADERS = [
   'platform',
   'are_you_planning_to_start_immediately?',
@@ -26,6 +27,42 @@ const ADMIN_HEADERS = [
   'created_date',
   'notes'
 ];
+
+// Officer sheets (core + tracking)
+const OFFICER_HEADERS = [
+  ...ADMIN_HEADERS,
+  'priority',
+  'next_follow_up',
+  'call_feedback',
+  'pdf_sent',
+  'wa_sent',
+  'email_sent',
+  'last_follow_up_comment',
+  'followup1_schedule',
+  'followup1_date',
+  'followup1_answered',
+  'followup1_comment',
+  'followup2_schedule',
+  'followup2_date',
+  'followup2_answered',
+  'followup2_comment',
+  'followup3_schedule',
+  'followup3_date',
+  'followup3_answered',
+  'followup3_comment'
+];
+
+function colToLetter(col) {
+  let temp = col;
+  let letter = '';
+  while (temp > 0) {
+    let rem = (temp - 1) % 26;
+    letter = String.fromCharCode(65 + rem) + letter;
+    temp = Math.floor((temp - 1) / 26);
+  }
+  return letter;
+}
+
 
 async function getAdminSpreadsheetId(batchName) {
   const batch = await getBatch(batchName);
@@ -58,12 +95,12 @@ async function listSheetsForBatch(batchName) {
   return titles.filter(t => t && t !== 'Sheet1');
 }
 
-async function ensureSheetWithHeaders(spreadsheetId, sheetTitle) {
+async function ensureSheetWithHeaders(spreadsheetId, sheetTitle, headers) {
   const existing = await sheetExists(spreadsheetId, sheetTitle);
   if (!existing) {
     await createSheet(spreadsheetId, sheetTitle);
   }
-  await writeSheet(spreadsheetId, `${sheetTitle}!A1:${String.fromCharCode(64 + ADMIN_HEADERS.length)}1`, [ADMIN_HEADERS]);
+  await writeSheet(spreadsheetId, `${sheetTitle}!A1:${colToLetter(headers.length)}1`, [headers]);
 }
 
 function validateSheetName(name) {
@@ -79,12 +116,12 @@ async function createSheetForBatch(batchName, sheetName) {
   const adminSpreadsheetId = await getAdminSpreadsheetId(batchName);
   const officerSpreadsheetIds = await listOfficerSpreadsheetIds(batchName);
 
-  // Create in admin
-  await ensureSheetWithHeaders(adminSpreadsheetId, sheetName);
+  // Create in admin (core headers only)
+  await ensureSheetWithHeaders(adminSpreadsheetId, sheetName, ADMIN_HEADERS);
 
-  // Create in all officers
+  // Create in all officers (core + tracking)
   for (const id of officerSpreadsheetIds) {
-    await ensureSheetWithHeaders(id, sheetName);
+    await ensureSheetWithHeaders(id, sheetName, OFFICER_HEADERS);
   }
 
   return { success: true };

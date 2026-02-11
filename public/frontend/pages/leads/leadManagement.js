@@ -207,9 +207,7 @@ function renderManagementTable() {
       <td>${lead.phone ? `<a href="tel:${lead.phone}">${escapeHtml(lead.phone)}</a>` : '-'}</td>
       <td><span class="badge badge-${getStatusColor(lead.status)}">${escapeHtml(lead.status || 'New')}</span></td>
       <td><span class="badge badge-${getPriorityColor(lead.priority)}">${escapeHtml(lead.priority || '-')}</span></td>
-      <td>${getCheckIcon(lead.pdfSent)}</td>
-      <td>${getCheckIcon(lead.waSent)}</td>
-      <td>${getCheckIcon(lead.emailSent)}</td>
+      <td>${escapeHtml(getLastFollowUpComment(lead)) || '-'}</td>
       <td>${lead.nextFollowUp ? formatDate(lead.nextFollowUp) : '-'}</td>
       <td>
         <button class="btn btn-sm btn-primary" onclick="openManageLeadModal('${lead.id}')" title="Manage Lead">
@@ -225,11 +223,14 @@ function renderManagementTable() {
 /**
  * Get check icon for boolean values
  */
-function getCheckIcon(value) {
-  if (value === true || value === 'Yes' || value === 'yes' || value === '1') {
-    return '<i class="fas fa-check-circle" style="color: #4CAF50;"></i>';
-  }
-  return '<i class="fas fa-times-circle" style="color: #ccc;"></i>';
+function getLastFollowUpComment(lead) {
+  // Prefer explicitly stored lastFollowUpComment
+  if (lead.lastFollowUpComment) return String(lead.lastFollowUpComment);
+  // Otherwise derive from the highest follow-up comment that exists
+  const c3 = lead.followUp3Comment;
+  const c2 = lead.followUp2Comment;
+  const c1 = lead.followUp1Comment;
+  return String(c3 || c2 || c1 || lead.callFeedback || '').trim();
 }
 
 /**
@@ -485,10 +486,33 @@ async function saveLeadManagement(event, leadId) {
     
     console.log('Saving lead management data:', managementData);
     
-    // For now, store locally (Phase 3 will save to separate tracking sheet)
+    // Persist to officer sheet (per batch + sheet)
     const lead = managementLeads.find(l => l.id == leadId);
     if (lead) {
       Object.assign(lead, managementData);
+
+      // Derive last follow-up comment
+      lead.lastFollowUpComment = getLastFollowUpComment(lead);
+
+      // Save to backend
+      const batch = window.officerBatchFilter && window.officerBatchFilter !== 'all' ? window.officerBatchFilter : lead.batch;
+      const sheet = window.officerSheetFilter || 'Main Leads';
+
+      let authHeaders = { 'Content-Type': 'application/json' };
+      if (window.supabaseClient) {
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        if (session && session.access_token) {
+          authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+        }
+      }
+
+      const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/my-leads/${encodeURIComponent(lead.id)}?sheet=${encodeURIComponent(sheet)}`, {
+        method: 'PUT',
+        headers: authHeaders,
+        body: JSON.stringify(lead)
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Failed to save');
     }
     
     // Show success message
