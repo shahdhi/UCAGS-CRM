@@ -666,6 +666,19 @@ body {
 .followup-calendar-badge.overdue { background: #dc3545; }
 .followup-calendar-badge.upcoming { background: #1976d2; }
 
+/* Lead Management highlight when opened from calendar */
+.lead-row-highlight {
+    animation: leadRowFlash 1.6s ease-in-out 0s 2;
+    outline: 2px solid #7C3AED;
+    background: #F3E8FF !important;
+}
+
+@keyframes leadRowFlash {
+    0% { background: #F3E8FF; }
+    50% { background: #ffffff; }
+    100% { background: #F3E8FF; }
+}
+
 .followup-item {
     padding: 12px 14px;
     border-left: 3px solid var(--primary-purple);

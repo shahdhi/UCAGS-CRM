@@ -52,7 +52,10 @@ const config = {
     userLeadsTemplateSheet: process.env.USER_LEADS_TEMPLATE_SHEET || 'Shahdhi', // Template to copy
 
     // Attendance spreadsheet (daily check-in/out)
-    attendanceSheetId: process.env.ATTENDANCE_SHEET_ID
+    attendanceSheetId: process.env.ATTENDANCE_SHEET_ID,
+
+    // Calendar tasks spreadsheet (custom tasks)
+    calendarTasksSheetId: process.env.CALENDAR_TASKS_SHEET_ID
   },
 
   // Gmail Configuration (for future modules)

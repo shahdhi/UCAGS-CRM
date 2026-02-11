@@ -73,6 +73,7 @@ app.use('/api/officers', officerRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/calendar', require('./modules/calendar/followupCalendarRoutes'));
+app.use('/api/calendar', require('./modules/calendar/calendarTasksRoutes'));
 app.use('/api/call', callRoutes);
 
 // New modular routes (will override old routes if same path)

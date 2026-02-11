@@ -360,6 +360,22 @@ const calendarAPI = {
   // New: follow-up calendar derived from officer lead sheets
   getFollowUpCalendar: async () => {
     return fetchAPI('/calendar/followups');
+  },
+
+  // Custom tasks
+  getTasks: async () => {
+    return fetchAPI('/calendar/tasks');
+  },
+  createTask: async ({ title, dueAt, notes }) => {
+    return fetchAPI('/calendar/tasks', {
+      method: 'POST',
+      body: JSON.stringify({ title, dueAt, notes })
+    });
+  },
+  deleteTask: async (id) => {
+    return fetchAPI(`/calendar/tasks/${id}`, {
+      method: 'DELETE'
+    });
   }
 };
 

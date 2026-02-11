@@ -624,7 +624,7 @@
             <!-- Calendar View -->
             <div id="calendarView" class="content-view">
                 <div class="page-header" style="display:flex; justify-content: space-between; align-items:center; gap: 12px; flex-wrap: wrap;">
-                    <h1>Follow-up Calendar</h1>
+                    <h1>UCAGS Calendar</h1>
                     <div class="admin-only" style="display:none; gap: 8px; align-items:center;" id="calendarAdminControls">
                         <label style="color:#666; font-size:13px;">Officer:</label>
                         <select id="calendarOfficerSelect" class="form-control" style="min-width: 220px;"></select>
@@ -644,7 +644,10 @@
                         </div>
 
                         <div id="calendarGrid" class="followup-calendar-grid"></div>
-                        <div style="color:#666; font-size: 12px; margin-top: 8px;">Click a date to view follow-ups for that day.</div>
+                        <div style="display:flex; justify-content: space-between; align-items:center; gap: 10px; flex-wrap: wrap; margin-top: 8px;">
+                            <div style="color:#666; font-size: 12px;">Click a date to view tasks for that day.</div>
+                            <button id="calendarAddTaskBtn" class="btn btn-primary" type="button"><i class="fas fa-plus"></i> Add Task</button>
+                        </div>
                     </div>
 
                     <!-- Day Events Panel -->
@@ -1115,6 +1118,7 @@
     <!-- Supabase JS (load first) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/frontend/pages/attendance/attendancePage.js"></script>
+    <script src="/frontend/pages/calendar/calendarTasks.js"></script>
     
     <!-- Supabase Client (must load after Supabase JS) -->
     <script src="js/supabaseClient.js"></script>

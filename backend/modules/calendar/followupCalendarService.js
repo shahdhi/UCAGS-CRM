@@ -150,8 +150,20 @@ async function getCalendarEvents({ userRole, officerName, officerFilter }) {
   const pad2 = (n) => String(n).padStart(2, '0');
   const nowStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}T${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
 
-  const overdue = all.filter(e => String(e.date || '') < nowStr).sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
-  const upcoming = all.filter(e => String(e.date || '') >= nowStr).sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+  const normalizeForCompare = (v) => {
+    const s = String(v || '').trim();
+    // If only date is provided, treat as end-of-day so it stays upcoming until the day ends.
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T23:59`;
+    // If datetime-local without seconds, OK. If has seconds, still OK.
+    return s;
+  };
+
+  const overdue = all
+    .filter(e => normalizeForCompare(e.date) < nowStr)
+    .sort((a, b) => normalizeForCompare(a.date).localeCompare(normalizeForCompare(b.date)));
+  const upcoming = all
+    .filter(e => normalizeForCompare(e.date) >= nowStr)
+    .sort((a, b) => normalizeForCompare(a.date).localeCompare(normalizeForCompare(b.date)));
 
   return { now: nowStr, overdue, upcoming, count: all.length };
 }

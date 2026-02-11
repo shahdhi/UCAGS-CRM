@@ -26,6 +26,29 @@ async function initLeadManagementPage() {
   
   // Always load leads when page is opened
   await loadLeadManagement();
+
+  // If calendar navigation requested opening a specific lead, open it
+  if (window.__openLeadAfterNav && window.__openLeadAfterNav.leadId) {
+    const leadId = window.__openLeadAfterNav.leadId;
+    window.__openLeadAfterNav = null;
+
+    // Small delay to ensure table is rendered
+    setTimeout(() => {
+      const row = document.querySelector(`#managementTableBody tr[data-lead-id="${CSS.escape(String(leadId))}"]`);
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.classList.add('lead-row-highlight');
+        setTimeout(() => row.classList.remove('lead-row-highlight'), 3500);
+      }
+
+      // Open modal after scroll starts
+      setTimeout(() => {
+        if (window.openManageLeadModal) {
+          window.openManageLeadModal(leadId);
+        }
+      }, 250);
+    }, 200);
+  }
 }
 
 /**
@@ -202,7 +225,7 @@ function renderManagementTable() {
   console.log('✓ Rendering table rows...');
   
   tbody.innerHTML = filteredManagementLeads.map(lead => `
-    <tr>
+    <tr data-lead-id="${escapeHtml(String(lead.id))}">
       <td><strong>${escapeHtml(lead.name)}</strong></td>
       <td>${lead.phone ? `<a href="tel:${lead.phone}">${escapeHtml(lead.phone)}</a>` : '-'}</td>
       <td><span class="badge badge-${getStatusColor(lead.status)}">${escapeHtml(lead.status || 'New')}</span></td>

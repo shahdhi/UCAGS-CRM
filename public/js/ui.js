@@ -185,9 +185,24 @@ const UI = {
     },
 
     // Render lead follow-up calendar (new batch/officer leads system)
-    renderFollowUpCalendar(overdue, upcoming) {
+    renderFollowUpCalendar(overdue, upcoming, tasks = []) {
         // Store events for month grid + day view
-        const all = [...(overdue || []), ...(upcoming || [])];
+        // Normalize custom tasks into same event shape
+        const taskEvents = (tasks || []).map(t => ({
+            date: t.due_at || t.dueAt,
+            batchName: 'Custom',
+            sheetName: 'Task',
+            officerName: t.owner_name || window.currentUser?.name || '',
+            leadId: null,
+            followUpNo: null,
+            full_name: t.title,
+            phone: '',
+            comment: t.notes || '',
+            __type: 'task',
+            __taskId: t.id
+        }));
+
+        const all = [...(overdue || []), ...(upcoming || []), ...taskEvents];
         window.__followupCalendarState = window.__followupCalendarState || {};
         window.__followupCalendarState.events = { overdue: overdue || [], upcoming: upcoming || [], all };
 
@@ -221,8 +236,12 @@ const UI = {
             const subtitle = `${e.batchName} / ${e.sheetName} / ${e.officerName} / FU${e.followUpNo}`;
             const comment = e.comment ? `<div style="color:#555; margin-top:6px; font-size:12px;">${escape(e.comment)}</div>` : '';
 
+            const taskAttrs = (e.__type === 'task')
+              ? ` data-type="task" data-taskid="${escape(e.__taskId)}" `
+              : '';
+
             return `
-              <div class="followup-item" style="border-left-color: ${isOverdue ? '#dc3545' : '#1976d2'};">
+              <div class="followup-item" ${taskAttrs} data-batch="${escape(e.batchName)}" data-sheet="${escape(e.sheetName)}" data-officer="${escape(e.officerName)}" data-leadid="${escape(e.leadId)}" style="border-left-color: ${isOverdue ? '#dc3545' : '#1976d2'}; cursor:pointer;">
                 <h4>${escape(title)}</h4>
                 <p><i class="fas fa-clock"></i> ${this.formatDateTime(e.date)} ${isOverdue ? '(Overdue)' : ''}</p>
                 <p style="font-size:12px; color:#666;"><i class="fas fa-layer-group"></i> ${escape(subtitle)}</p>
@@ -272,6 +291,37 @@ const UI = {
         const upcomingList = document.getElementById('upcomingList');
         if (overdueList) overdueList.innerHTML = buildGroupedHtml(overdue, true);
         if (upcomingList) upcomingList.innerHTML = buildGroupedHtml(upcoming, false);
+
+        // Bind click-to-open on grouped lists too
+        const bindClicks = (root) => {
+            if (!root || root.__bound) return;
+            root.addEventListener('click', (ev) => {
+                const item = ev.target.closest('.followup-item');
+                if (!item) return;
+
+                const batch = item.getAttribute('data-batch');
+                const sheet = item.getAttribute('data-sheet');
+                const leadId = item.getAttribute('data-leadid');
+                const taskId = item.getAttribute('data-taskid');
+                const type = item.getAttribute('data-type');
+
+                if (type === 'task' && taskId) {
+                    if (window.openCalendarTaskModal) window.openCalendarTaskModal(taskId);
+                    return;
+                }
+
+                if (!batch || !sheet || !leadId) return;
+
+                window.__openLeadAfterNav = { leadId };
+                const page = `lead-management-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(sheet)}`;
+                window.location.hash = page;
+                if (window.navigateToPage) window.navigateToPage(page);
+            });
+            root.__bound = true;
+        };
+
+        bindClicks(overdueList);
+        bindClicks(upcomingList);
 
         // Month grid rendering
         this.renderFollowUpMonthGrid();
@@ -397,7 +447,7 @@ const UI = {
         const state = window.__followupCalendarState;
         state.selectedDay = ymd;
 
-        titleEl.textContent = `Follow-ups for ${ymd}`;
+        titleEl.textContent = `Tasks for ${ymd}`;
 
         const events = state.events?.all || [];
         const dayEvents = events.filter(e => String(e.date || '').slice(0, 10) === ymd)
@@ -419,7 +469,7 @@ const UI = {
             const subtitle = `${e.batchName} / ${e.sheetName} / ${e.officerName} / FU${e.followUpNo}`;
             const comment = e.comment ? `<div style="color:#555; margin-top:6px; font-size:12px;">${escape(e.comment)}</div>` : '';
             return `
-              <div class="followup-item">
+              <div class="followup-item" data-batch="${escape(e.batchName)}" data-sheet="${escape(e.sheetName)}" data-officer="${escape(e.officerName)}" data-leadid="${escape(e.leadId)}" style="cursor:pointer;">
                 <h4>${escape(title)}</h4>
                 <p><i class="fas fa-clock"></i> ${this.formatDateTime(e.date)}</p>
                 <p style="font-size:12px; color:#666;"><i class="fas fa-layer-group"></i> ${escape(subtitle)}</p>
@@ -427,6 +477,30 @@ const UI = {
               </div>
             `;
         }).join('');
+
+        // Bind click-to-open (delegated)
+        const bindClicks = (root) => {
+            if (!root || root.__bound) return;
+            root.addEventListener('click', (ev) => {
+                const item = ev.target.closest('.followup-item');
+                if (!item) return;
+
+                const batch = item.getAttribute('data-batch');
+                const sheet = item.getAttribute('data-sheet');
+                const leadId = item.getAttribute('data-leadid');
+                if (!batch || !sheet || !leadId) return;
+
+                // Navigate to lead management for that batch+sheet and open lead
+                window.__openLeadAfterNav = { leadId };
+                const page = `lead-management-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(sheet)}`;
+                window.location.hash = page;
+                if (window.navigateToPage) window.navigateToPage(page);
+            });
+            root.__bound = true;
+        };
+
+        bindClicks(listEl);
+
     },
 
     formatDateTime(dateString) {

@@ -1669,7 +1669,19 @@ async function loadCalendar() {
         }
 
         const response = await fetchAPI(url.replace('/api', ''));
-        UI.renderFollowUpCalendar(response.overdue || [], response.upcoming || []);
+        
+        // Load personal calendar tasks
+        const tasksRes = await API.calendar.getTasks();
+        UI.renderFollowUpCalendar(response.overdue || [], response.upcoming || [], tasksRes.tasks || []);
+
+        // Bind Add Task
+        const addBtn = document.getElementById('calendarAddTaskBtn');
+        if (addBtn && !addBtn.__bound) {
+            addBtn.addEventListener('click', () => {
+                if (window.openCalendarTaskModal) window.openCalendarTaskModal();
+            });
+            addBtn.__bound = true;
+        }
     } catch (error) {
         console.error('Error loading calendar:', error);
         UI.showToast('Failed to load calendar', 'error');
