@@ -170,16 +170,18 @@ async function loadOfficerLeadsBatchesMenu() {
         if (keepLeadsAll) leadsMenu.appendChild(keepLeadsAll);
         if (keepMgmtAll) mgmtMenu.appendChild(keepMgmtAll);
 
-        // Fetch officer's leads to discover available batches
-        const response = await fetch(`/api/user-leads/${encodeURIComponent(currentUser.name)}`);
-        const data = await response.json();
-        const leads = (data && data.leads) ? data.leads : [];
+        // Fetch global batches list (created by admins). Officers should see these tabs even if they have no leads yet.
+        let authHeaders = {};
+        if (window.supabaseClient) {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (session && session.access_token) {
+                authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+            }
+        }
 
-        const batches = Array.from(new Set(
-            leads
-                .map(l => (l.batch || '').trim())
-                .filter(b => b)
-        ));
+        const response = await fetch('/api/leads/batches-all', { headers: authHeaders });
+        const data = await response.json();
+        const batches = (data && data.batches) ? data.batches : [];
 
         // Sort batches in a friendly way (Batch 2, Batch 10)
         batches.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));

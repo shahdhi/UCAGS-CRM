@@ -79,10 +79,12 @@ async function loadLeadManagement() {
     managementLeads = data.leads || [];
     console.log('📦 Raw leads data:', managementLeads);
 
-    // Officer batch filtering (batch value comes from officer sheet column H)
+    // Officer batch filtering (fuzzy match)
     const batchFilter = window.officerBatchFilter;
+    const norm = (s) => String(s || '').toLowerCase().replace(/[\s\-_]+/g, '');
     if (batchFilter && batchFilter !== 'all') {
-      managementLeads = managementLeads.filter(l => (l.batch || '').toLowerCase() === batchFilter.toLowerCase());
+      const target = norm(batchFilter);
+      managementLeads = managementLeads.filter(l => norm(l.batch) === target);
       console.log(`🔎 Applied officer batch filter "${batchFilter}": ${managementLeads.length} leads`);
     }
     

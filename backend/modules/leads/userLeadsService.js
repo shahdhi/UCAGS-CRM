@@ -161,7 +161,7 @@ async function getAllUsersLeads() {
  * @param {Object} lead - The lead data to copy
  * @returns {Promise<Object>} Result of the operation
  */
-async function copyLeadToOfficerSheet(officerName, lead) {
+async function copyLeadToOfficerSheet(officerName, lead, { batchName } = {}) {
   try {
     console.log('\n========== COPY LEAD TO OFFICER SHEET ==========');
     console.log('Officer Name:', officerName);
@@ -240,7 +240,8 @@ async function copyLeadToOfficerSheet(officerName, lead) {
       course: lead.course || '',
       source: lead.source || '',
       status: lead.status || 'New',
-      batch: lead.batch || '',
+      // Enforce batch value stored in officer sheet matches admin batch sheet name if provided
+      batch: batchName || lead.batch || '',
       created: lead.createdDate || lead.created || new Date().toISOString().split('T')[0],
       actions: lead.notes || '',
 

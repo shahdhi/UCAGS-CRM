@@ -464,7 +464,7 @@ async function updateLead(leadId, updates, batch) {
         if (batch && batch !== 'all') {
           updatedLead.batch = batch;
         }
-        const copyResult = await copyLeadToOfficerSheet(updates.assignedTo, updatedLead);
+        const copyResult = await copyLeadToOfficerSheet(updates.assignedTo, updatedLead, { batchName: batch || currentBatch || updatedLead.batch });
         
         if (copyResult.success) {
           if (copyResult.copied) {

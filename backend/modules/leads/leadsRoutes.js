@@ -8,7 +8,7 @@ const router = express.Router();
 const leadsService = require('./leadsService');
 const { getSpreadsheetInfo } = require('../../core/sheets/sheetsClient');
 const { config } = require('../../core/config/environment');
-const { isAdmin } = require('../../../server/middleware/auth');
+const { isAdmin, isAuthenticated } = require('../../../server/middleware/auth');
 
 /**
  * GET /api/leads
@@ -59,7 +59,7 @@ router.get('/batches', isAdmin, async (req, res) => {
     const spreadsheetInfo = await getSpreadsheetInfo(spreadsheetId);
     const sheets = spreadsheetInfo.sheets || [];
     
-    // Filter sheets that look like batches (you can customize this logic)
+    // Filter sheets that look like batches
     const batches = sheets
       .map(sheet => sheet.properties.title)
       .filter(title => title.startsWith('Batch') || title.toLowerCase().includes('batch'))
@@ -71,6 +71,40 @@ router.get('/batches', isAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error in GET /api/leads/batches:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch batches'
+    });
+  }
+});
+
+/**
+ * GET /api/leads/batches-all
+ * Get all available batch sheets (read-only)
+ * Admins + Officers (authenticated)
+ */
+router.get('/batches-all', isAuthenticated, async (req, res) => {
+  try {
+    const spreadsheetId = config.sheets.sheetId || config.sheets.leadsSheetId;
+
+    if (!spreadsheetId) {
+      return res.json({
+        success: true,
+        batches: []
+      });
+    }
+
+    const spreadsheetInfo = await getSpreadsheetInfo(spreadsheetId);
+    const sheets = spreadsheetInfo.sheets || [];
+
+    const batches = sheets
+      .map(sheet => sheet.properties.title)
+      .filter(title => title && (title.startsWith('Batch') || title.toLowerCase().includes('batch')))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+    res.json({ success: true, batches });
+  } catch (error) {
+    console.error('Error in GET /api/leads/batches-all:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to fetch batches'

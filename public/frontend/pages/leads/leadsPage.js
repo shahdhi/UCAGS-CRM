@@ -200,10 +200,12 @@ async function loadLeads(silentRefresh = false) {
         renderLeadsTable();
         console.log(`✓ Loaded ${currentLeads.length} personal leads`);
 
-      // Officer batch filtering (batch value comes from officer sheet column H)
+      // Officer batch filtering (fuzzy match)
       const batchFilter = window.officerBatchFilter;
+      const norm = (s) => String(s || '').toLowerCase().replace(/[\s\-_]+/g, '');
       if (batchFilter && batchFilter !== 'all') {
-        currentLeads = currentLeads.filter(l => (l.batch || '').toLowerCase() === batchFilter.toLowerCase());
+        const target = norm(batchFilter);
+        currentLeads = currentLeads.filter(l => norm(l.batch) === target);
         console.log(`🔎 Applied officer batch filter "${batchFilter}": ${currentLeads.length} leads`);
       }
         
