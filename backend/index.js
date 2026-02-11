@@ -76,7 +76,9 @@ app.use('/api/call', callRoutes);
 
 // New modular routes (will override old routes if same path)
 app.use('/api/leads', require('./modules/leads/leadsRoutes'));
-app.use('/api/leads', require('./routes/batches')); // Batch management
+app.use('/api/leads', require('./routes/batches')); // Legacy batch sheet creation
+app.use('/api/batches', require('./modules/batches/batchesRoutes')); // New batch provisioning (Drive + per-batch spreadsheets)
+app.use('/api/batch-leads', require('./modules/batches/batchLeadsRoutes')); // Per-batch lead CRUD
 app.use('/api/user-leads', require('./modules/leads/userLeadsRoutes')); // User-specific leads
 app.use('/api/dashboard', require('./modules/dashboard/dashboardRoutes'));
 

@@ -179,7 +179,7 @@ async function loadOfficerLeadsBatchesMenu() {
             }
         }
 
-        const response = await fetch('/api/leads/batches-all', { headers: authHeaders });
+        const response = await fetch('/api/batch-leads/batches', { headers: authHeaders });
         const data = await response.json();
         const batches = (data && data.batches) ? data.batches : [];
 
@@ -205,14 +205,76 @@ async function loadOfficerLeadsBatchesMenu() {
             return a;
         };
 
-        batches.forEach(batchName => {
-            // My Leads -> leads-myLeads-batch-<slug>
-            const slug = encodeURIComponent(batchName);
-            leadsMenu.appendChild(createBatchLink(`leads-myLeads-batch-${slug}`, batchName));
-            mgmtMenu.appendChild(createBatchLink(`lead-management-batch-${slug}`, batchName));
-        });
+        // Build expanded batch -> sheets tree for officers
+        const defaultSheets = ['Main Leads', 'Extra Leads'];
 
-        console.log(`✓ Loaded ${batches.length} officer batch tabs`);
+        for (const batchName of batches) {
+            const batchEnc = encodeURIComponent(batchName);
+
+            // Fetch sheet list
+            let sheets = [...defaultSheets];
+            try {
+                const res = await fetch(`/api/batch-leads/${batchEnc}/sheets`, { headers: authHeaders });
+                const json = await res.json();
+                if (json.success && Array.isArray(json.sheets) && json.sheets.length) {
+                    sheets = Array.from(new Set([...defaultSheets, ...json.sheets]));
+                }
+            } catch (e) {
+                // ignore
+            }
+
+            // Parent header (not navigational)
+            const parent = document.createElement('a');
+            parent.href = '#';
+            parent.className = 'nav-subitem';
+            parent.innerHTML = `
+                <i class="fas fa-folder"></i>
+                <span>${batchName}</span>
+                <i class="fas fa-chevron-down" style="margin-left:auto; opacity:0.7;"></i>
+            `;
+
+            const childWrap1 = document.createElement('div');
+            childWrap1.style.marginLeft = '12px';
+            childWrap1.style.display = 'block';
+
+            const childWrap2 = document.createElement('div');
+            childWrap2.style.marginLeft = '12px';
+            childWrap2.style.display = 'block';
+
+            parent.addEventListener('click', (e) => {
+                e.preventDefault();
+                const next = (childWrap1.style.display === 'none') ? 'block' : 'none';
+                childWrap1.style.display = next;
+            });
+
+            // Separate parent nodes so both menus toggle correctly
+            leadsMenu.appendChild(parent);
+
+            const parent2 = document.createElement('a');
+            parent2.href = '#';
+            parent2.className = 'nav-subitem';
+            parent2.innerHTML = parent.innerHTML;
+            parent2.addEventListener('click', (e) => {
+                e.preventDefault();
+                const next = (childWrap2.style.display === 'none') ? 'block' : 'none';
+                childWrap2.style.display = next;
+            });
+            mgmtMenu.appendChild(parent2);
+
+            sheets.forEach(sheetName => {
+                const sheetEnc = encodeURIComponent(sheetName);
+                const page1 = `leads-myLeads-batch-${batchEnc}__sheet__${sheetEnc}`;
+                const page2 = `lead-management-batch-${batchEnc}__sheet__${sheetEnc}`;
+
+                childWrap1.appendChild(createBatchLink(page1, sheetName));
+                childWrap2.appendChild(createBatchLink(page2, sheetName));
+            });
+
+            leadsMenu.appendChild(childWrap1);
+            mgmtMenu.appendChild(childWrap2);
+        }
+
+        console.log(`✓ Loaded ${batches.length} officer batch groups`);
     } catch (error) {
         console.error('Error loading officer batch menus:', error);
     }
@@ -225,55 +287,134 @@ async function loadBatchesMenu() {
         console.log('Skipping batch loading for non-admin user');
         return;
     }
-    
+
     try {
         const response = await API.leads.getBatches();
         const batches = response.batches || [];
-        
+
         const menu = document.getElementById('leadsBatchesMenu');
         if (!menu) return;
-        
+
         // Clear existing batch items (keep only Add New Batch button)
         const addBatchBtn = document.getElementById('addNewBatchBtn');
         menu.innerHTML = '';
-        
-        // Add batch items with event listeners
-        batches.forEach(batchName => {
-            const batchLink = document.createElement('a');
-            batchLink.href = '#';
-            batchLink.className = 'nav-subitem';
-            batchLink.dataset.page = `leads-${batchName.toLowerCase().replace(/\s+/g, '')}`;
-            batchLink.innerHTML = `
-                <i class="fas fa-layer-group"></i>
-                <span>${batchName}</span>
+
+        // Helper to create a clickable link
+        const createLink = (page, label, iconClass = 'fas fa-layer-group') => {
+            const a = document.createElement('a');
+            a.href = '#';
+            a.className = 'nav-subitem';
+            a.dataset.page = page;
+            a.innerHTML = `
+                <i class="${iconClass}"></i>
+                <span>${label}</span>
             `;
-            
-            // Add click handler immediately
-            batchLink.addEventListener('click', (e) => {
+            a.addEventListener('click', (e) => {
                 e.preventDefault();
-                const page = batchLink.dataset.page;
-                
-                if (!page) return;
-                
-                // Update URL hash
                 window.location.hash = page;
-                
-                // Navigate to page
                 navigateToPage(page);
-                
-                // Close mobile menu if open
                 closeMobileMenu();
             });
-            
-            menu.appendChild(batchLink);
-        });
-        
+            return a;
+        };
+
+        // Helper to create a batch group (expand/collapse)
+        const createBatchGroup = async (batchName) => {
+            const batchEnc = encodeURIComponent(batchName);
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'nav-batch-group';
+
+            const header = document.createElement('a');
+            header.href = '#';
+            header.className = 'nav-subitem';
+            header.innerHTML = `
+                <i class="fas fa-folder"></i>
+                <span>${batchName}</span>
+                <i class="fas fa-chevron-down" style="margin-left:auto; opacity:0.7;"></i>
+            `;
+
+            const children = document.createElement('div');
+            children.className = 'nav-batch-children';
+            children.style.marginLeft = '12px';
+            children.style.display = 'block'; // expanded by default
+
+            header.addEventListener('click', async (e) => {
+                e.preventDefault();
+                children.style.display = (children.style.display === 'none') ? 'block' : 'none';
+            });
+
+            // Fetch sheets for this batch
+            let sheets = ['Main Leads', 'Extra Leads'];
+            try {
+                const res = await fetch(`/api/batch-leads/${batchEnc}/sheets`);
+                const data = await res.json();
+                if (data.success && Array.isArray(data.sheets) && data.sheets.length) {
+                    sheets = data.sheets;
+                }
+            } catch (e) {
+                console.warn('Failed to load sheets for batch', batchName, e);
+            }
+
+            // Ensure default sheets appear first
+            const defaultOrder = ['Main Leads', 'Extra Leads'];
+            sheets = Array.from(new Set([...defaultOrder, ...sheets]));
+
+            sheets.forEach(sheetName => {
+                const sheetEnc = encodeURIComponent(sheetName);
+                const page = `leads-batch-${batchEnc}__sheet__${sheetEnc}`;
+                children.appendChild(createLink(page, sheetName, 'fas fa-table'));
+            });
+
+            // + Add sheet (admin only)
+            const add = document.createElement('a');
+            add.href = '#';
+            add.className = 'nav-subitem';
+            add.style.color = '#1976d2';
+            add.innerHTML = `
+                <i class="fas fa-plus"></i>
+                <span>Add sheet</span>
+            `;
+            add.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const sheetName = prompt('New sheet name (e.g., Extra Leads 2):');
+                if (!sheetName) return;
+
+                try {
+                    const res = await fetch(`/api/batch-leads/${batchEnc}/sheets`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sheetName })
+                    });
+                    const data = await res.json();
+                    if (!data.success) throw new Error(data.error || 'Failed to create sheet');
+
+                    if (window.showToast) showToast('Sheet created successfully', 'success');
+                    await loadBatchesMenu();
+                } catch (err) {
+                    console.error(err);
+                    if (window.showToast) showToast(err.message, 'error');
+                    else alert(err.message);
+                }
+            });
+            children.appendChild(add);
+
+            wrapper.appendChild(header);
+            wrapper.appendChild(children);
+            return wrapper;
+        };
+
+        // Add batch groups
+        for (const batchName of batches) {
+            menu.appendChild(await createBatchGroup(batchName));
+        }
+
         // Add back the "Add New Batch" button
         if (addBatchBtn) {
             menu.appendChild(addBatchBtn);
         }
-        
-        console.log(`✓ Loaded ${batches.length} batches with click handlers`);
+
+        console.log(`✓ Loaded ${batches.length} batches (expanded with sheets)`);
     } catch (error) {
         console.error('Error loading batches:', error);
     }
@@ -400,27 +541,6 @@ function setupNavigation() {
             
             if (!page) return;
             
-            // WhatsApp: open WhatsApp Web in a right-docked reusable side window (not an in-app page)
-            if (page === 'whatsapp') {
-                const opener = window.openWhatsAppSidePanel || window.WhatsAppPanel?.open;
-                if (typeof opener === 'function') {
-                    const result = opener();
-                    if (!result?.opened) {
-                        // Popup blocked or failed
-                        if (window.UI?.showToast) UI.showToast('Popup blocked. Please allow popups to open WhatsApp.', 'error');
-                    }
-                    // Do not change hash; keep user on current page
-                    closeMobileMenu();
-                    return;
-                }
-
-                // Fallback: navigate to the in-app WhatsApp page which provides an "Open Panel" button
-                window.location.hash = page;
-                navigateToPage(page);
-                closeMobileMenu();
-                return;
-            }
-
             // Update URL hash
             window.location.hash = page;
             
@@ -518,12 +638,14 @@ async function navigateToPage(page) {
                     const batchLabel = (window.officerBatchFilter && window.officerBatchFilter !== 'all')
                         ? ` (${window.officerBatchFilter})`
                         : '';
-                    titleElement.textContent = `My Leads${batchLabel}`;
+                    const sheetLabel = window.officerSheetFilter ? ` - ${window.officerSheetFilter}` : '';
+                    titleElement.textContent = `My Leads${batchLabel}${sheetLabel}`;
                 } else {
                     // Admin batch pages
-                    const batchName = page.replace('leads-', '');
-                    const formattedName = batchName.charAt(0).toUpperCase() + batchName.slice(1);
-                    titleElement.textContent = `${formattedName} Leads`;
+                    const b = window.adminBatchFilter || page.replace('leads-', '');
+                    const s = window.adminSheetFilter || '';
+                    const formattedName = b;
+                    titleElement.textContent = `${formattedName} - ${s || 'Main Leads'}`;
                 }
             }
         }
@@ -581,7 +703,9 @@ async function navigateToPage(page) {
             // Officer: handle per-batch pages (filtering personal leads)
             if (page.startsWith('leads-myLeads-batch-')) {
                 const slug = page.replace('leads-myLeads-batch-', '');
-                window.officerBatchFilter = decodeURIComponent(slug);
+                const parts = slug.split('__sheet__');
+                window.officerBatchFilter = decodeURIComponent(parts[0] || 'all');
+                window.officerSheetFilter = decodeURIComponent(parts[1] || 'Main Leads');
                 if (window.initLeadsPage) {
                     window.initLeadsPage('myLeads');
                 }
@@ -590,14 +714,29 @@ async function navigateToPage(page) {
 
             if (page.startsWith('lead-management-batch-')) {
                 const slug = page.replace('lead-management-batch-', '');
-                window.officerBatchFilter = decodeURIComponent(slug);
+                const parts = slug.split('__sheet__');
+                window.officerBatchFilter = decodeURIComponent(parts[0] || 'all');
+                window.officerSheetFilter = decodeURIComponent(parts[1] || 'Main Leads');
                 if (window.initLeadManagementPage) {
                     await window.initLeadManagementPage();
                 }
                 break;
             }
 
-            // Admin: handle dynamic batch pages
+            // Admin: handle dynamic batch+sheet pages
+            if (page.startsWith('leads-batch-')) {
+                const slug = page.replace('leads-batch-', '');
+                const parts = slug.split('__sheet__');
+                window.adminBatchFilter = decodeURIComponent(parts[0] || 'all');
+                window.adminSheetFilter = decodeURIComponent(parts[1] || 'Main Leads');
+
+                if (window.initLeadsPage) {
+                    window.initLeadsPage(window.adminBatchFilter);
+                }
+                break;
+            }
+
+            // Backward compatibility: other leads-* pages
             if (page.startsWith('leads-')) {
                 const batchName = page.replace('leads-', '');
                 const formattedName = batchName.charAt(0).toUpperCase() + batchName.slice(1);
@@ -1101,10 +1240,10 @@ function showAddBatchModal() {
                                 <strong>What will be created:</strong>
                             </p>
                             <ul style="margin: 10px 0 0 20px; color: #666; font-size: 13px;">
-                                <li>New sheet in Google Spreadsheet</li>
-                                <li>Same column structure (ID, Name, Email, etc.)</li>
-                                <li>Added to Leads menu</li>
-                                <li>Empty and ready for new leads</li>
+                                <li>New Google Drive folder for the batch</li>
+                                <li>Admin spreadsheet for the batch</li>
+                                <li>One spreadsheet per officer (same structure)</li>
+                                <li>Linked automatically to CRM</li>
                             </ul>
                         </div>
                         
@@ -1171,11 +1310,18 @@ async function handleAddBatch(event) {
 async function createNewBatch(batchName) {
     try {
         // Call API to create new batch sheet
-        const response = await fetch('/api/leads/create-batch', {
+        // New system: provision Drive folder + spreadsheets
+        let authHeaders = { 'Content-Type': 'application/json' };
+        if (window.supabaseClient) {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (session && session.access_token) {
+                authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+            }
+        }
+
+        const response = await fetch('/api/batches/create', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: authHeaders,
             body: JSON.stringify({ batchName })
         });
         

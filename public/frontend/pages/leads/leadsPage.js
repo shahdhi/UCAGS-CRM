@@ -172,16 +172,38 @@ async function loadLeads(silentRefresh = false) {
           }
         }
         
-        const response = await fetch(`/api/user-leads/${encodeURIComponent(window.currentUser.name)}`, {
-          headers: authHeaders
-        });
-        const data = await response.json();
-        
-        if (!data.success) {
-          throw new Error(data.error || 'Failed to fetch your leads');
+        // New system: load officer leads from per-batch spreadsheets
+        const batchesRes = await fetch('/api/batch-leads/batches', { headers: authHeaders });
+        const batchesData = await batchesRes.json();
+        const batches = (batchesData && batchesData.batches) ? batchesData.batches : [];
+
+        const batchFilter = window.officerBatchFilter;
+
+        if (batchFilter && batchFilter !== 'all') {
+          const targetBatch = decodeURIComponent(batchFilter);
+          const sheet = window.officerSheetFilter || 'Main Leads';
+          const res = await fetch(`/api/batch-leads/${encodeURIComponent(targetBatch)}/my-leads?sheet=${encodeURIComponent(sheet)}`, { headers: authHeaders });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.error || 'Failed to fetch your leads');
+          currentLeads = data.leads || [];
+        } else {
+          // Aggregate across all batches
+          const all = [];
+          for (const b of batches) {
+            try {
+              const sheet = window.officerSheetFilter || 'Main Leads';
+              const res = await fetch(`/api/batch-leads/${encodeURIComponent(b)}/my-leads?sheet=${encodeURIComponent(sheet)}`, { headers: authHeaders });
+              const data = await res.json();
+              if (data.success && data.leads) {
+                data.leads.forEach(l => { if (!l.batch) l.batch = b; });
+                all.push(...data.leads);
+              }
+            } catch (e) {
+              console.warn('Failed to load my leads for batch', b, e);
+            }
+          }
+          currentLeads = all;
         }
-        
-        currentLeads = data.leads || [];
         
         // Apply filters if any
         if (searchInput && searchInput.value) {
@@ -200,14 +222,7 @@ async function loadLeads(silentRefresh = false) {
         renderLeadsTable();
         console.log(`✓ Loaded ${currentLeads.length} personal leads`);
 
-      // Officer batch filtering (fuzzy match)
-      const batchFilter = window.officerBatchFilter;
-      const norm = (s) => String(s || '').toLowerCase().replace(/[\s\-_]+/g, '');
-      if (batchFilter && batchFilter !== 'all') {
-        const target = norm(batchFilter);
-        currentLeads = currentLeads.filter(l => norm(l.batch) === target);
-        console.log(`🔎 Applied officer batch filter "${batchFilter}": ${currentLeads.length} leads`);
-      }
+      // Officer batch filtering is handled at fetch time in the new per-batch system
         
       } catch (error) {
         console.error('Error loading personal leads:', error);
@@ -1490,25 +1505,9 @@ async function saveNewLead(event) {
     
     let response;
     
-    // Check if user is an officer - add to their personal sheet
+    // Officers should not create leads directly in the new per-batch architecture.
     if (window.currentUser && window.currentUser.role !== 'admin') {
-      // Get auth token
-      let authHeaders = { 'Content-Type': 'application/json' };
-      if (window.supabaseClient) {
-        const { data: { session } } = await window.supabaseClient.auth.getSession();
-        if (session && session.access_token) {
-          authHeaders['Authorization'] = `Bearer ${session.access_token}`;
-        }
-      }
-      
-      // Officer: Add to their personal sheet
-      const apiResponse = await fetch(`/api/user-leads/${encodeURIComponent(window.currentUser.name)}`, {
-        method: 'POST',
-        headers: authHeaders,
-        body: JSON.stringify(newLead)
-      });
-      
-      response = await apiResponse.json();
+      throw new Error('Officers cannot create new leads. Please ask admin to add and assign leads.');
     } else {
       // Admin: Add to batch sheets (original behavior)
       response = await API.leads.create(newLead);

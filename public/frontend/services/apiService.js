@@ -50,13 +50,32 @@ const leadsAPI = {
    * @param {Object} filters - Optional filters (status, search, batch)
    */
   getAll: async (filters = {}) => {
-    const params = new URLSearchParams();
-    if (filters.status) params.append('status', filters.status);
-    if (filters.search) params.append('search', filters.search);
-    if (filters.batch) params.append('batch', filters.batch);
-    
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return fetchAPI(`/leads${query}`);
+    const batch = filters.batch;
+
+    // New per-batch system (admin)
+    if (batch && batch !== 'all' && batch !== 'myLeads') {
+      const sheet = (window.adminSheetFilter || 'Main Leads');
+      return fetchAPI(`/batch-leads/${encodeURIComponent(batch)}/leads?sheet=${encodeURIComponent(sheet)}`);
+    }
+
+    // Aggregate all batches (admin)
+    const batchesRes = await fetchAPI('/batch-leads/batches');
+    const batches = batchesRes.batches || [];
+
+    const allLeads = [];
+    for (const b of batches) {
+      try {
+        const sheet = (window.adminSheetFilter || 'Main Leads');
+        const res = await fetchAPI(`/batch-leads/${encodeURIComponent(b)}/leads?sheet=${encodeURIComponent(sheet)}`);
+        const leads = res.leads || [];
+        leads.forEach(l => { if (!l.batch) l.batch = b; });
+        allLeads.push(...leads);
+      } catch (e) {
+        console.error('Failed loading batch leads for', b, e);
+      }
+    }
+
+    return { success: true, count: allLeads.length, leads: allLeads };
   },
 
   /**
@@ -84,6 +103,16 @@ const leadsAPI = {
    * @param {Object} updates - Fields to update
    */
   update: async (id, updates, batch) => {
+    // New per-batch system (admin)
+    if (batch && batch !== 'all' && batch !== 'myLeads') {
+      const sheet = (window.adminSheetFilter || 'Main Leads');
+      return fetchAPI(`/batch-leads/${encodeURIComponent(batch)}/leads/${encodeURIComponent(id)}?sheet=${encodeURIComponent(sheet)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates)
+      });
+    }
+
+    // Legacy fallback
     const url = batch ? `/leads/${id}?batch=${encodeURIComponent(batch)}` : `/leads/${id}`;
     return fetchAPI(url, {
       method: 'PUT',
@@ -105,7 +134,7 @@ const leadsAPI = {
    * Get all available batches
    */
   getBatches: async () => {
-    return fetchAPI('/leads/batches');
+    return fetchAPI('/batch-leads/batches');
   },
 
   /**

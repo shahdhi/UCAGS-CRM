@@ -66,27 +66,41 @@ async function loadLeadManagement() {
       }
     }
     
-    // Fetch officer's leads
-    const response = await fetch(`/api/user-leads/${encodeURIComponent(window.currentUser.name)}`, {
-      headers: authHeaders
-    });
-    const data = await response.json();
-    
-    if (!data.success) {
-      throw new Error(data.error || 'Failed to load leads');
+    // New system: load officer leads from per-batch spreadsheets
+    const batchesRes = await fetch('/api/batch-leads/batches', { headers: authHeaders });
+    const batchesData = await batchesRes.json();
+    const batches = (batchesData && batchesData.batches) ? batchesData.batches : [];
+
+    const batchFilter = window.officerBatchFilter;
+
+    if (batchFilter && batchFilter !== 'all') {
+      const targetBatch = decodeURIComponent(batchFilter);
+      const sheet = window.officerSheetFilter || 'Main Leads';
+      const res = await fetch(`/api/batch-leads/${encodeURIComponent(targetBatch)}/my-leads?sheet=${encodeURIComponent(sheet)}`, { headers: authHeaders });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Failed to load leads');
+      managementLeads = data.leads || [];
+    } else {
+      // Aggregate across all batches
+      const all = [];
+      for (const b of batches) {
+        try {
+          const sheet = window.officerSheetFilter || 'Main Leads';
+          const res = await fetch(`/api/batch-leads/${encodeURIComponent(b)}/my-leads?sheet=${encodeURIComponent(sheet)}`, { headers: authHeaders });
+          const data = await res.json();
+          if (data.success && data.leads) {
+            data.leads.forEach(l => { if (!l.batch) l.batch = b; });
+            all.push(...data.leads);
+          }
+        } catch (e) {
+          console.warn('Failed to load my leads for batch', b, e);
+        }
+      }
+      managementLeads = all;
     }
-    
-    managementLeads = data.leads || [];
+
     console.log('📦 Raw leads data:', managementLeads);
 
-    // Officer batch filtering (fuzzy match)
-    const batchFilter = window.officerBatchFilter;
-    const norm = (s) => String(s || '').toLowerCase().replace(/[\s\-_]+/g, '');
-    if (batchFilter && batchFilter !== 'all') {
-      const target = norm(batchFilter);
-      managementLeads = managementLeads.filter(l => norm(l.batch) === target);
-      console.log(`🔎 Applied officer batch filter "${batchFilter}": ${managementLeads.length} leads`);
-    }
     
     // Add mock lead if no leads exist (for testing)
     if (managementLeads.length === 0) {
