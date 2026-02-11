@@ -109,7 +109,10 @@ router.get('/', async (req, res) => {
       if (error) throw error;
       
       // Transform Supabase users to our format
-      const formattedUsers = users.map(user => ({
+      const formattedUsers = users
+        .slice()
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+        .map(user => ({
         id: user.id,
         email: user.email,
         name: user.user_metadata?.name || user.email.split('@')[0],

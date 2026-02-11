@@ -56,6 +56,7 @@ async function listOfficers() {
   if (error) throw error;
   return (users || [])
     .filter(u => (u.user_metadata?.role || 'officer') !== 'admin')
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     .map(u => (u.user_metadata?.name || u.email.split('@')[0]));
 }
 
