@@ -348,8 +348,6 @@ const UI = {
             return { groups, keys };
         };
 
-        const now = new Date();
-        const pad2 = (n) => String(n).padStart(2, '0');
         const today = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
         const tomorrowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
         const tomorrow = `${tomorrowDate.getFullYear()}-${pad2(tomorrowDate.getMonth() + 1)}-${pad2(tomorrowDate.getDate())}`;
