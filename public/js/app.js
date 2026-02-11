@@ -1214,6 +1214,10 @@ function escapeHtml(text) {
 
 // Show add batch modal
 function showAddBatchModal() {
+    // Ensure we don't accidentally render the modal twice
+    const existing = document.getElementById('addBatchModal');
+    if (existing) existing.remove();
+
     const modalHTML = `
         <div class="modal-overlay" id="addBatchModal" onclick="closeAddBatchModal(event)">
             <div class="modal-dialog" onclick="event.stopPropagation()">

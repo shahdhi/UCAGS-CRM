@@ -54,8 +54,22 @@ async function listOfficers() {
   if (!sb) throw new Error('Supabase admin not configured');
   const { data: { users }, error } = await sb.auth.admin.listUsers();
   if (error) throw error;
+
+  // Keep in sync with frontend admin email list
+  const adminEmails = new Set([
+    'admin@ucags.edu.lk',
+    'mohamedunais2018@gmail.com'
+  ]);
+
   return (users || [])
-    .filter(u => (u.user_metadata?.role || 'officer') !== 'admin')
+    .filter(u => {
+      const email = (u.email || '').toLowerCase();
+      const role = (u.user_metadata?.role || '').toLowerCase();
+      // Exclude admins even if role metadata isn't set
+      if (role === 'admin') return false;
+      if (adminEmails.has(email)) return false;
+      return true;
+    })
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     .map(u => (u.user_metadata?.name || u.email.split('@')[0]));
 }
