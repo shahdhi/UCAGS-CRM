@@ -124,6 +124,9 @@ router.post('/create', isAdmin, async (req, res) => {
       await writeSheet(adminSpreadsheetId, `${tab}!A1:${String.fromCharCode(64 + ADMIN_HEADERS.length)}1`, [ADMIN_HEADERS]);
     }
 
+    // Store batch first (required due to FK constraint on batch_officer_sheets)
+    await upsertBatch({ name: batchName, drive_folder_id: null, admin_spreadsheet_id: adminSpreadsheetId });
+
     // Validate and initialize officer spreadsheets
     const officerResults = [];
     for (const officerName of officers) {
@@ -143,9 +146,6 @@ router.post('/create', isAdmin, async (req, res) => {
       await upsertOfficerSheet({ batch_name: batchName, officer_name: officerName, spreadsheet_id: officerSpreadsheetId });
       officerResults.push({ officerName, spreadsheetId: officerSpreadsheetId });
     }
-
-    // Store batch (drive_folder_id unused in this mode)
-    await upsertBatch({ name: batchName, drive_folder_id: null, admin_spreadsheet_id: adminSpreadsheetId });
 
     res.status(201).json({
       success: true,

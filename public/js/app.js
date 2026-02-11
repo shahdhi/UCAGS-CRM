@@ -1234,7 +1234,6 @@ function showAddBatchModal() {
                             <input type="text" id="batchName" class="form-control" 
                                    placeholder="e.g., Batch-16, Spring-2026, Batch-A" 
                                    required
-                                   pattern="^[-A-Za-z0-9_]+$"
                                    title="Only letters, numbers, hyphens, and underscores allowed (no spaces)"
                                    style="padding: 12px; font-size: 14px;">
                             <small style="color: #ff9800; margin-top: 8px; display: block; font-weight: 500;">
