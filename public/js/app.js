@@ -1633,16 +1633,17 @@ async function loadLeads() {
 // Load calendar
 async function loadCalendar() {
     try {
-        // Admin can filter by officer
+        // Admin can filter by officer / view mode
         const controls = document.getElementById('calendarAdminControls');
         const select = document.getElementById('calendarOfficerSelect');
+        const modeSelect = document.getElementById('calendarViewModeSelect');
 
         if (controls) {
             controls.style.display = (currentUser && currentUser.role === 'admin') ? 'flex' : 'none';
         }
 
         // Populate dropdown once
-        if (currentUser && currentUser.role === 'admin' && select && select.options.length === 0) {
+        if (currentUser && currentUser.role === 'admin' && select && select.options.length === 0) { 
             let authHeaders = {};
             if (window.supabaseClient) {
                 const { data: { session } } = await window.supabaseClient.auth.getSession();
@@ -1656,22 +1657,53 @@ async function loadCalendar() {
             const data = await res.json();
             const officers = (data && data.officers) ? data.officers : [];
 
-            // Default: current admin user only
+            // Default: current admin user first
             const opts = [currentUser.name, ...officers.filter(o => o !== currentUser.name)];
             select.innerHTML = opts.map(o => `<option value="${o}">${o}</option>`).join('');
 
-            select.addEventListener('change', () => loadCalendar());
+            const triggerReload = () => loadCalendar();
+            select.addEventListener('change', triggerReload);
+            if (modeSelect && !modeSelect.__bound) {
+                modeSelect.addEventListener('change', () => {
+                    // Only show officer select in officer mode
+                    const isOfficerMode = modeSelect.value === 'officer';
+                    if (select) select.style.display = isOfficerMode ? '' : 'none';
+                    triggerReload();
+                });
+                modeSelect.__bound = true;
+            }
+
+            // initialize officer select visibility
+            if (modeSelect) {
+                const isOfficerMode = modeSelect.value === 'officer';
+                select.style.display = isOfficerMode ? '' : 'none';
+            }
+
         }
 
         let url = '/api/calendar/followups';
-        if (currentUser && currentUser.role === 'admin' && select && select.value) {
-            url += `?officer=${encodeURIComponent(select.value)}`;
+        let tasksParams = { mode: 'me' };
+
+        if (currentUser && currentUser.role === 'admin') {
+            const mode = modeSelect?.value || 'me';
+            tasksParams.mode = mode;
+
+            if (mode === 'everyone') {
+                url += `?officer=${encodeURIComponent('all')}`;
+            } else if (mode === 'officer') {
+                const officer = (select && select.value) ? select.value : currentUser.name;
+                url += `?officer=${encodeURIComponent(officer)}`;
+                tasksParams.officer = officer;
+            } else {
+                // me
+                url += `?officer=${encodeURIComponent(currentUser.name)}`;
+            }
         }
 
         const response = await fetchAPI(url.replace('/api', ''));
-        
-        // Load personal calendar tasks
-        const tasksRes = await API.calendar.getTasks();
+
+        // Load custom tasks (respecting admin mode)
+        const tasksRes = await API.calendar.getTasks(tasksParams);
         UI.renderFollowUpCalendar(response.overdue || [], response.upcoming || [], tasksRes.tasks || []);
 
         // Bind Add Task

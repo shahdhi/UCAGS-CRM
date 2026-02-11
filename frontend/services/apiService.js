@@ -315,6 +315,40 @@ const calendarAPI = {
    */
   getUpcoming: async (days = 7) => {
     return fetchAPI(`/calendar/upcoming?days=${days}`);
+  },
+
+  /**
+   * List custom calendar tasks
+   * @param {{mode?: 'me'|'officer'|'everyone', officer?: string, from?: string, to?: string}} params
+   */
+  getTasks: async (params = {}) => {
+    const sp = new URLSearchParams();
+    if (params.mode) sp.set('mode', params.mode);
+    if (params.officer) sp.set('officer', params.officer);
+    if (params.from) sp.set('from', params.from);
+    if (params.to) sp.set('to', params.to);
+    const qs = sp.toString();
+    return fetchAPI(`/calendar/tasks${qs ? `?${qs}` : ''}`);
+  },
+
+  /**
+   * Create a custom calendar task
+   * @param {{title: string, dueAt: string, notes?: string, repeat?: 'none'|'daily'|'weekly'|'monthly', visibility?: 'personal'|'global', ownerName?: string}} task
+   */
+  createTask: async (task) => {
+    return fetchAPI('/calendar/tasks', {
+      method: 'POST',
+      body: JSON.stringify(task)
+    });
+  },
+
+  /**
+   * Delete a custom calendar task by id
+   */
+  deleteTask: async (id) => {
+    return fetchAPI(`/calendar/tasks/${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    });
   }
 };
 

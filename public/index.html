@@ -625,7 +625,13 @@
             <div id="calendarView" class="content-view">
                 <div class="page-header" style="display:flex; justify-content: space-between; align-items:center; gap: 12px; flex-wrap: wrap;">
                     <h1>UCAGS Calendar</h1>
-                    <div class="admin-only" style="display:none; gap: 8px; align-items:center;" id="calendarAdminControls">
+                    <div class="admin-only" style="display:none; gap: 8px; align-items:center; flex-wrap: wrap;" id="calendarAdminControls">
+                        <label style="color:#666; font-size:13px;">View:</label>
+                        <select id="calendarViewModeSelect" class="form-control" style="min-width: 220px;">
+                            <option value="me">For me only</option>
+                            <option value="officer">Officer by officer</option>
+                            <option value="everyone">For everyone</option>
+                        </select>
                         <label style="color:#666; font-size:13px;">Officer:</label>
                         <select id="calendarOfficerSelect" class="form-control" style="min-width: 220px;"></select>
                     </div>

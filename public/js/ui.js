@@ -186,25 +186,111 @@ const UI = {
 
     // Render lead follow-up calendar (new batch/officer leads system)
     renderFollowUpCalendar(overdue, upcoming, tasks = []) {
+        window.__followupCalendarState = window.__followupCalendarState || {};
+        const state = window.__followupCalendarState;
+
         // Store events for month grid + day view
-        // Normalize custom tasks into same event shape
-        const taskEvents = (tasks || []).map(t => ({
-            date: t.due_at || t.dueAt,
-            batchName: 'Custom',
-            sheetName: 'Task',
-            officerName: t.owner_name || window.currentUser?.name || '',
-            leadId: null,
-            followUpNo: null,
-            full_name: t.title,
-            phone: '',
-            comment: t.notes || '',
-            __type: 'task',
-            __taskId: t.id
-        }));
+        // Normalize custom tasks into same event shape (+ expand repeats)
+        const now = new Date();
+
+        const normalizeDateForCompare = (v) => {
+            const s = String(v || '').trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T23:59`;
+            return s;
+        };
+
+        const addDays = (d, n) => {
+            const nd = new Date(d.getTime());
+            nd.setDate(nd.getDate() + n);
+            return nd;
+        };
+        const addMonths = (d, n) => {
+            const nd = new Date(d.getTime());
+            const day = nd.getDate();
+            nd.setMonth(nd.getMonth() + n);
+            // If month rolls and date changes (e.g., 31st), JS auto-adjusts.
+            // That's acceptable for reminders.
+            if (nd.getDate() !== day) {
+                // keep as-is
+            }
+            return nd;
+        };
+        const toIsoLocal = (d) => {
+            const pad2 = (x) => String(x).padStart(2, '0');
+            return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+        };
+
+        // Generate repeating occurrences in a practical window around the month currently being viewed.
+        const baseMonth = state.currentMonth ? new Date(state.currentMonth) : now;
+        const windowStart = addDays(new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1), -31);
+        const windowEnd = addDays(new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 2, 1), 31);
+
+        const taskEvents = [];
+        for (const t of (tasks || [])) {
+            const baseDue = new Date(t.due_at || t.dueAt);
+            if (isNaN(baseDue)) continue;
+            const repeat = String(t.repeat || 'none');
+
+            const pushEvent = (dueDate) => {
+                taskEvents.push({
+                    date: toIsoLocal(dueDate),
+                    batchName: 'Custom',
+                    sheetName: 'Task',
+                    officerName: t.owner_name || window.currentUser?.name || '',
+                    leadId: null,
+                    followUpNo: null,
+                    full_name: t.title,
+                    phone: '',
+                    comment: t.notes || '',
+                    __type: 'task',
+                    __taskId: t.id,
+                    __taskVisibility: t.visibility || 'personal',
+                    __taskRepeat: repeat
+                });
+            };
+
+            if (repeat === 'none') {
+                pushEvent(baseDue);
+                continue;
+            }
+
+            // Find first occurrence >= windowStart
+            let occ = new Date(baseDue.getTime());
+            // Move forward until we enter window
+            const maxIterations = 500;
+            let iter = 0;
+            while (occ < windowStart && iter++ < maxIterations) {
+                if (repeat === 'daily') occ = addDays(occ, 1);
+                else if (repeat === 'weekly') occ = addDays(occ, 7);
+                else if (repeat === 'monthly') occ = addMonths(occ, 1);
+                else break;
+            }
+            iter = 0;
+            while (occ <= windowEnd && iter++ < maxIterations) {
+                if (occ >= windowStart) pushEvent(occ);
+                if (repeat === 'daily') occ = addDays(occ, 1);
+                else if (repeat === 'weekly') occ = addDays(occ, 7);
+                else if (repeat === 'monthly') occ = addMonths(occ, 1);
+                else break;
+            }
+        }
 
         const all = [...(overdue || []), ...(upcoming || []), ...taskEvents];
-        window.__followupCalendarState = window.__followupCalendarState || {};
-        window.__followupCalendarState.events = { overdue: overdue || [], upcoming: upcoming || [], all };
+
+        // Recompute overdue/upcoming including tasks (for badges)
+        const pad2 = (n) => String(n).padStart(2, '0');
+        const nowStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}T${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+
+        const computedOverdue = [];
+        const computedUpcoming = [];
+        for (const e of all) {
+            const ds = normalizeDateForCompare(e.date);
+            if (!ds) continue;
+            if (ds < nowStr) computedOverdue.push(e);
+            else computedUpcoming.push(e);
+        }
+
+        state.events = { overdue: computedOverdue, upcoming: computedUpcoming, all };
 
         // Setup collapsible headers
         const setupCollapse = (headerId, listId, chevronId) => {
@@ -289,8 +375,10 @@ const UI = {
 
         const overdueList = document.getElementById('overdueList');
         const upcomingList = document.getElementById('upcomingList');
-        if (overdueList) overdueList.innerHTML = buildGroupedHtml(overdue, true);
-        if (upcomingList) upcomingList.innerHTML = buildGroupedHtml(upcoming, false);
+        const overdueForRender = state.events?.overdue || [];
+        const upcomingForRender = state.events?.upcoming || [];
+        if (overdueList) overdueList.innerHTML = buildGroupedHtml(overdueForRender, true);
+        if (upcomingList) upcomingList.innerHTML = buildGroupedHtml(upcomingForRender, false);
 
         // Bind click-to-open on grouped lists too
         const bindClicks = (root) => {
@@ -353,6 +441,7 @@ const UI = {
             // Determine overdue/upcoming based on original arrays
             // (not perfect but sufficient): presence in overdue/upcoming arrays
         }
+        // Use computed overdue/upcoming (already includes custom tasks)
         for (const e of (state.events?.overdue || [])) {
             const day = String(e.date || '').slice(0, 10);
             overdueByDay.set(day, (overdueByDay.get(day) || 0) + 1);
@@ -465,11 +554,16 @@ const UI = {
         };
 
         listEl.innerHTML = dayEvents.map(e => {
+            const isTask = e.__type === 'task';
             const title = `${e.full_name || '-'} ${e.phone ? '(' + e.phone + ')' : ''}`;
-            const subtitle = `${e.batchName} / ${e.sheetName} / ${e.officerName} / FU${e.followUpNo}`;
+            const subtitle = isTask
+              ? `Custom Task / ${e.officerName}${e.__taskRepeat && e.__taskRepeat !== 'none' ? ` / repeats ${e.__taskRepeat}` : ''}`
+              : `${e.batchName} / ${e.sheetName} / ${e.officerName} / FU${e.followUpNo}`;
             const comment = e.comment ? `<div style="color:#555; margin-top:6px; font-size:12px;">${escape(e.comment)}</div>` : '';
+            const taskAttrs = isTask ? ` data-type="task" data-taskid="${escape(e.__taskId)}" ` : '';
+
             return `
-              <div class="followup-item" data-batch="${escape(e.batchName)}" data-sheet="${escape(e.sheetName)}" data-officer="${escape(e.officerName)}" data-leadid="${escape(e.leadId)}" style="cursor:pointer;">
+              <div class="followup-item" ${taskAttrs} data-batch="${escape(e.batchName)}" data-sheet="${escape(e.sheetName)}" data-officer="${escape(e.officerName)}" data-leadid="${escape(e.leadId)}" style="cursor:pointer;">
                 <h4>${escape(title)}</h4>
                 <p><i class="fas fa-clock"></i> ${this.formatDateTime(e.date)}</p>
                 <p style="font-size:12px; color:#666;"><i class="fas fa-layer-group"></i> ${escape(subtitle)}</p>
@@ -484,6 +578,14 @@ const UI = {
             root.addEventListener('click', (ev) => {
                 const item = ev.target.closest('.followup-item');
                 if (!item) return;
+
+                const taskId = item.getAttribute('data-taskid');
+                const type = item.getAttribute('data-type');
+
+                if (type === 'task' && taskId) {
+                    if (window.openCalendarTaskModal) window.openCalendarTaskModal(taskId);
+                    return;
+                }
 
                 const batch = item.getAttribute('data-batch');
                 const sheet = item.getAttribute('data-sheet');
