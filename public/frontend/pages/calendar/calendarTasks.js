@@ -42,11 +42,8 @@
               <div class="form-group" id="calendarTaskAdminFields" style="display:none;">
                 <label>Assign to</label>
                 <select id="calendarTaskOwner" class="form-control"></select>
-                <div style="margin-top: 10px;">
-                  <label style="display:flex; align-items:center; gap:8px;">
-                    <input type="checkbox" id="calendarTaskGlobal" />
-                    <span>Visible for everyone (Admin only)</span>
-                  </label>
+                <div style="margin-top: 8px; font-size: 12px; color:#666;">
+                  Tip: choose <b>Everyone</b> to create a task visible to all officers.
                 </div>
               </div>
 
@@ -74,7 +71,6 @@
     // Admin fields
     const adminFields = document.getElementById('calendarTaskAdminFields');
     const ownerSelect = document.getElementById('calendarTaskOwner');
-    const globalCb = document.getElementById('calendarTaskGlobal');
     const repeatSel = document.getElementById('calendarTaskRepeat');
     const deleteBtn = document.getElementById('calendarTaskDeleteBtn');
 
@@ -92,11 +88,14 @@
         const res = await fetch('/api/batches/officers', { headers: authHeaders });
         const data = await res.json();
         const officers = (data && data.officers) ? data.officers : [];
-        const opts = [window.currentUser.name, ...officers.filter(o => o !== window.currentUser.name)];
-        ownerSelect.innerHTML = opts.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
+        const opts = ['__ALL__', window.currentUser.name, ...officers.filter(o => o !== window.currentUser.name)];
+        ownerSelect.innerHTML = opts.map(o => {
+          const label = o === '__ALL__' ? 'Everyone' : o;
+          return `<option value="${escapeHtml(o)}">${escapeHtml(label)}</option>`;
+        }).join('');
       } catch (e) {
         // ignore; fallback to current user
-        ownerSelect.innerHTML = `<option value="${escapeHtml(window.currentUser.name)}">${escapeHtml(window.currentUser.name)}</option>`;
+        ownerSelect.innerHTML = `<option value="__ALL__">Everyone</option><option value="${escapeHtml(window.currentUser.name)}">${escapeHtml(window.currentUser.name)}</option>`;
       }
     }
 
@@ -118,8 +117,9 @@
           document.getElementById('calendarTaskDueAt').value = (t.due_at || '').slice(0, 16);
           document.getElementById('calendarTaskNotes').value = t.notes || '';
           if (repeatSel) repeatSel.value = t.repeat || 'none';
-          if (isAdmin && ownerSelect) ownerSelect.value = t.owner_name || window.currentUser.name;
-          if (isAdmin && globalCb) globalCb.checked = (t.visibility === 'global');
+          if (isAdmin && ownerSelect) {
+            ownerSelect.value = (t.visibility === 'global') ? '__ALL__' : (t.owner_name || window.currentUser.name);
+          }
 
           if (deleteBtn) deleteBtn.style.display = '';
         }
@@ -155,8 +155,14 @@
         const payload = { title, dueAt, notes, repeat };
 
         if (isAdmin) {
-          payload.ownerName = ownerSelect?.value || window.currentUser.name;
-          payload.visibility = globalCb?.checked ? 'global' : 'personal';
+          const ownerVal = ownerSelect?.value || window.currentUser.name;
+          if (ownerVal === '__ALL__') {
+            payload.visibility = 'global';
+            // ownerName omitted; backend will store as personal/global with requester as owner.
+          } else {
+            payload.ownerName = ownerVal;
+            payload.visibility = 'personal';
+          }
         }
 
         if (taskId) {

@@ -94,12 +94,22 @@ function showLogin() {
     
     // Reset forms
     const loginForm = document.getElementById('loginForm');
-    
+
     if (loginForm) {
         loginForm.reset();
-        document.getElementById('loginError').textContent = '';
+        const err = document.getElementById('loginError');
+        if (err) err.textContent = '';
+
+        // IMPORTANT: logout can return to login screen while the submit button is still disabled
+        // from a previous login attempt. Always reset it here.
+        const submitBtn = loginForm.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            // Restore default text if it was changed to "Logging in..."
+            submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+        }
     }
-    
+
     // Setup forms
     setupAuthForms();
 }
@@ -149,6 +159,8 @@ async function showDashboard() {
 // Load officer leads batches dynamically (officer-only)
 // Uses the officer's personal leads sheet (no new sheet; batch comes from the Batch column in that sheet).
 async function loadOfficerLeadsBatchesMenu() {
+    // Prevent duplicate renders when init/login triggers this multiple times
+    const renderVersion = (window.__officerBatchesRenderVersion = (window.__officerBatchesRenderVersion || 0) + 1);
     try {
         if (!currentUser || currentUser.role === 'admin') {
             // Admin uses the admin batch system (separate sheets)
@@ -274,6 +286,8 @@ async function loadOfficerLeadsBatchesMenu() {
             mgmtMenu.appendChild(childWrap2);
         }
 
+        // If another render started while we were awaiting network calls, don't overwrite/duplicate
+        if (renderVersion !== window.__officerBatchesRenderVersion) return;
         console.log(`✓ Loaded ${batches.length} officer batch groups`);
     } catch (error) {
         console.error('Error loading officer batch menus:', error);
@@ -282,6 +296,9 @@ async function loadOfficerLeadsBatchesMenu() {
 
 // Load batches dynamically from spreadsheet
 async function loadBatchesMenu() {
+    // Prevent duplicate renders when init/login triggers this multiple times
+    const renderVersion = (window.__adminBatchesRenderVersion = (window.__adminBatchesRenderVersion || 0) + 1);
+
     // Only load batches for admins
     if (!currentUser || currentUser.role !== 'admin') {
         console.log('Skipping batch loading for non-admin user');
@@ -298,46 +315,6 @@ async function loadBatchesMenu() {
         // Clear existing batch items (keep only Add New Batch button)
         const addBatchBtn = document.getElementById('addNewBatchBtn');
         menu.innerHTML = '';
-
-        // Add Upgrade Sheet Headers button
-        const upgradeBtn = document.createElement('a');
-        upgradeBtn.href = '#';
-        upgradeBtn.className = 'nav-subitem';
-        upgradeBtn.style.color = '#1976d2';
-        upgradeBtn.innerHTML = `
-            <i class="fas fa-wrench"></i>
-            <span>Upgrade Sheet Headers</span>
-        `;
-        upgradeBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            if (!confirm('Upgrade officer sheet headers for ALL batches? This will rewrite header rows in officer sheets.')) return;
-
-            try {
-                let authHeaders = { 'Content-Type': 'application/json' };
-                if (window.supabaseClient) {
-                    const { data: { session } } = await window.supabaseClient.auth.getSession();
-                    if (session && session.access_token) {
-                        authHeaders['Authorization'] = `Bearer ${session.access_token}`;
-                    }
-                }
-
-                const res = await fetch('/api/batch-leads/upgrade-officer-headers', {
-                    method: 'POST',
-                    headers: authHeaders
-                });
-                const json = await res.json();
-                if (!json.success) throw new Error(json.error || 'Upgrade failed');
-
-                if (window.showToast) showToast('Officer sheet headers upgraded', 'success');
-                else alert('Officer sheet headers upgraded');
-            } catch (err) {
-                console.error(err);
-                if (window.showToast) showToast(err.message, 'error');
-                else alert(err.message);
-            }
-        });
-
-        menu.appendChild(upgradeBtn);
 
         // Helper to create a clickable link
         const createLink = (page, label, iconClass = 'fas fa-layer-group') => {
@@ -454,10 +431,12 @@ async function loadBatchesMenu() {
 
         // Add batch groups
         for (const batchName of batches) {
+            if (renderVersion !== window.__adminBatchesRenderVersion) return;
             menu.appendChild(await createBatchGroup(batchName));
         }
 
         // Add back the "Add New Batch" button
+        if (renderVersion !== window.__adminBatchesRenderVersion) return;
         if (addBatchBtn) {
             menu.appendChild(addBatchBtn);
         }
@@ -475,6 +454,17 @@ function setupAuthForms() {
     if (loginForm) {
         const newLoginForm = loginForm.cloneNode(true);
         loginForm.parentNode.replaceChild(newLoginForm, loginForm);
+
+        // Ensure submit button state is reset after cloning
+        const submitBtn = newLoginForm.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+        }
+
+        const err = document.getElementById('loginError');
+        if (err) err.textContent = '';
+
         newLoginForm.addEventListener('submit', handleLogin);
     }
 }
@@ -651,6 +641,51 @@ function setupRouting() {
     navigateToPage(initialPage);
 }
 
+// Parse leads route into filters so titles work even after refresh
+function parseLeadsRouteIntoFilters(page) {
+    try {
+        if (!page || typeof page !== 'string') return;
+
+        // Officer personal leads
+        if (page === 'leads-myLeads') {
+            window.officerBatchFilter = 'all';
+            window.officerSheetFilter = '';
+            return;
+        }
+        if (page.startsWith('leads-myLeads-batch-')) {
+            const slug = page.replace('leads-myLeads-batch-', '');
+            const parts = slug.split('__sheet__');
+            window.officerBatchFilter = decodeURIComponent(parts[0] || 'all');
+            window.officerSheetFilter = decodeURIComponent(parts[1] || 'Main Leads');
+            return;
+        }
+
+        // Officer lead management
+        if (page === 'lead-management') {
+            window.officerBatchFilter = 'all';
+            window.officerSheetFilter = '';
+            return;
+        }
+        if (page.startsWith('lead-management-batch-')) {
+            const slug = page.replace('lead-management-batch-', '');
+            const parts = slug.split('__sheet__');
+            window.officerBatchFilter = decodeURIComponent(parts[0] || 'all');
+            window.officerSheetFilter = decodeURIComponent(parts[1] || 'Main Leads');
+            return;
+        }
+
+        // Admin batch pages
+        if (page.startsWith('leads-batch-')) {
+            const slug = page.replace('leads-batch-', '');
+            const parts = slug.split('__sheet__');
+            window.adminBatchFilter = decodeURIComponent(parts[0] || '');
+            window.adminSheetFilter = decodeURIComponent(parts[1] || 'Main Leads');
+        }
+    } catch (e) {
+        // ignore
+    }
+}
+
 // Navigate to a specific page
 async function navigateToPage(page) {
     const navItems = document.querySelectorAll('.nav-item, .nav-subitem');
@@ -675,6 +710,9 @@ async function navigateToPage(page) {
     });
     
     // For leads pages, use the shared leadsView
+    // (parse the route first so the title is correct on refresh)
+    parseLeadsRouteIntoFilters(page);
+
     if (page.startsWith('leads-')) {
         const viewElement = document.getElementById('leadsView');
         if (viewElement) {
@@ -1633,10 +1671,9 @@ async function loadLeads() {
 // Load calendar
 async function loadCalendar() {
     try {
-        // Admin can filter by officer / view mode
+        // Admin can filter by officer
         const controls = document.getElementById('calendarAdminControls');
         const select = document.getElementById('calendarOfficerSelect');
-        const modeSelect = document.getElementById('calendarViewModeSelect');
 
         if (controls) {
             controls.style.display = (currentUser && currentUser.role === 'admin') ? 'flex' : 'none';
@@ -1661,48 +1698,21 @@ async function loadCalendar() {
             const opts = [currentUser.name, ...officers.filter(o => o !== currentUser.name)];
             select.innerHTML = opts.map(o => `<option value="${o}">${o}</option>`).join('');
 
-            const triggerReload = () => loadCalendar();
-            select.addEventListener('change', triggerReload);
-            if (modeSelect && !modeSelect.__bound) {
-                modeSelect.addEventListener('change', () => {
-                    // Only show officer select in officer mode
-                    const isOfficerMode = modeSelect.value === 'officer';
-                    if (select) select.style.display = isOfficerMode ? '' : 'none';
-                    triggerReload();
-                });
-                modeSelect.__bound = true;
-            }
-
-            // initialize officer select visibility
-            if (modeSelect) {
-                const isOfficerMode = modeSelect.value === 'officer';
-                select.style.display = isOfficerMode ? '' : 'none';
-            }
+            select.addEventListener('change', () => loadCalendar());
 
         }
 
         let url = '/api/calendar/followups';
-        let tasksParams = { mode: 'me' };
+        let tasksParams = {};
 
-        if (currentUser && currentUser.role === 'admin') {
-            const mode = modeSelect?.value || 'me';
-            tasksParams.mode = mode;
-
-            if (mode === 'everyone') {
-                url += `?officer=${encodeURIComponent('all')}`;
-            } else if (mode === 'officer') {
-                const officer = (select && select.value) ? select.value : currentUser.name;
-                url += `?officer=${encodeURIComponent(officer)}`;
-                tasksParams.officer = officer;
-            } else {
-                // me
-                url += `?officer=${encodeURIComponent(currentUser.name)}`;
-            }
+        if (currentUser && currentUser.role === 'admin' && select && select.value) {
+            url += `?officer=${encodeURIComponent(select.value)}`;
+            tasksParams = { mode: 'officer', officer: select.value };
         }
 
         const response = await fetchAPI(url.replace('/api', ''));
 
-        // Load custom tasks (respecting admin mode)
+        // Load custom tasks (personal for selected officer + global)
         const tasksRes = await API.calendar.getTasks(tasksParams);
         UI.renderFollowUpCalendar(response.overdue || [], response.upcoming || [], tasksRes.tasks || []);
 
