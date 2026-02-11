@@ -127,7 +127,22 @@ async function createSheetForBatch(batchName, sheetName) {
   return { success: true };
 }
 
+async function upgradeOfficerHeadersForBatch(batchName) {
+  const sheets = await listSheetsForBatch(batchName);
+  const officerSpreadsheetIds = await listOfficerSpreadsheetIds(batchName);
+
+  for (const sheetName of sheets) {
+    for (const id of officerSpreadsheetIds) {
+      await ensureSheetWithHeaders(id, sheetName, OFFICER_HEADERS);
+    }
+  }
+
+  return { success: true, batchName, sheetsUpdated: sheets.length, officersUpdated: officerSpreadsheetIds.length };
+}
+
 module.exports = {
   listSheetsForBatch,
-  createSheetForBatch
+  createSheetForBatch,
+  upgradeOfficerHeadersForBatch,
+  OFFICER_HEADERS
 };

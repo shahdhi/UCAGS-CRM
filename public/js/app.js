@@ -299,6 +299,46 @@ async function loadBatchesMenu() {
         const addBatchBtn = document.getElementById('addNewBatchBtn');
         menu.innerHTML = '';
 
+        // Add Upgrade Sheet Headers button
+        const upgradeBtn = document.createElement('a');
+        upgradeBtn.href = '#';
+        upgradeBtn.className = 'nav-subitem';
+        upgradeBtn.style.color = '#1976d2';
+        upgradeBtn.innerHTML = `
+            <i class="fas fa-wrench"></i>
+            <span>Upgrade Sheet Headers</span>
+        `;
+        upgradeBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (!confirm('Upgrade officer sheet headers for ALL batches? This will rewrite header rows in officer sheets.')) return;
+
+            try {
+                let authHeaders = { 'Content-Type': 'application/json' };
+                if (window.supabaseClient) {
+                    const { data: { session } } = await window.supabaseClient.auth.getSession();
+                    if (session && session.access_token) {
+                        authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+                    }
+                }
+
+                const res = await fetch('/api/batch-leads/upgrade-officer-headers', {
+                    method: 'POST',
+                    headers: authHeaders
+                });
+                const json = await res.json();
+                if (!json.success) throw new Error(json.error || 'Upgrade failed');
+
+                if (window.showToast) showToast('Officer sheet headers upgraded', 'success');
+                else alert('Officer sheet headers upgraded');
+            } catch (err) {
+                console.error(err);
+                if (window.showToast) showToast(err.message, 'error');
+                else alert(err.message);
+            }
+        });
+
+        menu.appendChild(upgradeBtn);
+
         // Helper to create a clickable link
         const createLink = (page, label, iconClass = 'fas fa-layer-group') => {
             const a = document.createElement('a');

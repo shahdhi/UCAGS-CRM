@@ -24,6 +24,24 @@ router.get('/batches', isAuthenticated, async (req, res) => {
   }
 });
 
+// Admin: upgrade officer sheet headers for all batches/sheets
+router.post('/upgrade-officer-headers', isAdmin, async (req, res) => {
+  try {
+    const batches = await listBatches();
+    const results = [];
+    for (const b of batches) {
+      try {
+        results.push(await sheetsSvc.upgradeOfficerHeadersForBatch(b));
+      } catch (e) {
+        results.push({ success: false, batchName: b, error: e.message });
+      }
+    }
+    res.json({ success: true, results });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // Admin: get leads in a batch
 // List sheets for a batch (admin + officers)
 router.get('/:batchName/sheets', isAuthenticated, async (req, res) => {
