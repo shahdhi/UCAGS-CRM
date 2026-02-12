@@ -958,12 +958,17 @@ async function navigateToPage(page) {
             viewElement.classList.add('active');
 
             const titleEl = document.getElementById('leadManagementViewTitle');
+            const subEl = document.getElementById('leadManagementViewSubtitle');
             if (titleEl) {
+                titleEl.innerHTML = `<i class="fas fa-tasks"></i> Lead Management`;
+            }
+            if (subEl) {
                 const batchLabel = (window.officerBatchFilter && window.officerBatchFilter !== 'all')
-                    ? ` (${window.officerBatchFilter})`
+                    ? `(${window.officerBatchFilter})`
                     : '';
-                const sheetLabel = window.officerSheetFilter ? ` - ${window.officerSheetFilter}` : '';
-                titleEl.innerHTML = `<i class="fas fa-tasks"></i> Lead Management${batchLabel}${sheetLabel}`;
+                const sheetLabel = window.officerSheetFilter ? `${window.officerSheetFilter}` : '';
+                const text = [batchLabel, sheetLabel].filter(Boolean).join(' - ');
+                subEl.textContent = text;
             }
         }
     } else {
