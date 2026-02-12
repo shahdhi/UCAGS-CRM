@@ -426,7 +426,10 @@
                             <button id="attendanceNextMonthBtn" class="btn btn-secondary" type="button"><i class="fas fa-chevron-right"></i></button>
                         </div>
                     </div>
-                    <div id="attendanceMonthLabel" style="margin-top: 8px; color:#666;"></div>
+                    <div style="display:flex; justify-content: space-between; align-items:center; flex-wrap: wrap; gap: 10px; margin-top: 8px;">
+                        <div id="attendanceMonthLabel" style="color:#666;"></div>
+                        <div id="attendanceMonthPct" style="color:#111; font-weight:600;"></div>
+                    </div>
                     <div id="attendanceCalendarGrid" class="followup-calendar-grid" style="margin-top: 10px;"></div>
                     <div style="display:flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; font-size: 12px; color:#666;">
                         <div><span style="display:inline-block; width:10px; height:10px; background:#22c55e; border-radius:2px; margin-right:6px;"></span>Present</div>
@@ -488,6 +491,31 @@
                             </thead>
                             <tbody id="attendanceAdminLeaveTableBody">
                                 <tr><td colspan="5" class="loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="attendanceAdminSummarySection" class="dashboard-card admin-only" style="display:none; margin-bottom: 20px;">
+                    <h3>Monthly Attendance Summary</h3>
+                    <div class="filters-bar" style="margin-bottom: 10px;">
+                        <input type="month" id="attendanceAdminSummaryMonth" class="form-control" />
+                        <button id="attendanceAdminSummaryRefreshBtn" class="btn btn-secondary" type="button">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Officer</th>
+                                    <th>Attendance %</th>
+                                    <th>Present/Leave Days</th>
+                                    <th>Total Days</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceAdminSummaryTableBody">
+                                <tr><td colspan="4" class="loading">Loading...</td></tr>
                             </tbody>
                         </table>
                     </div>

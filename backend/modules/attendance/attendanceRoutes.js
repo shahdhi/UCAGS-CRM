@@ -179,6 +179,21 @@ router.get('/me/calendar', isAuthenticated, async (req, res) => {
   }
 });
 
+const { getAdminMonthSummary } = require('./adminAttendanceSummaryService');
+
+// Admin: monthly attendance summary per officer
+router.get('/summary', isAdmin, async (req, res) => {
+  try {
+    const month = req.query.month;
+    if (!month) return res.status(400).json({ success: false, error: 'month is required (YYYY-MM)' });
+    const data = await getAdminMonthSummary({ month });
+    res.json({ success: true, ...data });
+  } catch (error) {
+    console.error('GET /api/attendance/summary error:', error);
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
 // Admin: get attendance records for all staff
 // Query params: date=YYYY-MM-DD (optional), from=YYYY-MM-DD, to=YYYY-MM-DD
 router.get('/records', isAdmin, async (req, res) => {

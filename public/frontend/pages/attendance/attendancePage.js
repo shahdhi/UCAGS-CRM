@@ -160,6 +160,43 @@
     }
   }
 
+  async function loadAdminSummary() {
+    const tbody = document.getElementById('attendanceAdminSummaryTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="4" class="loading">Loading...</td></tr>';
+
+    const monthInput = document.getElementById('attendanceAdminSummaryMonth');
+    const month = monthInput?.value;
+
+    try {
+      if (!month) throw new Error('Select a month');
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/attendance/summary?month=${encodeURIComponent(month)}`, { headers, cache: 'no-store' });
+      const json = await res.json();
+      if (!json?.success) throw new Error(json?.error || 'Failed to load summary');
+
+      const list = json.officers || [];
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color:#666;">No officers found</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(r => {
+        const pct = (r.totalDays && typeof r.percentage === 'number') ? `${r.percentage}%` : '-';
+        return `
+          <tr>
+            <td>${escapeHtml(r.officerName)}</td>
+            <td style="font-weight:600;">${escapeHtml(pct)}</td>
+            <td>${escapeHtml(String(r.presentDays || 0))}</td>
+            <td>${escapeHtml(String(r.totalDays || 0))}</td>
+          </tr>
+        `;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px; color:#b00;">${escapeHtml(e.message || 'Failed')}</td></tr>`;
+    }
+  }
+
   async function loadAdminRecords() {
     const tbody = document.getElementById('attendanceAdminTableBody');
     if (!tbody) return;
@@ -276,10 +313,12 @@
     }
 
     // days
-    const totalDays = days ? days.length : 0;
-    for (let d = 1; d <= totalDays; d++) {
+    const daysInThisMonth = new Date(y, m, 0).getDate();
+    for (let d = 1; d <= daysInThisMonth; d++) {
       const date = `${currentMonth}-${pad2(d)}`;
-      const status = statusByDate.get(date) || 'future';
+      // If API didn't return a day record, infer status from today's date
+      const today = ymdToday();
+      const status = statusByDate.get(date) || (date > today ? 'future' : 'absent');
 
       let bg = '#fff';
       let border = '#e5e7eb';
@@ -308,6 +347,17 @@
 
       renderAttendanceCalendarSkeleton();
       const res = await API.attendance.getMyCalendar(currentMonth);
+
+      const pctEl = document.getElementById('attendanceMonthPct');
+      if (pctEl) {
+        const today = ymdToday();
+        const considered = (res.days || []).filter(d => d.date <= today);
+        const presentish = considered.filter(d => d.status === 'present' || d.status === 'leave').length;
+        const denom = considered.length || 0;
+        const pct = denom ? Math.round((presentish / denom) * 100) : 0;
+        pctEl.textContent = denom ? `${pct}% attendance (${presentish}/${denom})` : '';
+      }
+
       renderAttendanceCalendar(res.days || []);
     } catch (e) {
       console.error(e);
@@ -446,6 +496,12 @@
     const adminBtn = document.getElementById('attendanceAdminRefreshBtn');
     if (adminBtn) adminBtn.addEventListener('click', loadAdminRecords);
 
+    const sumBtn = document.getElementById('attendanceAdminSummaryRefreshBtn');
+    if (sumBtn) sumBtn.addEventListener('click', loadAdminSummary);
+
+    const sumMonth = document.getElementById('attendanceAdminSummaryMonth');
+    if (sumMonth) sumMonth.addEventListener('change', loadAdminSummary);
+
     const dateInput = document.getElementById('attendanceAdminDate');
     if (dateInput) {
       dateInput.addEventListener('change', loadAdminRecords);
@@ -481,6 +537,12 @@
     if (isAdmin) {
       const myCard = document.getElementById('attendanceMyTodayCard');
       if (myCard) myCard.style.display = 'none';
+
+      const summarySection = document.getElementById('attendanceAdminSummarySection');
+      if (summarySection) summarySection.style.display = '';
+      const monthInput = document.getElementById('attendanceAdminSummaryMonth');
+      if (monthInput && !monthInput.value) monthInput.value = ymToday();
+      await loadAdminSummary();
 
       const officerSection = document.getElementById('attendanceOfficerSection');
       if (officerSection) officerSection.classList.add('hidden');
