@@ -232,22 +232,8 @@ async function loadOfficerLeadsBatchesMenu() {
                 <i class="fas fa-layer-group"></i>
                 <span>${label}</span>
             `;
-            a.addEventListener('click', async (e) => {
+            a.addEventListener('click', (e) => {
                 e.preventDefault();
-
-                if (canDelete && e.target && e.target.classList && e.target.classList.contains('fa-trash')) {
-                    if (typeof deleteHandler === 'function') {
-                        try {
-                            await deleteHandler();
-                        } catch (err) {
-                            console.error(err);
-                            if (window.showToast) showToast(err.message || 'Delete failed', 'error');
-                            else alert(err.message || 'Delete failed');
-                        }
-                    }
-                    return;
-                }
-
                 window.location.hash = page;
                 navigateToPage(page);
                 closeMobileMenu();
@@ -434,22 +420,8 @@ async function loadBatchesMenu() {
                 <i class="${iconClass}"></i>
                 <span>${label}</span>
             `;
-            a.addEventListener('click', async (e) => {
+            a.addEventListener('click', (e) => {
                 e.preventDefault();
-
-                if (canDelete && e.target && e.target.classList && e.target.classList.contains('fa-trash')) {
-                    if (typeof deleteHandler === 'function') {
-                        try {
-                            await deleteHandler();
-                        } catch (err) {
-                            console.error(err);
-                            if (window.showToast) showToast(err.message || 'Delete failed', 'error');
-                            else alert(err.message || 'Delete failed');
-                        }
-                    }
-                    return;
-                }
-
                 window.location.hash = page;
                 navigateToPage(page);
                 closeMobileMenu();
