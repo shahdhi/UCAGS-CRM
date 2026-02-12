@@ -335,6 +335,52 @@ const emailAPI = {
 /**
  * Calendar API
  */
+/**
+ * Attendance API
+ */
+const attendanceAPI = {
+  getMyToday: async () => fetchAPI('/attendance/me/today'),
+  getMyCalendar: async (month) => {
+    const qs = month ? `?month=${encodeURIComponent(month)}` : '';
+    return fetchAPI(`/attendance/me/calendar${qs}`);
+  },
+  submitLeaveRequest: async ({ date, reason }) => {
+    return fetchAPI('/attendance/me/leave-requests', {
+      method: 'POST',
+      body: JSON.stringify({ date, reason })
+    });
+  },
+  getMyLeaveRequests: async (params = {}) => {
+    const sp = new URLSearchParams(params);
+    const qs = sp.toString();
+    return fetchAPI(`/attendance/me/leave-requests${qs ? `?${qs}` : ''}`);
+  },
+  // Admin
+  getLeaveRequests: async (params = {}) => {
+    const sp = new URLSearchParams(params);
+    const qs = sp.toString();
+    return fetchAPI(`/attendance/leave-requests${qs ? `?${qs}` : ''}`);
+  },
+  approveLeaveRequest: async (id, comment) => {
+    return fetchAPI(`/attendance/leave-requests/${encodeURIComponent(id)}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ comment })
+    });
+  },
+  rejectLeaveRequest: async (id, comment) => {
+    return fetchAPI(`/attendance/leave-requests/${encodeURIComponent(id)}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ comment })
+    });
+  },
+  // Admin attendance records table
+  getRecords: async (params = {}) => {
+    const sp = new URLSearchParams(params);
+    const qs = sp.toString();
+    return fetchAPI(`/attendance/records${qs ? `?${qs}` : ''}`);
+  }
+};
+
 const calendarAPI = {
   /**
    * Create follow-up event
@@ -434,6 +480,7 @@ window.API = {
   officers: officersAPI,
   email: emailAPI,
   calendar: calendarAPI,
+  attendance: attendanceAPI,
   call: callAPI,
   health: healthAPI
 };

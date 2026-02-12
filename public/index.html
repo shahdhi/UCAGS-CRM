@@ -416,6 +416,82 @@
                     <div id="attendanceLocationStatus" style="margin-top:10px; color:#555;"></div>
                 </div>
 
+                <!-- Officer Attendance Calendar + Leave Request -->
+                <div id="attendanceOfficerSection" class="dashboard-card officer-only" style="display:none; margin-bottom: 20px;">
+                    <div style="display:flex; justify-content: space-between; align-items:center; gap: 10px; flex-wrap: wrap;">
+                        <h3 style="margin:0;">My Attendance Calendar</h3>
+                        <div style="display:flex; gap: 8px; align-items:center;">
+                            <button id="attendancePrevMonthBtn" class="btn btn-secondary" type="button"><i class="fas fa-chevron-left"></i></button>
+                            <button id="attendanceThisMonthBtn" class="btn btn-secondary" type="button">This Month</button>
+                            <button id="attendanceNextMonthBtn" class="btn btn-secondary" type="button"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    <div id="attendanceMonthLabel" style="margin-top: 8px; color:#666;"></div>
+                    <div id="attendanceCalendarGrid" class="followup-calendar-grid" style="margin-top: 10px;"></div>
+                    <div style="display:flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; font-size: 12px; color:#666;">
+                        <div><span style="display:inline-block; width:10px; height:10px; background:#22c55e; border-radius:2px; margin-right:6px;"></span>Present</div>
+                        <div><span style="display:inline-block; width:10px; height:10px; background:#ef4444; border-radius:2px; margin-right:6px;"></span>Absent</div>
+                        <div><span style="display:inline-block; width:10px; height:10px; background:#3b82f6; border-radius:2px; margin-right:6px;"></span>Approved Leave</div>
+                        <div><span style="display:inline-block; width:10px; height:10px; background:#e5e7eb; border-radius:2px; margin-right:6px;"></span>Future</div>
+                    </div>
+
+                    <hr style="margin: 16px 0;" />
+
+                    <h3>Request Leave (Single Day)</h3>
+                    <div class="filters-bar" style="margin-bottom: 10px;">
+                        <input type="date" id="attendanceLeaveDate" class="form-control" />
+                        <input type="text" id="attendanceLeaveReason" class="form-control" placeholder="Reason" />
+                        <button id="attendanceLeaveSubmitBtn" class="btn btn-primary" type="button"><i class="fas fa-paper-plane"></i> Submit</button>
+                    </div>
+                    <div id="attendanceLeaveSubmitMsg" style="margin-top: 6px; color:#666;"></div>
+
+                    <h3 style="margin-top: 16px;">My Leave Requests</h3>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
+                                    <th>Admin</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceMyLeaveTableBody">
+                                <tr><td colspan="4" class="loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Admin Leave Approvals -->
+                <div id="attendanceAdminLeaveSection" class="dashboard-card admin-only" style="display:none; margin-bottom: 20px;">
+                    <h3>Leave Requests</h3>
+                    <div class="filters-bar" style="margin-bottom: 10px;">
+                        <select id="attendanceAdminLeaveStatus" class="form-control">
+                            <option value="pending" selected>Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                        <button id="attendanceAdminLeaveRefreshBtn" class="btn btn-secondary" type="button"><i class="fas fa-sync"></i> Refresh</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Officer</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceAdminLeaveTableBody">
+                                <tr><td colspan="5" class="loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <div id="attendanceAdminSection" class="dashboard-card admin-only" style="display:none;">
                     <h3>Daily Staff Records</h3>
                     <div class="filters-bar" style="margin-bottom: 10px;">
