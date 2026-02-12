@@ -23,9 +23,17 @@ router.get('/stats', async (req, res) => {
     });
   } catch (error) {
     console.error('Error in GET /api/dashboard/stats:', error);
+
+    const msg = String(error?.message || error || '');
+    const isQuota = error?.statusCode === 429 || msg.includes('Quota exceeded');
+    if (isQuota) {
+      res.set('Retry-After', '10');
+      return res.status(429).json({ success: false, error: msg, code: 'SHEETS_QUOTA' });
+    }
+
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to fetch dashboard statistics'
+      error: msg || 'Failed to fetch dashboard statistics'
     });
   }
 });

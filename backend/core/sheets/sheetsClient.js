@@ -91,30 +91,99 @@ async function authenticate() {
 }
 
 /**
+ * Short-lived cache for sheet value reads (values.get).
+ * This reduces read quota errors caused by repeated reads of the same ranges
+ * across multiple endpoints and UI refreshes.
+ */
+const READ_SHEET_TTL_MS = Number(process.env.SHEETS_READ_CACHE_TTL_MS || 5000); // 5s default
+const __readSheetCache = new Map(); // key -> { value, expiresAt }
+const __readSheetInflight = new Map(); // key -> Promise
+
+function __readKey(spreadsheetId, range) {
+  return `${spreadsheetId}::${range}`;
+}
+
+function clearReadSheetCache(spreadsheetId, range) {
+  if (!spreadsheetId) {
+    __readSheetCache.clear();
+    __readSheetInflight.clear();
+    return;
+  }
+
+  if (range) {
+    const key = __readKey(spreadsheetId, range);
+    __readSheetCache.delete(key);
+    __readSheetInflight.delete(key);
+    return;
+  }
+
+  // Clear all ranges for this spreadsheet
+  for (const key of __readSheetCache.keys()) {
+    if (key.startsWith(`${spreadsheetId}::`)) __readSheetCache.delete(key);
+  }
+  for (const key of __readSheetInflight.keys()) {
+    if (key.startsWith(`${spreadsheetId}::`)) __readSheetInflight.delete(key);
+  }
+}
+
+/**
  * Read data from a Google Sheet
  * @param {string} spreadsheetId - The ID of the spreadsheet
  * @param {string} range - The A1 notation range to read
+ * @param {{force?: boolean}} [opts]
  * @returns {Promise<Array<Array<any>>>} The values from the sheet
  */
-async function readSheet(spreadsheetId, range) {
-  try {
-    const sheets = await getSheetsClient();
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range
-    });
+async function readSheet(spreadsheetId, range, opts = {}) {
+  const force = Boolean(opts.force);
+  const key = __readKey(spreadsheetId, range);
+  const now = Date.now();
 
-    return response.data.values || [];
-  } catch (error) {
-    // If range parsing fails, it might be an empty sheet
-    if (error.message.includes('Unable to parse range')) {
-      console.log(`⚠️  Sheet appears to be empty or range is invalid: ${range}`);
-      console.log(`Returning empty array for range: ${range}`);
-      return []; // Return empty array instead of throwing
+  if (!force) {
+    const cached = __readSheetCache.get(key);
+    if (cached && cached.expiresAt > now) {
+      return cached.value;
     }
-    
-    console.error('Error reading sheet:', error.message);
-    throw new Error(`Failed to read sheet: ${error.message}`);
+
+    const inflight = __readSheetInflight.get(key);
+    if (inflight) {
+      return await inflight;
+    }
+  }
+
+  const p = (async () => {
+    try {
+      const sheets = await getSheetsClient();
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range
+      });
+
+      const value = response.data.values || [];
+      __readSheetCache.set(key, { value, expiresAt: Date.now() + READ_SHEET_TTL_MS });
+      return value;
+    } catch (error) {
+      // If range parsing fails, it might be an empty sheet
+      if (error.message.includes('Unable to parse range')) {
+        console.log(`⚠️  Sheet appears to be empty or range is invalid: ${range}`);
+        console.log(`Returning empty array for range: ${range}`);
+        const value = [];
+        __readSheetCache.set(key, { value, expiresAt: Date.now() + READ_SHEET_TTL_MS });
+        return value;
+      }
+
+      console.error('Error reading sheet:', error.message);
+      const err = new Error(`Failed to read sheet: ${error.message}`);
+      // propagate a statusCode for callers that choose to use it
+      if (String(error.message || '').includes('Quota exceeded')) err.statusCode = 429;
+      throw err;
+    }
+  })();
+
+  __readSheetInflight.set(key, p);
+  try {
+    return await p;
+  } finally {
+    __readSheetInflight.delete(key);
   }
 }
 
@@ -134,6 +203,9 @@ async function writeSheet(spreadsheetId, range, values) {
       valueInputOption: 'USER_ENTERED',
       resource: { values }
     });
+
+    // Invalidate read cache for this spreadsheet so subsequent reads see updates
+    clearReadSheetCache(spreadsheetId);
 
     return response.data;
   } catch (error) {
@@ -159,6 +231,9 @@ async function appendSheet(spreadsheetId, range, values) {
       insertDataOption: 'INSERT_ROWS',
       resource: { values }
     });
+
+    // Invalidate read cache for this spreadsheet so subsequent reads see new rows
+    clearReadSheetCache(spreadsheetId);
 
     return response.data;
   } catch (error) {
@@ -369,6 +444,10 @@ async function deleteSheetRow(spreadsheetId, sheetName, rowNumber) {
     });
     
     console.log(`✓ Row ${rowNumber} deleted successfully`);
+
+    // Invalidate read cache for this spreadsheet so subsequent reads see the deletion
+    clearReadSheetCache(spreadsheetId);
+
     return response.data;
   } catch (error) {
     console.error('Error deleting row:', error.message);
@@ -394,5 +473,6 @@ module.exports = {
   sheetExists,
   deleteSheetRow,
   clearAuthCache,
-  clearSpreadsheetInfoCache
+  clearSpreadsheetInfoCache,
+  clearReadSheetCache
 };

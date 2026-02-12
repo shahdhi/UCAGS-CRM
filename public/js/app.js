@@ -157,6 +157,24 @@ async function showDashboard() {
 
     // Initialize counts
     updateEnquiriesBadge();
+
+    // Preload Lead Management once after login so calendar deep-links work immediately
+    if (!window.__leadManagementPreloaded && typeof window.initLeadManagementPage === 'function') {
+        window.__leadManagementPreloaded = true;
+        const preload = async () => {
+            try {
+                // Do not switch view; just warm caches/data
+                await window.initLeadManagementPage();
+            } catch (e) {
+                console.warn('Lead management preload failed:', e);
+            }
+        };
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(() => preload(), { timeout: 1500 });
+        } else {
+            setTimeout(preload, 600);
+        }
+    }
 }
 
 // Load officer leads batches dynamically (officer-only)
@@ -731,10 +749,8 @@ async function navigateToPage(page) {
         }
     });
     
-    // Reset Lead Management initialization flag when leaving the page
-    if (window.resetLeadManagementInit && !(page === 'lead-management' || page.startsWith('lead-management-batch-'))) {
-        window.resetLeadManagementInit();
-    }
+    // Do not reset lead-management init on navigation; it breaks calendar deep-link UX.
+    // (If you need a manual refresh, we can add a Refresh button inside the Lead Management page.)
     
     // Show corresponding view
     document.querySelectorAll('.content-view').forEach(view => {
@@ -1662,13 +1678,22 @@ async function loadDashboard() {
 
 // Update enquiries badge
 async function updateEnquiriesBadge() {
+    // Backoff when Sheets quota is hit
+    const now = Date.now();
+    if (window.__badgeQuotaBackoffUntil && now < window.__badgeQuotaBackoffUntil) return;
+
     try {
         const statsResponse = await API.dashboard.getStats();
         const badge = document.getElementById('newEnquiriesCount');
         if (badge) {
-            badge.textContent = statsResponse.stats.new || 0;
+            badge.textContent = statsResponse.stats?.new || 0;
         }
     } catch (error) {
+        const msg = String(error?.message || error || '');
+        if (msg.includes('Quota exceeded') || msg.includes('SHEETS_QUOTA') || error?.status === 429) {
+            window.__badgeQuotaBackoffUntil = Date.now() + 10000;
+            return;
+        }
         console.error('Error updating badge:', error);
     }
 }
@@ -1702,6 +1727,9 @@ async function loadLeads() {
 
 // Load calendar
 async function loadCalendar() {
+    const now = Date.now();
+    if (window.__calendarQuotaBackoffUntil && now < window.__calendarQuotaBackoffUntil) return;
+
     if (window.__calendarLoadInFlight) return;
     window.__calendarLoadInFlight = true;
     try {
@@ -1802,6 +1830,14 @@ async function loadCalendar() {
             addBtn.__bound = true;
         }
     } catch (error) {
+        const msg = String(error?.message || error || '');
+        if (msg.includes('Quota exceeded') || msg.includes('SHEETS_QUOTA') || error?.status === 429) {
+            // Back off calendar reload attempts briefly
+            window.__calendarQuotaBackoffUntil = Date.now() + 10000;
+            if (window.UI && typeof UI.hideFollowUpCalendarSkeleton === 'function') UI.hideFollowUpCalendarSkeleton();
+            return;
+        }
+
         console.error('Error loading calendar:', error);
         UI.showToast('Failed to load calendar', 'error');
     } finally {

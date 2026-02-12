@@ -17,7 +17,15 @@ router.get('/followups', isAuthenticated, async (req, res) => {
     res.json({ success: true, ...data });
   } catch (e) {
     console.error('GET /api/calendar/followups error:', e);
-    res.status(500).json({ success: false, error: e.message });
+
+    const msg = String(e?.message || e || '');
+    const isQuota = e?.statusCode === 429 || msg.includes('Quota exceeded');
+    if (isQuota) {
+      res.set('Retry-After', '10');
+      return res.status(429).json({ success: false, error: msg, code: 'SHEETS_QUOTA' });
+    }
+
+    res.status(500).json({ success: false, error: msg });
   }
 });
 
