@@ -446,18 +446,18 @@
       if (myCard) myCard.style.display = 'none';
 
       const officerSection = document.getElementById('attendanceOfficerSection');
-      if (officerSection) officerSection.style.display = 'none';
+      if (officerSection) officerSection.classList.add('hidden');
 
       const adminLeave = document.getElementById('attendanceAdminLeaveSection');
-      if (adminLeave) adminLeave.style.display = '';
+      if (adminLeave) adminLeave.classList.remove('hidden');
       await loadAdminLeaveRequests();
     } else {
       await loadMyStatus();
 
       const officerSection = document.getElementById('attendanceOfficerSection');
-      if (officerSection) officerSection.style.display = '';
+      if (officerSection) officerSection.classList.remove('hidden');
       const adminLeave = document.getElementById('attendanceAdminLeaveSection');
-      if (adminLeave) adminLeave.style.display = 'none';
+      if (adminLeave) adminLeave.classList.add('hidden');
 
       await loadMyCalendar();
       await loadMyLeaveRequests();

@@ -1320,7 +1320,14 @@ body.admin .nav-section.admin-only {
     display: none !important;
 }
 
+/* Default officer-only content should be block layout (cards/sections) */
 body:not(.admin) .officer-only {
+    display: block !important;
+}
+
+/* Officer nav items should be flex rows */
+body:not(.admin) .nav-item.officer-only,
+body:not(.admin) .nav-link.officer-only {
     display: flex !important;
 }
 
