@@ -1718,7 +1718,7 @@ async function loadCalendar() {
                 }
                 for (let i = 0; i < 42; i++) {
                     cells.push(`
-                        <div class="followup-calendar-cell loading-shimmer" style="min-height:78px; background:#f3f4f6; border:1px solid #e5e7eb;">
+                        <div class="followup-calendar-cell loading-shimmer" style="min-height:78px; background-color:#f3f4f6; border:1px solid #e5e7eb;">
                             <div style="height:12px; width:40%; background:rgba(255,255,255,0.35); border-radius:6px;"></div>
                             <div style="height:10px; width:60%; margin-top:10px; background:rgba(255,255,255,0.25); border-radius:6px;"></div>
                         </div>
@@ -1739,7 +1739,8 @@ async function loadCalendar() {
         if (!calendarAlreadyRendered) {
             // rAF ensures the view is active/painted before we touch DOM
             requestAnimationFrame(() => {
-                if (window.UI && typeof UI.renderFollowUpCalendarSkeleton === 'function') UI.renderFollowUpCalendarSkeleton();
+                if (window.UI && typeof UI.showFollowUpCalendarSkeleton === 'function') UI.showFollowUpCalendarSkeleton();
+                else if (window.UI && typeof UI.renderFollowUpCalendarSkeleton === 'function') UI.renderFollowUpCalendarSkeleton();
                 else renderCalendarSkeletonFallback();
             });
         } else {
@@ -1790,6 +1791,7 @@ async function loadCalendar() {
         // Load custom tasks (personal for selected officer + global)
         const tasksRes = await API.calendar.getTasks(tasksParams);
         UI.renderFollowUpCalendar(response.overdue || [], response.upcoming || [], tasksRes.tasks || []);
+        if (window.UI && typeof UI.hideFollowUpCalendarSkeleton === 'function') UI.hideFollowUpCalendarSkeleton();
 
         // Bind Add Task
         const addBtn = document.getElementById('calendarAddTaskBtn');

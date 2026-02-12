@@ -1,31 +1,60 @@
 // UI Helper Functions
 const UI = {
-    renderFollowUpCalendarSkeleton() {
-        // Month grid skeleton (7 cols) + day view placeholders
+    ensureCalendarSkeletonOverlay() {
         const grid = document.getElementById('calendarGrid');
-        if (grid) {
+        if (!grid) return null;
+
+        // Wrap grid once
+        if (!grid.parentElement.classList.contains('calendar-skeleton-wrap')) {
+            const wrap = document.createElement('div');
+            wrap.className = 'calendar-skeleton-wrap';
+            grid.parentElement.insertBefore(wrap, grid);
+            wrap.appendChild(grid);
+        }
+
+        const wrap = grid.parentElement;
+        let overlay = wrap.querySelector('.calendar-skeleton-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'calendar-skeleton-overlay hidden';
+            wrap.appendChild(overlay);
+
+            // Build overlay skeleton grid once
             const headers = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             const cells = [];
             for (const h of headers) {
                 cells.push(`<div class="followup-calendar-cell" style="font-weight:600; background:#f9fafb;">${h}</div>`);
             }
-            // 6 weeks * 7 days = 42
             for (let i = 0; i < 42; i++) {
                 cells.push(`
-                    <div class="followup-calendar-cell loading-shimmer" style="min-height:78px; background:#f3f4f6; border:1px solid #e5e7eb;">
+                    <div class="followup-calendar-cell loading-shimmer" style="min-height:78px; background-color:#f3f4f6; border:1px solid #e5e7eb;">
                         <div style="height:12px; width:40%; background:rgba(255,255,255,0.35); border-radius:6px;"></div>
                         <div style="height:10px; width:60%; margin-top:10px; background:rgba(255,255,255,0.25); border-radius:6px;"></div>
                     </div>
                 `);
             }
-            grid.innerHTML = cells.join('');
+            overlay.innerHTML = `<div class="followup-calendar-grid">${cells.join('')}</div>`;
         }
+
+        return overlay;
+    },
+
+    showFollowUpCalendarSkeleton() {
+        const overlay = this.ensureCalendarSkeletonOverlay();
+        if (overlay) overlay.classList.remove('hidden');
+
+        const monthLabel = document.getElementById('calendarMonthLabel');
+        if (monthLabel) monthLabel.textContent = 'Loading…';
+        const dayTitle = document.getElementById('calendarSelectedDayTitle');
+        if (dayTitle) dayTitle.textContent = 'Loading…';
+        const dayEvents = document.getElementById('calendarSelectedDayEvents');
+        if (dayEvents) dayEvents.innerHTML = `<p class="loading">Loading calendar…</p>`;
 
         const overdueList = document.getElementById('overdueList');
         const upcomingList = document.getElementById('upcomingList');
         const skeletonList = () => {
             return Array.from({ length: 5 }).map(() => `
-                <div class="followup-item loading-shimmer" style="height:68px; background:#f3f4f6; border:1px solid #e5e7eb;">
+                <div class="followup-item loading-shimmer" style="height:68px; background-color:#f3f4f6; border:1px solid #e5e7eb;">
                   <div style="height:12px; width:55%; background:rgba(255,255,255,0.35); border-radius:6px;"></div>
                   <div style="height:10px; width:75%; margin-top:10px; background:rgba(255,255,255,0.25); border-radius:6px;"></div>
                 </div>
@@ -33,16 +62,17 @@ const UI = {
         };
         if (overdueList) overdueList.innerHTML = skeletonList();
         if (upcomingList) upcomingList.innerHTML = skeletonList();
+    },
 
-        const dayList = document.getElementById('calendarSelectedDayEvents');
-        const dayTitle = document.getElementById('calendarSelectedDayTitle');
-        if (dayTitle) dayTitle.textContent = 'Loading…';
-        if (dayList) {
-            dayList.innerHTML = `<p class="loading">Loading calendar…</p>`;
-        }
+    hideFollowUpCalendarSkeleton() {
+        const overlay = this.ensureCalendarSkeletonOverlay();
+        if (overlay) overlay.classList.add('hidden');
+    },
 
-        const monthLabel = document.getElementById('calendarMonthLabel');
-        if (monthLabel) monthLabel.textContent = 'Loading…';
+    // Backward compatible name
+    renderFollowUpCalendarSkeleton() {
+        this.showFollowUpCalendarSkeleton();
+        return;
     },
     // Show/hide elements
     show(elementId) {

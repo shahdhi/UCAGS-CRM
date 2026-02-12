@@ -242,7 +242,7 @@
     }
     for (let i = 0; i < 42; i++) {
       cells.push(`
-        <div class="followup-calendar-cell loading-shimmer" style="min-height:78px; background:#f3f4f6; border:1px solid #e5e7eb;">
+        <div class="followup-calendar-cell loading-shimmer" style="min-height:78px; background-color:#f3f4f6; border:1px solid #e5e7eb;">
           <div style="height:12px; width:40%; background:rgba(255,255,255,0.35); border-radius:6px;"></div>
           <div style="height:10px; width:60%; margin-top:10px; background:rgba(255,255,255,0.25); border-radius:6px;"></div>
         </div>

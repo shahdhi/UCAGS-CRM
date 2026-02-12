@@ -610,6 +610,18 @@ body {
     margin-top: 12px;
 }
 
+/* Calendar skeleton overlay (persistent) */
+.calendar-skeleton-wrap {
+    position: relative;
+}
+
+.calendar-skeleton-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+}
+
 .followup-calendar-cell {
     border: 1px solid var(--separator);
     border-radius: 10px;
