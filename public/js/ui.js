@@ -2,7 +2,7 @@
 const UI = {
     renderFollowUpCalendarSkeleton() {
         // Month grid skeleton (7 cols) + day view placeholders
-        const grid = document.getElementById('followupMonthGrid');
+        const grid = document.getElementById('calendarGrid');
         if (grid) {
             const headers = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             const cells = [];
@@ -34,10 +34,15 @@ const UI = {
         if (overdueList) overdueList.innerHTML = skeletonList();
         if (upcomingList) upcomingList.innerHTML = skeletonList();
 
-        const dayList = document.getElementById('followupDayList');
+        const dayList = document.getElementById('calendarSelectedDayEvents');
+        const dayTitle = document.getElementById('calendarSelectedDayTitle');
+        if (dayTitle) dayTitle.textContent = 'Loading…';
         if (dayList) {
             dayList.innerHTML = `<p class="loading">Loading calendar…</p>`;
         }
+
+        const monthLabel = document.getElementById('calendarMonthLabel');
+        if (monthLabel) monthLabel.textContent = 'Loading…';
     },
     // Show/hide elements
     show(elementId) {

@@ -625,6 +625,11 @@ body {
     background: var(--bg-hover);
 }
 
+/* Prevent hover from causing page reflow/scrollbars in attendance calendar */
+#attendanceCalendarGrid .followup-calendar-cell:hover {
+    background: inherit;
+}
+
 .followup-calendar-cell.muted {
     opacity: 0.35;
 }
