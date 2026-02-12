@@ -1705,10 +1705,38 @@ async function loadCalendar() {
     if (window.__calendarLoadInFlight) return;
     window.__calendarLoadInFlight = true;
     try {
-        if (window.UI && typeof UI.renderFollowUpCalendarSkeleton === 'function') {
-            // Render skeleton on next frame so the calendar view has painted (prevents collapsed flash)
-            requestAnimationFrame(() => UI.renderFollowUpCalendarSkeleton());
-        }
+        // Render skeleton immediately (fallback even if UI isn't ready yet)
+        const renderCalendarSkeletonFallback = () => {
+            const grid = document.getElementById('calendarGrid');
+            if (grid) {
+                const headers = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const cells = [];
+                for (const h of headers) {
+                    cells.push(`<div class="followup-calendar-cell" style="font-weight:600; background:#f9fafb;">${h}</div>`);
+                }
+                for (let i = 0; i < 42; i++) {
+                    cells.push(`
+                        <div class="followup-calendar-cell loading-shimmer" style="min-height:78px; background:#f3f4f6; border:1px solid #e5e7eb;">
+                            <div style="height:12px; width:40%; background:rgba(255,255,255,0.35); border-radius:6px;"></div>
+                            <div style="height:10px; width:60%; margin-top:10px; background:rgba(255,255,255,0.25); border-radius:6px;"></div>
+                        </div>
+                    `);
+                }
+                grid.innerHTML = cells.join('');
+            }
+            const monthLabel = document.getElementById('calendarMonthLabel');
+            if (monthLabel) monthLabel.textContent = 'Loading…';
+            const dayTitle = document.getElementById('calendarSelectedDayTitle');
+            if (dayTitle) dayTitle.textContent = 'Loading…';
+            const dayEvents = document.getElementById('calendarSelectedDayEvents');
+            if (dayEvents) dayEvents.innerHTML = `<p class="loading">Loading calendar…</p>`;
+        };
+
+        // rAF ensures the view is active/painted before we touch DOM
+        requestAnimationFrame(() => {
+            if (window.UI && typeof UI.renderFollowUpCalendarSkeleton === 'function') UI.renderFollowUpCalendarSkeleton();
+            else renderCalendarSkeletonFallback();
+        });
         // Admin can filter by officer
         const controls = document.getElementById('calendarAdminControls');
         const select = document.getElementById('calendarOfficerSelect');
