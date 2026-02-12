@@ -265,7 +265,10 @@ router.post('/', async (req, res) => {
       }
 
       // Attendance sheet creation (one sheet per staff name)
-      if (config.sheets.attendanceSheetId) {
+      const { getAttendanceSheetId } = require('../../core/config/appSettings');
+      const attendanceSheetId = await getAttendanceSheetId();
+
+      if (attendanceSheetId) {
         try {
           const { ensureStaffSheet } = require('../attendance/attendanceService');
           await ensureStaffSheet(name);
@@ -276,7 +279,7 @@ router.post('/', async (req, res) => {
           // Don't fail user creation if attendance sheet creation fails
         }
       } else {
-        console.log('⚠️  Attendance sheet creation skipped - ATTENDANCE_SHEET_ID not configured');
+        console.log('⚠️  Attendance sheet creation skipped - attendance sheet id not configured');
       }
 
       const newUser = {

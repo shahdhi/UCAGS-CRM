@@ -84,9 +84,9 @@ router.post('/me/checkout', isAuthenticated, async (req, res) => {
 router.get('/records', isAdmin, async (req, res) => {
   try {
     const { getSpreadsheetInfo } = require('../../core/sheets/sheetsClient');
-    const { config } = require('../../core/config/environment');
+    const { getAttendanceSheetId } = require('../../core/config/appSettings');
 
-    const spreadsheetId = config.sheets.attendanceSheetId;
+    const spreadsheetId = await getAttendanceSheetId();
     if (!spreadsheetId) {
       return res.json({ success: true, records: [] });
     }

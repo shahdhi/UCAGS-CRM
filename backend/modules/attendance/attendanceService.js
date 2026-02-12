@@ -78,10 +78,11 @@ function asTextCell(v) {
   return `'${s}`;
 }
 
-function requireAttendanceSheetId() {
-  const spreadsheetId = config.sheets.attendanceSheetId;
+async function requireAttendanceSheetId() {
+  const { getAttendanceSheetId } = require('../../core/config/appSettings');
+  const spreadsheetId = await getAttendanceSheetId();
   if (!spreadsheetId) {
-    throw new Error('Attendance spreadsheet not configured. Set ATTENDANCE_SHEET_ID');
+    throw new Error('Attendance spreadsheet not configured. Set Supabase app_settings.attendance_sheet_id or ATTENDANCE_SHEET_ID');
   }
   return spreadsheetId;
 }
@@ -133,7 +134,7 @@ function formatTimeSriLanka(d) {
 }
 
 async function ensureStaffSheet(staffName) {
-  const spreadsheetId = requireAttendanceSheetId();
+  const spreadsheetId = await requireAttendanceSheetId();
   if (!staffName) throw new Error('staffName is required');
 
   const existing = await sheetExists(spreadsheetId, staffName);
@@ -155,7 +156,7 @@ async function ensureStaffSheet(staffName) {
 }
 
 async function getStaffRecords(staffName, { fromDate, toDate, limit } = {}) {
-  const spreadsheetId = requireAttendanceSheetId();
+  const spreadsheetId = await requireAttendanceSheetId();
   const { sheetName } = await ensureStaffSheet(staffName);
 
   const rows = await readSheet(spreadsheetId, `${sheetName}!A2:K`);
@@ -182,7 +183,7 @@ async function getStaffRecords(staffName, { fromDate, toDate, limit } = {}) {
 }
 
 async function findRowIndexByDate(staffName, dateStr) {
-  const spreadsheetId = requireAttendanceSheetId();
+  const spreadsheetId = await requireAttendanceSheetId();
   const { sheetName } = await ensureStaffSheet(staffName);
 
   const rows = await readSheet(spreadsheetId, `${sheetName}!A2:A`);
@@ -192,7 +193,7 @@ async function findRowIndexByDate(staffName, dateStr) {
 }
 
 async function checkIn(staffName, now = new Date()) {
-  const spreadsheetId = requireAttendanceSheetId();
+  const spreadsheetId = await requireAttendanceSheetId();
   const { sheetName } = await ensureStaffSheet(staffName);
 
   const dateStr = formatDateSriLanka(now);
@@ -233,7 +234,7 @@ async function checkIn(staffName, now = new Date()) {
 }
 
 async function checkOut(staffName, now = new Date()) {
-  const spreadsheetId = requireAttendanceSheetId();
+  const spreadsheetId = await requireAttendanceSheetId();
   const { sheetName } = await ensureStaffSheet(staffName);
 
   const dateStr = formatDateSriLanka(now);
@@ -280,7 +281,7 @@ async function checkOut(staffName, now = new Date()) {
 }
 
 async function getTodayStatus(staffName, now = new Date()) {
-  const spreadsheetId = requireAttendanceSheetId();
+  const spreadsheetId = await requireAttendanceSheetId();
   const { sheetName } = await ensureStaffSheet(staffName);
 
   const dateStr = formatDateSriLanka(now);
@@ -315,7 +316,7 @@ async function getTodayStatus(staffName, now = new Date()) {
 }
 
 async function confirmLocation(staffName, { lat, lng, accuracy } = {}, now = new Date()) {
-  const spreadsheetId = requireAttendanceSheetId();
+  const spreadsheetId = await requireAttendanceSheetId();
   const { sheetName } = await ensureStaffSheet(staffName);
 
   const dateStr = formatDateSriLanka(now);
