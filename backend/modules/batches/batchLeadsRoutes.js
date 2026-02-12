@@ -67,6 +67,33 @@ router.get('/:batchName/my-sheets', isAuthenticated, async (req, res) => {
   }
 });
 
+// Officer: list custom sheets I created (for UI permissions)
+router.get('/:batchName/my-custom-sheets', isAuthenticated, async (req, res) => {
+  try {
+    const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
+    const sb = getSupabaseAdmin();
+    if (!sb) return res.json({ success: true, sheets: [] });
+
+    const { data, error } = await sb
+      .from('officer_custom_sheets')
+      .select('sheet_name')
+      .eq('batch_name', req.params.batchName)
+      .eq('officer_name', req.user?.name);
+
+    if (error) {
+      const msg = String(error.message || '');
+      if (msg.includes('relation') && msg.includes('does not exist')) {
+        return res.json({ success: true, sheets: [] });
+      }
+      throw error;
+    }
+
+    res.json({ success: true, sheets: (data || []).map(r => r.sheet_name).filter(Boolean) });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // Officer: create a sheet/tab for me only (does not affect admin/other officers)
 router.post('/:batchName/my-sheets', isAuthenticated, async (req, res) => {
   try {

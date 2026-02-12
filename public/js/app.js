@@ -832,7 +832,31 @@ function updateDeleteSheetButtons(page) {
         if (!batch || batch === 'all' || !sheet || isDefault(sheet)) return;
         if (!btnLeads) return;
 
-        btnLeads.style.display = '';
+        // Only show delete if this sheet was created by this officer
+        const cacheKey = `${batch}`;
+        window.__myCustomSheetsCache = window.__myCustomSheetsCache || {};
+        const cached = window.__myCustomSheetsCache[cacheKey];
+
+        const ensureAllowed = async () => {
+            if (cached && cached.expiresAt > Date.now()) return cached.sheets;
+            let authHeaders = {};
+            if (window.supabaseClient) {
+                const { data: { session } } = await window.supabaseClient.auth.getSession();
+                if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+            }
+            const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/my-custom-sheets`, { headers: authHeaders });
+            const json = await res.json();
+            const sheets = (json && json.success && Array.isArray(json.sheets)) ? json.sheets : [];
+            window.__myCustomSheetsCache[cacheKey] = { sheets, expiresAt: Date.now() + 60000 };
+            return sheets;
+        };
+
+        ensureAllowed().then(list => {
+            if (list.map(s => String(s).toLowerCase()).includes(String(sheet).toLowerCase())) {
+                btnLeads.style.display = '';
+            }
+        });
+
         btnLeads.onclick = async () => {
             if (!confirm(`Delete sheet "${sheet}" (only for you)? This cannot be undone.`)) return;
             let authHeaders = {};
@@ -859,7 +883,30 @@ function updateDeleteSheetButtons(page) {
         if (!batch || batch === 'all' || !sheet || isDefault(sheet)) return;
         if (!btnMgmt) return;
 
-        btnMgmt.style.display = '';
+        const cacheKey = `${batch}`;
+        window.__myCustomSheetsCache = window.__myCustomSheetsCache || {};
+        const cached = window.__myCustomSheetsCache[cacheKey];
+
+        const ensureAllowed = async () => {
+            if (cached && cached.expiresAt > Date.now()) return cached.sheets;
+            let authHeaders = {};
+            if (window.supabaseClient) {
+                const { data: { session } } = await window.supabaseClient.auth.getSession();
+                if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+            }
+            const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/my-custom-sheets`, { headers: authHeaders });
+            const json = await res.json();
+            const sheets = (json && json.success && Array.isArray(json.sheets)) ? json.sheets : [];
+            window.__myCustomSheetsCache[cacheKey] = { sheets, expiresAt: Date.now() + 60000 };
+            return sheets;
+        };
+
+        ensureAllowed().then(list => {
+            if (list.map(s => String(s).toLowerCase()).includes(String(sheet).toLowerCase())) {
+                btnMgmt.style.display = '';
+            }
+        });
+
         btnMgmt.onclick = async () => {
             if (!confirm(`Delete sheet "${sheet}" (only for you)? This cannot be undone.`)) return;
             let authHeaders = {};
@@ -1912,6 +1959,9 @@ async function loadLeads() {
 
 // Load calendar
 async function loadCalendar() {
+    // Render-token to prevent async race conditions/duplicate renders
+    const renderVersion = (window.__calendarRenderVersion = (window.__calendarRenderVersion || 0) + 1);
+
     const now = Date.now();
     if (window.__calendarQuotaBackoffUntil && now < window.__calendarQuotaBackoffUntil) return;
 
@@ -1960,6 +2010,9 @@ async function loadCalendar() {
             const monthLabel = document.getElementById('calendarMonthLabel');
             if (monthLabel) monthLabel.textContent = 'Refreshing…';
         }
+
+        // If a newer load started, stop.
+        if (renderVersion !== window.__calendarRenderVersion) return;
         // Admin can filter by officer
         const controls = document.getElementById('calendarAdminControls');
         const select = document.getElementById('calendarOfficerSelect');
@@ -2000,11 +2053,14 @@ async function loadCalendar() {
         }
 
         const response = await fetchAPI(url.replace('/api', ''));
+        if (renderVersion !== window.__calendarRenderVersion) return;
 
         // Load custom tasks (personal for selected officer + global)
         const tasksRes = await API.calendar.getTasks(tasksParams);
+        if (renderVersion !== window.__calendarRenderVersion) return;
+
         UI.renderFollowUpCalendar(response.overdue || [], response.upcoming || [], tasksRes.tasks || []);
-        if (window.UI && typeof UI.hideFollowUpCalendarSkeleton === 'function') UI.hideFollowUpCalendarSkeleton();
+        if (renderVersion === window.__calendarRenderVersion && window.UI && typeof UI.hideFollowUpCalendarSkeleton === 'function') UI.hideFollowUpCalendarSkeleton();
 
         // Bind Add Task
         const addBtn = document.getElementById('calendarAddTaskBtn');
