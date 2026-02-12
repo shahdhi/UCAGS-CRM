@@ -46,8 +46,9 @@ router.post('/upgrade-officer-headers', isAdmin, async (req, res) => {
 // List sheets for a batch (admin + officers)
 router.get('/:batchName/sheets', isAuthenticated, async (req, res) => {
   try {
-    const sheets = await sheetsSvc.listSheetsForBatch(req.params.batchName);
-    res.json({ success: true, sheets });
+    const force = String(req.query.force || '') === '1';
+    const sheets = await sheetsSvc.listSheetsForBatch(req.params.batchName, { force });
+    res.json({ success: true, sheets, cached: !force });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }

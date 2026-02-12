@@ -391,7 +391,15 @@ async function loadBatchesMenu() {
             // Fetch sheets for this batch
             let sheets = ['Main Leads', 'Extra Leads'];
             try {
-                const res = await fetch(`/api/batch-leads/${batchEnc}/sheets`);
+                let authHeaders = {};
+                if (window.supabaseClient) {
+                    const { data: { session } } = await window.supabaseClient.auth.getSession();
+                    if (session && session.access_token) {
+                        authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+                    }
+                }
+
+                const res = await fetch(`/api/batch-leads/${batchEnc}/sheets?force=1`, { headers: authHeaders });
                 const data = await res.json();
                 if (data.success && Array.isArray(data.sheets) && data.sheets.length) {
                     sheets = data.sheets;
