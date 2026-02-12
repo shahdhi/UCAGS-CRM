@@ -1959,9 +1959,6 @@ async function loadLeads() {
 
 // Load calendar
 async function loadCalendar() {
-    // Render-token to prevent async race conditions/duplicate renders
-    const renderVersion = (window.__calendarRenderVersion = (window.__calendarRenderVersion || 0) + 1);
-
     const now = Date.now();
     if (window.__calendarQuotaBackoffUntil && now < window.__calendarQuotaBackoffUntil) return;
 
@@ -2011,8 +2008,6 @@ async function loadCalendar() {
             if (monthLabel) monthLabel.textContent = 'Refreshing…';
         }
 
-        // If a newer load started, stop.
-        if (renderVersion !== window.__calendarRenderVersion) return;
         // Admin can filter by officer
         const controls = document.getElementById('calendarAdminControls');
         const select = document.getElementById('calendarOfficerSelect');
@@ -2053,14 +2048,12 @@ async function loadCalendar() {
         }
 
         const response = await fetchAPI(url.replace('/api', ''));
-        if (renderVersion !== window.__calendarRenderVersion) return;
 
         // Load custom tasks (personal for selected officer + global)
         const tasksRes = await API.calendar.getTasks(tasksParams);
-        if (renderVersion !== window.__calendarRenderVersion) return;
 
         UI.renderFollowUpCalendar(response.overdue || [], response.upcoming || [], tasksRes.tasks || []);
-        if (renderVersion === window.__calendarRenderVersion && window.UI && typeof UI.hideFollowUpCalendarSkeleton === 'function') UI.hideFollowUpCalendarSkeleton();
+        if (window.UI && typeof UI.hideFollowUpCalendarSkeleton === 'function') UI.hideFollowUpCalendarSkeleton();
 
         // Bind Add Task
         const addBtn = document.getElementById('calendarAddTaskBtn');

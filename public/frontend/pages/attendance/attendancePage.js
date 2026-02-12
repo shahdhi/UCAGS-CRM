@@ -161,7 +161,6 @@
   }
 
   async function loadAdminSummary() {
-    const renderV = (window.__attendanceAdminSummaryRenderV = (window.__attendanceAdminSummaryRenderV || 0) + 1);
     const tbody = document.getElementById('attendanceAdminSummaryTableBody');
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="4" class="loading">Loading...</td></tr>';
@@ -174,7 +173,6 @@
       const headers = await getAuthHeaders();
       const res = await fetch(`/api/attendance/summary?month=${encodeURIComponent(month)}`, { headers, cache: 'no-store' });
       const json = await res.json();
-      if (renderV !== window.__attendanceAdminSummaryRenderV) return;
       if (!json?.success) throw new Error(json?.error || 'Failed to load summary');
 
       const list = json.officers || [];
@@ -200,7 +198,6 @@
   }
 
   async function loadAdminRecords() {
-    const renderV = (window.__attendanceAdminRecordsRenderV = (window.__attendanceAdminRecordsRenderV || 0) + 1);
     const tbody = document.getElementById('attendanceAdminTableBody');
     if (!tbody) return;
 
@@ -214,7 +211,6 @@
 
     const res = await fetch(url, { headers, cache: 'no-store' });
     const json = await res.json();
-    if (renderV !== window.__attendanceAdminRecordsRenderV) return;
 
     if (!json?.success) {
       tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color:#b00;">${escapeHtml(json?.error || 'Failed to load records')}</td></tr>`;
@@ -345,14 +341,12 @@
   }
 
   async function loadMyCalendar() {
-    const renderV = (window.__attendanceCalendarRenderV = (window.__attendanceCalendarRenderV || 0) + 1);
     try {
       const officerSection = document.getElementById('attendanceOfficerSection');
       if (!officerSection || officerSection.classList.contains('hidden')) return;
 
       renderAttendanceCalendarSkeleton();
       const res = await API.attendance.getMyCalendar(currentMonth);
-      if (renderV !== window.__attendanceCalendarRenderV) return;
 
       const pctEl = document.getElementById('attendanceMonthPct');
       if (pctEl) {
@@ -364,7 +358,6 @@
         pctEl.textContent = denom ? `${pct}% attendance (${presentish}/${denom})` : '';
       }
 
-      if (renderV !== window.__attendanceCalendarRenderV) return;
       renderAttendanceCalendar(res.days || []);
     } catch (e) {
       console.error(e);
@@ -373,13 +366,11 @@
   }
 
   async function loadMyLeaveRequests() {
-    const renderV = (window.__attendanceMyLeaveRenderV = (window.__attendanceMyLeaveRenderV || 0) + 1);
     const tbody = document.getElementById('attendanceMyLeaveTableBody');
     if (!tbody) return;
     tbody.innerHTML = `<tr><td colspan="4" class="loading">Loading...</td></tr>`;
     try {
       const res = await API.attendance.getMyLeaveRequests({});
-      if (renderV !== window.__attendanceMyLeaveRenderV) return;
       const list = res.requests || [];
       if (!list.length) {
         tbody.innerHTML = `<tr><td colspan="4" style="color:#666;">No leave requests</td></tr>`;
@@ -428,7 +419,6 @@
 
   // ---- Admin leave approvals ----
   async function loadAdminLeaveRequests() {
-    const renderV = (window.__attendanceAdminLeaveRenderV = (window.__attendanceAdminLeaveRenderV || 0) + 1);
     const tbody = document.getElementById('attendanceAdminLeaveTableBody');
     const statusSel = document.getElementById('attendanceAdminLeaveStatus');
     if (!tbody) return;
@@ -437,7 +427,6 @@
     try {
       const status = statusSel?.value || 'pending';
       const res = await API.attendance.getLeaveRequests({ status });
-      if (renderV !== window.__attendanceAdminLeaveRenderV) return;
       const list = res.requests || [];
 
       if (!list.length) {
@@ -497,8 +486,6 @@
   }
 
   function init() {
-    if (window.__attendanceInitDone) return;
-    window.__attendanceInitDone = true;
     const btnIn = document.getElementById('attendanceCheckInBtn');
     const btnOut = document.getElementById('attendanceCheckOutBtn');
     const btnLoc = document.getElementById('attendanceConfirmLocationBtn');

@@ -16,7 +16,6 @@
  * Initialize Lead Management page
  */
 async function initLeadManagementPage() {
-  const initV = (window.__leadMgmtInitV = (window.__leadMgmtInitV || 0) + 1);
   console.log('🔄 Initializing Lead Management page...');
   
   // Setup event listeners only once
@@ -29,8 +28,6 @@ async function initLeadManagementPage() {
   await loadLeadManagement();
 
   // If calendar navigation requested opening a specific lead, open it
-  if (initV !== window.__leadMgmtInitV) return;
-
   if (window.__openLeadAfterNav && window.__openLeadAfterNav.leadId) {
     const leadId = window.__openLeadAfterNav.leadId;
     window.__openLeadAfterNav = null;
@@ -66,8 +63,6 @@ function setupManagementEventListeners() {
  * Load leads for management
  */
 async function loadLeadManagement() {
-  const renderV = (window.__leadMgmtRenderV = (window.__leadMgmtRenderV || 0) + 1);
-
   // Prevent multiple simultaneous loads
   if (isLoading) {
     console.log('⚠️ Already loading leads, skipping...');
@@ -107,7 +102,6 @@ async function loadLeadManagement() {
       const res = await fetch(`/api/batch-leads/${encodeURIComponent(targetBatch)}/my-leads?sheet=${encodeURIComponent(sheet)}`, { headers: authHeaders });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Failed to load leads');
-      if (renderV !== window.__leadMgmtRenderV) return;
       managementLeads = data.leads || [];
     } else {
       // Aggregate across all batches
@@ -125,7 +119,6 @@ async function loadLeadManagement() {
           console.warn('Failed to load my leads for batch', b, e);
         }
       }
-      if (renderV !== window.__leadMgmtRenderV) return;
       managementLeads = all;
     }
 
@@ -158,13 +151,11 @@ async function loadLeadManagement() {
       console.log('✓ Mock lead added for testing');
     }
     
-    if (renderV !== window.__leadMgmtRenderV) return;
     filteredManagementLeads = [...managementLeads];
     console.log('📊 Filtered leads:', filteredManagementLeads);
     
     console.log(`✓ Loaded ${managementLeads.length} leads for management`);
 
-    if (renderV !== window.__leadMgmtRenderV) return;
     renderManagementTable();
     
   } catch (error) {
