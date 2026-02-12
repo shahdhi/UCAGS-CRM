@@ -505,6 +505,18 @@ async function handleLogin(e) {
         const result = await SupabaseAuth.signIn(email, password);
         
         console.log('Login result:', result);
+
+        // SupabaseAuth.signIn may return { error } without throwing
+        if (result && result.error) {
+            const msg = result.error.message || 'Login failed. Please check your credentials.';
+            if (errorDiv) {
+                errorDiv.textContent = msg;
+                errorDiv.style.display = '';
+            }
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+            return;
+        }
         
         if (result.user) {
             console.log('Login successful, user:', result.user);
@@ -530,9 +542,12 @@ async function handleLogin(e) {
         
     } catch (error) {
         console.error('Login error:', error);
-        errorDiv.textContent = error.message || 'Login failed. Please check your credentials.';
+        if (errorDiv) {
+            errorDiv.textContent = error.message || 'Login failed. Please check your credentials.';
+            errorDiv.style.display = '';
+        }
         submitBtn.disabled = false;
-        submitBtn.innerHTML = 'Login';
+        submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
     }
 }
 
@@ -1690,6 +1705,9 @@ async function loadCalendar() {
     if (window.__calendarLoadInFlight) return;
     window.__calendarLoadInFlight = true;
     try {
+        if (window.UI && typeof UI.renderFollowUpCalendarSkeleton === 'function') {
+            UI.renderFollowUpCalendarSkeleton();
+        }
         // Admin can filter by officer
         const controls = document.getElementById('calendarAdminControls');
         const select = document.getElementById('calendarOfficerSelect');

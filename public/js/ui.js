@@ -1,5 +1,44 @@
 // UI Helper Functions
 const UI = {
+    renderFollowUpCalendarSkeleton() {
+        // Month grid skeleton (7 cols) + day view placeholders
+        const grid = document.getElementById('followupMonthGrid');
+        if (grid) {
+            const headers = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const cells = [];
+            for (const h of headers) {
+                cells.push(`<div class="followup-calendar-cell" style="font-weight:600; background:#f9fafb;">${h}</div>`);
+            }
+            // 6 weeks * 7 days = 42
+            for (let i = 0; i < 42; i++) {
+                cells.push(`
+                    <div class="followup-calendar-cell loading-shimmer" style="min-height:78px; background:#f3f4f6; border:1px solid #e5e7eb;">
+                        <div style="height:12px; width:40%; background:rgba(255,255,255,0.35); border-radius:6px;"></div>
+                        <div style="height:10px; width:60%; margin-top:10px; background:rgba(255,255,255,0.25); border-radius:6px;"></div>
+                    </div>
+                `);
+            }
+            grid.innerHTML = cells.join('');
+        }
+
+        const overdueList = document.getElementById('overdueList');
+        const upcomingList = document.getElementById('upcomingList');
+        const skeletonList = () => {
+            return Array.from({ length: 5 }).map(() => `
+                <div class="followup-item loading-shimmer" style="height:68px; background:#f3f4f6; border:1px solid #e5e7eb;">
+                  <div style="height:12px; width:55%; background:rgba(255,255,255,0.35); border-radius:6px;"></div>
+                  <div style="height:10px; width:75%; margin-top:10px; background:rgba(255,255,255,0.25); border-radius:6px;"></div>
+                </div>
+            `).join('');
+        };
+        if (overdueList) overdueList.innerHTML = skeletonList();
+        if (upcomingList) upcomingList.innerHTML = skeletonList();
+
+        const dayList = document.getElementById('followupDayList');
+        if (dayList) {
+            dayList.innerHTML = `<p class="loading">Loading calendar…</p>`;
+        }
+    },
     // Show/hide elements
     show(elementId) {
         const element = document.getElementById(elementId);

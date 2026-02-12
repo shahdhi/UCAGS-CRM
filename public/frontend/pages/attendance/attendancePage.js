@@ -229,6 +229,28 @@
     return d.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
   }
 
+  function renderAttendanceCalendarSkeleton() {
+    const grid = document.getElementById('attendanceCalendarGrid');
+    const label = document.getElementById('attendanceMonthLabel');
+    if (label) label.textContent = 'Loading…';
+    if (!grid) return;
+
+    const headers = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const cells = [];
+    for (const h of headers) {
+      cells.push(`<div class="followup-calendar-cell" style="font-weight:600; background:#f9fafb;">${h}</div>`);
+    }
+    for (let i = 0; i < 42; i++) {
+      cells.push(`
+        <div class="followup-calendar-cell loading-shimmer" style="min-height:78px; background:#f3f4f6; border:1px solid #e5e7eb;">
+          <div style="height:12px; width:40%; background:rgba(255,255,255,0.35); border-radius:6px;"></div>
+          <div style="height:10px; width:60%; margin-top:10px; background:rgba(255,255,255,0.25); border-radius:6px;"></div>
+        </div>
+      `);
+    }
+    grid.innerHTML = cells.join('');
+  }
+
   function renderAttendanceCalendar(days) {
     const grid = document.getElementById('attendanceCalendarGrid');
     const label = document.getElementById('attendanceMonthLabel');
@@ -282,8 +304,9 @@
   async function loadMyCalendar() {
     try {
       const officerSection = document.getElementById('attendanceOfficerSection');
-      if (!officerSection || officerSection.style.display === 'none') return;
+      if (!officerSection || officerSection.classList.contains('hidden')) return;
 
+      renderAttendanceCalendarSkeleton();
       const res = await API.attendance.getMyCalendar(currentMonth);
       renderAttendanceCalendar(res.days || []);
     } catch (e) {
@@ -387,8 +410,22 @@
           try {
             if (act === 'approve') await API.attendance.approveLeaveRequest(id, comment);
             if (act === 'reject') await API.attendance.rejectLeaveRequest(id, comment);
-            await loadAdminLeaveRequests();
-          } catch (e) {
+
+            // Keep the row visible even if filtering by pending
+            const row = btn.closest('tr');
+            if (row) {
+              const statusCell = row.children[3];
+              if (statusCell) statusCell.textContent = act === 'approve' ? 'approved' : 'rejected';
+              const actionsCell = row.children[4];
+              if (actionsCell) actionsCell.innerHTML = '';
+            }
+
+            // Optionally refresh if user is not in pending filter
+            const statusSelNow = document.getElementById('attendanceAdminLeaveStatus');
+            if (statusSelNow && statusSelNow.value && statusSelNow.value !== 'pending') {
+              await loadAdminLeaveRequests();
+            }
+          } catch (e) { 
             if (window.UI?.showToast) UI.showToast(e.message, 'error');
           }
         });
@@ -452,6 +489,10 @@
       if (adminLeave) adminLeave.classList.remove('hidden');
       await loadAdminLeaveRequests();
     } else {
+      // Ensure My Today card is visible for officers (in case a previous admin session hid it)
+      const myCard = document.getElementById('attendanceMyTodayCard');
+      if (myCard) myCard.style.display = '';
+
       await loadMyStatus();
 
       const officerSection = document.getElementById('attendanceOfficerSection');
