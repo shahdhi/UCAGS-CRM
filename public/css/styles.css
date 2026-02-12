@@ -60,6 +60,11 @@
     --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+html {
+    /* Prevent layout shift when scrollbars appear/disappear (e.g., on hover effects) */
+    scrollbar-gutter: stable;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
     background: var(--bg-secondary);
@@ -68,6 +73,8 @@ body {
     letter-spacing: -0.01em;
     min-height: 100vh;
     overflow-x: hidden;
+    /* Keep vertical scrollbar gutter reserved to avoid page "jump" */
+    overflow-y: scroll;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-weight: 400;

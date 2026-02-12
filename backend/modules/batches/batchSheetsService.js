@@ -12,6 +12,7 @@
 const { getSpreadsheetInfo, createSheet, sheetExists, writeSheet } = require('../../core/sheets/sheetsClient');
 const { getBatch } = require('../../core/batches/batchesStore');
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
+const { getCachedSheets, setCachedSheets } = require('../../core/batches/batchSheetsCache');
 
 // Admin sheets (core only)
 const ADMIN_HEADERS = [
@@ -87,12 +88,36 @@ async function listOfficerSpreadsheetIds(batchName) {
   return (data || []).map(r => r.spreadsheet_id).filter(Boolean);
 }
 
-async function listSheetsForBatch(batchName) {
+async function listSheetsForBatch(batchName, opts = {}) {
+  const force = Boolean(opts.force);
+
+  // 1) Try Supabase cache first
+  if (!force) {
+    try {
+      const cached = await getCachedSheets(batchName);
+      if (cached && Array.isArray(cached.sheets) && cached.sheets.length) {
+        return cached.sheets;
+      }
+    } catch (e) {
+      // If cache fails, continue with Sheets API fallback
+      console.warn('batch_sheets cache read failed:', e.message || e);
+    }
+  }
+
+  // 2) Fallback to Google Sheets metadata
   const adminSpreadsheetId = await getAdminSpreadsheetId(batchName);
-  const info = await getSpreadsheetInfo(adminSpreadsheetId);
+  const info = await getSpreadsheetInfo(adminSpreadsheetId, { force });
   const titles = (info.sheets || []).map(s => s.properties.title);
-  // Hide default Sheet1 if it exists (we use named tabs)
-  return titles.filter(t => t && t !== 'Sheet1');
+  const result = titles.filter(t => t && t !== 'Sheet1');
+
+  // 3) Write back to cache (best-effort)
+  try {
+    await setCachedSheets(batchName, result);
+  } catch (e) {
+    console.warn('batch_sheets cache write failed:', e.message || e);
+  }
+
+  return result;
 }
 
 async function ensureSheetWithHeaders(spreadsheetId, sheetTitle, headers) {
@@ -122,6 +147,15 @@ async function createSheetForBatch(batchName, sheetName) {
   // Create in all officers (core + tracking)
   for (const id of officerSpreadsheetIds) {
     await ensureSheetWithHeaders(id, sheetName, OFFICER_HEADERS);
+  }
+
+  // Update cache (best-effort)
+  try {
+    const existing = await listSheetsForBatch(batchName, { force: true });
+    const merged = Array.from(new Set([...(existing || []), sheetName])).filter(Boolean);
+    await setCachedSheets(batchName, merged);
+  } catch (e) {
+    console.warn('Failed to update batch_sheets cache after create:', e.message || e);
   }
 
   return { success: true };

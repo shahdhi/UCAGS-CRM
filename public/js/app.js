@@ -162,6 +162,8 @@ async function showDashboard() {
 // Load officer leads batches dynamically (officer-only)
 // Uses the officer's personal leads sheet (no new sheet; batch comes from the Batch column in that sheet).
 async function loadOfficerLeadsBatchesMenu() {
+    if (window.__officerBatchesMenuLoadInFlight) return;
+    window.__officerBatchesMenuLoadInFlight = true;
     // Prevent duplicate renders when init/login triggers this multiple times
     const renderVersion = (window.__officerBatchesRenderVersion = (window.__officerBatchesRenderVersion || 0) + 1);
     try {
@@ -294,11 +296,15 @@ async function loadOfficerLeadsBatchesMenu() {
         console.log(`✓ Loaded ${batches.length} officer batch groups`);
     } catch (error) {
         console.error('Error loading officer batch menus:', error);
+    } finally {
+        window.__officerBatchesMenuLoadInFlight = false;
     }
 }
 
 // Load batches dynamically from spreadsheet
 async function loadBatchesMenu() {
+    if (window.__adminBatchesMenuLoadInFlight) return;
+    window.__adminBatchesMenuLoadInFlight = true;
     // Prevent duplicate renders when init/login triggers this multiple times
     const renderVersion = (window.__adminBatchesRenderVersion = (window.__adminBatchesRenderVersion || 0) + 1);
 
@@ -447,6 +453,8 @@ async function loadBatchesMenu() {
         console.log(`✓ Loaded ${batches.length} batches (expanded with sheets)`);
     } catch (error) {
         console.error('Error loading batches:', error);
+    } finally {
+        window.__adminBatchesMenuLoadInFlight = false;
     }
 }
 
@@ -1679,6 +1687,8 @@ async function loadLeads() {
 
 // Load calendar
 async function loadCalendar() {
+    if (window.__calendarLoadInFlight) return;
+    window.__calendarLoadInFlight = true;
     try {
         // Admin can filter by officer
         const controls = document.getElementById('calendarAdminControls');
@@ -1736,6 +1746,8 @@ async function loadCalendar() {
     } catch (error) {
         console.error('Error loading calendar:', error);
         UI.showToast('Failed to load calendar', 'error');
+    } finally {
+        window.__calendarLoadInFlight = false;
     }
 }
 

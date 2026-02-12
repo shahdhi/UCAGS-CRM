@@ -168,18 +168,64 @@ async function appendSheet(spreadsheetId, range, values) {
 }
 
 /**
- * Get spreadsheet metadata
+ * In-memory cache for spreadsheet metadata.
+ * This prevents exceeding Google Sheets per-minute read quotas due to repeated
+ * spreadsheets.get calls across endpoints/pages.
+ */
+const SPREADSHEET_INFO_TTL_MS = Number(process.env.SHEETS_INFO_CACHE_TTL_MS || 120000); // 2 min default
+const __spreadsheetInfoCache = new Map(); // spreadsheetId -> { value, expiresAt }
+const __spreadsheetInfoInflight = new Map(); // spreadsheetId -> Promise
+
+function clearSpreadsheetInfoCache(spreadsheetId) {
+  if (spreadsheetId) {
+    __spreadsheetInfoCache.delete(spreadsheetId);
+    __spreadsheetInfoInflight.delete(spreadsheetId);
+    return;
+  }
+  __spreadsheetInfoCache.clear();
+  __spreadsheetInfoInflight.clear();
+}
+
+/**
+ * Get spreadsheet metadata (cached)
  * @param {string} spreadsheetId - The ID of the spreadsheet
+ * @param {{force?: boolean}} [opts]
  * @returns {Promise<Object>} Spreadsheet metadata
  */
-async function getSpreadsheetInfo(spreadsheetId) {
+async function getSpreadsheetInfo(spreadsheetId, opts = {}) {
   try {
-    const sheets = await getSheetsClient();
-    const response = await sheets.spreadsheets.get({
-      spreadsheetId
-    });
+    if (!spreadsheetId) throw new Error('spreadsheetId is required');
 
-    return response.data;
+    const force = Boolean(opts.force);
+    const now = Date.now();
+
+    if (!force) {
+      const cached = __spreadsheetInfoCache.get(spreadsheetId);
+      if (cached && cached.expiresAt > now) {
+        return cached.value;
+      }
+
+      const inflight = __spreadsheetInfoInflight.get(spreadsheetId);
+      if (inflight) {
+        return await inflight;
+      }
+    }
+
+    const p = (async () => {
+      const sheets = await getSheetsClient();
+      const response = await sheets.spreadsheets.get({ spreadsheetId });
+      const value = response.data;
+      __spreadsheetInfoCache.set(spreadsheetId, { value, expiresAt: now + SPREADSHEET_INFO_TTL_MS });
+      return value;
+    })();
+
+    __spreadsheetInfoInflight.set(spreadsheetId, p);
+
+    try {
+      return await p;
+    } finally {
+      __spreadsheetInfoInflight.delete(spreadsheetId);
+    }
   } catch (error) {
     console.error('Error getting spreadsheet info:', error.message);
     throw new Error(`Failed to get spreadsheet info: ${error.message}`);
@@ -347,5 +393,6 @@ module.exports = {
   copySheetTemplate,
   sheetExists,
   deleteSheetRow,
-  clearAuthCache
+  clearAuthCache,
+  clearSpreadsheetInfoCache
 };
