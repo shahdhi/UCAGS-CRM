@@ -10,6 +10,15 @@
     overflow: hidden;
 }
 
+/* Prevent body from scrolling while dashboard is active (use .main-content scroll only) */
+body #dashboardPage.active {
+    overscroll-behavior: none;
+}
+
+body:has(#dashboardPage.active) {
+    overflow: hidden;
+}
+
 /* Hide sidebar and main wrapper when dashboard is not active */
 #dashboardPage:not(.active) .sidebar,
 #dashboardPage:not(.active) .main-wrapper {

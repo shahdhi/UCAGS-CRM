@@ -1705,7 +1705,9 @@ async function loadCalendar() {
     if (window.__calendarLoadInFlight) return;
     window.__calendarLoadInFlight = true;
     try {
-        // Render skeleton immediately (fallback even if UI isn't ready yet)
+        const calendarAlreadyRendered = Boolean(window.__followupCalendarState && window.__followupCalendarState.events && window.__followupCalendarState.events.all && window.__followupCalendarState.events.all.length);
+
+        // Render skeleton immediately (fallback even if UI isn't ready yet). Only do this on first load.
         const renderCalendarSkeletonFallback = () => {
             const grid = document.getElementById('calendarGrid');
             if (grid) {
@@ -1732,11 +1734,18 @@ async function loadCalendar() {
             if (dayEvents) dayEvents.innerHTML = `<p class="loading">Loading calendar…</p>`;
         };
 
-        // rAF ensures the view is active/painted before we touch DOM
-        requestAnimationFrame(() => {
-            if (window.UI && typeof UI.renderFollowUpCalendarSkeleton === 'function') UI.renderFollowUpCalendarSkeleton();
-            else renderCalendarSkeletonFallback();
-        });
+        // If we have already rendered once, keep the existing grid visible and just show a light refresh hint.
+        // Otherwise, show skeleton.
+        if (!calendarAlreadyRendered) {
+            // rAF ensures the view is active/painted before we touch DOM
+            requestAnimationFrame(() => {
+                if (window.UI && typeof UI.renderFollowUpCalendarSkeleton === 'function') UI.renderFollowUpCalendarSkeleton();
+                else renderCalendarSkeletonFallback();
+            });
+        } else {
+            const monthLabel = document.getElementById('calendarMonthLabel');
+            if (monthLabel) monthLabel.textContent = 'Refreshing…';
+        }
         // Admin can filter by officer
         const controls = document.getElementById('calendarAdminControls');
         const select = document.getElementById('calendarOfficerSelect');
