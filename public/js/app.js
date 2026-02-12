@@ -1706,7 +1706,8 @@ async function loadCalendar() {
     window.__calendarLoadInFlight = true;
     try {
         if (window.UI && typeof UI.renderFollowUpCalendarSkeleton === 'function') {
-            UI.renderFollowUpCalendarSkeleton();
+            // Render skeleton on next frame so the calendar view has painted (prevents collapsed flash)
+            requestAnimationFrame(() => UI.renderFollowUpCalendarSkeleton());
         }
         // Admin can filter by officer
         const controls = document.getElementById('calendarAdminControls');
