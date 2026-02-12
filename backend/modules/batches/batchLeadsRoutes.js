@@ -54,6 +54,55 @@ router.get('/:batchName/sheets', isAuthenticated, async (req, res) => {
   }
 });
 
+// Officer: list my own sheets for a batch (officer-only tab additions)
+router.get('/:batchName/my-sheets', isAuthenticated, async (req, res) => {
+  try {
+    const { listOfficerSheets } = require('./officerSheetsService');
+    const force = String(req.query.force || '') === '1';
+    const officerName = req.user?.name;
+    const sheets = await listOfficerSheets(req.params.batchName, officerName, { force });
+    res.json({ success: true, sheets, cached: !force });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// Officer: create a sheet/tab for me only (does not affect admin/other officers)
+router.post('/:batchName/my-sheets', isAuthenticated, async (req, res) => {
+  try {
+    const { createOfficerOnlySheet } = require('./officerSheetsService');
+    const officerName = req.user?.name;
+    const { sheetName } = req.body || {};
+    const result = await createOfficerOnlySheet(req.params.batchName, officerName, sheetName);
+    res.status(201).json(result);
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// Officer: delete a sheet/tab for me only
+router.delete('/:batchName/my-sheets/:sheetName', isAuthenticated, async (req, res) => {
+  try {
+    const { deleteOfficerOnlySheet } = require('./officerSheetsService');
+    const officerName = req.user?.name;
+    const result = await deleteOfficerOnlySheet(req.params.batchName, officerName, req.params.sheetName);
+    res.json(result);
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// Admin: delete a sheet/tab for a batch (propagates to all officer spreadsheets)
+router.delete('/:batchName/sheets/:sheetName', isAdmin, async (req, res) => {
+  try {
+    await sheetsSvc.deleteSheetForBatch(req.params.batchName, req.params.sheetName);
+    const sheets = await sheetsSvc.listSheetsForBatch(req.params.batchName, { force: true });
+    res.json({ success: true, sheets });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 // Create a new sheet/tab for a batch (admin only). Propagates to all officer spreadsheets.
 router.post('/:batchName/sheets', isAdmin, async (req, res) => {
   try {

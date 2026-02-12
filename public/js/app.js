@@ -227,12 +227,27 @@ async function loadOfficerLeadsBatchesMenu() {
             a.href = '#';
             a.className = 'nav-subitem';
             a.dataset.page = page;
+
             a.innerHTML = `
                 <i class="fas fa-layer-group"></i>
                 <span>${label}</span>
             `;
-            a.addEventListener('click', (e) => {
+            a.addEventListener('click', async (e) => {
                 e.preventDefault();
+
+                if (canDelete && e.target && e.target.classList && e.target.classList.contains('fa-trash')) {
+                    if (typeof deleteHandler === 'function') {
+                        try {
+                            await deleteHandler();
+                        } catch (err) {
+                            console.error(err);
+                            if (window.showToast) showToast(err.message || 'Delete failed', 'error');
+                            else alert(err.message || 'Delete failed');
+                        }
+                    }
+                    return;
+                }
+
                 window.location.hash = page;
                 navigateToPage(page);
                 closeMobileMenu();
@@ -249,7 +264,7 @@ async function loadOfficerLeadsBatchesMenu() {
             // Fetch sheet list
             let sheets = [...defaultSheets];
             try {
-                const res = await fetch(`/api/batch-leads/${batchEnc}/sheets`, { headers: authHeaders });
+                const res = await fetch(`/api/batch-leads/${batchEnc}/my-sheets?force=1`, { headers: authHeaders });
                 const json = await res.json();
                 if (json.success && Array.isArray(json.sheets) && json.sheets.length) {
                     sheets = Array.from(new Set([...defaultSheets, ...json.sheets]));
@@ -305,6 +320,72 @@ async function loadOfficerLeadsBatchesMenu() {
                 childWrap2.appendChild(createBatchLink(page2, sheetName));
             });
 
+            // + Add sheet (for me only)
+            const addMine1 = document.createElement('a');
+            addMine1.href = '#';
+            addMine1.className = 'nav-subitem';
+            addMine1.style.color = '#1976d2';
+            addMine1.innerHTML = `
+                <i class="fas fa-plus"></i>
+                <span>Add sheet (for me)</span>
+            `;
+            addMine1.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const sheetName = prompt('New sheet name (for you only):');
+                if (!sheetName) return;
+
+                try {
+                    const res = await fetch(`/api/batch-leads/${batchEnc}/my-sheets`, {
+                        method: 'POST',
+                        headers: {
+                            ...authHeaders,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ sheetName })
+                    });
+                    const json = await res.json();
+                    if (!json.success) throw new Error(json.error || 'Failed to create sheet');
+
+                    if (window.showToast) showToast('Sheet created for you', 'success');
+                    await loadOfficerLeadsBatchesMenu();
+                } catch (err) {
+                    console.error(err);
+                    if (window.showToast) showToast(err.message || 'Failed to create sheet', 'error');
+                    else alert(err.message || 'Failed to create sheet');
+                }
+            });
+
+            const addMine2 = addMine1.cloneNode(true);
+            // Rebind handler for cloned node
+            addMine2.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const sheetName = prompt('New sheet name (for you only):');
+                if (!sheetName) return;
+
+                try {
+                    const res = await fetch(`/api/batch-leads/${batchEnc}/my-sheets`, {
+                        method: 'POST',
+                        headers: {
+                            ...authHeaders,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ sheetName })
+                    });
+                    const json = await res.json();
+                    if (!json.success) throw new Error(json.error || 'Failed to create sheet');
+
+                    if (window.showToast) showToast('Sheet created for you', 'success');
+                    await loadOfficerLeadsBatchesMenu();
+                } catch (err) {
+                    console.error(err);
+                    if (window.showToast) showToast(err.message || 'Failed to create sheet', 'error');
+                    else alert(err.message || 'Failed to create sheet');
+                }
+            });
+
+            childWrap1.appendChild(addMine1);
+            childWrap2.appendChild(addMine2);
+
             leadsMenu.appendChild(childWrap1);
             mgmtMenu.appendChild(childWrap2);
         }
@@ -353,8 +434,22 @@ async function loadBatchesMenu() {
                 <i class="${iconClass}"></i>
                 <span>${label}</span>
             `;
-            a.addEventListener('click', (e) => {
+            a.addEventListener('click', async (e) => {
                 e.preventDefault();
+
+                if (canDelete && e.target && e.target.classList && e.target.classList.contains('fa-trash')) {
+                    if (typeof deleteHandler === 'function') {
+                        try {
+                            await deleteHandler();
+                        } catch (err) {
+                            console.error(err);
+                            if (window.showToast) showToast(err.message || 'Delete failed', 'error');
+                            else alert(err.message || 'Delete failed');
+                        }
+                    }
+                    return;
+                }
+
                 window.location.hash = page;
                 navigateToPage(page);
                 closeMobileMenu();
@@ -745,6 +840,99 @@ function parseLeadsRouteIntoFilters(page) {
 }
 
 // Navigate to a specific page
+function updateDeleteSheetButtons(page) {
+    const isDefault = (s) => ['Main Leads', 'Extra Leads'].map(x => x.toLowerCase()).includes(String(s || '').toLowerCase());
+
+    const btnLeads = document.getElementById('deleteSheetBtn');
+    const btnMgmt = document.getElementById('deleteManagementSheetBtn');
+
+    const hideAll = () => {
+        if (btnLeads) btnLeads.style.display = 'none';
+        if (btnMgmt) btnMgmt.style.display = 'none';
+    };
+
+    hideAll();
+
+    // Officer leads pages
+    if (page && page.startsWith('leads-myLeads-batch-')) {
+        const batch = window.officerBatchFilter;
+        const sheet = window.officerSheetFilter;
+        if (!batch || batch === 'all' || !sheet || isDefault(sheet)) return;
+        if (!btnLeads) return;
+
+        btnLeads.style.display = '';
+        btnLeads.onclick = async () => {
+            if (!confirm(`Delete sheet "${sheet}" (only for you)? This cannot be undone.`)) return;
+            let authHeaders = {};
+            if (window.supabaseClient) {
+                const { data: { session } } = await window.supabaseClient.auth.getSession();
+                if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+            }
+            const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/my-sheets/${encodeURIComponent(sheet)}`, { method: 'DELETE', headers: authHeaders });
+            const json = await res.json();
+            if (!json.success) throw new Error(json.error || 'Failed to delete sheet');
+            if (window.showToast) showToast('Sheet deleted', 'success');
+            await loadOfficerLeadsBatchesMenu();
+            // Go back to main leads
+            window.location.hash = 'leads-myLeads';
+            navigateToPage('leads-myLeads');
+        };
+        return;
+    }
+
+    // Officer lead management pages
+    if (page && page.startsWith('lead-management-batch-')) {
+        const batch = window.officerBatchFilter;
+        const sheet = window.officerSheetFilter;
+        if (!batch || batch === 'all' || !sheet || isDefault(sheet)) return;
+        if (!btnMgmt) return;
+
+        btnMgmt.style.display = '';
+        btnMgmt.onclick = async () => {
+            if (!confirm(`Delete sheet "${sheet}" (only for you)? This cannot be undone.`)) return;
+            let authHeaders = {};
+            if (window.supabaseClient) {
+                const { data: { session } } = await window.supabaseClient.auth.getSession();
+                if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+            }
+            const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/my-sheets/${encodeURIComponent(sheet)}`, { method: 'DELETE', headers: authHeaders });
+            const json = await res.json();
+            if (!json.success) throw new Error(json.error || 'Failed to delete sheet');
+            if (window.showToast) showToast('Sheet deleted', 'success');
+            await loadOfficerLeadsBatchesMenu();
+            window.location.hash = 'lead-management';
+            navigateToPage('lead-management');
+        };
+        return;
+    }
+
+    // Admin leads pages
+    if (page && page.startsWith('leads-batch-')) {
+        const batch = window.adminBatchFilter;
+        const sheet = window.adminSheetFilter;
+        if (!batch || !sheet || isDefault(sheet)) return;
+        if (!btnLeads) return;
+
+        btnLeads.style.display = '';
+        btnLeads.onclick = async () => {
+            if (!confirm(`Delete sheet "${sheet}" for batch ${batch} (admin + all officers)? This cannot be undone.`)) return;
+            let authHeaders = {};
+            if (window.supabaseClient) {
+                const { data: { session } } = await window.supabaseClient.auth.getSession();
+                if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+            }
+            const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/sheets/${encodeURIComponent(sheet)}`, { method: 'DELETE', headers: authHeaders });
+            const json = await res.json();
+            if (!json.success) throw new Error(json.error || 'Failed to delete sheet');
+            if (window.showToast) showToast('Sheet deleted', 'success');
+            await loadBatchesMenu();
+            window.location.hash = 'home';
+            navigateToPage('home');
+        };
+    }
+}
+
+// Navigate to a specific page
 async function navigateToPage(page) {
     const navItems = document.querySelectorAll('.nav-item, .nav-subitem');
     
@@ -796,6 +984,15 @@ async function navigateToPage(page) {
         const viewElement = document.getElementById('lead-managementView');
         if (viewElement) {
             viewElement.classList.add('active');
+
+            const titleEl = document.getElementById('leadManagementViewTitle');
+            if (titleEl) {
+                const batchLabel = (window.officerBatchFilter && window.officerBatchFilter !== 'all')
+                    ? ` (${window.officerBatchFilter})`
+                    : '';
+                const sheetLabel = window.officerSheetFilter ? ` - ${window.officerSheetFilter}` : '';
+                titleEl.innerHTML = `<i class="fas fa-tasks"></i> Lead Management${batchLabel}${sheetLabel}`;
+            }
         }
     } else {
         const viewElement = document.getElementById(`${page}View`);
@@ -815,6 +1012,9 @@ async function navigateToPage(page) {
         pageTitle.textContent = activeLink.querySelector('span')?.textContent || page;
     }
     
+    // Update delete-sheet buttons based on route
+    updateDeleteSheetButtons(page);
+
     // Load data for the view
     switch(page) {
         case 'home':

@@ -174,9 +174,42 @@ async function upgradeOfficerHeadersForBatch(batchName) {
   return { success: true, batchName, sheetsUpdated: sheets.length, officersUpdated: officerSpreadsheetIds.length };
 }
 
+const { deleteSheetTab } = require('../../core/sheets/sheetsClient');
+
+const DEFAULT_SHEETS = ['Main Leads', 'Extra Leads'];
+
+async function deleteSheetForBatch(batchName, sheetName) {
+  validateSheetName(sheetName);
+  if (DEFAULT_SHEETS.map(s => s.toLowerCase()).includes(String(sheetName).toLowerCase())) {
+    const err = new Error('Cannot delete default sheets');
+    err.status = 400;
+    throw err;
+  }
+
+  const adminSpreadsheetId = await getAdminSpreadsheetId(batchName);
+  const officerSpreadsheetIds = await listOfficerSpreadsheetIds(batchName);
+
+  await deleteSheetTab(adminSpreadsheetId, sheetName);
+  for (const id of officerSpreadsheetIds) {
+    await deleteSheetTab(id, sheetName);
+  }
+
+  // Update cache
+  try {
+    const existing = await listSheetsForBatch(batchName, { force: true });
+    const filtered = (existing || []).filter(s => String(s).toLowerCase() !== String(sheetName).toLowerCase());
+    await setCachedSheets(batchName, filtered);
+  } catch (e) {
+    console.warn('Failed to update batch_sheets cache after delete:', e.message || e);
+  }
+
+  return { success: true };
+}
+
 module.exports = {
   listSheetsForBatch,
   createSheetForBatch,
+  deleteSheetForBatch,
   upgradeOfficerHeadersForBatch,
   OFFICER_HEADERS
 };

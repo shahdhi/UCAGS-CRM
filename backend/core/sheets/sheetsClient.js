@@ -409,6 +409,50 @@ async function sheetExists(spreadsheetId, sheetName) {
  * @param {number} rowNumber - The row number to delete (1-based index)
  * @returns {Promise<Object>} Delete response
  */
+/**
+ * Delete a sheet/tab from a Google Spreadsheet
+ * @param {string} spreadsheetId
+ * @param {string} sheetTitle
+ */
+async function deleteSheetTab(spreadsheetId, sheetTitle) {
+  try {
+    const spreadsheet = await getSpreadsheetInfo(spreadsheetId, { force: true });
+    const sheet = (spreadsheet.sheets || []).find(s =>
+      String(s.properties.title || '').toLowerCase() === String(sheetTitle || '').toLowerCase()
+    );
+
+    if (!sheet) {
+      // Nothing to do
+      return { success: true, skipped: true };
+    }
+
+    const sheetId = sheet.properties.sheetId;
+    const sheets = await getSheetsClient();
+
+    const response = await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [{ deleteSheet: { sheetId } }]
+      }
+    });
+
+    clearReadSheetCache(spreadsheetId);
+    clearSpreadsheetInfoCache(spreadsheetId);
+
+    return { success: true, response: response.data };
+  } catch (error) {
+    console.error('Error deleting sheet tab:', error.message);
+    throw new Error(`Failed to delete sheet tab: ${error.message}`);
+  }
+}
+
+/**
+ * Delete a row from a Google Sheet
+ * @param {string} spreadsheetId - The ID of the spreadsheet
+ * @param {string} sheetName - The name of the sheet
+ * @param {number} rowNumber - The row number to delete (1-based index)
+ * @returns {Promise<Object>} Delete response
+ */
 async function deleteSheetRow(spreadsheetId, sheetName, rowNumber) {
   try {
     console.log(`🗑️  Deleting row ${rowNumber} from sheet "${sheetName}"`);
@@ -471,6 +515,7 @@ module.exports = {
   createSheet,
   copySheetTemplate,
   sheetExists,
+  deleteSheetTab,
   deleteSheetRow,
   clearAuthCache,
   clearSpreadsheetInfoCache,
