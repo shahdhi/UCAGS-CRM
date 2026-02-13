@@ -60,6 +60,7 @@ const leadsAPI = {
       if (filters.status) params.append('status', filters.status);
       if (filters.search) params.append('search', filters.search);
       
+      console.log('📊 Loading leads from Supabase:', `/crm-leads/admin?${params.toString()}`);
       return fetchAPI(`/crm-leads/admin?${params.toString()}`);
     }
     
@@ -68,6 +69,7 @@ const leadsAPI = {
     if (filters.status) params.append('status', filters.status);
     if (filters.search) params.append('search', filters.search);
     
+    console.log('📊 Loading all leads from Supabase:', `/crm-leads/admin?${params.toString()}`);
     return fetchAPI(`/crm-leads/admin?${params.toString()}`);
   },
 

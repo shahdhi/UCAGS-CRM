@@ -95,6 +95,8 @@ async function listMyLeads({ officerName, batchName, sheetName, search, status }
 async function listAdminLeads({ batchName, sheetName, search, status }) {
   const sb = requireSupabase();
 
+  console.log('🔍 Querying Supabase for admin leads:', { batchName, sheetName, status, search });
+
   let q = sb.from('crm_leads').select('*');
 
   if (batchName && batchName !== 'all') q = q.eq('batch_name', batchName);
