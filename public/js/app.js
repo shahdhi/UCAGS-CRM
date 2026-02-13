@@ -526,6 +526,44 @@ async function loadBatchesMenu() {
             });
             children.appendChild(add);
 
+            // Sync button
+            const syncBtn = document.createElement('a');
+            syncBtn.href = '#';
+            syncBtn.className = 'nav-subitem';
+            syncBtn.style.color = '#4caf50';
+            syncBtn.innerHTML = '<i class="fas fa-sync"></i> <span>Sync leads</span>';
+            syncBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                if (!confirm('Sync leads from Google Sheet to Supabase for batch "' + batchName + '"?')) return;
+                
+                try {
+                    let authHeaders = { 'Content-Type': 'application/json' };
+                    if (window.supabaseClient) {
+                        const { data: { session } } = await window.supabaseClient.auth.getSession();
+                        if (session && session.access_token) {
+                            authHeaders['Authorization'] = 'Bearer ' + session.access_token;
+                        }
+                    }
+                    
+                    const res = await fetch('/api/batches/' + batchEnc + '/sync', {
+                        method: 'POST',
+                        headers: authHeaders,
+                        body: JSON.stringify({})
+                    });
+                    const data = await res.json();
+                    
+                    if (data.success) {
+                        alert('Sync complete!');
+                        if (window.loadLeads) window.loadLeads();
+                    } else {
+                        throw new Error(data.error);
+                    }
+                } catch (err) {
+                    alert('Sync failed: ' + err.message);
+                }
+            });
+            children.appendChild(syncBtn);
+
             wrapper.appendChild(header);
             wrapper.appendChild(children);
             return wrapper;

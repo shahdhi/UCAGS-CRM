@@ -39,8 +39,27 @@ function getCell(row, i) {
   return row && row[i] != null ? row[i] : '';
 }
 
-function parseLeadRow(row, idxFn) {
-  const sheetLeadId = String(getCell(row, idxFn('ID')) || '').trim();
+function parseLeadRow(row, idxFn, rowNumber) {
+  let sheetLeadId = String(getCell(row, idxFn('ID')) || '').trim();
+  
+  // Auto-generate ID if missing
+  if (!sheetLeadId) {
+    // Generate ID based on phone or fallback to row number
+    const phone = String(getCell(row, idxFn('phone')) || '').trim();
+    const name = String(getCell(row, idxFn('full_name')) || getCell(row, idxFn('name')) || '').trim();
+    
+    if (phone) {
+      // Clean phone number and use as ID
+      sheetLeadId = `lead_${phone.replace(/\D/g, '')}`;
+    } else if (name) {
+      // Use name + row number
+      sheetLeadId = `lead_${name.toLowerCase().replace(/\s+/g, '_')}_${rowNumber}`;
+    } else {
+      // Fallback to row number
+      sheetLeadId = `lead_${rowNumber}`;
+    }
+  }
+
   const fullName = String(getCell(row, idxFn('full_name')) || getCell(row, idxFn('name')) || '').trim();
 
   // Core-ish fields (best-effort mapping; store full raw row for flexibility)
@@ -86,16 +105,12 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
     const idxFn = indexHeaders(headers);
 
     const idIdx = idxFn('ID');
-    if (idIdx == null) {
-      results.push({ sheetName, success: false, error: 'Missing required header: ID' });
-      continue;
-    }
-
+    
     // Read rows
     const rows = await readSheet(spreadsheetId, `${sheetName}!A2:AZ`);
     const parsed = (rows || [])
       .filter(r => r && r.length)
-      .map(r => parseLeadRow(r, idxFn))
+      .map((r, i) => parseLeadRow(r, idxFn, i + 2))  // Pass row number (2 = first data row)
       .filter(l => l.sheet_lead_id);
 
     if (parsed.length === 0) {
