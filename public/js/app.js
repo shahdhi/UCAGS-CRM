@@ -1730,10 +1730,9 @@ async function handleAddBatch(event) {
 }
 
 // Create new batch
-async function createNewBatch(batchName, adminSpreadsheetUrl, officerSheets) {
+async function createNewBatch(batchName, mainSpreadsheetUrl) {
     try {
-        // Call API to create new batch sheet
-        // New system: provision Drive folder + spreadsheets
+        // Call API to create new batch
         let authHeaders = { 'Content-Type': 'application/json' };
         if (window.supabaseClient) {
             const { data: { session } } = await window.supabaseClient.auth.getSession();
