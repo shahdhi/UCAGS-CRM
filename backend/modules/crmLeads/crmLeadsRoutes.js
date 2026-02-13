@@ -12,7 +12,8 @@ const svc = require('./crmLeadsService');
 
 // GET /api/crm-leads/admin?batch=...&sheet=...&search=...&status=...
 // Lists all leads for admin (no officer filter)
-router.get('/admin', isAuthenticated, async (req, res) => {
+// SECURITY: Must be admin-only; otherwise officers can see all leads.
+router.get('/admin', isAdmin, async (req, res) => {
   try {
     const batchName = req.query.batch;
     const sheetName = req.query.sheet;
@@ -62,7 +63,8 @@ router.put('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, res
 });
 
 // PUT /api/crm-leads/admin/:batchName/:sheetName/:leadId (Admin can update any lead)
-router.put('/admin/:batchName/:sheetName/:leadId', isAuthenticated, async (req, res) => {
+// SECURITY: Must be admin-only; otherwise officers can update any lead.
+router.put('/admin/:batchName/:sheetName/:leadId', isAdmin, async (req, res) => {
   try {
     const { batchName, sheetName, leadId } = req.params;
     const lead = await svc.updateAdminLead({

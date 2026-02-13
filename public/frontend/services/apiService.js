@@ -51,6 +51,11 @@ const leadsAPI = {
    */
   getAll: async (filters = {}) => {
     const batch = filters.batch;
+
+    // If logged-in user is an officer (not admin), default to "my leads"
+    if (window.currentUser && window.currentUser.role && window.currentUser.role !== 'admin') {
+      return leadsAPI.getMyLeads(filters);
+    }
     
     // Use new Supabase-backed endpoint for admin
     if (batch && batch !== 'all' && batch !== 'myLeads') {

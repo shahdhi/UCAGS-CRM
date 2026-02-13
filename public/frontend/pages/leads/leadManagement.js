@@ -104,33 +104,12 @@ async function loadLeadManagement() {
 
     console.log('📦 Raw leads data:', managementLeads);
 
-    
-    // Add mock lead if no leads exist (for testing)
+
+    // If no leads exist, keep empty list (do NOT inject mock leads in production)
     if (managementLeads.length === 0) {
-      console.log('⚠️ No leads found, adding mock lead for testing...');
-      managementLeads = [
-        {
-          id: 'MOCK-1',
-          name: 'Test Student',
-          email: 'test.student@example.com',
-          phone: '0771234567',
-          course: 'BSc IT',
-          status: 'New',
-          priority: 'High',
-          pdfSent: false,
-          waSent: false,
-          emailSent: false,
-          callFeedback: '',
-          nextFollowUp: '',
-          followUp1Schedule: '',
-          followUp1Date: '',
-          followUp1Answered: '',
-          followUp1Comment: ''
-        }
-      ];
-      console.log('✓ Mock lead added for testing');
+      console.log('ℹ️ No leads assigned to this officer');
     }
-    
+
     filteredManagementLeads = [...managementLeads];
     console.log('📊 Filtered leads:', filteredManagementLeads);
     
