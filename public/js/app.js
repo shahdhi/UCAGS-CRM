@@ -439,21 +439,32 @@ async function loadBatchesMenu() {
             const header = document.createElement('a');
             header.href = '#';
             header.className = 'nav-subitem';
+            header.style.cursor = 'pointer';
             header.innerHTML = `
                 <i class="fas fa-folder"></i>
                 <span>${batchName}</span>
-                <i class="fas fa-chevron-down" style="margin-left:auto; opacity:0.7;"></i>
+                <i class="fas fa-chevron-down batch-chevron" style="margin-left:auto; opacity:0.7; transition: transform 0.2s;"></i>
             `;
 
             const children = document.createElement('div');
             children.className = 'nav-batch-children';
             children.style.marginLeft = '12px';
-            children.style.display = 'block'; // expanded by default
+            children.style.display = 'block';
 
-            header.addEventListener('click', async (e) => {
+            // Toggle function
+            const toggleExpand = (e) => {
                 e.preventDefault();
-                children.style.display = (children.style.display === 'none') ? 'block' : 'none';
-            });
+                e.stopPropagation();
+                const isExpanded = children.style.display !== 'none';
+                children.style.display = isExpanded ? 'none' : 'block';
+                // Rotate chevron
+                const chevron = header.querySelector('.batch-chevron');
+                if (chevron) {
+                    chevron.style.transform = isExpanded ? 'rotate(-90deg)' : 'rotate(0deg)';
+                }
+            };
+
+            header.addEventListener('click', toggleExpand);
 
             // Fetch sheets for this batch
             let sheets = ['Main Leads', 'Extra Leads'];
