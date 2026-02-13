@@ -231,7 +231,7 @@ function renderManagementTable() {
       <td><span class="badge badge-${getStatusColor(lead.status)}">${escapeHtml(lead.status || 'New')}</span></td>
       <td><span class="badge badge-${getPriorityColor(lead.priority)}">${escapeHtml(lead.priority || '-')}</span></td>
       <td>${escapeHtml(getLastFollowUpComment(lead)) || '-'}</td>
-      <td>${lead.nextFollowUp ? formatDate(lead.nextFollowUp) : '-'}</td>
+      <td>${getNextFollowUpSchedule(lead) ? formatDate(getNextFollowUpSchedule(lead)) : '-'}</td>
       <td>
         <button class="btn btn-sm btn-primary" onclick="openManageLeadModal('${lead.id}')" title="Manage Lead">
           <i class="fas fa-edit"></i>
@@ -246,18 +246,58 @@ function renderManagementTable() {
 /**
  * Get check icon for boolean values
  */
+function getNextFollowUpSchedule(lead) {
+  // Determine next follow-up to display as the scheduled date/time of the LAST follow-up (highest N).
+  // If that same follow-up has an actual date/time filled, return empty.
+  // Supports unlimited follow-ups (followUp1..., followUp2..., etc.)
+  if (!lead || typeof lead !== 'object') return '';
+
+  const scheduleEntries = Object.keys(lead)
+    .map((key) => {
+      const match = key.match(/^followUp(\d+)Schedule$/);
+      if (!match) return null;
+      const n = parseInt(match[1], 10);
+      if (!Number.isFinite(n)) return null;
+      const schedule = String(lead[key] ?? '').trim();
+      if (!schedule) return null;
+      return { n, schedule };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.n - a.n);
+
+  const latest = scheduleEntries[0];
+  if (!latest) return '';
+
+  const actual = String(lead[`followUp${latest.n}Date`] ?? '').trim();
+  if (actual) return '';
+
+  return latest.schedule;
+}
+
 function getLastFollowUpComment(lead) {
-  // Always prefer the latest non-empty follow-up comment.
-  // Only if there are no follow-up comments at all, fall back to call feedback.
-  const c3 = (lead.followUp3Comment || '').trim();
-  const c2 = (lead.followUp2Comment || '').trim();
-  const c1 = (lead.followUp1Comment || '').trim();
+  // Always prefer the latest (highest-numbered) non-empty follow-up comment.
+  // Only if there are no follow-up comments at all, fall back to "Feedback After Call" (callFeedback).
+  if (!lead || typeof lead !== 'object') return '';
 
-  const followUpComment = c3 || c2 || c1;
-  if (followUpComment) return followUpComment;
+  // Collect followUpNComment fields dynamically (supports unlimited follow-ups)
+  const commentEntries = Object.keys(lead)
+    .map((key) => {
+      const match = key.match(/^followUp(\d+)Comment$/);
+      if (!match) return null;
+      const n = parseInt(match[1], 10);
+      if (!Number.isFinite(n)) return null;
+      const value = String(lead[key] ?? '').trim();
+      return { n, value };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.n - a.n); // highest follow-up number first
 
-  // If none exist, use stored lastFollowUpComment (backward compat) else callFeedback
-  const stored = (lead.lastFollowUpComment || '').trim();
+  for (const entry of commentEntries) {
+    if (entry.value) return entry.value;
+  }
+
+  // Backward compatibility: some sheets may store an already-derived value
+  const stored = String(lead.lastFollowUpComment || '').trim();
   if (stored) return stored;
 
   return String(lead.callFeedback || '').trim();
@@ -375,7 +415,7 @@ async function openManageLeadModal(leadId) {
               
               <div class="form-group">
                 <label for="nextFollowUp"><i class="fas fa-calendar"></i> Next Follow-up</label>
-                <input type="datetime-local" id="nextFollowUp" class="form-control" value="${lead.nextFollowUp || ''}" readonly>
+                <input type="datetime-local" id="nextFollowUp" class="form-control" value="${getNextFollowUpSchedule(lead) || ''}" readonly>
               </div>
             </div>
             
@@ -514,28 +554,11 @@ async function saveLeadManagement(event, leadId) {
       if (commentEl) managementData[`followUp${num}Comment`] = commentEl.value;
     });
 
-    // Auto-set Next Follow-up based on Scheduled Dates that are NOT completed yet.
-    // Rule:
-    //  - If there is at least one follow-up with a scheduled date but NO actual date, nextFollowUp = latest such scheduled date.
-    //  - If all scheduled follow-ups have an actual date (i.e., no pending follow-ups), keep nextFollowUp blank.
-    const pendingSchedules = [];
-    Object.keys(managementData)
-      .filter(k => /^followUp\d+Schedule$/.test(k))
-      .forEach((scheduleKey) => {
-        const n = scheduleKey.match(/^followUp(\d+)Schedule$/)?.[1];
-        const schedule = managementData[scheduleKey];
-        const actual = n ? managementData[`followUp${n}Date`] : '';
-        if (schedule && !actual) {
-          pendingSchedules.push(schedule);
-        }
-      });
-
-    if (pendingSchedules.length > 0) {
-      pendingSchedules.sort(); // datetime-local strings (YYYY-MM-DDTHH:mm) sort lexically
-      managementData.nextFollowUp = pendingSchedules[pendingSchedules.length - 1];
-    } else {
-      managementData.nextFollowUp = '';
-    }
+    // Auto-set Next Follow-up based on the LAST follow-up schedule (highest N).
+    // Rule (as requested):
+    //  - If last follow-up is 1st, show 1st followUpSchedule; if last is 2nd, show 2nd, and so on.
+    //  - If the last follow-up's actual date is filled, show nothing.
+    managementData.nextFollowUp = getNextFollowUpSchedule(managementData) || '';
     
     console.log('Saving lead management data:', managementData);
     
