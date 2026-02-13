@@ -230,7 +230,7 @@ async function loadLeads(silentRefresh = false) {
       }
       
     } else {
-      // Admin: Fetch from batch sheets (original behavior)
+      // Admin: Fetch from Supabase (new system)
       console.log('📊 Loading batch leads for admin');
       
       const filters = {};
@@ -245,7 +245,14 @@ async function loadLeads(silentRefresh = false) {
       if (currentBatch && currentBatch !== 'all' && currentBatch !== 'myLeads') {
         filters.batch = currentBatch;
       }
-
+      
+      // Add sheet filter (Main Leads, Extra Leads, etc.)
+      const adminSheet = window.adminSheetFilter;
+      if (adminSheet && adminSheet !== 'all') {
+        filters.sheet = adminSheet;
+        console.log('📊 Loading leads for sheet:', adminSheet);
+      }
+      
       const response = await API.leads.getAll(filters);
       currentLeads = response.leads || [];
 
