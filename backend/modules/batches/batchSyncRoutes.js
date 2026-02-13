@@ -68,4 +68,38 @@ router.delete('/:batchName/leads', isAdmin, async (req, res) => {
   }
 });
 
+// DELETE /api/batches/:batchName - Delete entire batch (leads + batch record)
+router.delete('/:batchName', isAdmin, async (req, res) => {
+  try {
+    const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
+    const sb = getSupabaseAdmin();
+    const batchName = req.params.batchName;
+    
+    // Delete all leads for this batch
+    const { count: leadCount, error: leadErr } = await sb
+      .from('crm_leads')
+      .delete()
+      .eq('batch_name', batchName)
+      .select('id');
+    
+    if (leadErr) throw leadErr;
+    
+    // Delete the batch record
+    const { error: batchErr } = await sb
+      .from('batches')
+      .delete()
+      .eq('name', batchName);
+    
+    if (batchErr) throw batchErr;
+    
+    res.json({ 
+      success: true, 
+      message: `Deleted batch "${batchName}" with ${leadCount?.length || 0} leads`,
+      deletedLeadCount: leadCount?.length || 0
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 module.exports = router;

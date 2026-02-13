@@ -564,17 +564,17 @@ async function loadBatchesMenu() {
             });
             children.appendChild(syncBtn);
 
-            // 🗑️ Delete batch leads (admin only)
+            // 🗑️ Delete batch (admin only) - deletes leads + batch record
             const deleteBtn = document.createElement('a');
             deleteBtn.href = '#';
             deleteBtn.className = 'nav-subitem';
             deleteBtn.style.color = '#f44336';
-            deleteBtn.innerHTML = '<i class="fas fa-trash"></i> <span>Delete batch leads</span>';
+            deleteBtn.innerHTML = '<i class="fas fa-trash"></i> <span>Delete batch</span>';
             deleteBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
-                if (!confirm('⚠️ WARNING: This will DELETE ALL LEADS for batch "' + batchName + '" from Supabase.\n\nThis action cannot be undone!\n\nAre you sure?')) return;
+                if (!confirm('⚠️ WARNING: This will DELETE ALL LEADS and the batch "' + batchName + '" from Supabase.\n\nThis action cannot be undone!\n\nAre you sure?')) return;
                 
-                if (!confirm('Final confirmation: Delete all leads for "' + batchName + '"?')) return;
+                if (!confirm('Final confirmation: Delete batch "' + batchName + '"?')) return;
                 
                 try {
                     let authHeaders = { 'Content-Type': 'application/json' };
@@ -585,7 +585,7 @@ async function loadBatchesMenu() {
                         }
                     }
                     
-                    const res = await fetch('/api/batches/' + batchEnc + '/leads', {
+                    const res = await fetch('/api/batches/' + batchEnc, {
                         method: 'DELETE',
                         headers: authHeaders
                     });
@@ -593,7 +593,26 @@ async function loadBatchesMenu() {
                     
                     if (data.success) {
                         alert('✅ ' + data.message);
-                        if (window.loadLeads) window.loadLeads();
+                        // Remove batch from sidebar
+                        const navItem = document.querySelector('.nav-batch-' + batchEnc);
+                        if (navItem) {
+                            const parent = navItem.parentElement;
+                            if (parent.classList.contains('nav-submenu')) {
+                                // Remove submenu if empty
+                                const grandparent = parent.parentElement;
+                                parent.remove();
+                                if (parent.children.length === 0) {
+                                    grandparent.remove();
+                                }
+                            } else {
+                                navItem.remove();
+                            }
+                        }
+                        // Refresh if currently viewing this batch
+                        if (window.currentBatch === batchName) {
+                            window.location.hash = '';
+                            window.loadView('dashboard');
+                        }
                     } else {
                         throw new Error(data.error);
                     }
