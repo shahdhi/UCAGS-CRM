@@ -11,16 +11,18 @@ let sortDirection = 'desc';
 
 /**
  * Initialize leads page
+ * @param {string} modeOrBatch - For officers this is usually 'myLeads'. For admins it can be a batch name.
  */
-async function initLeadsPage() {
+async function initLeadsPage(modeOrBatch) {
   console.log('Initializing leads page...');
-  
+  window.leadsModeOrBatch = modeOrBatch;
+
   // Setup event listeners
   setupLeadsEventListeners();
-  
+
   // Load leads data
   await loadLeads();
-  
+
   // Start auto-refresh (every 30 seconds)
   startAutoRefresh();
 }
@@ -96,7 +98,19 @@ async function loadLeads() {
     // Show loading state
     showLeadsLoading();
 
-    const response = await API.leads.getAll(filters);
+    const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+
+    let response;
+    if (isOfficerView) {
+      if (window.officerBatchFilter) filters.batch = window.officerBatchFilter;
+      if (window.officerSheetFilter) filters.sheet = window.officerSheetFilter;
+      response = await API.leads.getMyLeads(filters);
+    } else {
+      if (window.adminBatchFilter) filters.batch = window.adminBatchFilter;
+      if (window.adminSheetFilter) filters.sheet = window.adminSheetFilter;
+      response = await API.leads.getAll(filters);
+    }
+
     currentLeads = response.leads || [];
 
     renderLeadsTable();

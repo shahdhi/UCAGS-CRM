@@ -11,14 +11,18 @@ let sortDirection = 'desc';
 
 /**
  * Initialize leads page
+ * @param {string} modeOrBatch - For officers this is usually 'myLeads'. For admins it can be a batch name.
  */
-async function initLeadsPage() {
+async function initLeadsPage(modeOrBatch) {
+  // Remember current mode/batch (used by loadLeads)
+  window.leadsModeOrBatch = modeOrBatch;
+
   // Setup event listeners
   setupLeadsEventListeners();
-  
+
   // Load leads data
   await loadLeads();
-  
+
   // Start auto-refresh (every 30 seconds)
   startAutoRefresh();
 }
@@ -101,7 +105,22 @@ async function loadLeads() {
     // Show loading state
     showLeadsLoading();
 
-    const response = await API.leads.getAll(filters);
+    // Officer view: always use /crm-leads/my (never admin endpoint)
+    const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+
+    let response;
+    if (isOfficerView) {
+      // Apply officer batch/sheet filters if set by router
+      if (window.officerBatchFilter) filters.batch = window.officerBatchFilter;
+      if (window.officerSheetFilter) filters.sheet = window.officerSheetFilter;
+      response = await API.leads.getMyLeads(filters);
+    } else {
+      // Admin view: may use batch/sheet filters
+      if (window.adminBatchFilter) filters.batch = window.adminBatchFilter;
+      if (window.adminSheetFilter) filters.sheet = window.adminSheetFilter;
+      response = await API.leads.getAll(filters);
+    }
+
     currentLeads = response.leads || [];
 
     renderLeadsTable();
