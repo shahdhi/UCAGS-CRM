@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { isAdmin } = require('../../../server/middleware/auth');
+const { isAuthenticated, isAdmin } = require('../../../server/middleware/auth');
 const { syncBatchToSupabase } = require('./batchSyncService');
 const { syncAssignmentsToSheets } = require('./batchAssignmentSyncService');
 
@@ -41,6 +41,30 @@ router.post('/:batchName/sync-assignments', isAdmin, async (req, res) => {
     res.json(result);
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// DELETE /api/batches/:batchName/leads - Delete all leads for a batch from Supabase
+router.delete('/:batchName/leads', isAdmin, async (req, res) => {
+  try {
+    const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
+    const sb = getSupabaseAdmin();
+    
+    const { count, error } = await sb
+      .from('crm_leads')
+      .delete()
+      .eq('batch_name', req.params.batchName)
+      .select('id');
+    
+    if (error) throw error;
+    
+    res.json({ 
+      success: true, 
+      message: `Deleted ${count?.length || 0} leads from Supabase for batch "${req.params.batchName}"`,
+      deletedCount: count?.length || 0
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 

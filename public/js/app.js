@@ -564,6 +564,45 @@ async function loadBatchesMenu() {
             });
             children.appendChild(syncBtn);
 
+            // 🗑️ Delete batch leads (admin only)
+            const deleteBtn = document.createElement('a');
+            deleteBtn.href = '#';
+            deleteBtn.className = 'nav-subitem';
+            deleteBtn.style.color = '#f44336';
+            deleteBtn.innerHTML = '<i class="fas fa-trash"></i> <span>Delete batch leads</span>';
+            deleteBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                if (!confirm('⚠️ WARNING: This will DELETE ALL LEADS for batch "' + batchName + '" from Supabase.\n\nThis action cannot be undone!\n\nAre you sure?')) return;
+                
+                if (!confirm('Final confirmation: Delete all leads for "' + batchName + '"?')) return;
+                
+                try {
+                    let authHeaders = { 'Content-Type': 'application/json' };
+                    if (window.supabaseClient) {
+                        const { data: { session } } = await window.supabaseClient.auth.getSession();
+                        if (session && session.access_token) {
+                            authHeaders['Authorization'] = 'Bearer ' + session.access_token;
+                        }
+                    }
+                    
+                    const res = await fetch('/api/batches/' + batchEnc + '/leads', {
+                        method: 'DELETE',
+                        headers: authHeaders
+                    });
+                    const data = await res.json();
+                    
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                        if (window.loadLeads) window.loadLeads();
+                    } else {
+                        throw new Error(data.error);
+                    }
+                } catch (err) {
+                    alert('Delete failed: ' + err.message);
+                }
+            });
+            children.appendChild(deleteBtn);
+
             wrapper.appendChild(header);
             wrapper.appendChild(children);
             return wrapper;
