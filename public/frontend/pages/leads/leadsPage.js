@@ -160,15 +160,23 @@ function renderLeadsTable() {
   const paginatedLeads = leadsToDisplay.slice(startIndex, endIndex);
 
   // Render rows - clickable rows
-  tbody.innerHTML = paginatedLeads.map(lead => `
-    <tr style="cursor: pointer;" onclick="viewLeadDetails(${lead.id})" title="Click to view details">
-      <td>${lead.id}</td>
-      <td><strong>${escapeHtml(lead.name)}</strong></td>
-      <td>${escapeHtml(lead.email)}</td>
-      <td>${lead.phone ? `<a href="tel:${lead.phone}" onclick="event.stopPropagation()">${escapeHtml(lead.phone)}</a>` : '-'}</td>
-      <td>${escapeHtml(lead.assignedTo) || '-'}</td>
-    </tr>
-  `).join('');
+  tbody.innerHTML = paginatedLeads.map(lead => {
+    const isSelected = Boolean(window.__selectedLeadIds && window.__selectedLeadIds.has(String(lead.id)));
+    return `
+      <tr style="cursor: pointer;" onclick="viewLeadDetails(${JSON.stringify(lead.id)})" title="Click to view details">
+        <td style="width:40px;" onclick="event.stopPropagation()">
+          <input type="checkbox" class="lead-select-checkbox" data-lead-id="${escapeHtml(String(lead.id))}" ${isSelected ? 'checked' : ''} onchange="toggleLeadSelection(event, ${JSON.stringify(lead.id)})">
+        </td>
+        <td><strong>${escapeHtml(lead.name)}</strong></td>
+        <td>${escapeHtml(lead.email)}</td>
+        <td>${lead.phone ? `<a href="tel:${lead.phone}" onclick="event.stopPropagation()">${escapeHtml(lead.phone)}</a>` : '-'}</td>
+        <td>${escapeHtml(lead.assignedTo) || '-'}</td>
+      </tr>
+    `;
+  }).join('');
+
+  // Sync header checkbox + toolbar
+  updateSelectionUI();
 
   // Update pagination info
   updatePaginationInfo(leadsToDisplay.length);
@@ -552,7 +560,86 @@ function formatDate(dateString) {
   }
 }
 
+// -------------------------
+// Bulk selection helpers
+// -------------------------
+function ensureSelectionState() {
+  if (!window.__selectedLeadIds) window.__selectedLeadIds = new Set();
+}
+
+function toggleLeadSelection(event, leadId) {
+  ensureSelectionState();
+  const id = String(leadId);
+  const checked = event?.target?.checked;
+  if (checked) window.__selectedLeadIds.add(id);
+  else window.__selectedLeadIds.delete(id);
+  updateSelectionUI();
+}
+
+function toggleSelectAll() {
+  ensureSelectionState();
+  const header = document.getElementById('selectAllCheckbox');
+  const checked = Boolean(header && header.checked);
+  if (checked) {
+    currentLeads.forEach(l => window.__selectedLeadIds.add(String(l.id)));
+  } else {
+    window.__selectedLeadIds.clear();
+  }
+  renderLeadsTable();
+}
+
+function clearSelection() {
+  ensureSelectionState();
+  window.__selectedLeadIds.clear();
+  renderLeadsTable();
+}
+
+function updateSelectionUI() {
+  ensureSelectionState();
+  const count = window.__selectedLeadIds.size;
+
+  const toolbar = document.getElementById('bulkActionsToolbar');
+  const label = document.getElementById('selectedCount');
+  const header = document.getElementById('selectAllCheckbox');
+
+  if (label) label.textContent = `${count} selected`;
+  if (toolbar) toolbar.style.display = count > 0 ? 'block' : 'none';
+
+  if (header) {
+    if (currentLeads.length === 0) {
+      header.checked = false;
+      header.indeterminate = false;
+    } else if (count === 0) {
+      header.checked = false;
+      header.indeterminate = false;
+    } else if (count === currentLeads.length) {
+      header.checked = true;
+      header.indeterminate = false;
+    } else {
+      header.checked = false;
+      header.indeterminate = true;
+    }
+  }
+}
+
+// Bulk actions (admin-only buttons are hidden by CSS, but keep functions defined to avoid console errors)
+function bulkAssignLeads() {
+  alert('Bulk Assign is not implemented in this build yet.');
+}
+function bulkDistributeLeads() {
+  alert('Bulk Distribute is not implemented in this build yet.');
+}
+function bulkDeleteLeads() {
+  alert('Bulk Delete is not implemented in this build yet.');
+}
+
 // Export for global access
 window.initLeadsPage = initLeadsPage;
 window.leadsPageLoadLeads = loadLeads;  // Renamed to avoid conflict
 window.viewLeadDetails = viewLeadDetails;
+window.toggleLeadSelection = toggleLeadSelection;
+window.toggleSelectAll = toggleSelectAll;
+window.clearSelection = clearSelection;
+window.bulkAssignLeads = bulkAssignLeads;
+window.bulkDistributeLeads = bulkDistributeLeads;
+window.bulkDeleteLeads = bulkDeleteLeads;

@@ -117,6 +117,26 @@ function showLogin() {
     setupAuthForms();
 }
 
+// Helper: wait for Supabase session token (fixes sidebar/batches sometimes loading only after refresh)
+async function getAuthHeadersWithRetry(maxWaitMs = 1500) {
+    const start = Date.now();
+    while (Date.now() - start < maxWaitMs) {
+        try {
+            if (window.supabaseClient) {
+                const { data: { session } } = await window.supabaseClient.auth.getSession();
+                if (session && session.access_token) {
+                    return { 'Authorization': `Bearer ${session.access_token}` };
+                }
+            }
+        } catch (e) {
+            // ignore and retry
+        }
+        // small backoff
+        await new Promise(r => setTimeout(r, 100));
+    }
+    return {};
+}
+
 // Show dashboard
 async function showDashboard() {
     UI.hide('loginPage');
@@ -206,15 +226,15 @@ async function loadOfficerLeadsBatchesMenu() {
         if (keepMgmtAll) mgmtMenu.appendChild(keepMgmtAll);
 
         // Fetch global batches list (created by admins). Officers should see these tabs even if they have no leads yet.
-        let authHeaders = {};
-        if (window.supabaseClient) {
-            const { data: { session } } = await window.supabaseClient.auth.getSession();
-            if (session && session.access_token) {
-                authHeaders['Authorization'] = `Bearer ${session.access_token}`;
-            }
-        }
+        // IMPORTANT: on some logins the session token isn't immediately available; wait briefly to avoid 401/empty menus.
+        const authHeaders = await getAuthHeadersWithRetry();
 
-        const response = await fetch('/api/batch-leads/batches', { headers: authHeaders });
+        let response = await fetch('/api/batch-leads/batches', { headers: authHeaders });
+        // If the first call was unauthorized due to token timing, retry once after waiting longer
+        if (response.status === 401 || response.status === 403) {
+            const authHeaders2 = await getAuthHeadersWithRetry(2500);
+            response = await fetch('/api/batch-leads/batches', { headers: authHeaders2 });
+        }
         const data = await response.json();
         const batches = (data && data.batches) ? data.batches : [];
 
@@ -247,17 +267,9 @@ async function loadOfficerLeadsBatchesMenu() {
         for (const batchName of batches) {
             const batchEnc = encodeURIComponent(batchName);
 
-            // Fetch sheet list
+            // Keep officer sidebar fast: render default sheets immediately.
+            // (Fetching per-batch sheets causes many network calls and delays after login.)
             let sheets = [...defaultSheets];
-            try {
-                const res = await fetch(`/api/batch-leads/${batchEnc}/my-sheets?force=1`, { headers: authHeaders });
-                const json = await res.json();
-                if (json.success && Array.isArray(json.sheets) && json.sheets.length) {
-                    sheets = Array.from(new Set([...defaultSheets, ...json.sheets]));
-                }
-            } catch (e) {
-                // ignore
-            }
 
             // Parent header (not navigational)
             const parent = document.createElement('a');
@@ -396,10 +408,13 @@ async function loadBatchesMenu() {
     // Only load batches for admins
     if (!currentUser || currentUser.role !== 'admin') {
         console.log('Skipping batch loading for non-admin user');
+        window.__adminBatchesMenuLoadInFlight = false;
         return;
     }
 
     try {
+        // Ensure we have a session token before hitting protected endpoints
+        await getAuthHeadersWithRetry();
         const response = await API.leads.getBatches();
         const batches = response.batches || [];
 
