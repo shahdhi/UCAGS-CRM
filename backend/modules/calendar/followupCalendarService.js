@@ -1,109 +1,80 @@
 /**
- * Follow-up Calendar Service
+ * Follow-up Calendar Service (Supabase)
  *
- * Builds a calendar feed from officer sheet follow-up schedule dates.
+ * Builds a calendar feed from Supabase crm_leads.management_json follow-up schedules.
  *
  * We treat a follow-up as PENDING when:
  *  - followupN_schedule is set AND followupN_date (actual) is empty
  */
 
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
-const { getSpreadsheetInfo, readSheet } = require('../../core/sheets/sheetsClient');
-const { listBatches, getBatch } = require('../../core/batches/batchesStore');
+const { listBatches } = require('../../core/batches/batchesStore');
 
-function normalizeHeader(h) {
-  return String(h || '').trim();
-}
-
-function buildHeaderInfo(headers) {
-  const lowerToIndex = new Map();
-  headers.forEach((h, i) => {
-    if (h) lowerToIndex.set(h.toLowerCase(), i);
-  });
-  const idx = (name) => lowerToIndex.get(String(name).toLowerCase());
-  return { headers, idx };
-}
-
-function getCell(row, i) {
-  if (i == null || i < 0) return '';
-  return row[i] != null ? row[i] : '';
-}
-
-function parseLead(row, headerInfo) {
-  const id = getCell(row, headerInfo.idx('ID'));
-  return {
-    id,
-    full_name: getCell(row, headerInfo.idx('full_name')),
-    phone: getCell(row, headerInfo.idx('phone')),
-    email: getCell(row, headerInfo.idx('email')),
-    assigned_to: getCell(row, headerInfo.idx('assigned_to')),
-    status: getCell(row, headerInfo.idx('status')),
-    next_follow_up: getCell(row, headerInfo.idx('next_follow_up')),
-    followup1_schedule: getCell(row, headerInfo.idx('followup1_schedule')),
-    followup1_date: getCell(row, headerInfo.idx('followup1_date')),
-    followup1_comment: getCell(row, headerInfo.idx('followup1_comment')),
-    followup2_schedule: getCell(row, headerInfo.idx('followup2_schedule')),
-    followup2_date: getCell(row, headerInfo.idx('followup2_date')),
-    followup2_comment: getCell(row, headerInfo.idx('followup2_comment')),
-    followup3_schedule: getCell(row, headerInfo.idx('followup3_schedule')),
-    followup3_date: getCell(row, headerInfo.idx('followup3_date')),
-    followup3_comment: getCell(row, headerInfo.idx('followup3_comment'))
-  };
-}
-
-function getPendingFollowups(lead) {
+function parsePendingFollowupsFromJson(managementJson = {}) {
   const items = [];
-  for (const n of [1, 2, 3]) {
-    const schedule = lead[`followup${n}_schedule`];
-    const actual = lead[`followup${n}_date`];
+  for (const n of [1, 2, 3, 4, 5]) { // Support up to 5 follow-ups
+    const schedule = managementJson[`followUp${n}Schedule`];
+    const actual = managementJson[`followUp${n}Date`];
     if (schedule && !actual) {
-      items.push({ n, date: schedule, comment: lead[`followup${n}_comment`] || '' });
+      items.push({
+        n,
+        date: schedule,
+        comment: managementJson[`followUp${n}Comment`] || ''
+      });
     }
   }
   return items;
 }
 
-async function listOfficerSpreadsheetIdsForBatch(batchName) {
+async function getCalendarEvents({ userRole, officerName, officerFilter }) {
   const sb = getSupabaseAdmin();
-  if (!sb) throw new Error('Supabase admin not configured');
+  if (!sb) {
+    return { now: new Date().toISOString(), overdue: [], upcoming: [], count: 0 };
+  }
 
-  const { data, error } = await sb
-    .from('batch_officer_sheets')
-    .select('officer_name, spreadsheet_id')
-    .eq('batch_name', batchName);
+  // Build query for leads with pending follow-ups
+  let query = sb
+    .from('crm_leads')
+    .select('id, sheet_lead_id, batch_name, sheet_name, name, phone, email, assigned_to, management_json, next_follow_up');
 
-  if (error) throw error;
-  return (data || []).filter(r => r.spreadsheet_id);
-}
+  // For non-admin users, filter by assigned officer
+  if (userRole !== 'admin') {
+    query = query.eq('assigned_to', officerName);
+  }
 
-async function listSheetTitles(spreadsheetId) {
-  const info = await getSpreadsheetInfo(spreadsheetId);
-  return (info.sheets || []).map(s => s.properties.title).filter(Boolean);
-}
+  const { data: leads, error } = await query;
+  if (error) {
+    console.error('Error fetching leads for calendar:', error);
+    return { now: new Date().toISOString(), overdue: [], upcoming: [], count: 0 };
+  }
 
-async function buildEventsForOfficerSpreadsheet({ batchName, officerName, spreadsheetId, sheetTitle }) {
-  const headerRow = await readSheet(spreadsheetId, `${sheetTitle}!A1:AZ1`);
-  const headers = (headerRow && headerRow[0]) ? headerRow[0].map(normalizeHeader) : [];
-  if (!headers.length) return [];
-  const headerInfo = buildHeaderInfo(headers);
-
-  const rows = await readSheet(spreadsheetId, `${sheetTitle}!A2:AZ`);
   const events = [];
 
-  (rows || []).forEach((row) => {
-    if (!row || row.length === 0) return;
-    const lead = parseLead(row, headerInfo);
-    if (!lead.id && !lead.phone && !lead.email) return;
+  (leads || []).forEach(lead => {
+    const mgmt = lead.management_json || {};
+    const pending = parsePendingFollowupsFromJson(mgmt);
 
-    const pending = getPendingFollowups(lead);
+    // Determine officer filter for this lead
+    const leadOfficer = lead.assigned_to || '';
+
+    // Skip if filtering and doesn't match
+    if (userRole === 'admin') {
+      if (officerFilter && officerFilter !== 'all' && leadOfficer !== officerFilter) {
+        // But if officerFilter is specified, only show that officer's leads
+        // If no officerFilter, show all
+        return;
+      }
+    }
+
     for (const p of pending) {
       events.push({
         date: p.date,
-        batchName,
-        sheetName: sheetTitle,
-        officerName,
-        leadId: lead.id,
-        full_name: lead.full_name,
+        batchName: lead.batch_name,
+        sheetName: lead.sheet_name,
+        officerName: leadOfficer,
+        leadId: lead.sheet_lead_id,
+        leadSupabaseId: lead.id,
+        full_name: lead.name,
         phone: lead.phone,
         followUpNo: p.n,
         comment: p.comment
@@ -111,41 +82,7 @@ async function buildEventsForOfficerSpreadsheet({ batchName, officerName, spread
     }
   });
 
-  return events;
-}
-
-async function getCalendarEvents({ userRole, officerName, officerFilter }) {
-  const batches = await listBatches();
-  const all = [];
-
-  for (const batchName of batches) {
-    const officerSheets = await listOfficerSpreadsheetIdsForBatch(batchName);
-
-    for (const os of officerSheets) {
-      if (userRole !== 'admin' && os.officer_name !== officerName) continue;
-      if (userRole === 'admin') {
-        // By default admin sees only own follow-ups unless officerFilter is provided
-        if (!officerFilter && os.officer_name !== officerName) continue;
-        if (officerFilter && officerFilter !== 'all' && os.officer_name !== officerFilter) continue;
-      }
-
-      const spreadsheetId = os.spreadsheet_id;
-      const titles = await listSheetTitles(spreadsheetId);
-      const usableTitles = titles.filter(t => t !== 'Sheet1');
-
-      for (const sheetTitle of usableTitles) {
-        const events = await buildEventsForOfficerSpreadsheet({
-          batchName,
-          officerName: os.officer_name,
-          spreadsheetId,
-          sheetTitle
-        });
-        all.push(...events);
-      }
-    }
-  }
-
-  // Split overdue/upcoming (compare datetime-local or date strings lexically)
+  // Split overdue/upcoming
   const now = new Date();
   const pad2 = (n) => String(n).padStart(2, '0');
   const nowStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}T${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
@@ -154,18 +91,17 @@ async function getCalendarEvents({ userRole, officerName, officerFilter }) {
     const s = String(v || '').trim();
     // If only date is provided, treat as end-of-day so it stays upcoming until the day ends.
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T23:59`;
-    // If datetime-local without seconds, OK. If has seconds, still OK.
     return s;
   };
 
-  const overdue = all
+  const overdue = events
     .filter(e => normalizeForCompare(e.date) < nowStr)
     .sort((a, b) => normalizeForCompare(a.date).localeCompare(normalizeForCompare(b.date)));
-  const upcoming = all
+  const upcoming = events
     .filter(e => normalizeForCompare(e.date) >= nowStr)
     .sort((a, b) => normalizeForCompare(a.date).localeCompare(normalizeForCompare(b.date)));
 
-  return { now: nowStr, overdue, upcoming, count: all.length };
+  return { now: nowStr, overdue, upcoming, count: events.length };
 }
 
 module.exports = {

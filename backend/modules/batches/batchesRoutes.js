@@ -1,12 +1,13 @@
 /**
- * New Batch Provisioning Routes
+ * Batch Provisioning Routes (Simplified for Supabase-first Architecture)
  *
  * When a new batch is created:
- * - Create Drive folder under a configured parent folder
- * - Create Admin spreadsheet for the batch
- * - Create one spreadsheet per officer
- * - Initialize headers
+ * - User provides existing main Google Sheet URL
+ * - Initialize headers on default tabs
  * - Store mapping in Supabase
+ * - Sync leads from main sheet to Supabase
+ *
+ * NOTE: Officer spreadsheets are no longer created. Officers work from Supabase directly.
  */
 
 const express = require('express');
@@ -14,7 +15,7 @@ const router = express.Router();
 
 const { isAdmin } = require('../../../server/middleware/auth');
 const { writeSheet, createSheet, sheetExists, getSpreadsheetInfo } = require('../../core/sheets/sheetsClient');
-const { listBatches, upsertBatch, upsertOfficerSheet } = require('../../core/batches/batchesStore');
+const { listBatches, upsertBatch } = require('../../core/batches/batchesStore');
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
 
 function extractSpreadsheetId(input) {
@@ -31,7 +32,6 @@ async function validateSpreadsheetAccess(spreadsheetId) {
   await getSpreadsheetInfo(spreadsheetId);
 }
 
-
 const ADMIN_HEADERS_CORE = [
   'platform',
   'are_you_planning_to_start_immediately?',
@@ -46,32 +46,8 @@ const ADMIN_HEADERS_CORE = [
   'notes'
 ];
 
-const OFFICER_TRACKING_HEADERS = [
-  'priority',
-  'next_follow_up',
-  'call_feedback',
-  'pdf_sent',
-  'wa_sent',
-  'email_sent',
-  'last_follow_up_comment',
-  'followup1_schedule',
-  'followup1_date',
-  'followup1_answered',
-  'followup1_comment',
-  'followup2_schedule',
-  'followup2_date',
-  'followup2_answered',
-  'followup2_comment',
-  'followup3_schedule',
-  'followup3_date',
-  'followup3_answered',
-  'followup3_comment'
-];
-
 // Admin sheets: core only
 const ADMIN_HEADERS = [...ADMIN_HEADERS_CORE];
-// Officer sheets: core + tracking
-const OFFICER_HEADERS = [...ADMIN_HEADERS_CORE, ...OFFICER_TRACKING_HEADERS];
 
 async function listOfficers() {
   const sb = getSupabaseAdmin();
@@ -104,6 +80,17 @@ function validateBatchName(batchName) {
   if (!/^[a-zA-Z0-9_-]+$/.test(batchName)) throw Object.assign(new Error('Batch name can only contain letters, numbers, hyphens, and underscores'), { status: 400 });
 }
 
+function colToLetter(col) {
+  let temp = col;
+  let letter = '';
+  while (temp > 0) {
+    let rem = (temp - 1) % 26;
+    letter = String.fromCharCode(65 + rem) + letter;
+    temp = Math.floor((temp - 1) / 26);
+  }
+  return letter;
+}
+
 router.get('/', isAdmin, async (req, res) => {
   try {
     const batches = await listBatches();
@@ -115,87 +102,45 @@ router.get('/', isAdmin, async (req, res) => {
 
 router.post('/create', isAdmin, async (req, res) => {
   try {
-    const { batchName, adminSpreadsheetUrl, officerSheets } = req.body || {};
+    const { batchName, mainSpreadsheetUrl } = req.body || {};
     validateBatchName(batchName);
 
-    if (!adminSpreadsheetUrl) {
-      return res.status(400).json({ success: false, error: 'Admin spreadsheet URL is required' });
+    if (!mainSpreadsheetUrl) {
+      return res.status(400).json({ success: false, error: 'Main spreadsheet URL is required' });
     }
 
-    const adminSpreadsheetId = extractSpreadsheetId(adminSpreadsheetUrl);
-    if (!adminSpreadsheetId) {
-      return res.status(400).json({ success: false, error: 'Invalid admin spreadsheet URL' });
+    const spreadsheetId = extractSpreadsheetId(mainSpreadsheetUrl);
+    if (!spreadsheetId) {
+      return res.status(400).json({ success: false, error: 'Invalid main spreadsheet URL' });
     }
 
-    // List officers and require a URL for each
-    const officers = await listOfficers();
-    if (!officerSheets || typeof officerSheets !== 'object') {
-      return res.status(400).json({ success: false, error: 'Officer spreadsheet URLs are required' });
-    }
+    // Validate access to main spreadsheet
+    await validateSpreadsheetAccess(spreadsheetId);
 
-    const missing = officers.filter(name => !officerSheets[name]);
-    if (missing.length) {
-      return res.status(400).json({ success: false, error: `Missing spreadsheet URL for officers: ${missing.join(', ')}` });
-    }
-
-    // Validate access to admin spreadsheet
-    await validateSpreadsheetAccess(adminSpreadsheetId);
-
-    // Ensure default tabs exist on admin spreadsheet
+    // Ensure default tabs exist on main spreadsheet
     for (const tab of ['Main Leads', 'Extra Leads']) {
-      const existing = await sheetExists(adminSpreadsheetId, tab);
-      if (!existing) await createSheet(adminSpreadsheetId, tab);
-      const colToLetter = (col) => {
-        let temp = col;
-        let letter = '';
-        while (temp > 0) {
-          let rem = (temp - 1) % 26;
-          letter = String.fromCharCode(65 + rem) + letter;
-          temp = Math.floor((temp - 1) / 26);
-        }
-        return letter;
-      };
-      await writeSheet(adminSpreadsheetId, `${tab}!A1:${colToLetter(ADMIN_HEADERS.length)}1`, [ADMIN_HEADERS]);
+      const existing = await sheetExists(spreadsheetId, tab);
+      if (!existing) await createSheet(spreadsheetId, tab);
+      await writeSheet(spreadsheetId, `${tab}!A1:${colToLetter(ADMIN_HEADERS.length)}1`, [ADMIN_HEADERS]);
     }
 
-    // Store batch first (required due to FK constraint on batch_officer_sheets)
-    await upsertBatch({ name: batchName, drive_folder_id: null, admin_spreadsheet_id: adminSpreadsheetId });
+    // Store batch in Supabase
+    await upsertBatch({ name: batchName, drive_folder_id: null, admin_spreadsheet_id: spreadsheetId });
 
-    // Validate and initialize officer spreadsheets
-    const officerResults = [];
-    for (const officerName of officers) {
-      const officerSpreadsheetId = extractSpreadsheetId(officerSheets[officerName]);
-      if (!officerSpreadsheetId) {
-        return res.status(400).json({ success: false, error: `Invalid spreadsheet URL for officer: ${officerName}` });
-      }
-
-      await validateSpreadsheetAccess(officerSpreadsheetId);
-
-      for (const tab of ['Main Leads', 'Extra Leads']) {
-        const existing = await sheetExists(officerSpreadsheetId, tab);
-        if (!existing) await createSheet(officerSpreadsheetId, tab);
-        const colToLetter = (col) => {
-          let temp = col;
-          let letter = '';
-          while (temp > 0) {
-            let rem = (temp - 1) % 26;
-            letter = String.fromCharCode(65 + rem) + letter;
-            temp = Math.floor((temp - 1) / 26);
-          }
-          return letter;
-        };
-        await writeSheet(officerSpreadsheetId, `${tab}!A1:${colToLetter(OFFICER_HEADERS.length)}1`, [OFFICER_HEADERS]);
-      }
-
-      await upsertOfficerSheet({ batch_name: batchName, officer_name: officerName, spreadsheet_id: officerSpreadsheetId });
-      officerResults.push({ officerName, spreadsheetId: officerSpreadsheetId });
+    // Run initial sync to pull leads into Supabase
+    try {
+      const syncService = require('./batchSyncService');
+      await syncService.syncBatchToSupabase(batchName);
+    } catch (syncErr) {
+      console.warn(`Initial sync failed for batch ${batchName}:`, syncErr.message);
+      // Don't fail batch creation if sync fails - leads can be synced manually later
     }
 
     res.status(201).json({
       success: true,
       batchName,
-      adminSpreadsheet: { id: adminSpreadsheetId, url: adminSpreadsheetUrl },
-      officerSpreadsheets: officerResults
+      mainSpreadsheet: { id: spreadsheetId, url: mainSpreadsheetUrl },
+      note: 'Officer spreadsheets are no longer created. Officers work from Supabase directly.'
     });
   } catch (e) {
     console.error('Batch create error:', e);
@@ -203,7 +148,7 @@ router.post('/create', isAdmin, async (req, res) => {
   }
 });
 
-// List officers for batch setup UI
+// List officers for batch setup UI (still useful for reference)
 router.get('/officers', isAdmin, async (req, res) => {
   try {
     const officers = await listOfficers();

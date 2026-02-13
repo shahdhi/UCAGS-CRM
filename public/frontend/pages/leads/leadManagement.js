@@ -89,38 +89,18 @@ async function loadLeadManagement() {
       }
     }
     
-    // New system: load officer leads from per-batch spreadsheets
-    const batchesRes = await fetch('/api/batch-leads/batches', { headers: authHeaders });
-    const batchesData = await batchesRes.json();
-    const batches = (batchesData && batchesData.batches) ? batchesData.batches : [];
-
+    // Supabase CRM: load officer leads (fast)
     const batchFilter = window.officerBatchFilter;
+    const sheet = window.officerSheetFilter || 'Main Leads';
 
-    if (batchFilter && batchFilter !== 'all') {
-      const targetBatch = decodeURIComponent(batchFilter);
-      const sheet = window.officerSheetFilter || 'Main Leads';
-      const res = await fetch(`/api/batch-leads/${encodeURIComponent(targetBatch)}/my-leads?sheet=${encodeURIComponent(sheet)}`, { headers: authHeaders });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Failed to load leads');
-      managementLeads = data.leads || [];
-    } else {
-      // Aggregate across all batches
-      const all = [];
-      for (const b of batches) {
-        try {
-          const sheet = window.officerSheetFilter || 'Main Leads';
-          const res = await fetch(`/api/batch-leads/${encodeURIComponent(b)}/my-leads?sheet=${encodeURIComponent(sheet)}`, { headers: authHeaders });
-          const data = await res.json();
-          if (data.success && data.leads) {
-            data.leads.forEach(l => { if (!l.batch) l.batch = b; });
-            all.push(...data.leads);
-          }
-        } catch (e) {
-          console.warn('Failed to load my leads for batch', b, e);
-        }
-      }
-      managementLeads = all;
-    }
+    const params = new URLSearchParams();
+    if (batchFilter && batchFilter !== 'all') params.set('batch', decodeURIComponent(batchFilter));
+    if (sheet) params.set('sheet', sheet);
+
+    const res = await fetch(`/api/crm-leads/my?${params.toString()}`, { headers: authHeaders });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Failed to load leads');
+    managementLeads = data.leads || [];
 
     console.log('📦 Raw leads data:', managementLeads);
 
@@ -582,13 +562,18 @@ async function saveLeadManagement(event, leadId) {
         }
       }
 
-      const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/my-leads/${encodeURIComponent(lead.id)}?sheet=${encodeURIComponent(sheet)}`, {
+      const res = await fetch(`/api/crm-leads/my/${encodeURIComponent(batch)}/${encodeURIComponent(sheet)}/${encodeURIComponent(lead.id)}`, {
         method: 'PUT',
         headers: authHeaders,
         body: JSON.stringify(lead)
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Failed to save');
+
+      // Update local lead with latest server response (includes merged management_json)
+      if (json.lead) {
+        Object.assign(lead, json.lead);
+      }
     }
     
     // Show success message

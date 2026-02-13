@@ -46,75 +46,83 @@ async function fetchAPI(endpoint, options = {}) {
  */
 const leadsAPI = {
   /**
-   * Get all leads
+   * Get all leads (Supabase-backed)
    * @param {Object} filters - Optional filters (status, search, batch)
    */
   getAll: async (filters = {}) => {
     const batch = filters.batch;
-
-    // New per-batch system (admin)
+    
+    // Use new Supabase-backed endpoint for admin
     if (batch && batch !== 'all' && batch !== 'myLeads') {
-      const sheet = (window.adminSheetFilter || 'Main Leads');
-      return fetchAPI(`/batch-leads/${encodeURIComponent(batch)}/leads?sheet=${encodeURIComponent(sheet)}`);
+      const params = new URLSearchParams();
+      params.append('batch', batch);
+      if (filters.sheet) params.append('sheet', filters.sheet);
+      if (filters.status) params.append('status', filters.status);
+      if (filters.search) params.append('search', filters.search);
+      
+      return fetchAPI(`/crm-leads/admin?${params.toString()}`);
     }
-
-    // Aggregate all batches (admin)
-    const batchesRes = await fetchAPI('/batch-leads/batches');
-    const batches = batchesRes.batches || [];
-
-    const allLeads = [];
-    for (const b of batches) {
-      try {
-        const sheet = (window.adminSheetFilter || 'Main Leads');
-        const res = await fetchAPI(`/batch-leads/${encodeURIComponent(b)}/leads?sheet=${encodeURIComponent(sheet)}`);
-        const leads = res.leads || [];
-        leads.forEach(l => { if (!l.batch) l.batch = b; });
-        allLeads.push(...leads);
-      } catch (e) {
-        console.error('Failed loading batch leads for', b, e);
-      }
-    }
-
-    return { success: true, count: allLeads.length, leads: allLeads };
+    
+    // Aggregate all batches using Supabase
+    const params = new URLSearchParams();
+    if (filters.status) params.append('status', filters.status);
+    if (filters.search) params.append('search', filters.search);
+    
+    return fetchAPI(`/crm-leads/admin?${params.toString()}`);
   },
 
   /**
-   * Get lead by ID
-   * @param {number} id - Lead ID
+   * Get my leads (officer leads from Supabase)
+   * @param {Object} filters - Optional filters (batch, sheet, status, search)
    */
-  getById: async (id) => {
-    return fetchAPI(`/leads/${id}`);
+  getMyLeads: async (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.batch) params.append('batch', filters.batch);
+    if (filters.sheet) params.append('sheet', filters.sheet);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.search) params.append('search', filters.search);
+    
+    return fetchAPI(`/crm-leads/my?${params.toString()}`);
   },
 
   /**
-   * Create new lead
-   * @param {Object} leadData - Lead data
+   * Update my lead management (officer)
+   * @param {string} batchName - Batch name
+   * @param {string} sheetName - Sheet name
+   * @param {string} leadId - Lead ID
+   * @param {Object} updates - Management updates
    */
-  create: async (leadData) => {
-    return fetchAPI('/leads', {
-      method: 'POST',
-      body: JSON.stringify(leadData)
+  updateMyLead: async (batchName, sheetName, leadId, updates) => {
+    return fetchAPI(`/crm-leads/my/${encodeURIComponent(batchName)}/${encodeURIComponent(sheetName)}/${encodeURIComponent(leadId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates)
     });
   },
 
   /**
-   * Update lead
-   * @param {number} id - Lead ID
+   * Update lead (admin)
+   * @param {string} batchName - Batch name
+   * @param {string} sheetName - Sheet name
+   * @param {string} leadId - Lead ID
    * @param {Object} updates - Fields to update
    */
-  update: async (id, updates, batch) => {
-    // New per-batch system (admin)
-    if (batch && batch !== 'all' && batch !== 'myLeads') {
-      const sheet = (window.adminSheetFilter || 'Main Leads');
-      return fetchAPI(`/batch-leads/${encodeURIComponent(batch)}/leads/${encodeURIComponent(id)}?sheet=${encodeURIComponent(sheet)}`, {
+  update: async (batchName, sheetName, leadId, updates) => {
+    // Handle legacy format: update(leadId, updates, batch) - detect by argument count/type
+    if (typeof batchName === 'number' || typeof batchName === 'string') {
+      // Legacy format: update(leadId, updates, batch)
+      const id = batchName;
+      const upd = sheetName; // actually updates
+      const batch = leadId; // actually batch
+      // For legacy format, we need to infer sheet from window.adminSheetFilter
+      const sheet = window.adminSheetFilter || 'Main Leads';
+      return fetchAPI(`/crm-leads/admin/${encodeURIComponent(batch)}/${encodeURIComponent(sheet)}/${encodeURIComponent(id)}`, {
         method: 'PUT',
-        body: JSON.stringify(updates)
+        body: JSON.stringify(upd)
       });
     }
-
-    // Legacy fallback
-    const url = batch ? `/leads/${id}?batch=${encodeURIComponent(batch)}` : `/leads/${id}`;
-    return fetchAPI(url, {
+    
+    // New format: update(batchName, sheetName, leadId, updates)
+    return fetchAPI(`/crm-leads/admin/${encodeURIComponent(batchName)}/${encodeURIComponent(sheetName)}/${encodeURIComponent(leadId)}`, {
       method: 'PUT',
       body: JSON.stringify(updates)
     });

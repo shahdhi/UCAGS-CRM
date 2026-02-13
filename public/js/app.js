@@ -1605,25 +1605,21 @@ function showAddBatchModal() {
                         
                         <div class="form-group" style="margin-top: 16px;">
                             <label for="adminSheetUrl"><i class=\"fas fa-link\"></i> Admin Sheet URL *</label>
-                            <input type="url" id="adminSheetUrl" class="form-control" required
+                            <input type="url" id="mainSheetUrl" class="form-control" required
                                    placeholder="Paste admin Google Sheet URL for this batch" />
                             <small style="color:#666; display:block; margin-top:6px;">This is where all leads for this batch are stored & assigned from.</small>
                         </div>
 
-                        <div id="officerSheetsContainer" style="margin-top: 16px;">
-                            <div class="loading" style="padding:10px; color:#666;">Loading officers...</div>
-                        </div>
-
-                        <div style="background: #f0f7ff; padding: 15px; border-radius: 6px; border-left: 4px solid #2196f3; margin-top: 20px;">
+                        <div style="background: #e8f5e9; padding: 15px; border-radius: 6px; border-left: 4px solid #4caf50; margin-top: 20px;">
                             <p style="margin: 0; color: #333; font-size: 14px;">
                                 <i class="fas fa-info-circle" style="color: #2196f3;"></i>
                                 <strong>What will be created:</strong>
                             </p>
                             <ul style="margin: 10px 0 0 20px; color: #666; font-size: 13px;">
-                                <li>Links this batch to the Admin spreadsheet URL you provide</li>
-                                <li>Links this batch to each Officer spreadsheet URL you provide</li>
-                                <li>Creates default tabs (Main Leads, Extra Leads) + headers in all sheets</li>
-                                <li>Links everything automatically inside the CRM</li>
+                                <li>Links this batch to the Main Google Sheet you provide</li>
+                                <li>Syncs leads from the sheet into Supabase (operational database)</li>
+                                <li>Officers work from Supabase (no officer spreadsheets needed)</li>
+                                <li>Assignment changes sync back to the main sheet automatically</li>
                             </ul>
                         </div>
                         
@@ -1725,15 +1721,8 @@ async function handleAddBatch(event) {
     submitBtn.disabled = true;
     
     try {
-        const adminSheetUrl = document.getElementById('adminSheetUrl')?.value?.trim();
-        const officerInputs = Array.from(document.querySelectorAll('.officerSheetUrl'));
-        const officerSheets = {};
-        officerInputs.forEach(inp => {
-            const officer = inp.getAttribute('data-officer');
-            officerSheets[officer] = inp.value.trim();
-        });
-
-        await createNewBatch(batchName, adminSheetUrl, officerSheets);
+        const mainSheetUrl = document.getElementById('mainSheetUrl')?.value?.trim();
+        await createNewBatch(batchName, mainSheetUrl);
     } catch (error) {
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
@@ -1756,7 +1745,7 @@ async function createNewBatch(batchName, adminSpreadsheetUrl, officerSheets) {
         const response = await fetch('/api/batches/create', {
             method: 'POST',
             headers: authHeaders,
-            body: JSON.stringify({ batchName, adminSpreadsheetUrl, officerSheets })
+            body: JSON.stringify({ batchName, mainSpreadsheetUrl })
         });
         
         const data = await response.json();

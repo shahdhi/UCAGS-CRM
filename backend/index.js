@@ -80,8 +80,10 @@ app.use('/api/call', callRoutes);
 app.use('/api/leads', require('./modules/leads/leadsRoutes'));
 app.use('/api/leads', require('./routes/batches')); // Legacy batch sheet creation
 app.use('/api/batches', require('./modules/batches/batchesRoutes')); // New batch provisioning (Drive + per-batch spreadsheets)
+app.use('/api/batches', require('./modules/batches/batchSyncRoutes')); // Manual sync Sheets → Supabase
 app.use('/api/batch-leads', require('./modules/batches/batchLeadsRoutes')); // Per-batch lead CRUD
 app.use('/api/user-leads', require('./modules/leads/userLeadsRoutes')); // User-specific leads
+app.use('/api/crm-leads', require('./modules/crmLeads/crmLeadsRoutes')); // Supabase CRM leads (fast)
 app.use('/api/dashboard', require('./modules/dashboard/dashboardRoutes'));
 
 // Placeholder modules (for future implementation)
