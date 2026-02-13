@@ -534,7 +534,7 @@ async function loadBatchesMenu() {
             syncBtn.innerHTML = '<i class="fas fa-sync"></i> <span>Sync leads</span>';
             syncBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
-                if (!confirm('Sync leads from Google Sheet to Supabase for batch "' + batchName + '"?')) return;
+                if (!confirm('Sync leads from Google Sheet for batch "' + batchName + '"?')) return;
                 
                 try {
                     let authHeaders = { 'Content-Type': 'application/json' };

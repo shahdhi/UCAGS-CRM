@@ -39,7 +39,7 @@ function getCell(row, i) {
   return row && row[i] != null ? row[i] : '';
 }
 
-function parseLeadRow(row, idxFn, rowNumber) {
+function parseLeadRow(row, idxFn, rowNumber, headers) {
   let sheetLeadId = String(getCell(row, idxFn('ID')) || '').trim();
   
   // Auto-generate ID if missing
@@ -62,7 +62,18 @@ function parseLeadRow(row, idxFn, rowNumber) {
 
   const fullName = String(getCell(row, idxFn('full_name')) || getCell(row, idxFn('name')) || '').trim();
 
-  // Core-ish fields (best-effort mapping; store full raw row for flexibility)
+  // Build intake_json with ALL columns from the sheet for flexibility
+  const intakeJson = {};
+  headers.forEach((header, idx) => {
+    if (header && header.toLowerCase() !== 'id') {
+      const value = getCell(row, idx);
+      if (value !== null && value !== undefined && value !== '') {
+        intakeJson[header] = value;
+      }
+    }
+  });
+
+  // Core fields (best-effort mapping)
   return {
     sheet_lead_id: sheetLeadId,
     name: fullName,
@@ -72,7 +83,14 @@ function parseLeadRow(row, idxFn, rowNumber) {
     status: String(getCell(row, idxFn('status')) || '').trim() || 'New',
     assigned_to: String(getCell(row, idxFn('assigned_to')) || getCell(row, idxFn('assigned to')) || '').trim(),
     created_date: String(getCell(row, idxFn('created_date')) || '').trim(),
-    notes: String(getCell(row, idxFn('notes')) || '').trim()
+    notes: String(getCell(row, idxFn('notes')) || '').trim(),
+    
+    // Additional common fields for modal display
+    course: String(getCell(row, idxFn('course')) || '').trim(),
+    source: String(getCell(row, idxFn('source')) || '').trim(),
+    
+    // Full raw row for flexibility
+    intake_json: intakeJson
   };
 }
 
@@ -110,7 +128,7 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
     const rows = await readSheet(spreadsheetId, `${sheetName}!A2:AZ`);
     const parsed = (rows || [])
       .filter(r => r && r.length)
-      .map((r, i) => parseLeadRow(r, idxFn, i + 2))  // Pass row number (2 = first data row)
+      .map((r, i) => parseLeadRow(r, idxFn, i + 2, headers))  // Pass row number (2 = first data row) and headers
       .filter(l => l.sheet_lead_id);
 
     if (parsed.length === 0) {
@@ -146,8 +164,11 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
         phone: l.phone,
         email: l.email,
         platform: l.platform,
+        course: l.course,
+        source: l.source,
         created_date: l.created_date,
         notes: l.notes,
+        intake_json: l.intake_json,
         source: 'google_sheets',
         synced_at: nowIso
       }));
@@ -163,6 +184,9 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
         phone: l.phone,
         email: l.email,
         platform: l.platform,
+        course: l.course,
+        source: l.source,
+        intake_json: l.intake_json,
         created_date: l.created_date,
         notes: l.notes,
         synced_at: nowIso
