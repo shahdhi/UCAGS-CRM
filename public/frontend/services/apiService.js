@@ -141,6 +141,16 @@ const leadsAPI = {
   },
 
   /**
+   * Update admin lead (Supabase)
+   */
+  updateAdminLead: async (batchName, sheetName, leadId, updates) => {
+    return fetchAPI(`/crm-leads/admin/${encodeURIComponent(batchName)}/${encodeURIComponent(sheetName)}/${encodeURIComponent(leadId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates)
+    });
+  },
+
+  /**
    * Get all available batches
    */
   getBatches: async () => {

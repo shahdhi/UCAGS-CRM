@@ -116,6 +116,7 @@ async function listAdminLeads({ batchName, sheetName, search, status }) {
 
 function rowToLead(r) {
   const mgmt = r.management_json || {};
+  const intake = r.intake_json || {};
 
   return {
     // existing UI expects id + batch + some fields
@@ -134,6 +135,10 @@ function rowToLead(r) {
     assignedTo: r.assigned_to || '',
     createdDate: r.created_date || '',
     notes: r.notes || '',
+    source: r.source || '',
+
+    // Full intake data from Google Sheets
+    intake_json: intake,
 
     // management fields (compat)
     priority: mgmt.priority || r.priority || '',

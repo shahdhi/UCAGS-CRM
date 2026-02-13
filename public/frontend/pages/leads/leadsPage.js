@@ -291,15 +291,14 @@ function renderLeadsTable() {
 
   // Generate new HTML with checkboxes
   const newHTML = paginatedLeads.map(lead => `
-    <tr style="cursor: pointer;" onclick="viewLeadDetails(${lead.id})" title="Click to view details">
+    <tr style="cursor: pointer;" onclick="viewLeadDetails('${encodeURIComponent(lead.id).replace(/'/g, "\\'")}')" title="Click to view details">
       <td onclick="event.stopPropagation()">
         <input type="checkbox" 
                class="lead-checkbox" 
-               data-lead-id="${lead.id}" 
+               data-lead-id="${escapeHtml(lead.id)}" 
                ${selectedLeads.has(lead.id) ? 'checked' : ''}
-               onchange="toggleLeadSelection(${lead.id})">
+               onchange="toggleLeadSelection('${encodeURIComponent(lead.id).replace(/'/g, "\\'")}')">
       </td>
-      <td>${lead.id}</td>
       <td><strong>${escapeHtml(lead.name)}</strong></td>
       <td>${escapeHtml(lead.email)}</td>
       <td>${lead.phone ? `<a href="tel:${lead.phone}" onclick="event.stopPropagation()">${escapeHtml(lead.phone)}</a>` : '-'}</td>
@@ -1007,8 +1006,13 @@ function updatePaginationInfo(totalLeads) {
  * View lead details in modal
  */
 async function viewLeadDetails(leadId) {
-  const lead = currentLeads.find(l => l.id == leadId);
-  if (!lead) return;
+  // Decode leadId if it was encoded
+  const decodedLeadId = decodeURIComponent(leadId);
+  const lead = currentLeads.find(l => l.id === decodedLeadId);
+  if (!lead) {
+    console.warn('Lead not found:', decodedLeadId);
+    return;
+  }
   
   // Check if user is admin - load officers for dropdown
   const isAdmin = window.currentUser && window.currentUser.role === 'admin';
@@ -1026,7 +1030,7 @@ async function viewLeadDetails(leadId) {
         ).join('');
         
         assignedToSection = `
-          <select id="quickAssignOfficer" class="form-control" style="display: inline-block; width: auto; min-width: 200px;" onchange="quickAssignLead(${lead.id})">
+          <select id="quickAssignOfficer" class="form-control" style="display: inline-block; width: auto; min-width: 200px;" onchange="quickAssignLead('${encodeURIComponent(lead.id).replace(/'/g, "\\'")}')">
             <option value="">-- Select Officer --</option>
             ${options}
             <option value="__UNASSIGN__" style="color: #f44336; font-weight: 600;">✕ Unassign</option>
@@ -1045,6 +1049,20 @@ async function viewLeadDetails(leadId) {
   }
   
   // Create modal HTML
+  // Generate additional fields from intake_json
+  const intake = lead.intake_json || {};
+  const additionalFields = Object.entries(intake)
+    .filter(([key, value]) => value && key.toLowerCase() !== 'id' && key.toLowerCase() !== 'name' && 
+      key.toLowerCase() !== 'email' && key.toLowerCase() !== 'phone' && key.toLowerCase() !== 'platform' &&
+      key.toLowerCase() !== 'assigned_to' && key.toLowerCase() !== 'assigned to' && key.toLowerCase() !== 'status' &&
+      key.toLowerCase() !== 'created_date' && key.toLowerCase() !== 'notes')
+    .map(([key, value]) => `
+      <div class="detail-row">
+        <span class="detail-label">${escapeHtml(key)}:</span>
+        <span class="detail-value">${escapeHtml(String(value))}</span>
+      </div>
+    `).join('');
+
   const modalHTML = `
     <div class="modal-overlay" id="leadDetailsModal" onclick="closeLeadModal(event)">
       <div class="modal-dialog" onclick="event.stopPropagation()">
@@ -1075,24 +1093,12 @@ async function viewLeadDetails(leadId) {
             <div class="detail-section">
               <h3><i class="fas fa-info-circle"></i> Lead Information</h3>
               <div class="detail-row">
-                <span class="detail-label">Course:</span>
-                <span class="detail-value">${escapeHtml(lead.course) || '-'}</span>
-              </div>
-              <div class="detail-row">
                 <span class="detail-label">Source:</span>
                 <span class="detail-value">${escapeHtml(lead.source) || '-'}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">Platform:</span>
                 <span class="detail-value">${escapeHtml(lead.platform) || '-'}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Planning to start immediately:</span>
-                <span class="detail-value">${escapeHtml(lead.are_you_planning_to_start_immediately) || '-'}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Why interested:</span>
-                <span class="detail-value">${escapeHtml(lead.why_are_you_interested_in_this_diploma) || '-'}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">Status:</span>
@@ -1106,6 +1112,7 @@ async function viewLeadDetails(leadId) {
                 <span class="detail-label">Created:</span>
                 <span class="detail-value">${formatDate(lead.createdDate) || '-'}</span>
               </div>
+              ${additionalFields}
             </div>
           </div>
           
@@ -1127,7 +1134,7 @@ async function viewLeadDetails(leadId) {
           </div>
           
           <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
-            <button class="btn btn-primary" onclick="editLeadDetails(${lead.id})" style="padding: 12px 24px;">
+            <button class="btn btn-primary" onclick="editLeadDetails('${encodeURIComponent(lead.id).replace(/'/g, "\\'")}')" style="padding: 12px 24px;">
               <i class="fas fa-edit"></i> Edit Lead
             </button>
           </div>
@@ -1170,7 +1177,8 @@ function closeLeadModal(event) {
  * Edit lead details
  */
 async function editLeadDetails(leadId) {
-  const lead = currentLeads.find(l => l.id == leadId);
+  const decodedLeadId = decodeURIComponent(leadId);
+  const lead = currentLeads.find(l => l.id === decodedLeadId);
   if (!lead) return;
   
   // Check if user is admin - load officers for dropdown
@@ -1574,6 +1582,7 @@ async function deleteLead(leadId) {
  * Quick assign lead to officer (from view modal)
  */
 async function quickAssignLead(leadId) {
+  const decodedLeadId = decodeURIComponent(leadId);
   const select = document.getElementById('quickAssignOfficer');
   const statusSpan = document.getElementById('assignSaveStatus');
   
@@ -1583,33 +1592,38 @@ async function quickAssignLead(leadId) {
   
   // Handle unassign action
   if (newOfficer === '__UNASSIGN__') {
-    if (!confirm('Are you sure you want to unassign this lead? It will be removed from the officer\'s sheet.')) {
-      // Reset select to previous value
-      const lead = currentLeads.find(l => l.id == leadId);
+    if (!confirm('Are you sure you want to unassign this lead?')) {
+      const lead = currentLeads.find(l => l.id === decodedLeadId);
       if (lead && select) {
         select.value = lead.assignedTo || '';
       }
       return;
     }
-    newOfficer = ''; // Set to empty string for unassign
+    newOfficer = '';
   }
   
   try {
-    // Show saving indicator
     if (statusSpan) {
       statusSpan.style.display = 'none';
     }
     
-    // Call API to update lead (pass current batch context)
-    const response = await API.leads.update(leadId, {
+    // Find the lead to get batch and sheet info
+    const lead = currentLeads.find(l => l.id === decodedLeadId);
+    if (!lead) {
+      alert('Lead not found');
+      return;
+    }
+    
+    // Call API to update lead
+    const response = await API.leads.updateAdminLead(lead.batch, lead.sheet, decodedLeadId, {
       assignedTo: newOfficer
-    }, currentBatch);
+    });
     
     if (response.success) {
       // Update local data
-      const lead = currentLeads.find(l => l.id == leadId);
-      if (lead) {
-        lead.assignedTo = newOfficer;
+      const leadToUpdate = currentLeads.find(l => l.id === decodedLeadId);
+      if (leadToUpdate) {
+        leadToUpdate.assignedTo = newOfficer;
       }
       
       // Show success indicator
@@ -1620,9 +1634,6 @@ async function quickAssignLead(leadId) {
         }, 2000);
       }
       
-      // Don't reload immediately - let auto-refresh handle it
-      // setTimeout(() => loadLeads(true), 500);
-      
       console.log('Lead assigned successfully');
     } else {
       throw new Error(response.error || 'Failed to assign lead');
@@ -1632,7 +1643,7 @@ async function quickAssignLead(leadId) {
     showToast('Failed to assign lead: ' + error.message, 'error');
     
     // Revert select
-    const lead = currentLeads.find(l => l.id == leadId);
+    const lead = currentLeads.find(l => l.id === decodedLeadId);
     if (lead && select) {
       select.value = lead.assignedTo || '';
     }
