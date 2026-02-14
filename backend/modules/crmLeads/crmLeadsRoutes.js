@@ -80,6 +80,30 @@ router.put('/admin/:batchName/:sheetName/:leadId', isAdmin, async (req, res) => 
   }
 });
 
+// POST /api/crm-leads/admin/create
+// Body: { batchName, sheetName, lead: { name,email,phone,course,source,status,priority,assignedTo,notes } }
+router.post('/admin/create', isAdmin, async (req, res) => {
+  try {
+    const { batchName, sheetName, lead } = req.body || {};
+    const created = await svc.createAdminLead({ batchName, sheetName, lead: lead || {} });
+    res.status(201).json({ success: true, lead: created });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// POST /api/crm-leads/admin/distribute-unassigned
+// Body: { batchName, sheetName, officers:[] }
+router.post('/admin/distribute-unassigned', isAdmin, async (req, res) => {
+  try {
+    const { batchName, sheetName, officers } = req.body || {};
+    const result = await svc.distributeUnassignedAdmin({ batchName, sheetName, officers });
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 // POST /api/crm-leads/admin/bulk-assign
 // Body: { batchName, sheetName, leadIds:[], assignedTo }
 router.post('/admin/bulk-assign', isAdmin, async (req, res) => {

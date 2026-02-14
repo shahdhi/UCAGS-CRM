@@ -5,7 +5,7 @@
 
 let currentLeads = [];
 let currentPage = 1;
-let rowsPerPage = 1000; // Show all leads by default
+let rowsPerPage = 1000000; // Show all leads on one page
 let totalPages = 1;
 let sortColumn = 'id';
 let sortDirection = 'desc';
@@ -67,32 +67,16 @@ function setupLeadsEventListeners() {
     });
   }
 
-  // Rows per page
-  const rpp = document.getElementById('leadsRowsPerPage');
-  if (rpp) {
-    rpp.addEventListener('change', () => {
-      const v = parseInt(rpp.value, 10);
-      rowsPerPage = Number.isFinite(v) ? v : 25;
-      currentPage = 1;
-      renderLeadsTable();
-    });
+  // New Lead button
+  const addLeadBtn = document.getElementById('addLeadBtn');
+  if (addLeadBtn) {
+    addLeadBtn.addEventListener('click', () => createNewLead());
   }
 
-  // Pagination controls
-  const prevBtn = document.getElementById('leadsPrevPageBtn');
-  const nextBtn = document.getElementById('leadsNextPageBtn');
-  if (prevBtn) prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderLeadsTable(); } });
-  if (nextBtn) nextBtn.addEventListener('click', () => { if (currentPage < totalPages) { currentPage++; renderLeadsTable(); } });
+  // Distribute Unassigned button (admin-only in HTML)
+  // Note: HTML uses onclick="distributeUnassignedLeads()". Ensure global function exists.
 
-  // Export / import (admin only, buttons hidden via CSS)
-  const exportBtn = document.getElementById('exportLeadsBtn');
-  if (exportBtn) {
-    exportBtn.addEventListener('click', () => exportLeadsCsv());
-  }
-  const importBtn = document.getElementById('importLeadsBtn');
-  if (importBtn) {
-    importBtn.addEventListener('click', () => importLeadsCsv());
-  }
+  // No pagination / rows-per-page / export/import on this screen
 
   // Table header sorting
   const table = document.getElementById('leadsTable');
@@ -212,8 +196,7 @@ function renderLeadsTable() {
   // Sync header checkbox + toolbar
   updateSelectionUI();
 
-  // Update pagination info
-  updatePaginationInfo(leadsToDisplay.length);
+  // No pagination UI on this screen
 }
 
 /**
@@ -257,20 +240,8 @@ function showLeadsError(message) {
 /**
  * Update pagination info
  */
-function updatePaginationInfo(totalLeads) {
-  const info = document.getElementById('leadsPageInfo');
-  const prev = document.getElementById('leadsPrevPageBtn');
-  const next = document.getElementById('leadsNextPageBtn');
-
-  totalPages = Math.max(1, Math.ceil(totalLeads / rowsPerPage));
-  if (currentPage > totalPages) currentPage = totalPages;
-
-  const from = totalLeads === 0 ? 0 : ((currentPage - 1) * rowsPerPage + 1);
-  const to = Math.min(currentPage * rowsPerPage, totalLeads);
-
-  if (info) info.textContent = `Showing ${from}-${to} of ${totalLeads} (Page ${currentPage}/${totalPages})`;
-  if (prev) prev.disabled = currentPage <= 1;
-  if (next) next.disabled = currentPage >= totalPages;
+function updatePaginationInfo() {
+  // intentionally no-op (all leads shown)
 }
 
 /**
@@ -755,52 +726,6 @@ async function bulkDeleteLeads() {
   showToast(`Deleted ${ids.length} leads`, 'success');
 }
 
-async function exportLeadsCsv() {
-  if (!window.currentUser || window.currentUser.role !== 'admin') return;
-  const batchName = window.adminBatchFilter;
-  const sheetName = window.adminSheetFilter || 'Main Leads';
-  if (!batchName || batchName === 'all') {
-    alert('Please select a batch/sheet from sidebar first.');
-    return;
-  }
-
-  const searchInput = document.getElementById('leadsSearchInput');
-  const statusFilter = document.getElementById('leadsStatusFilter');
-
-  const url = API.leads.exportCsvUrl({
-    batch: batchName,
-    sheet: sheetName,
-    status: statusFilter?.value || '',
-    search: searchInput?.value || ''
-  });
-
-  // Use fetch so Authorization header is included
-  const csv = await (await fetch(url, { headers: await getAuthHeaders() })).text();
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `leads-${batchName}-${sheetName}.csv`.replace(/\s+/g, '_');
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
-async function importLeadsCsv() {
-  if (!window.currentUser || window.currentUser.role !== 'admin') return;
-  const batchName = window.adminBatchFilter;
-  const sheetName = window.adminSheetFilter || 'Main Leads';
-  if (!batchName || batchName === 'all') {
-    alert('Please select a batch/sheet from sidebar first.');
-    return;
-  }
-
-  const csvText = prompt('Paste CSV content here. (Must include an id column)');
-  if (!csvText) return;
-
-  const res = await API.leads.importCsv({ batchName, sheetName, csvText });
-  showToast(`Imported ${res.importedCount || 0} rows`, 'success');
-  await loadLeads();
-}
 
 async function getAuthHeaders() {
   let authHeaders = {};
@@ -836,6 +761,52 @@ async function promptOfficersList(message) {
   return raw.split(',').map(s => s.trim()).filter(Boolean);
 }
 
+async function createNewLead() {
+  if (!window.currentUser || window.currentUser.role !== 'admin') {
+    alert('Only admin can create leads.');
+    return;
+  }
+
+  const batchName = window.adminBatchFilter;
+  const sheetName = window.adminSheetFilter || 'Main Leads';
+  if (!batchName || batchName === 'all') {
+    alert('Please select a batch/sheet from sidebar first.');
+    return;
+  }
+
+  const name = prompt('Student name?');
+  if (!name) return;
+  const phone = prompt('Phone? (optional)') || '';
+  const email = prompt('Email? (optional)') || '';
+  const course = prompt('Course? (optional)') || '';
+  const source = prompt('Source? (optional)') || '';
+
+  await API.leads.create({ batchName, sheetName, lead: { name, phone, email, course, source, status: 'New' } });
+  showToast('Lead created', 'success');
+  await loadLeads();
+}
+
+async function distributeUnassignedLeads() {
+  if (!window.currentUser || window.currentUser.role !== 'admin') {
+    alert('Only admin can distribute leads.');
+    return;
+  }
+
+  const batchName = window.adminBatchFilter;
+  const sheetName = window.adminSheetFilter || 'Main Leads';
+  if (!batchName || batchName === 'all') {
+    alert('Please select a batch/sheet from sidebar first.');
+    return;
+  }
+
+  const officers = await promptOfficersList('Distribute ALL unassigned leads to which officers? (comma separated)');
+  if (!officers.length) return;
+
+  const result = await API.leads.distributeUnassigned({ batchName, sheetName, officers });
+  showToast(`Distributed ${result.updatedCount || 0} unassigned leads`, 'success');
+  await loadLeads();
+}
+
 // Export for global access
 window.initLeadsPage = initLeadsPage;
 window.leadsPageLoadLeads = loadLeads;  // Renamed to avoid conflict
@@ -846,3 +817,5 @@ window.clearSelection = clearSelection;
 window.bulkAssignLeads = bulkAssignLeads;
 window.bulkDistributeLeads = bulkDistributeLeads;
 window.bulkDeleteLeads = bulkDeleteLeads;
+window.createNewLead = createNewLead;
+window.distributeUnassignedLeads = distributeUnassignedLeads;

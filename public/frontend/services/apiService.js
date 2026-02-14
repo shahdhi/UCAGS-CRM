@@ -163,6 +163,26 @@ const leadsAPI = {
   },
 
   /**
+   * Create new lead (admin)
+   */
+  create: async ({ batchName, sheetName, lead }) => {
+    return fetchAPI('/crm-leads/admin/create', {
+      method: 'POST',
+      body: JSON.stringify({ batchName, sheetName, lead })
+    });
+  },
+
+  /**
+   * Distribute all unassigned leads (admin)
+   */
+  distributeUnassigned: async ({ batchName, sheetName, officers }) => {
+    return fetchAPI('/crm-leads/admin/distribute-unassigned', {
+      method: 'POST',
+      body: JSON.stringify({ batchName, sheetName, officers })
+    });
+  },
+
+  /**
    * Bulk assign selected leads (admin)
    */
   bulkAssign: async ({ batchName, sheetName, leadIds, assignedTo }) => {

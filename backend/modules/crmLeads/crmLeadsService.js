@@ -286,6 +286,77 @@ function normalizeLeadIds(leadIds) {
   return leadIds.map(x => String(x)).filter(Boolean);
 }
 
+async function createAdminLead({ batchName, sheetName, lead }) {
+  const sb = requireSupabase();
+  if (!batchName || !sheetName) {
+    const err = new Error('Missing batchName/sheetName');
+    err.status = 400;
+    throw err;
+  }
+
+  // Sheet lead id: use timestamp-like unique string if not provided
+  const sheetLeadId = cleanString(lead?.id) || String(Date.now());
+  const row = {
+    batch_name: batchName,
+    sheet_name: sheetName,
+    sheet_lead_id: sheetLeadId,
+    name: cleanString(lead?.name),
+    email: cleanString(lead?.email),
+    phone: cleanString(lead?.phone),
+    source: cleanString(lead?.source),
+    status: cleanString(lead?.status) || 'New',
+    priority: cleanString(lead?.priority),
+    notes: cleanString(lead?.notes),
+    assigned_to: cleanString(lead?.assignedTo),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  // Optional course inside intake_json
+  const course = cleanString(lead?.course);
+  if (course) row.intake_json = { course };
+
+  const { data, error } = await sb
+    .from('crm_leads')
+    .insert(row)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+
+  // Map to API shape
+  return mapLeadRowToApi(data);
+}
+
+async function distributeUnassignedAdmin({ batchName, sheetName, officers }) {
+  const sb = requireSupabase();
+  const offs = Array.isArray(officers) ? officers.map(cleanString).filter(Boolean) : [];
+  if (!batchName || !sheetName) {
+    const err = new Error('Missing batchName/sheetName');
+    err.status = 400;
+    throw err;
+  }
+  if (!offs.length) {
+    const err = new Error('Missing officers list');
+    err.status = 400;
+    throw err;
+  }
+
+  // Find unassigned leads
+  const { data: unassigned, error } = await sb
+    .from('crm_leads')
+    .select('*')
+    .eq('batch_name', batchName)
+    .eq('sheet_name', sheetName)
+    .or('assigned_to.is.null,assigned_to.eq.');
+
+  if (error) throw error;
+  const ids = (unassigned || []).map(r => String(r.sheet_lead_id)).filter(Boolean);
+  if (!ids.length) return { updatedCount: 0 };
+
+  return bulkDistributeAdmin({ batchName, sheetName, leadIds: ids, officers: offs });
+}
+
 async function bulkAssignAdmin({ batchName, sheetName, leadIds, assignedTo }) {
   const sb = requireSupabase();
   const ids = normalizeLeadIds(leadIds);
@@ -522,6 +593,8 @@ module.exports = {
   listAdminLeads,
   updateMyLeadManagement,
   updateAdminLead,
+  createAdminLead,
+  distributeUnassignedAdmin,
   bulkAssignAdmin,
   bulkDistributeAdmin,
   bulkDeleteAdmin,
