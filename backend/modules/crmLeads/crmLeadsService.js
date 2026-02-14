@@ -348,7 +348,9 @@ async function distributeUnassignedAdmin({ batchName, sheetName, officers }) {
     .select('*')
     .eq('batch_name', batchName)
     .eq('sheet_name', sheetName)
-    .or('assigned_to.is.null,assigned_to.eq.');
+    .or('assigned_to.is.null,assigned_to.eq.')
+    // Deterministic order so round-robin is predictable
+    .order('sheet_lead_id', { ascending: true });
 
   if (error) throw error;
   const ids = (unassigned || []).map(r => String(r.sheet_lead_id)).filter(Boolean);
@@ -381,7 +383,8 @@ async function bulkAssignAdmin({ batchName, sheetName, leadIds, assignedTo }) {
 
 async function bulkDistributeAdmin({ batchName, sheetName, leadIds, officers }) {
   const sb = requireSupabase();
-  const ids = normalizeLeadIds(leadIds);
+  // Sort ids so distribution is deterministic
+  const ids = normalizeLeadIds(leadIds).sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' }));
   const offs = Array.isArray(officers) ? officers.map(cleanString).filter(Boolean) : [];
   if (!batchName || !sheetName) {
     const err = new Error('Missing batchName/sheetName');

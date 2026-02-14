@@ -653,26 +653,101 @@ async function bulkAssignLeads() {
   const ids = Array.from(window.__selectedLeadIds || []);
   if (!ids.length) return;
 
-  // Admin-only action
   if (!window.currentUser || window.currentUser.role !== 'admin') {
-    alert('Only admin can assign leads.');
+    showToast('Only admin can assign leads.', 'error');
     return;
   }
 
   const batchName = window.adminBatchFilter;
   const sheetName = window.adminSheetFilter || 'Main Leads';
   if (!batchName || batchName === 'all') {
-    alert('Please select a batch/sheet from sidebar first.');
+    showToast('Please select a batch/sheet from sidebar first.', 'error');
     return;
   }
 
-  const officer = await promptOfficerName('Assign selected leads to which officer?');
-  if (!officer) return;
+  const officers = await fetchOfficers();
+  if (!officers.length) {
+    showToast('No officers found.', 'error');
+    return;
+  }
 
-  await API.leads.bulkAssign({ batchName, sheetName, leadIds: ids, assignedTo: officer });
-  clearSelection();
-  await loadLeads();
-  showToast(`Assigned ${ids.length} leads to ${officer}`, 'success');
+  const modalId = 'bulkAssignModal';
+  closeLeadsActionModal(modalId);
+
+  const officerOptions = officers.map(o => `
+    <label style="display:flex; align-items:center; gap:10px; padding: 10px 12px; border:1px solid #eee; border-radius: 8px; margin-bottom: 10px; cursor:pointer;">
+      <input type="checkbox" class="ba_choice" value="${escapeHtml(o)}" />
+      <span style="font-weight:600;">${escapeHtml(o)}</span>
+    </label>
+  `).join('');
+
+  const html = `
+    <div class="modal-overlay" id="${modalId}" onclick="closeLeadsActionModalOnOverlayClick(event, '${modalId}')">
+      <div class="modal-dialog" onclick="event.stopPropagation()" style="max-width: 640px;">
+        <div class="modal-header">
+          <h2><i class="fas fa-user-tie"></i> Assign ${ids.length} Selected Leads</h2>
+          <button class="modal-close" onclick="closeLeadsActionModal('${modalId}')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <p style="margin-top:0; color:#555;">Choose an officer to assign. You can also unassign.</p>
+
+          <label style="display:flex; align-items:center; gap:10px; padding: 10px 12px; border:1px dashed #bbb; border-radius: 8px; margin-bottom: 12px; cursor:pointer; background:#fafafa;">
+            <input type="checkbox" class="ba_choice" value="__UNASSIGN__" />
+            <span style="font-weight:700;">Unassign (remove officer)</span>
+          </label>
+
+          <div style="margin: 10px 0 0;">
+            ${officerOptions}
+          </div>
+
+          <div class="modal-footer" style="border-top: 1px solid #e0e0e0; margin-top: 20px; padding-top: 20px;">
+            <button type="button" class="btn btn-secondary" onclick="closeLeadsActionModal('${modalId}')">Cancel</button>
+            <button type="button" class="btn btn-primary" id="ba_submit"><i class="fas fa-check"></i> Apply</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.body.style.overflow = 'hidden';
+
+  // Make checkboxes behave like single-select
+  const choices = Array.from(document.querySelectorAll('#' + modalId + ' .ba_choice'));
+  choices.forEach(ch => {
+    ch.addEventListener('change', () => {
+      if (!ch.checked) return;
+      choices.forEach(other => { if (other !== ch) other.checked = false; });
+    });
+  });
+
+  document.getElementById('ba_submit')?.addEventListener('click', async () => {
+    const selected = choices.find(x => x.checked);
+    if (!selected) {
+      showToast('Select an officer or Unassign.', 'error');
+      return;
+    }
+
+    const assignedTo = selected.value === '__UNASSIGN__' ? '' : selected.value;
+
+    const btn = document.getElementById('ba_submit');
+    const old = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+    btn.disabled = true;
+    try {
+      await API.leads.bulkAssign({ batchName, sheetName, leadIds: ids, assignedTo });
+      closeLeadsActionModal(modalId);
+      clearSelection();
+      await loadLeads();
+      showToast(assignedTo ? `Assigned ${ids.length} leads to ${assignedTo}` : `Unassigned ${ids.length} leads`, 'success');
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || 'Failed to assign', 'error');
+    } finally {
+      btn.innerHTML = old;
+      btn.disabled = false;
+    }
+  });
 }
 
 async function bulkDistributeLeads() {
@@ -681,24 +756,83 @@ async function bulkDistributeLeads() {
   if (!ids.length) return;
 
   if (!window.currentUser || window.currentUser.role !== 'admin') {
-    alert('Only admin can distribute leads.');
+    showToast('Only admin can distribute leads.', 'error');
     return;
   }
 
   const batchName = window.adminBatchFilter;
   const sheetName = window.adminSheetFilter || 'Main Leads';
   if (!batchName || batchName === 'all') {
-    alert('Please select a batch/sheet from sidebar first.');
+    showToast('Please select a batch/sheet from sidebar first.', 'error');
     return;
   }
 
-  const officers = await promptOfficersList('Distribute selected leads to which officers? (comma separated)');
-  if (!officers.length) return;
+  const officers = await fetchOfficers();
+  if (!officers.length) {
+    showToast('No officers found.', 'error');
+    return;
+  }
 
-  await API.leads.bulkDistribute({ batchName, sheetName, leadIds: ids, officers });
-  clearSelection();
-  await loadLeads();
-  showToast(`Distributed ${ids.length} leads among ${officers.length} officers`, 'success');
+  const modalId = 'bulkDistributeModal';
+  closeLeadsActionModal(modalId);
+
+  const options = officers.map(o => `
+    <label style="display:flex; align-items:center; gap:10px; padding: 10px 12px; border:1px solid #eee; border-radius: 8px; margin-bottom: 10px; cursor:pointer;">
+      <input type="checkbox" class="bd_officer" value="${escapeHtml(o)}" />
+      <span style="font-weight:600;">${escapeHtml(o)}</span>
+    </label>
+  `).join('');
+
+  const html = `
+    <div class="modal-overlay" id="${modalId}" onclick="closeLeadsActionModalOnOverlayClick(event, '${modalId}')">
+      <div class="modal-dialog" onclick="event.stopPropagation()" style="max-width: 640px;">
+        <div class="modal-header">
+          <h2><i class="fas fa-users"></i> Distribute ${ids.length} Selected Leads</h2>
+          <button class="modal-close" onclick="closeLeadsActionModal('${modalId}')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <p style="margin-top:0; color:#555;">Select one or more officers. Leads will be distributed round-robin.</p>
+          <div style="margin: 14px 0;">
+            ${options}
+          </div>
+
+          <div class="modal-footer" style="border-top: 1px solid #e0e0e0; margin-top: 20px; padding-top: 20px;">
+            <button type="button" class="btn btn-secondary" onclick="closeLeadsActionModal('${modalId}')">Cancel</button>
+            <button type="button" class="btn btn-success" id="bd_submit"><i class="fas fa-check"></i> Distribute</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.body.style.overflow = 'hidden';
+
+  document.getElementById('bd_submit')?.addEventListener('click', async () => {
+    const selected = Array.from(document.querySelectorAll('#' + modalId + ' .bd_officer:checked')).map(x => x.value);
+    if (!selected.length) {
+      showToast('Select at least one officer.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('bd_submit');
+    const old = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Distributing...';
+    btn.disabled = true;
+    try {
+      await API.leads.bulkDistribute({ batchName, sheetName, leadIds: ids, officers: selected });
+      closeLeadsActionModal(modalId);
+      clearSelection();
+      await loadLeads();
+      showToast(`Distributed ${ids.length} leads among ${selected.length} officers`, 'success');
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || 'Failed to distribute', 'error');
+    } finally {
+      btn.innerHTML = old;
+      btn.disabled = false;
+    }
+  });
 }
 
 async function bulkDeleteLeads() {
@@ -707,23 +841,62 @@ async function bulkDeleteLeads() {
   if (!ids.length) return;
 
   if (!window.currentUser || window.currentUser.role !== 'admin') {
-    alert('Only admin can delete leads.');
+    showToast('Only admin can delete leads.', 'error');
     return;
   }
 
   const batchName = window.adminBatchFilter;
   const sheetName = window.adminSheetFilter || 'Main Leads';
   if (!batchName || batchName === 'all') {
-    alert('Please select a batch/sheet from sidebar first.');
+    showToast('Please select a batch/sheet from sidebar first.', 'error');
     return;
   }
 
-  if (!confirm(`Delete ${ids.length} leads? This cannot be undone.`)) return;
+  const modalId = 'bulkDeleteModal';
+  closeLeadsActionModal(modalId);
 
-  await API.leads.bulkDelete({ batchName, sheetName, leadIds: ids });
-  clearSelection();
-  await loadLeads();
-  showToast(`Deleted ${ids.length} leads`, 'success');
+  const html = `
+    <div class="modal-overlay" id="${modalId}" onclick="closeLeadsActionModalOnOverlayClick(event, '${modalId}')">
+      <div class="modal-dialog" onclick="event.stopPropagation()" style="max-width: 520px;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);">
+          <h2><i class="fas fa-trash"></i> Delete ${ids.length} Leads</h2>
+          <button class="modal-close" onclick="closeLeadsActionModal('${modalId}')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <p style="margin-top:0; color:#333; font-weight:600;">This action cannot be undone.</p>
+          <p style="color:#666;">Are you sure you want to permanently delete the selected leads?</p>
+
+          <div class="modal-footer" style="border-top: 1px solid #e0e0e0; margin-top: 20px; padding-top: 20px;">
+            <button type="button" class="btn btn-secondary" onclick="closeLeadsActionModal('${modalId}')">Cancel</button>
+            <button type="button" class="btn btn-danger" id="bdl_submit"><i class="fas fa-trash"></i> Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.body.style.overflow = 'hidden';
+
+  document.getElementById('bdl_submit')?.addEventListener('click', async () => {
+    const btn = document.getElementById('bdl_submit');
+    const old = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    btn.disabled = true;
+    try {
+      await API.leads.bulkDelete({ batchName, sheetName, leadIds: ids });
+      closeLeadsActionModal(modalId);
+      clearSelection();
+      await loadLeads();
+      showToast(`Deleted ${ids.length} leads`, 'success');
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || 'Failed to delete', 'error');
+    } finally {
+      btn.innerHTML = old;
+      btn.disabled = false;
+    }
+  });
 }
 
 
@@ -746,65 +919,252 @@ async function fetchOfficers() {
   return (json.officers || []).map(String).filter(Boolean);
 }
 
-async function promptOfficerName(message) {
-  const officers = await fetchOfficers();
-  const suggestion = officers.join(', ');
-  const name = prompt(`${message}\n\nAvailable: ${suggestion}`);
-  return name ? name.trim() : '';
+// -------------------------
+// Modal helpers (Leads)
+// -------------------------
+function closeLeadsActionModal(modalId) {
+  const el = document.getElementById(modalId);
+  if (el) el.remove();
+  document.body.style.overflow = '';
 }
 
-async function promptOfficersList(message) {
-  const officers = await fetchOfficers();
-  const suggestion = officers.join(', ');
-  const raw = prompt(`${message}\n\nAvailable: ${suggestion}`);
-  if (!raw) return [];
-  return raw.split(',').map(s => s.trim()).filter(Boolean);
+function closeLeadsActionModalOnOverlayClick(event, modalId) {
+  if (event && event.target && event.target.classList.contains('modal-overlay')) {
+    closeLeadsActionModal(modalId);
+  }
 }
 
-async function createNewLead() {
+async function openNewLeadModal() {
   if (!window.currentUser || window.currentUser.role !== 'admin') {
-    alert('Only admin can create leads.');
+    showToast('Only admin can create leads.', 'error');
     return;
   }
 
   const batchName = window.adminBatchFilter;
   const sheetName = window.adminSheetFilter || 'Main Leads';
   if (!batchName || batchName === 'all') {
-    alert('Please select a batch/sheet from sidebar first.');
+    showToast('Please select a batch/sheet from sidebar first.', 'error');
     return;
   }
 
-  const name = prompt('Student name?');
-  if (!name) return;
-  const phone = prompt('Phone? (optional)') || '';
-  const email = prompt('Email? (optional)') || '';
-  const course = prompt('Course? (optional)') || '';
-  const source = prompt('Source? (optional)') || '';
+  const modalId = 'newLeadModal';
+  closeLeadsActionModal(modalId);
 
-  await API.leads.create({ batchName, sheetName, lead: { name, phone, email, course, source, status: 'New' } });
-  showToast('Lead created', 'success');
-  await loadLeads();
+  const html = `
+    <div class="modal-overlay" id="${modalId}" onclick="closeLeadsActionModalOnOverlayClick(event, '${modalId}')">
+      <div class="modal-dialog" onclick="event.stopPropagation()" style="max-width: 640px;">
+        <div class="modal-header">
+          <h2><i class="fas fa-plus"></i> New Lead</h2>
+          <button class="modal-close" onclick="closeLeadsActionModal('${modalId}')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <form id="newLeadForm">
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label for="nl_name"><i class="fas fa-user"></i> Name *</label>
+                <input type="text" id="nl_name" class="form-control" required />
+              </div>
+              <div class="form-group">
+                <label for="nl_phone"><i class="fas fa-phone"></i> Phone</label>
+                <input type="tel" id="nl_phone" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label for="nl_email"><i class="fas fa-envelope"></i> Email</label>
+                <input type="email" id="nl_email" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label for="nl_course"><i class="fas fa-book"></i> Course</label>
+                <input type="text" id="nl_course" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label for="nl_source"><i class="fas fa-share-alt"></i> Source</label>
+                <input type="text" id="nl_source" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label for="nl_priority"><i class="fas fa-flag"></i> Priority</label>
+                <select id="nl_priority" class="form-control">
+                  <option value="">(none)</option>
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="nl_assigned"><i class="fas fa-user-tie"></i> Assigned To</label>
+                <select id="nl_assigned" class="form-control">
+                  <option value="">Unassigned</option>
+                </select>
+                <small style="color:#666; margin-top:6px; display:block;">Optional. You can assign later too.</small>
+              </div>
+              <div class="form-group full-width">
+                <label for="nl_notes"><i class="fas fa-sticky-note"></i> Notes</label>
+                <textarea id="nl_notes" class="form-control" rows="3"></textarea>
+              </div>
+            </div>
+
+            <div class="modal-footer" style="border-top: 1px solid #e0e0e0; margin-top: 20px; padding-top: 20px;">
+              <button type="button" class="btn btn-secondary" onclick="closeLeadsActionModal('${modalId}')">Cancel</button>
+              <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Create Lead</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.body.style.overflow = 'hidden';
+
+  // Populate officers dropdown
+  try {
+    const officers = await fetchOfficers();
+    const select = document.getElementById('nl_assigned');
+    if (select) {
+      officers.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o;
+        opt.textContent = o;
+        select.appendChild(opt);
+      });
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  const form = document.getElementById('newLeadForm');
+  if (form) {
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const btn = form.querySelector('button[type="submit"]');
+      const old = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+        btn.disabled = true;
+      }
+
+      try {
+        const lead = {
+          name: document.getElementById('nl_name')?.value || '',
+          phone: document.getElementById('nl_phone')?.value || '',
+          email: document.getElementById('nl_email')?.value || '',
+          course: document.getElementById('nl_course')?.value || '',
+          source: document.getElementById('nl_source')?.value || '',
+          priority: document.getElementById('nl_priority')?.value || '',
+          assignedTo: document.getElementById('nl_assigned')?.value || '',
+          notes: document.getElementById('nl_notes')?.value || '',
+          status: 'New'
+        };
+
+        await API.leads.create({ batchName, sheetName, lead });
+        closeLeadsActionModal(modalId);
+        showToast('Lead created', 'success');
+        await loadLeads();
+      } catch (err) {
+        console.error(err);
+        showToast(err.message || 'Failed to create lead', 'error');
+      } finally {
+        if (btn) {
+          btn.innerHTML = old;
+          btn.disabled = false;
+        }
+      }
+    });
+  }
+
+  // focus
+  setTimeout(() => document.getElementById('nl_name')?.focus(), 50);
+}
+
+async function openDistributeUnassignedModal() {
+  if (!window.currentUser || window.currentUser.role !== 'admin') {
+    showToast('Only admin can distribute leads.', 'error');
+    return;
+  }
+
+  const batchName = window.adminBatchFilter;
+  const sheetName = window.adminSheetFilter || 'Main Leads';
+  if (!batchName || batchName === 'all') {
+    showToast('Please select a batch/sheet from sidebar first.', 'error');
+    return;
+  }
+
+  const officers = await fetchOfficers();
+  if (!officers.length) {
+    showToast('No officers found to distribute.', 'error');
+    return;
+  }
+
+  const modalId = 'distributeUnassignedModal';
+  closeLeadsActionModal(modalId);
+
+  const options = officers.map(o => `
+    <label style="display:flex; align-items:center; gap:10px; padding: 10px 12px; border:1px solid #eee; border-radius: 8px; margin-bottom: 10px; cursor:pointer;">
+      <input type="checkbox" class="du_officer" value="${escapeHtml(o)}" />
+      <span style="font-weight:600;">${escapeHtml(o)}</span>
+    </label>
+  `).join('');
+
+  const html = `
+    <div class="modal-overlay" id="${modalId}" onclick="closeLeadsActionModalOnOverlayClick(event, '${modalId}')">
+      <div class="modal-dialog" onclick="event.stopPropagation()" style="max-width: 640px;">
+        <div class="modal-header">
+          <h2><i class="fas fa-share-alt"></i> Distribute Unassigned Leads</h2>
+          <button class="modal-close" onclick="closeLeadsActionModal('${modalId}')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <p style="margin-top:0; color:#555;">Select one or more officers. Leads will be distributed round-robin.</p>
+          <div style="margin: 14px 0;">
+            ${options}
+          </div>
+
+          <div class="modal-footer" style="border-top: 1px solid #e0e0e0; margin-top: 20px; padding-top: 20px;">
+            <button type="button" class="btn btn-secondary" onclick="closeLeadsActionModal('${modalId}')">Cancel</button>
+            <button type="button" class="btn btn-warning" id="du_submitBtn"><i class="fas fa-users"></i> Distribute</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.body.style.overflow = 'hidden';
+
+  const submit = document.getElementById('du_submitBtn');
+  if (submit) {
+    submit.addEventListener('click', async () => {
+      const btn = submit;
+      const old = btn.innerHTML;
+      const selected = Array.from(document.querySelectorAll('#' + modalId + ' .du_officer:checked')).map(x => x.value);
+      if (!selected.length) {
+        showToast('Select at least one officer.', 'error');
+        return;
+      }
+
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Distributing...';
+      btn.disabled = true;
+      try {
+        const result = await API.leads.distributeUnassigned({ batchName, sheetName, officers: selected });
+        closeLeadsActionModal(modalId);
+        showToast(`Distributed ${result.updatedCount || 0} unassigned leads`, 'success');
+        await loadLeads();
+      } catch (err) {
+        console.error(err);
+        showToast(err.message || 'Failed to distribute', 'error');
+      } finally {
+        btn.innerHTML = old;
+        btn.disabled = false;
+      }
+    });
+  }
+}
+
+// Keep old function names (buttons call these)
+async function createNewLead() {
+  return openNewLeadModal();
 }
 
 async function distributeUnassignedLeads() {
-  if (!window.currentUser || window.currentUser.role !== 'admin') {
-    alert('Only admin can distribute leads.');
-    return;
-  }
-
-  const batchName = window.adminBatchFilter;
-  const sheetName = window.adminSheetFilter || 'Main Leads';
-  if (!batchName || batchName === 'all') {
-    alert('Please select a batch/sheet from sidebar first.');
-    return;
-  }
-
-  const officers = await promptOfficersList('Distribute ALL unassigned leads to which officers? (comma separated)');
-  if (!officers.length) return;
-
-  const result = await API.leads.distributeUnassigned({ batchName, sheetName, officers });
-  showToast(`Distributed ${result.updatedCount || 0} unassigned leads`, 'success');
-  await loadLeads();
+  return openDistributeUnassignedModal();
 }
 
 // Export for global access
