@@ -636,6 +636,27 @@
                         <option value="Registered">Registered</option>
                         <option value="Closed">Closed</option>
                     </select>
+
+                    <select id="leadsRowsPerPage" class="form-control" style="max-width: 140px;">
+                        <option value="10">10 rows</option>
+                        <option value="25">25 rows</option>
+                        <option value="50">50 rows</option>
+                        <option value="100">100 rows</option>
+                        <option value="1000" selected>All</option>
+                    </select>
+
+                    <button class="btn btn-secondary btn-sm admin-only" id="exportLeadsBtn" title="Export current filter to CSV">
+                        <i class="fas fa-download"></i> Export CSV
+                    </button>
+                    <button class="btn btn-secondary btn-sm admin-only" id="importLeadsBtn" title="Import leads from CSV">
+                        <i class="fas fa-upload"></i> Import CSV
+                    </button>
+                </div>
+
+                <div id="leadsPagination" style="display:flex; align-items:center; justify-content:flex-end; gap: 10px; margin: 10px 0;">
+                    <button class="btn btn-secondary btn-sm" id="leadsPrevPageBtn"><i class="fas fa-chevron-left"></i></button>
+                    <span id="leadsPageInfo" style="color:#666; font-size: 13px;">Page 1</span>
+                    <button class="btn btn-secondary btn-sm" id="leadsNextPageBtn"><i class="fas fa-chevron-right"></i></button>
                 </div>
 
                 <!-- Bulk Actions Toolbar (hidden by default) -->
@@ -671,12 +692,16 @@
                                 <th>Name</th>
                                 <th>Email</th>
                                 <th>Phone</th>
+                                <th>Course</th>
+                                <th>Source</th>
+                                <th>Status</th>
+                                <th>Priority</th>
                                 <th>Assigned To</th>
                             </tr>
                         </thead>
                         <tbody id="leadsTableBody">
                             <tr>
-                                <td colspan="5" class="loading">Loading leads...</td>
+                                <td colspan="9" class="loading">Loading leads...</td>
                             </tr>
                         </tbody>
                     </table>

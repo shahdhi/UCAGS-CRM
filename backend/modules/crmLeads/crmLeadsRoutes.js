@@ -80,4 +80,69 @@ router.put('/admin/:batchName/:sheetName/:leadId', isAdmin, async (req, res) => 
   }
 });
 
+// POST /api/crm-leads/admin/bulk-assign
+// Body: { batchName, sheetName, leadIds:[], assignedTo }
+router.post('/admin/bulk-assign', isAdmin, async (req, res) => {
+  try {
+    const { batchName, sheetName, leadIds, assignedTo } = req.body || {};
+    const result = await svc.bulkAssignAdmin({ batchName, sheetName, leadIds, assignedTo });
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// POST /api/crm-leads/admin/bulk-distribute
+// Body: { batchName, sheetName, leadIds:[], officers:[] }
+router.post('/admin/bulk-distribute', isAdmin, async (req, res) => {
+  try {
+    const { batchName, sheetName, leadIds, officers } = req.body || {};
+    const result = await svc.bulkDistributeAdmin({ batchName, sheetName, leadIds, officers });
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// POST /api/crm-leads/admin/bulk-delete
+// Body: { batchName, sheetName, leadIds:[] }
+router.post('/admin/bulk-delete', isAdmin, async (req, res) => {
+  try {
+    const { batchName, sheetName, leadIds } = req.body || {};
+    const result = await svc.bulkDeleteAdmin({ batchName, sheetName, leadIds });
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// GET /api/crm-leads/admin/export.csv?batch=...&sheet=...&status=...&search=...
+router.get('/admin/export.csv', isAdmin, async (req, res) => {
+  try {
+    const batchName = req.query.batch;
+    const sheetName = req.query.sheet;
+    const search = req.query.search;
+    const status = req.query.status;
+
+    const csv = await svc.exportAdminCsv({ batchName, sheetName, search, status });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="leads-export.csv"');
+    res.send(csv);
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// POST /api/crm-leads/admin/import
+// Body: { batchName, sheetName, csvText }
+router.post('/admin/import', isAdmin, async (req, res) => {
+  try {
+    const { batchName, sheetName, csvText } = req.body || {};
+    const result = await svc.importAdminCsv({ batchName, sheetName, csvText });
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 module.exports = router;

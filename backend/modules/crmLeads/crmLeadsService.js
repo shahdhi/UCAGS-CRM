@@ -281,9 +281,250 @@ async function updateAdminLead({ batchName, sheetName, sheetLeadId, updates }) {
   return rowToLead(updated);
 }
 
+function normalizeLeadIds(leadIds) {
+  if (!Array.isArray(leadIds)) return [];
+  return leadIds.map(x => String(x)).filter(Boolean);
+}
+
+async function bulkAssignAdmin({ batchName, sheetName, leadIds, assignedTo }) {
+  const sb = requireSupabase();
+  const ids = normalizeLeadIds(leadIds);
+  if (!batchName || !sheetName) {
+    const err = new Error('Missing batchName/sheetName');
+    err.status = 400;
+    throw err;
+  }
+  if (!ids.length) return { updatedCount: 0 };
+
+  const { data, error } = await sb
+    .from('crm_leads')
+    .update({ assigned_to: cleanString(assignedTo), updated_at: new Date().toISOString() })
+    .eq('batch_name', batchName)
+    .eq('sheet_name', sheetName)
+    .in('sheet_lead_id', ids)
+    .select('id');
+
+  if (error) throw error;
+  return { updatedCount: (data || []).length };
+}
+
+async function bulkDistributeAdmin({ batchName, sheetName, leadIds, officers }) {
+  const sb = requireSupabase();
+  const ids = normalizeLeadIds(leadIds);
+  const offs = Array.isArray(officers) ? officers.map(cleanString).filter(Boolean) : [];
+  if (!batchName || !sheetName) {
+    const err = new Error('Missing batchName/sheetName');
+    err.status = 400;
+    throw err;
+  }
+  if (!ids.length) return { updatedCount: 0 };
+  if (!offs.length) {
+    const err = new Error('Missing officers list');
+    err.status = 400;
+    throw err;
+  }
+
+  // round-robin distribution
+  const patches = ids.map((id, idx) => ({
+    batch_name: batchName,
+    sheet_name: sheetName,
+    sheet_lead_id: id,
+    assigned_to: offs[idx % offs.length]
+  }));
+
+  // Upsert updates by (batch_name, sheet_name, sheet_lead_id)
+  // NOTE: requires unique constraint in DB; if not present, fall back to per-row updates
+  const { error: upsertErr } = await sb
+    .from('crm_leads')
+    .upsert(patches, { onConflict: 'batch_name,sheet_name,sheet_lead_id', ignoreDuplicates: false });
+
+  if (upsertErr) {
+    // fallback: sequential updates
+    let updatedCount = 0;
+    for (const p of patches) {
+      const { data, error } = await sb
+        .from('crm_leads')
+        .update({ assigned_to: p.assigned_to, updated_at: new Date().toISOString() })
+        .eq('batch_name', p.batch_name)
+        .eq('sheet_name', p.sheet_name)
+        .eq('sheet_lead_id', p.sheet_lead_id)
+        .select('id');
+      if (error) throw error;
+      updatedCount += (data || []).length;
+    }
+    return { updatedCount, fallback: true };
+  }
+
+  return { updatedCount: ids.length };
+}
+
+async function bulkDeleteAdmin({ batchName, sheetName, leadIds }) {
+  const sb = requireSupabase();
+  const ids = normalizeLeadIds(leadIds);
+  if (!batchName || !sheetName) {
+    const err = new Error('Missing batchName/sheetName');
+    err.status = 400;
+    throw err;
+  }
+  if (!ids.length) return { deletedCount: 0 };
+
+  const { data, error } = await sb
+    .from('crm_leads')
+    .delete()
+    .eq('batch_name', batchName)
+    .eq('sheet_name', sheetName)
+    .in('sheet_lead_id', ids)
+    .select('id');
+
+  if (error) throw error;
+  return { deletedCount: (data || []).length };
+}
+
+function toCsvValue(v) {
+  const s = String(v ?? '');
+  if (/[\n\r,\"]/g.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+async function exportAdminCsv({ batchName, sheetName, search, status }) {
+  const leads = await listAdminLeads({ batchName, sheetName, search, status });
+  const headers = ['batch', 'sheet', 'id', 'name', 'email', 'phone', 'source', 'status', 'priority', 'assignedTo', 'notes'];
+  const lines = [headers.join(',')];
+  for (const l of leads) {
+    const row = [
+      l.batch,
+      l.sheet,
+      l.id,
+      l.name,
+      l.email,
+      l.phone,
+      l.source,
+      l.status,
+      l.priority,
+      l.assignedTo,
+      l.notes
+    ].map(toCsvValue);
+    lines.push(row.join(','));
+  }
+  return lines.join('\n');
+}
+
+function parseCsv(csvText) {
+  // Minimal CSV parser (supports quotes)
+  const rows = [];
+  let i = 0;
+  let cur = '';
+  let inQuotes = false;
+  let row = [];
+  const text = String(csvText || '');
+  while (i < text.length) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          cur += '"';
+          i += 2;
+          continue;
+        }
+        inQuotes = false;
+        i++;
+        continue;
+      }
+      cur += ch;
+      i++;
+      continue;
+    }
+    if (ch === '"') {
+      inQuotes = true;
+      i++;
+      continue;
+    }
+    if (ch === ',') {
+      row.push(cur);
+      cur = '';
+      i++;
+      continue;
+    }
+    if (ch === '\n') {
+      row.push(cur);
+      rows.push(row);
+      row = [];
+      cur = '';
+      i++;
+      continue;
+    }
+    if (ch === '\r') {
+      i++;
+      continue;
+    }
+    cur += ch;
+    i++;
+  }
+  // last
+  row.push(cur);
+  if (row.length > 1 || row[0] !== '') rows.push(row);
+  return rows;
+}
+
+async function importAdminCsv({ batchName, sheetName, csvText }) {
+  const sb = requireSupabase();
+  if (!batchName || !sheetName) {
+    const err = new Error('Missing batchName/sheetName');
+    err.status = 400;
+    throw err;
+  }
+  const rows = parseCsv(csvText);
+  if (!rows.length) return { importedCount: 0 };
+  const headers = rows[0].map(h => String(h || '').trim());
+  const idx = (h) => headers.findIndex(x => x.toLowerCase() === String(h).toLowerCase());
+
+  const idIdx = idx('id');
+  if (idIdx === -1) {
+    const err = new Error('CSV must include id column');
+    err.status = 400;
+    throw err;
+  }
+
+  const patches = [];
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    const id = String(row[idIdx] || '').trim();
+    if (!id) continue;
+    const patch = {
+      batch_name: batchName,
+      sheet_name: sheetName,
+      sheet_lead_id: id,
+      name: String(row[idx('name')] ?? ''),
+      email: String(row[idx('email')] ?? ''),
+      phone: String(row[idx('phone')] ?? ''),
+      source: String(row[idx('source')] ?? ''),
+      status: String(row[idx('status')] ?? ''),
+      notes: String(row[idx('notes')] ?? ''),
+      assigned_to: String(row[idx('assignedTo')] ?? row[idx('assigned_to')] ?? ''),
+      priority: String(row[idx('priority')] ?? ''),
+      updated_at: new Date().toISOString()
+    };
+    patches.push(patch);
+  }
+
+  if (!patches.length) return { importedCount: 0 };
+
+  const { error } = await sb
+    .from('crm_leads')
+    .upsert(patches, { onConflict: 'batch_name,sheet_name,sheet_lead_id', ignoreDuplicates: false });
+
+  if (error) throw error;
+  return { importedCount: patches.length };
+}
+
 module.exports = {
   listMyLeads,
   listAdminLeads,
   updateMyLeadManagement,
-  updateAdminLead
+  updateAdminLead,
+  bulkAssignAdmin,
+  bulkDistributeAdmin,
+  bulkDeleteAdmin,
+  exportAdminCsv,
+  importAdminCsv
 };

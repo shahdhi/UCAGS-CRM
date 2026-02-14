@@ -163,6 +163,58 @@ const leadsAPI = {
   },
 
   /**
+   * Bulk assign selected leads (admin)
+   */
+  bulkAssign: async ({ batchName, sheetName, leadIds, assignedTo }) => {
+    return fetchAPI('/crm-leads/admin/bulk-assign', {
+      method: 'POST',
+      body: JSON.stringify({ batchName, sheetName, leadIds, assignedTo })
+    });
+  },
+
+  /**
+   * Bulk distribute selected leads (admin)
+   */
+  bulkDistribute: async ({ batchName, sheetName, leadIds, officers }) => {
+    return fetchAPI('/crm-leads/admin/bulk-distribute', {
+      method: 'POST',
+      body: JSON.stringify({ batchName, sheetName, leadIds, officers })
+    });
+  },
+
+  /**
+   * Bulk delete selected leads (admin)
+   */
+  bulkDelete: async ({ batchName, sheetName, leadIds }) => {
+    return fetchAPI('/crm-leads/admin/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ batchName, sheetName, leadIds })
+    });
+  },
+
+  /**
+   * Export leads as CSV (admin)
+   */
+  exportCsvUrl: (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.batch) params.append('batch', filters.batch);
+    if (filters.sheet) params.append('sheet', filters.sheet);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.search) params.append('search', filters.search);
+    return `${API_BASE}/crm-leads/admin/export.csv?${params.toString()}`;
+  },
+
+  /**
+   * Import leads from CSV text (admin)
+   */
+  importCsv: async ({ batchName, sheetName, csvText }) => {
+    return fetchAPI('/crm-leads/admin/import', {
+      method: 'POST',
+      body: JSON.stringify({ batchName, sheetName, csvText })
+    });
+  },
+
+  /**
    * Get leads statistics
    */
   getStats: async () => {

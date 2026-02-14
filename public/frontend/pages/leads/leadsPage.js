@@ -5,7 +5,8 @@
 
 let currentLeads = [];
 let currentPage = 1;
-let rowsPerPage = 1000; // Show all leads (increased from 10)
+let rowsPerPage = 1000; // Show all leads by default
+let totalPages = 1;
 let sortColumn = 'id';
 let sortDirection = 'desc';
 
@@ -64,6 +65,33 @@ function setupLeadsEventListeners() {
       currentPage = 1;
       loadLeads();
     });
+  }
+
+  // Rows per page
+  const rpp = document.getElementById('leadsRowsPerPage');
+  if (rpp) {
+    rpp.addEventListener('change', () => {
+      const v = parseInt(rpp.value, 10);
+      rowsPerPage = Number.isFinite(v) ? v : 25;
+      currentPage = 1;
+      renderLeadsTable();
+    });
+  }
+
+  // Pagination controls
+  const prevBtn = document.getElementById('leadsPrevPageBtn');
+  const nextBtn = document.getElementById('leadsNextPageBtn');
+  if (prevBtn) prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderLeadsTable(); } });
+  if (nextBtn) nextBtn.addEventListener('click', () => { if (currentPage < totalPages) { currentPage++; renderLeadsTable(); } });
+
+  // Export / import (admin only, buttons hidden via CSS)
+  const exportBtn = document.getElementById('exportLeadsBtn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => exportLeadsCsv());
+  }
+  const importBtn = document.getElementById('importLeadsBtn');
+  if (importBtn) {
+    importBtn.addEventListener('click', () => importLeadsCsv());
   }
 
   // Table header sorting
@@ -142,7 +170,7 @@ function renderLeadsTable() {
   if (currentLeads.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="5" style="text-align: center; padding: 40px;">
+        <td colspan="9" style="text-align: center; padding: 40px;">
           <i class="fas fa-inbox" style="font-size: 48px; color: #ccc; margin-bottom: 10px;"></i>
           <p style="color: #666;">No leads found</p>
         </td>
@@ -155,6 +183,8 @@ function renderLeadsTable() {
   const leadsToDisplay = currentLeads;
 
   // Pagination
+  totalPages = Math.max(1, Math.ceil(leadsToDisplay.length / rowsPerPage));
+  if (currentPage > totalPages) currentPage = totalPages;
   const startIndex = (currentPage - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
   const paginatedLeads = leadsToDisplay.slice(startIndex, endIndex);
@@ -170,6 +200,10 @@ function renderLeadsTable() {
         <td><strong>${escapeHtml(lead.name)}</strong></td>
         <td>${escapeHtml(lead.email)}</td>
         <td>${lead.phone ? `<a href="tel:${lead.phone}" onclick="event.stopPropagation()">${escapeHtml(lead.phone)}</a>` : '-'}</td>
+        <td>${escapeHtml(lead.course || lead.intake_json?.course) || '-'}</td>
+        <td>${escapeHtml(lead.source) || '-'}</td>
+        <td><span class="badge badge-${getStatusColor(lead.status)}">${escapeHtml(lead.status || '-')}</span></td>
+        <td>${escapeHtml(lead.priority) || '-'}</td>
         <td>${escapeHtml(lead.assignedTo) || '-'}</td>
       </tr>
     `;
@@ -190,7 +224,7 @@ function showLeadsLoading() {
   if (tbody) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="5" class="loading" style="text-align: center; padding: 40px;">
+        <td colspan="9" class="loading" style="text-align: center; padding: 40px;">
           <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
           <p>Loading leads...</p>
         </td>
@@ -207,7 +241,7 @@ function showLeadsError(message) {
   if (tbody) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="5" style="text-align: center; padding: 40px;">
+        <td colspan="9" style="text-align: center; padding: 40px;">
           <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #f44336; margin-bottom: 10px;"></i>
           <p style="color: #f44336;"><strong>Error loading leads</strong></p>
           <p style="color: #666;">${escapeHtml(message)}</p>
@@ -224,8 +258,19 @@ function showLeadsError(message) {
  * Update pagination info
  */
 function updatePaginationInfo(totalLeads) {
-  // This can be expanded to show pagination controls
-  console.log(`Showing ${Math.min(currentPage * rowsPerPage, totalLeads)} of ${totalLeads} leads`);
+  const info = document.getElementById('leadsPageInfo');
+  const prev = document.getElementById('leadsPrevPageBtn');
+  const next = document.getElementById('leadsNextPageBtn');
+
+  totalPages = Math.max(1, Math.ceil(totalLeads / rowsPerPage));
+  if (currentPage > totalPages) currentPage = totalPages;
+
+  const from = totalLeads === 0 ? 0 : ((currentPage - 1) * rowsPerPage + 1);
+  const to = Math.min(currentPage * rowsPerPage, totalLeads);
+
+  if (info) info.textContent = `Showing ${from}-${to} of ${totalLeads} (Page ${currentPage}/${totalPages})`;
+  if (prev) prev.disabled = currentPage <= 1;
+  if (next) next.disabled = currentPage >= totalPages;
 }
 
 /**
@@ -447,7 +492,16 @@ async function saveLeadChanges(event, leadId) {
     submitBtn.disabled = true;
     
     // Call API to update lead
-    const response = await API.leads.update(leadId, updates);
+    // Admin updates go via Supabase CRM endpoint and require batch+sheet context
+    const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+    if (isOfficerView) {
+      // officers should edit in Lead Management page; keep read-only here
+      throw new Error('Officers cannot edit leads from this screen. Use Lead Management.');
+    }
+
+    const batchName = window.adminBatchFilter;
+    const sheetName = window.adminSheetFilter || 'Main Leads';
+    const response = await API.leads.update(batchName, sheetName, leadId, updates);
     
     if (response.success) {
       // Show success message
@@ -623,14 +677,163 @@ function updateSelectionUI() {
 }
 
 // Bulk actions (admin-only buttons are hidden by CSS, but keep functions defined to avoid console errors)
-function bulkAssignLeads() {
-  alert('Bulk Assign is not implemented in this build yet.');
+async function bulkAssignLeads() {
+  ensureSelectionState();
+  const ids = Array.from(window.__selectedLeadIds || []);
+  if (!ids.length) return;
+
+  // Admin-only action
+  if (!window.currentUser || window.currentUser.role !== 'admin') {
+    alert('Only admin can assign leads.');
+    return;
+  }
+
+  const batchName = window.adminBatchFilter;
+  const sheetName = window.adminSheetFilter || 'Main Leads';
+  if (!batchName || batchName === 'all') {
+    alert('Please select a batch/sheet from sidebar first.');
+    return;
+  }
+
+  const officer = await promptOfficerName('Assign selected leads to which officer?');
+  if (!officer) return;
+
+  await API.leads.bulkAssign({ batchName, sheetName, leadIds: ids, assignedTo: officer });
+  clearSelection();
+  await loadLeads();
+  showToast(`Assigned ${ids.length} leads to ${officer}`, 'success');
 }
-function bulkDistributeLeads() {
-  alert('Bulk Distribute is not implemented in this build yet.');
+
+async function bulkDistributeLeads() {
+  ensureSelectionState();
+  const ids = Array.from(window.__selectedLeadIds || []);
+  if (!ids.length) return;
+
+  if (!window.currentUser || window.currentUser.role !== 'admin') {
+    alert('Only admin can distribute leads.');
+    return;
+  }
+
+  const batchName = window.adminBatchFilter;
+  const sheetName = window.adminSheetFilter || 'Main Leads';
+  if (!batchName || batchName === 'all') {
+    alert('Please select a batch/sheet from sidebar first.');
+    return;
+  }
+
+  const officers = await promptOfficersList('Distribute selected leads to which officers? (comma separated)');
+  if (!officers.length) return;
+
+  await API.leads.bulkDistribute({ batchName, sheetName, leadIds: ids, officers });
+  clearSelection();
+  await loadLeads();
+  showToast(`Distributed ${ids.length} leads among ${officers.length} officers`, 'success');
 }
-function bulkDeleteLeads() {
-  alert('Bulk Delete is not implemented in this build yet.');
+
+async function bulkDeleteLeads() {
+  ensureSelectionState();
+  const ids = Array.from(window.__selectedLeadIds || []);
+  if (!ids.length) return;
+
+  if (!window.currentUser || window.currentUser.role !== 'admin') {
+    alert('Only admin can delete leads.');
+    return;
+  }
+
+  const batchName = window.adminBatchFilter;
+  const sheetName = window.adminSheetFilter || 'Main Leads';
+  if (!batchName || batchName === 'all') {
+    alert('Please select a batch/sheet from sidebar first.');
+    return;
+  }
+
+  if (!confirm(`Delete ${ids.length} leads? This cannot be undone.`)) return;
+
+  await API.leads.bulkDelete({ batchName, sheetName, leadIds: ids });
+  clearSelection();
+  await loadLeads();
+  showToast(`Deleted ${ids.length} leads`, 'success');
+}
+
+async function exportLeadsCsv() {
+  if (!window.currentUser || window.currentUser.role !== 'admin') return;
+  const batchName = window.adminBatchFilter;
+  const sheetName = window.adminSheetFilter || 'Main Leads';
+  if (!batchName || batchName === 'all') {
+    alert('Please select a batch/sheet from sidebar first.');
+    return;
+  }
+
+  const searchInput = document.getElementById('leadsSearchInput');
+  const statusFilter = document.getElementById('leadsStatusFilter');
+
+  const url = API.leads.exportCsvUrl({
+    batch: batchName,
+    sheet: sheetName,
+    status: statusFilter?.value || '',
+    search: searchInput?.value || ''
+  });
+
+  // Use fetch so Authorization header is included
+  const csv = await (await fetch(url, { headers: await getAuthHeaders() })).text();
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `leads-${batchName}-${sheetName}.csv`.replace(/\s+/g, '_');
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+async function importLeadsCsv() {
+  if (!window.currentUser || window.currentUser.role !== 'admin') return;
+  const batchName = window.adminBatchFilter;
+  const sheetName = window.adminSheetFilter || 'Main Leads';
+  if (!batchName || batchName === 'all') {
+    alert('Please select a batch/sheet from sidebar first.');
+    return;
+  }
+
+  const csvText = prompt('Paste CSV content here. (Must include an id column)');
+  if (!csvText) return;
+
+  const res = await API.leads.importCsv({ batchName, sheetName, csvText });
+  showToast(`Imported ${res.importedCount || 0} rows`, 'success');
+  await loadLeads();
+}
+
+async function getAuthHeaders() {
+  let authHeaders = {};
+  if (window.supabaseClient) {
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    if (session && session.access_token) {
+      authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+    }
+  }
+  return authHeaders;
+}
+
+async function fetchOfficers() {
+  const authHeaders = await getAuthHeaders();
+  const res = await fetch('/api/batches/officers', { headers: authHeaders });
+  const json = await res.json();
+  if (!json.success) return [];
+  return (json.officers || []).map(String).filter(Boolean);
+}
+
+async function promptOfficerName(message) {
+  const officers = await fetchOfficers();
+  const suggestion = officers.join(', ');
+  const name = prompt(`${message}\n\nAvailable: ${suggestion}`);
+  return name ? name.trim() : '';
+}
+
+async function promptOfficersList(message) {
+  const officers = await fetchOfficers();
+  const suggestion = officers.join(', ');
+  const raw = prompt(`${message}\n\nAvailable: ${suggestion}`);
+  if (!raw) return [];
+  return raw.split(',').map(s => s.trim()).filter(Boolean);
 }
 
 // Export for global access
