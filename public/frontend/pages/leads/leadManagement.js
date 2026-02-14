@@ -43,7 +43,8 @@
     'Unreachable',
     'No Answer',
     'Awaiting Decision',
-    'No Response Next Batch'
+    'No Response',
+    'Next Batch'
   ];
 
   function normalizeLeadStatus(status) {
@@ -62,7 +63,9 @@
       case 'unreachable': return 'Unreachable';
       case 'no answer': return 'No Answer';
       case 'awaiting decision': return 'Awaiting Decision';
-      case 'no response next batch': return 'No Response Next Batch';
+      case 'no response': return 'No Response';
+      case 'next batch': return 'Next Batch';
+      case 'no response next batch': return 'No Response';
 
       // Legacy values still present in older UI
       case 'follow-up':
@@ -389,7 +392,8 @@ function getStatusColor(status) {
     case 'Unreachable': return 'secondary';
 
     case 'Not Interested': return 'danger';
-    case 'No Response Next Batch': return 'dark';
+    case 'No Response': return 'dark';
+    case 'Next Batch': return 'primary';
 
     default: return 'secondary';
   }

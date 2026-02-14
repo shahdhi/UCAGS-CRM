@@ -54,7 +54,9 @@
       case 'unreachable': return 'Unreachable';
       case 'no answer': return 'No Answer';
       case 'awaiting decision': return 'Awaiting Decision';
-      case 'no response next batch': return 'No Response Next Batch';
+      case 'no response': return 'No Response';
+      case 'next batch': return 'Next Batch';
+      case 'no response next batch': return 'No Response';
       // legacy
       case 'follow-up':
       case 'follow up': return 'Interested';
@@ -75,7 +77,8 @@
       case 'No Answer': return 'secondary';
       case 'Unreachable': return 'secondary';
       case 'Not Interested': return 'danger';
-      case 'No Response Next Batch': return 'dark';
+      case 'No Response': return 'dark';
+      case 'Next Batch': return 'primary';
       default: return 'secondary';
     }
   }
@@ -518,7 +521,9 @@
       leadsRef: staffLeads,
       filteredLeadsRef: filteredStaffLeads,
       onAfterSave: async () => {
-        // Reload current officer view after save so table stays consistent
+        // Reload current officer view after save so table stays consistent.
+        // Small delay avoids UI reverting if backend returns slightly stale reads.
+        await new Promise(r => setTimeout(r, 200));
         await refreshStaffLeadManagement();
       }
     };

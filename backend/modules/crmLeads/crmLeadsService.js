@@ -227,6 +227,11 @@ async function updateMyLeadManagement({ officerName, batchName, sheetName, sheet
     updated_at: new Date().toISOString()
   };
 
+  // Persist core lead fields
+  if (updates.status !== undefined) {
+    patch.status = cleanString(updates.status) || 'New';
+  }
+
   // Also denormalize a few commonly displayed fields for easier querying
   if (mgmtUpdates.priority !== undefined) patch.priority = cleanString(mgmtUpdates.priority);
   if (mgmtUpdates.callFeedback !== undefined) patch.call_feedback = cleanString(mgmtUpdates.callFeedback);
@@ -286,6 +291,11 @@ async function updateAdminLead({ batchName, sheetName, sheetLeadId, updates }) {
   // Handle assignment updates specially
   if (updates.assignedTo !== undefined) {
     patch.assigned_to = cleanString(updates.assignedTo);
+  }
+
+  // Persist core lead fields
+  if (updates.status !== undefined) {
+    patch.status = cleanString(updates.status) || 'New';
   }
 
   // Denormalize management fields
