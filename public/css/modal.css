@@ -87,7 +87,7 @@
 }
 
 .modal-body {
-    padding: 28px;
+    padding: 20px;
 }
 
 .lead-details-grid {
@@ -99,7 +99,7 @@
 
 .detail-section {
     background: #f8f9fa;
-    padding: 20px;
+    padding: 14px;
     border-radius: 8px;
     border-left: 4px solid #667eea;
 }
@@ -122,7 +122,7 @@
 .detail-row {
     display: flex;
     justify-content: space-between;
-    padding: 10px 0;
+    padding: 6px 0;
     border-bottom: 1px solid #e0e0e0;
 }
 
@@ -156,13 +156,13 @@
 
 .notes-box {
     background: white;
-    padding: 16px;
+    padding: 12px;
     border-radius: 6px;
     border: 1px solid #e0e0e0;
-    min-height: 80px;
+    min-height: 70px;
     color: #333;
-    line-height: 1.6;
-    font-size: 14px;
+    line-height: 1.5;
+    font-size: 13px;
 }
 
 .modal-footer {

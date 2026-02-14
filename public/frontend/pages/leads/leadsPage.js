@@ -324,19 +324,27 @@ function viewLeadDetails(leadId) {
               </div>
               <div class="detail-row">
                 <span class="detail-label">Start Immediately?</span>
-                <span class="detail-value">${escapeHtml(
-                  lead.intake_json?.are_you_planning_to_start_immediately
-                  || lead.intake_json?.planning_to_start_immediately
-                  || lead.intake_json?.start_immediately
-                ) || '-'}</span>
+                <span class="detail-value">${escapeHtml(getIntakeValue(
+                  lead.intake_json,
+                  'are_you_planning_to_start_immediately?',
+                  'are_you_planning_to_start_immediately',
+                  'planning_to_start_immediately',
+                  'start_immediately',
+                  'start immediately',
+                  'Are you planning to start immediately?'
+                )) || '-'}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">Why Interested?</span>
-                <span class="detail-value">${escapeHtml(
-                  lead.intake_json?.why_are_you_interested_in_this_diploma
-                  || lead.intake_json?.why_interested
-                  || lead.intake_json?.interest_reason
-                ) || '-'}</span>
+                <span class="detail-value">${escapeHtml(getIntakeValue(
+                  lead.intake_json,
+                  'why_are_you_interested_in_this_diploma?',
+                  'why_are_you_interested_in_this_diploma',
+                  'why_interested',
+                  'interest_reason',
+                  'why are you interested in this diploma?',
+                  'Why are you interested in this diploma?'
+                )) || '-'}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">Source:</span>
@@ -626,6 +634,41 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function normalizeKey(k) {
+  return String(k || '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function getIntakeValue(intake, ...candidateKeys) {
+  if (!intake || typeof intake !== 'object') return '';
+
+  // Direct match first
+  for (const k of candidateKeys) {
+    if (!k) continue;
+    if (intake[k] !== undefined && intake[k] !== null && String(intake[k]).trim() !== '') {
+      return String(intake[k]).trim();
+    }
+  }
+
+  // Fuzzy match by normalized keys (handles punctuation like '?' and underscores)
+  const nmap = new Map();
+  Object.keys(intake).forEach(key => {
+    nmap.set(normalizeKey(key), key);
+  });
+
+  for (const k of candidateKeys) {
+    const nk = normalizeKey(k);
+    const realKey = nmap.get(nk);
+    if (realKey && intake[realKey] !== undefined && intake[realKey] !== null && String(intake[realKey]).trim() !== '') {
+      return String(intake[realKey]).trim();
+    }
+  }
+
+  return '';
 }
 
 function getStatusColor(status) {
