@@ -191,7 +191,7 @@
                     <span>Staff Attendance</span>
                 </a>
 
-                <a href="#" class="nav-item admin-only" data-page="reports">
+                <a href="#" class="nav-item" data-page="reports">
                     <i class="fas fa-chart-line"></i>
                     <span>Reports</span>
                 </a>
@@ -859,16 +859,149 @@
             </div>
 
             <!-- Reports View (Admin Only) -->
-            <div id="reportsView" class="content-view admin-only">
+            <div id="reportsView" class="content-view">
                 <div class="page-header">
-                    <h1>Reports & Analytics</h1>
-                    <button class="btn btn-primary">
-                        <i class="fas fa-download"></i> Export
-                    </button>
+                    <h1>Reports</h1>
                 </div>
-                <div class="content-placeholder">
-                    <i class="fas fa-chart-line"></i>
-                    <p>Detailed reports and analytics</p>
+
+                <div id="reportsOfficerSection" class="dashboard-card officer-only" style="margin-bottom: 16px; display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap: 12px;">
+                        <div>
+                            <h3 style="margin:0;">Daily Report</h3>
+                            <p style="margin:4px 0 0 0; color:#666;">Submit 3 reports/day (10:30 AM, 2:30 PM, 6:00 PM). Submission closes 20 minutes after each time.</p>
+                        </div>
+                        <button id="openDailyReportBtn" class="btn btn-primary">
+                            <i class="fas fa-clipboard"></i> Daily Report
+                        </button>
+                    </div>
+                    <div id="dailyReportStatus" style="margin-top: 10px; color:#444;"></div>
+                </div>
+
+                <div id="reportsAdminSection" class="dashboard-card admin-only" style="margin-bottom: 16px; display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap: 12px;">
+                        <div>
+                            <h3 style="margin:0;">Daily Reports (All Officers)</h3>
+                            <p style="margin:4px 0 0 0; color:#666;">View submissions by date, and edit schedule times.</p>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-wrap:wrap; gap: 10px; align-items:flex-end; margin-top: 12px;">
+                        <div class="form-group" style="margin:0;">
+                            <label for="reportsAdminDate">Date</label>
+                            <input type="date" id="reportsAdminDate" class="form-control" />
+                        </div>
+                        <button id="reportsAdminLoadBtn" class="btn btn-secondary"><i class="fas fa-sync"></i> Load</button>
+                        <button id="reportsAdminEditScheduleBtn" class="btn btn-primary"><i class="fas fa-clock"></i> Edit Times</button>
+                    </div>
+
+                    <div id="reportsAdminTableWrap" style="margin-top: 12px;"></div>
+                </div>
+
+                <!-- Modal: Daily Report Submission -->
+                <div id="dailyReportModal" class="modal">
+                    <div class="modal-content" style="max-width: 720px;">
+                        <div class="modal-header">
+                            <h2><i class="fas fa-clipboard"></i> Daily Report</h2>
+                            <button class="close-btn" onclick="closeModal('dailyReportModal')"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label for="dailyReportSlot">Report Time</label>
+                                    <select id="dailyReportSlot" class="form-control"></select>
+                                    <small id="dailyReportWindowHint" style="display:block; margin-top: 6px; color:#666;"></small>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label for="freshCallsMade">Fresh calls made</label>
+                                    <input type="number" min="0" id="freshCallsMade" class="form-control" value="0" />
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label for="freshMessagesReached">Fresh Messages reached</label>
+                                    <input type="number" min="0" id="freshMessagesReached" class="form-control" value="0" />
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label for="interestedLeads">Interested Leads</label>
+                                    <input type="number" min="0" id="interestedLeads" class="form-control" value="0" />
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label for="followUpCalls">Follow-up calls</label>
+                                    <input type="number" min="0" id="followUpCalls" class="form-control" value="0" />
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label for="followUpMessages">Follow-up Messages</label>
+                                    <input type="number" min="0" id="followUpMessages" class="form-control" value="0" />
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label for="followUpScheduled">Follow-up scheduled</label>
+                                    <input type="number" min="0" id="followUpScheduled" class="form-control" value="0" />
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label for="closures">Closures</label>
+                                    <input type="number" min="0" id="closures" class="form-control" value="0" />
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="dailyReportNotes">Notes</label>
+                                <textarea id="dailyReportNotes" class="form-control" rows="3" placeholder="Anything extra..."></textarea>
+                            </div>
+
+                            <div class="modal-actions">
+                                <button type="button" class="btn btn-secondary" onclick="closeModal('dailyReportModal')">Cancel</button>
+                                <button type="button" id="submitDailyReportBtn" class="btn btn-primary">Submit</button>
+                            </div>
+                            <div id="dailyReportSubmitMsg" style="margin-top:10px; color:#666;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal: Edit Daily Report Schedule (Admin) -->
+                <div id="dailyReportScheduleModal" class="modal">
+                    <div class="modal-content" style="max-width: 720px;">
+                        <div class="modal-header">
+                            <h2><i class="fas fa-clock"></i> Edit Daily Report Times</h2>
+                            <button class="close-btn" onclick="closeModal('dailyReportScheduleModal')"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label for="slot1Time">Slot 1 Time (HH:MM)</label>
+                                    <input type="text" id="slot1Time" class="form-control" placeholder="10:30" />
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label for="slot2Time">Slot 2 Time (HH:MM)</label>
+                                    <input type="text" id="slot2Time" class="form-control" placeholder="14:30" />
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label for="slot3Time">Slot 3 Time (HH:MM)</label>
+                                    <input type="text" id="slot3Time" class="form-control" placeholder="18:00" />
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label for="graceMinutes">Grace Minutes</label>
+                                    <input type="number" min="0" id="graceMinutes" class="form-control" value="20" />
+                                </div>
+                            </div>
+                            <div class="modal-actions">
+                                <button type="button" class="btn btn-secondary" onclick="closeModal('dailyReportScheduleModal')">Cancel</button>
+                                <button type="button" id="saveDailyReportScheduleBtn" class="btn btn-primary">Save</button>
+                            </div>
+                            <div id="dailyReportScheduleMsg" style="margin-top:10px; color:#666;"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1236,6 +1369,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/frontend/pages/attendance/attendancePage.js"></script>
     <script src="/frontend/pages/calendar/calendarTasks.js"></script>
+    <script src="/frontend/pages/reports/reportsPage.js?v=1"></script>
     
     <!-- Supabase Client (must load after Supabase JS) -->
     <script src="js/supabaseClient.js"></script>

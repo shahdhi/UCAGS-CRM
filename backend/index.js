@@ -93,6 +93,9 @@ app.use('/api/admissions', require('./modules/admissions/admissionsRoutes'));
 app.use('/api/students', require('./modules/students/studentsRoutes'));
 app.use('/api/analytics', require('./modules/analytics/analyticsRoutes'));
 
+// Reports (daily officer reports)
+app.use('/api/reports', require('./modules/reports/reportsRoutes'));
+
 // Attendance (check-in / check-out)
 app.use('/api/attendance', require('./modules/attendance/attendanceRoutes'));
 

@@ -473,11 +473,24 @@ async function openManageLeadModal(leadId) {
             <div style="background: #fafafa; padding: 12px; border-radius: 6px; margin-bottom: 20px; border: 1px solid #eee;">
               <div style="display:grid; grid-template-columns: 1fr 2fr; gap: 8px 12px;">
                 <div style="color:#666;">Platform</div>
-                <div>${escapeHtml(lead.platform) || '-'}</div>
+                <div>${escapeHtml(getLeadIntakeValue(lead, 'platform')) || '-'}</div>
                 <div style="color:#666;">Planning to start immediately</div>
-                <div>${escapeHtml(lead.are_you_planning_to_start_immediately) || '-'}</div>
+                <div>${escapeHtml(getLeadIntakeValue(lead,
+                  'are_you_planning_to_start_immediately?',
+                  'are_you_planning_to_start_immediately',
+                  'planning_to_start_immediately',
+                  'start_immediately',
+                  'start immediately',
+                  'Are you planning to start immediately?'
+                )) || '-'}</div>
                 <div style="color:#666;">Why interested</div>
-                <div>${escapeHtml(lead.why_are_you_interested_in_this_diploma) || '-'}</div>
+                <div>${escapeHtml(getLeadIntakeValue(lead,
+                  'why_are_you_interested_in_this_diploma?',
+                  'why_are_you_interested_in_this_diploma',
+                  'why_interested',
+                  'interest_reason',
+                  'Why are you interested in this diploma?'
+                )) || '-'}</div>
               </div>
             </div>
             
@@ -654,6 +667,48 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// Intake helper (same idea as leadsPage.js) so Lead Management modal can display
+// values even when keys include punctuation like '?' or are nested in intake_json.
+function normalizeIntakeKey(k) {
+  return String(k || '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function getLeadIntakeValue(lead, ...candidateKeys) {
+  if (!lead || typeof lead !== 'object') return '';
+
+  let intake = lead.intake_json || lead.intake || {};
+
+  // intake_json may be stringified JSON
+  if (typeof intake === 'string') {
+    try { intake = JSON.parse(intake); } catch { intake = {}; }
+  }
+
+  // Merge: intake first, then top-level lead (so legacy fields still work)
+  const merged = { ...(typeof intake === 'object' && intake ? intake : {}), ...lead };
+
+  // Direct match first
+  for (const k of candidateKeys) {
+    if (!k) continue;
+    const v = merged[k];
+    if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+  }
+
+  // Fuzzy match by normalized keys
+  const nmap = new Map();
+  Object.keys(merged).forEach(key => nmap.set(normalizeIntakeKey(key), key));
+  for (const k of candidateKeys) {
+    const realKey = nmap.get(normalizeIntakeKey(k));
+    if (!realKey) continue;
+    const v = merged[realKey];
+    if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+  }
+
+  return '';
 }
 
 /**

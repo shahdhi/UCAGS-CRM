@@ -1307,9 +1307,11 @@ function loadCallCenter() {
 }
 
 // Load Reports view
-function loadReports() {
+async function loadReports() {
     console.log('Loading Reports');
-    // This will be implemented to show reports
+    if (window.initReportsPage) {
+        await window.initReportsPage(currentUser);
+    }
 }
 
 // Load Settings view
