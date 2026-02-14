@@ -308,7 +308,7 @@
   async function initOfficer(schedule) {
     const sec = $('reportsOfficerSection');
     if (!sec) return;
-    sec.style.display = '';
+    sec.style.display = 'block';
 
     setOfficerDescription(schedule);
 
@@ -396,7 +396,7 @@
   async function initAdmin(schedule) {
     const sec = $('reportsAdminSection');
     if (!sec) return;
-    sec.style.display = '';
+    sec.style.display = 'block';
 
     const dateInput = $('reportsAdminDate');
     if (dateInput && !dateInput.value) dateInput.value = todayISO();
@@ -486,7 +486,17 @@
       const msg = $('dailyReportSubmitMsg');
       if (msg) msg.textContent = '';
 
-      if (currentUser?.role === 'admin') {
+      // Determine admin using same signal as the rest of the app (body.admin),
+      // but also allow explicit role === 'admin'.
+      const isAdminUser = (currentUser?.role === 'admin') || document.body.classList.contains('admin');
+
+      // Hide both sections first (avoid stale state across navigation)
+      const adminSec = $('reportsAdminSection');
+      const officerSec = $('reportsOfficerSection');
+      if (adminSec) adminSec.style.display = 'none';
+      if (officerSec) officerSec.style.display = 'none';
+
+      if (isAdminUser) {
         await initAdmin(schedule);
       } else {
         await initOfficer(schedule);
