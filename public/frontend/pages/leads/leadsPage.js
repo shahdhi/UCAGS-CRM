@@ -319,6 +319,26 @@ function viewLeadDetails(leadId) {
                 <span class="detail-value">${escapeHtml(lead.course || lead.intake_json?.course) || '-'}</span>
               </div>
               <div class="detail-row">
+                <span class="detail-label">Platform:</span>
+                <span class="detail-value">${escapeHtml(lead.intake_json?.platform || lead.platform) || '-'}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Start Immediately?</span>
+                <span class="detail-value">${escapeHtml(
+                  lead.intake_json?.are_you_planning_to_start_immediately
+                  || lead.intake_json?.planning_to_start_immediately
+                  || lead.intake_json?.start_immediately
+                ) || '-'}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Why Interested?</span>
+                <span class="detail-value">${escapeHtml(
+                  lead.intake_json?.why_are_you_interested_in_this_diploma
+                  || lead.intake_json?.why_interested
+                  || lead.intake_json?.interest_reason
+                ) || '-'}</span>
+              </div>
+              <div class="detail-row">
                 <span class="detail-label">Source:</span>
                 <span class="detail-value">${escapeHtml(lead.source) || '-'}</span>
               </div>
@@ -348,12 +368,6 @@ function viewLeadDetails(leadId) {
             </div>
           </div>
 
-          <div class="detail-section" style="margin-top: 20px;">
-            <h3><i class="fas fa-database"></i> Full Details</h3>
-            <div class="notes-box" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; white-space: pre-wrap;">
-              ${escapeHtml(JSON.stringify(lead, null, 2))}
-            </div>
-          </div>
           
           <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
             <button class="btn btn-primary" onclick="editLeadDetails(${lead.id})" style="padding: 12px 24px;">
