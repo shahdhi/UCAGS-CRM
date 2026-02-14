@@ -80,8 +80,41 @@ async function upsertFollowupBySequence({ officerUserId, officerName, batchName,
 /**
  * Compatibility helper: convert legacy followUpN* fields to followup upserts.
  */
+async function deleteFollowupsNotInSequences({ officerUserId, batchName, sheetName, sheetLeadId, keepSequences }) {
+  const sb = requireSupabase();
+  const keep = Array.isArray(keepSequences) ? keepSequences.filter(n => Number.isFinite(n) && n > 0) : [];
+
+  let q = sb
+    .from('crm_lead_followups')
+    .delete()
+    .eq('officer_user_id', officerUserId)
+    .eq('batch_name', batchName)
+    .eq('sheet_name', sheetName)
+    .eq('sheet_lead_id', String(sheetLeadId));
+
+  if (keep.length) {
+    q = q.not('sequence', 'in', `(${keep.join(',')})`);
+  }
+
+  const { error } = await q;
+  if (error) throw error;
+}
+
+async function deleteFollowupSequence({ officerUserId, batchName, sheetName, sheetLeadId, sequence }) {
+  const sb = requireSupabase();
+  const { error } = await sb
+    .from('crm_lead_followups')
+    .delete()
+    .eq('officer_user_id', officerUserId)
+    .eq('batch_name', batchName)
+    .eq('sheet_name', sheetName)
+    .eq('sheet_lead_id', String(sheetLeadId))
+    .eq('sequence', sequence);
+  if (error) throw error;
+}
+
 async function syncLegacyFollowupsFromManagement({ officerUserId, officerName, batchName, sheetName, sheetLeadId, management }) {
-  // Find all followUpNSchedule keys
+  // Find all followUpN keys
   const keys = Object.keys(management || {});
   const sequences = new Set();
   for (const k of keys) {
@@ -92,6 +125,7 @@ async function syncLegacyFollowupsFromManagement({ officerUserId, officerName, b
   const seqs = Array.from(sequences).filter(n => Number.isFinite(n) && n > 0).sort((a, b) => a - b);
   const results = [];
 
+  // For each sequence: upsert if it has data, else delete it (so removed followups are deleted in DB)
   for (const n of seqs) {
     const payload = {
       channel: 'call',
@@ -101,9 +135,11 @@ async function syncLegacyFollowupsFromManagement({ officerUserId, officerName, b
       comment: management[`followUp${n}Comment`]
     };
 
-    // Only persist if any field has a value
     const hasAny = Object.values(payload).some(v => cleanString(v));
-    if (!hasAny) continue;
+    if (!hasAny) {
+      await deleteFollowupSequence({ officerUserId, batchName, sheetName, sheetLeadId, sequence: n });
+      continue;
+    }
 
     results.push(
       await upsertFollowupBySequence({
@@ -118,11 +154,17 @@ async function syncLegacyFollowupsFromManagement({ officerUserId, officerName, b
     );
   }
 
+  // Also delete any sequences that existed previously but are no longer present in management payload
+  // (e.g., officer removed followUp3 section entirely)
+  await deleteFollowupsNotInSequences({ officerUserId, batchName, sheetName, sheetLeadId, keepSequences: seqs });
+
   return results;
 }
 
 module.exports = {
   listOfficerFollowups,
   upsertFollowupBySequence,
+  deleteFollowupsNotInSequences,
+  deleteFollowupSequence,
   syncLegacyFollowupsFromManagement
 };

@@ -529,11 +529,20 @@ async function saveLeadManagement(event, leadId) {
     };
     
     // Collect all follow-up data (unlimited)
+    // IMPORTANT: Use the section's data-followup attribute so deletions don't shift numbering.
     const container = document.getElementById('followUpsContainer');
     const followUpSections = container ? container.querySelectorAll('.followup-section') : [];
-    
+
+    // First clear any existing followUpN* fields on the lead (so removed followups are truly removed)
+    const existingLead = managementLeads.find(l => l.id == leadId) || {};
+    Object.keys(existingLead).forEach(k => {
+      if (/^followUp\d+(Schedule|Date|Answered|Comment)$/.test(k)) {
+        managementData[k] = '';
+      }
+    });
+
     followUpSections.forEach((section, index) => {
-      const num = index + 1;
+      const num = Number(section.dataset.followup) || (index + 1);
       const scheduleEl = document.getElementById(`followUp${num}Schedule`);
       const dateEl = document.getElementById(`followUp${num}Date`);
       const answeredEl = document.getElementById(`followUp${num}Answered`);
