@@ -496,11 +496,7 @@
     const adminBtn = document.getElementById('attendanceAdminRefreshBtn');
     if (adminBtn) adminBtn.addEventListener('click', loadAdminRecords);
 
-    const sumBtn = document.getElementById('attendanceAdminSummaryRefreshBtn');
-    if (sumBtn) sumBtn.addEventListener('click', loadAdminSummary);
-
-    const sumMonth = document.getElementById('attendanceAdminSummaryMonth');
-    if (sumMonth) sumMonth.addEventListener('change', loadAdminSummary);
+    // Monthly Attendance Summary removed (will be reintroduced in a separate tab later)
 
     const dateInput = document.getElementById('attendanceAdminDate');
     if (dateInput) {
@@ -538,11 +534,7 @@
       const myCard = document.getElementById('attendanceMyTodayCard');
       if (myCard) myCard.style.display = 'none';
 
-      const summarySection = document.getElementById('attendanceAdminSummarySection');
-      if (summarySection) summarySection.style.display = '';
-      const monthInput = document.getElementById('attendanceAdminSummaryMonth');
-      if (monthInput && !monthInput.value) monthInput.value = ymToday();
-      await loadAdminSummary();
+      // Monthly Attendance Summary removed (will be reintroduced in a separate tab later)
 
       const officerSection = document.getElementById('attendanceOfficerSection');
       if (officerSection) officerSection.classList.add('hidden');
