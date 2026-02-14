@@ -40,9 +40,8 @@
     return `Open at ${slot.label || slot.time}, closes after ${graceMinutes} minutes.`;
   }
 
-  function computeWindowForToday(slotTimeHHMM, graceMinutes) {
-    const date = todayISO();
-    const start = new Date(`${date}T${slotTimeHHMM}:00`);
+  function computeWindowForToday(slotTimeHHMM, graceMinutes, baseDateISO = todayISO()) {
+    const start = new Date(`${baseDateISO}T${slotTimeHHMM}:00`);
     const end = new Date(start.getTime() + graceMinutes * 60 * 1000);
     return { start, end };
   }
@@ -50,6 +49,43 @@
   function isWindowOpen({ slotTimeHHMM, graceMinutes, now = new Date() }) {
     const { start, end } = computeWindowForToday(slotTimeHHMM, graceMinutes);
     return now >= start && now <= end;
+  }
+
+  function getNextWindow(schedule, now = new Date()) {
+    const graceMinutes = schedule?.graceMinutes ?? 20;
+    const slots = schedule?.slots || [];
+
+    const candidates = slots
+      .map(s => {
+        const t = parseHHMM(s.time);
+        if (!t) return null;
+        const w = computeWindowForToday(t.hhmm, graceMinutes, todayISO());
+        return { slot: s, t, ...w };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.start - b.start);
+
+    // If currently within any window, return that.
+    const openNow = candidates.find(c => now >= c.start && now <= c.end);
+    if (openNow) return { type: 'open', ...openNow };
+
+    // Otherwise next start time today.
+    const nextToday = candidates.find(c => now < c.start);
+    if (nextToday) return { type: 'upcoming', ...nextToday };
+
+    // Otherwise tomorrow first slot.
+    if (candidates.length) {
+      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      const yyyy = tomorrow.getFullYear();
+      const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+      const dd = String(tomorrow.getDate()).padStart(2, '0');
+      const dateISO = `${yyyy}-${mm}-${dd}`;
+      const first = candidates[0];
+      const w = computeWindowForToday(first.t.hhmm, graceMinutes, dateISO);
+      return { type: 'tomorrow', slot: first.slot, t: first.t, start: w.start, end: w.end };
+    }
+
+    return null;
   }
 
   function renderAdminTable(reports) {
@@ -179,12 +215,25 @@
     return json.reports || [];
   }
 
+  function formatTimeLabel(hhmm) {
+    const t = parseHHMM(hhmm);
+    if (!t) return String(hhmm || '').trim();
+    const h12 = ((t.hh + 11) % 12) + 1;
+    const ampm = t.hh >= 12 ? 'PM' : 'AM';
+    return `${String(h12).padStart(2, '0')}:${String(t.mm).padStart(2, '0')} ${ampm}`;
+  }
+
   async function adminSaveSchedule() {
     const headers = { ...(await authHeaders()), 'Content-Type': 'application/json' };
+
+    const slot1Time = $('slot1Time').value;
+    const slot2Time = $('slot2Time').value;
+    const slot3Time = $('slot3Time').value;
+
     const slots = [
-      { key: 'slot1', time: $('slot1Time').value, label: '10:30 AM' },
-      { key: 'slot2', time: $('slot2Time').value, label: '02:30 PM' },
-      { key: 'slot3', time: $('slot3Time').value, label: '06:00 PM' }
+      { key: 'slot1', time: slot1Time, label: formatTimeLabel(slot1Time) },
+      { key: 'slot2', time: slot2Time, label: formatTimeLabel(slot2Time) },
+      { key: 'slot3', time: slot3Time, label: formatTimeLabel(slot3Time) }
     ];
     const graceMinutes = $('graceMinutes').value;
 
@@ -234,10 +283,21 @@
     renderAdminTable(rows);
   }
 
+  function setOfficerDescription(schedule) {
+    const sec = $('reportsOfficerSection');
+    if (!sec) return;
+    const p = sec.querySelector('p');
+    const times = (schedule?.slots || []).map(s => (s.label || s.time)).join(', ');
+    const grace = schedule?.graceMinutes ?? 20;
+    if (p) p.textContent = `Submit ${schedule?.slots?.length || 3} reports/day (${times}). Submission closes ${grace} minutes after each time.`;
+  }
+
   async function initOfficer(schedule) {
     const sec = $('reportsOfficerSection');
     if (!sec) return;
     sec.style.display = '';
+
+    setOfficerDescription(schedule);
 
     const select = $('dailyReportSlot');
     select.innerHTML = '';
@@ -248,6 +308,12 @@
       opt.textContent = `${s.label || s.time}`;
       select.appendChild(opt);
     });
+
+    // Auto-select currently open slot, otherwise next upcoming slot
+    const next = getNextWindow(schedule, new Date());
+    if (next?.slot?.key) {
+      select.value = next.slot.key;
+    }
 
     const hint = $('dailyReportWindowHint');
     const graceMinutes = schedule.graceMinutes ?? 20;
@@ -262,16 +328,25 @@
         return;
       }
       if (hint) hint.textContent = buildWindowHint({ slot, graceMinutes });
-      const open = isWindowOpen({ slotTimeHHMM: t.hhmm, graceMinutes });
+
+      const now = new Date();
+      const open = isWindowOpen({ slotTimeHHMM: t.hhmm, graceMinutes, now });
       $('submitDailyReportBtn').disabled = !open;
       $('openDailyReportBtn').disabled = !open;
 
       const status = $('dailyReportStatus');
       if (status) {
-        const { start, end } = computeWindowForToday(t.hhmm, graceMinutes);
-        status.textContent = open
-          ? `Submission window is OPEN until ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`
-          : `Submission window is CLOSED. Next window opens at ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`;
+        const next = getNextWindow(schedule, now);
+        if (open) {
+          const { end } = computeWindowForToday(t.hhmm, graceMinutes);
+          status.textContent = `Submission window is OPEN until ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`;
+        } else if (next) {
+          const when = next.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const dayHint = next.type === 'tomorrow' ? ' (tomorrow)' : '';
+          status.textContent = `Submission window is CLOSED. Next window opens at ${when}${dayHint}.`;
+        } else {
+          status.textContent = 'No schedule available.';
+        }
       }
     };
 
@@ -354,6 +429,30 @@
 
       try {
         const saved = await adminSaveSchedule();
+        // Update in-memory schedule so UI immediately reflects changes
+        schedule.graceMinutes = Number(saved.grace_minutes ?? schedule.graceMinutes ?? 20);
+        schedule.slots = [
+          { key: 'slot1', time: saved.slot1_time, label: saved.slot1_label },
+          { key: 'slot2', time: saved.slot2_time, label: saved.slot2_label },
+          { key: 'slot3', time: saved.slot3_time, label: saved.slot3_label }
+        ];
+
+        // If officer section exists (some shared deployments), refresh its hint + button disable logic
+        try {
+          if (typeof setOfficerDescription === 'function') setOfficerDescription(schedule);
+          const select = $('dailyReportSlot');
+          if (select && select.options?.length) {
+            // rebuild option labels
+            select.innerHTML = '';
+            (schedule.slots || []).forEach(s => {
+              const opt = document.createElement('option');
+              opt.value = s.key;
+              opt.textContent = `${s.label || s.time}`;
+              select.appendChild(opt);
+            });
+          }
+        } catch (e) {}
+
         if (msg) msg.textContent = 'Saved.';
         if (window.showToast) showToast('Schedule updated', 'success');
         if (window.closeModal) closeModal('dailyReportScheduleModal');

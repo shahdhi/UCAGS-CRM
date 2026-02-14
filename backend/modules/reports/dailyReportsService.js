@@ -111,16 +111,24 @@ async function updateSchedule({ timezone, graceMinutes, slots }) {
   const slot2 = parseTimeHHMM(s2.time) || parseTimeHHMM(DEFAULT_SCHEDULE.slots[1].time);
   const slot3 = parseTimeHHMM(s3.time) || parseTimeHHMM(DEFAULT_SCHEDULE.slots[2].time);
 
+  const formatLabel = (hhmm) => {
+    const t = parseTimeHHMM(hhmm);
+    if (!t) return hhmm;
+    const h12 = ((t.hh + 11) % 12) + 1;
+    const ampm = t.hh >= 12 ? 'PM' : 'AM';
+    return `${String(h12).padStart(2, '0')}:${String(t.mm).padStart(2, '0')} ${ampm}`;
+  };
+
   const row = {
     id: 1,
     timezone: cleanString(timezone) || DEFAULT_SCHEDULE.timezone,
     grace_minutes: Number.isFinite(Number(graceMinutes)) ? Math.max(0, Math.trunc(Number(graceMinutes))) : DEFAULT_SCHEDULE.graceMinutes,
     slot1_time: slot1.hhmm,
-    slot1_label: cleanString(s1.label) || DEFAULT_SCHEDULE.slots[0].label,
+    slot1_label: cleanString(s1.label) || formatLabel(slot1.hhmm),
     slot2_time: slot2.hhmm,
-    slot2_label: cleanString(s2.label) || DEFAULT_SCHEDULE.slots[1].label,
+    slot2_label: cleanString(s2.label) || formatLabel(slot2.hhmm),
     slot3_time: slot3.hhmm,
-    slot3_label: cleanString(s3.label) || DEFAULT_SCHEDULE.slots[2].label,
+    slot3_label: cleanString(s3.label) || formatLabel(slot3.hhmm),
     updated_at: new Date().toISOString()
   };
 
