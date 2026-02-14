@@ -196,7 +196,7 @@
                     <span>Reports</span>
                 </a>
 
-                <a href="#" class="nav-item admin-only" data-page="settings">
+                <a href="#" class="nav-item" data-page="settings">
                     <i class="fas fa-cog"></i>
                     <span>Settings</span>
                 </a>
@@ -1432,10 +1432,10 @@
     <script src="/frontend/pages/whatsapp/waDrawer.js?v=1"></script>
     <script src="/frontend/pages/whatsapp/whatsappPanel.js?v=1"></script>
     
-    <!-- Main App -->
-    <script src="js/app.js?v=3"></script>
+    <!-- Main App (UI + notifications must load before app.js) -->
     <script src="js/ui.js?v=3"></script>
     <script src="/js/notificationCenter.js?v=1"></script>
     <script src="/js/notifications.js?v=1"></script>
+    <script src="js/app.js?v=3"></script>
 </body>
 </html>

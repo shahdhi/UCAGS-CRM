@@ -70,7 +70,40 @@
     }
   }
 
+  let userGestureSeen = false;
+  window.addEventListener('click', () => { userGestureSeen = true; }, { once: true, capture: true });
+  window.addEventListener('keydown', () => { userGestureSeen = true; }, { once: true, capture: true });
+
+  function playNotificationSound() {
+    try {
+      // Autoplay policies: only play after a user gesture
+      if (!userGestureSeen) return;
+
+      // Simple beep using Web Audio API (no external asset)
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+
+      const ctx = new AudioCtx();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.value = 880;
+      g.gain.value = 0.06;
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start();
+      setTimeout(() => {
+        try { o.stop(); } catch (e) {}
+        try { ctx.close(); } catch (e) {}
+      }, 160);
+    } catch (e) {
+      // ignore
+    }
+  }
+
   function notifyInApp(message, type = 'info') {
+    // "Pop" + sound
+    playNotificationSound();
     if (window.showToast) {
       window.showToast(message, type);
     } else if (window.UI?.showToast) {
