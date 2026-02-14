@@ -19,8 +19,9 @@ router.get('/admin', isAdmin, async (req, res) => {
     const sheetName = req.query.sheet;
     const search = req.query.search;
     const status = req.query.status;
+    const assignedTo = req.query.assignedTo || req.query.officer;
 
-    const leads = await svc.listAdminLeads({ batchName, sheetName, search, status });
+    const leads = await svc.listAdminLeads({ batchName, sheetName, search, status, assignedTo });
     res.json({ success: true, count: leads.length, leads });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });

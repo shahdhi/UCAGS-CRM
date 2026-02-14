@@ -54,6 +54,18 @@ router.get('/:batchName/sheets', isAuthenticated, async (req, res) => {
   }
 });
 
+// Admin: list sheets for a specific officer (including officer-created custom tabs)
+router.get('/:batchName/officer/:officerName/sheets', isAdmin, async (req, res) => {
+  try {
+    const { listOfficerSheets } = require('./officerSheetsService');
+    const force = String(req.query.force || '') === '1';
+    const sheets = await listOfficerSheets(req.params.batchName, req.params.officerName, { force });
+    res.json({ success: true, sheets, cached: !force });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 // Officer: list my own sheets for a batch (officer-only tab additions)
 router.get('/:batchName/my-sheets', isAuthenticated, async (req, res) => {
   try {

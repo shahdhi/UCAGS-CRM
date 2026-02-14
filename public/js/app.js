@@ -1205,6 +1205,11 @@ async function navigateToPage(page) {
                 await window.initLeadManagementPage();
             }
             break;
+        case 'staff-lead-management':
+            if (window.initStaffLeadManagementPage) {
+                await window.initStaffLeadManagementPage();
+            }
+            break;
         default:
             // Officer: handle per-batch pages (filtering personal leads)
             if (page.startsWith('leads-myLeads-batch-')) {

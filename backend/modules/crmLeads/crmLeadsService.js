@@ -96,7 +96,7 @@ async function listMyLeads({ officerName, batchName, sheetName, search, status }
 }
 
 // Admin: list all leads (no officer filter)
-async function listAdminLeads({ batchName, sheetName, search, status }) {
+async function listAdminLeads({ batchName, sheetName, search, status, assignedTo }) {
   const sb = requireSupabase();
 
   console.log('🔍 Querying Supabase for admin leads:', { batchName, sheetName, status, search });
@@ -106,6 +106,7 @@ async function listAdminLeads({ batchName, sheetName, search, status }) {
   if (batchName && batchName !== 'all') q = q.eq('batch_name', batchName);
   if (sheetName) q = q.eq('sheet_name', sheetName);
   if (status) q = q.eq('status', status);
+  if (assignedTo) q = q.eq('assigned_to', cleanString(assignedTo));
 
   if (search) {
     const s = `%${search}%`;
@@ -491,7 +492,7 @@ function toCsvValue(v) {
 }
 
 async function exportAdminCsv({ batchName, sheetName, search, status }) {
-  const leads = await listAdminLeads({ batchName, sheetName, search, status });
+  const leads = await listAdminLeads({ batchName, sheetName, search, status, assignedTo: null });
   const headers = ['batch', 'sheet', 'id', 'name', 'email', 'phone', 'source', 'status', 'priority', 'assignedTo', 'notes'];
   const lines = [headers.join(',')];
   for (const l of leads) {
