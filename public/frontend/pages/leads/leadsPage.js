@@ -21,6 +21,11 @@ async function initLeadsPage(modeOrBatch) {
   // Setup event listeners
   setupLeadsEventListeners();
 
+  // Reset selection UI on entry
+  ensureSelectionState();
+  window.__selectedLeadIds.clear();
+  updateSelectionUI();
+
   // Load leads data
   await loadLeads();
 
@@ -179,7 +184,7 @@ function renderLeadsTable() {
     return `
       <tr style="cursor: pointer;" onclick="viewLeadDetails(${JSON.stringify(lead.id)})" title="Click to view details">
         <td style="width:40px;" onclick="event.stopPropagation()">
-          <input type="checkbox" class="lead-select-checkbox" data-lead-id="${escapeHtml(String(lead.id))}" ${isSelected ? 'checked' : ''} onchange="toggleLeadSelection(event, ${JSON.stringify(lead.id)})">
+          <input type="checkbox" class="lead-select-checkbox" data-lead-id="${escapeHtml(String(lead.id))}" ${isSelected ? 'checked' : ''} onchange="toggleLeadSelectionFromCheckbox(this, ${JSON.stringify(lead.id)})">
         </td>
         <td><strong>${escapeHtml(lead.name)}</strong></td>
         <td>${escapeHtml(lead.email)}</td>
@@ -545,13 +550,19 @@ window.saveLeadChanges = saveLeadChanges;
  * Start auto-refresh
  */
 function startAutoRefresh() {
-  // Refresh every 30 seconds
-  setInterval(() => {
-    if (document.getElementById('leadsView')?.classList.contains('active')) {
-      console.log('Auto-refreshing leads...');
+  // Prevent multiple timers when initLeadsPage() is called multiple times
+  if (window.__leadsAutoRefreshTimer) {
+    clearInterval(window.__leadsAutoRefreshTimer);
+  }
+
+  // Refresh every 60 seconds (less aggressive)
+  window.__leadsAutoRefreshTimer = setInterval(() => {
+    const view = document.getElementById('leadsView');
+    const visible = view && view.style.display !== 'none';
+    if (visible) {
       loadLeads();
     }
-  }, 30000);
+  }, 60000);
 }
 
 /**
@@ -592,10 +603,10 @@ function ensureSelectionState() {
   if (!window.__selectedLeadIds) window.__selectedLeadIds = new Set();
 }
 
-function toggleLeadSelection(event, leadId) {
+function toggleLeadSelectionFromCheckbox(checkboxEl, leadId) {
   ensureSelectionState();
   const id = String(leadId);
-  const checked = event?.target?.checked;
+  const checked = Boolean(checkboxEl && checkboxEl.checked);
   if (checked) window.__selectedLeadIds.add(id);
   else window.__selectedLeadIds.delete(id);
   updateSelectionUI();
@@ -1179,7 +1190,7 @@ async function distributeUnassignedLeads() {
 window.initLeadsPage = initLeadsPage;
 window.leadsPageLoadLeads = loadLeads;  // Renamed to avoid conflict
 window.viewLeadDetails = viewLeadDetails;
-window.toggleLeadSelection = toggleLeadSelection;
+window.toggleLeadSelectionFromCheckbox = toggleLeadSelectionFromCheckbox;
 window.toggleSelectAll = toggleSelectAll;
 window.clearSelection = clearSelection;
 window.bulkAssignLeads = bulkAssignLeads;
