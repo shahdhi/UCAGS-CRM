@@ -626,9 +626,17 @@ function updateSelectionUI() {
   const toolbar = document.getElementById('bulkActionsToolbar');
   const label = document.getElementById('selectedCount');
   const header = document.getElementById('selectAllCheckbox');
+  const adminActions = document.getElementById('bulkAdminActions');
 
   if (label) label.textContent = `${count} selected`;
   if (toolbar) toolbar.style.display = count > 0 ? 'block' : 'none';
+
+  // Show assign/distribute/delete only for admins
+  const isAdmin = Boolean(window.currentUser && window.currentUser.role === 'admin');
+  if (adminActions) {
+    adminActions.style.display = (count > 0 && isAdmin) ? 'flex' : 'none';
+    adminActions.style.alignItems = 'center';
+  }
 
   if (header) {
     if (currentLeads.length === 0) {
