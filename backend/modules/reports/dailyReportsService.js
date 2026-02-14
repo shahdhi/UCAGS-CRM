@@ -59,13 +59,26 @@ function parseTimeHHMM(t) {
   return { hh, mm, hhmm: `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}` };
 }
 
-function computeWindow({ now = new Date(), dateISO, timeHHMM, graceMinutes }) {
-  // NOTE: No timezone library in repo. We treat schedule times as server-local.
-  // In production, set server timezone to Asia/Colombo.
-  const base = new Date(`${dateISO}T${timeHHMM}:00`);
-  const start = base;
-  const end = new Date(base.getTime() + graceMinutes * 60 * 1000);
-  return { start, end, now };
+const SRI_LANKA_OFFSET_MINUTES = 330; // UTC+05:30 (no DST)
+
+function getDateISOInOffset(date, offsetMinutes) {
+  const shifted = new Date(date.getTime() + offsetMinutes * 60 * 1000);
+  const yyyy = shifted.getUTCFullYear();
+  const mm = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(shifted.getUTCDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function computeWindowUTC({ dateISO, timeHHMM, graceMinutes, offsetMinutes }) {
+  // Build a UTC timestamp that corresponds to local (offset) time.
+  const [y, m, d] = dateISO.split('-').map(Number);
+  const tm = parseTimeHHMM(timeHHMM);
+  if (!y || !m || !d || !tm) return null;
+
+  // local time -> UTC by subtracting offset
+  const startUTCms = Date.UTC(y, m - 1, d, tm.hh, tm.mm, 0) - offsetMinutes * 60 * 1000;
+  const endUTCms = startUTCms + graceMinutes * 60 * 1000;
+  return { start: new Date(startUTCms), end: new Date(endUTCms) };
 }
 
 async function getSchedule() {
@@ -181,14 +194,26 @@ async function submitDailyReport({ officerUserId, officerName, slotKey, clientNo
     throw err;
   }
 
-  // Determine date based on server-local date of `now`.
-  const dateISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  // Always treat reporting as Sri Lanka time (UTC+05:30), independent of server timezone.
+  const dateISO = getDateISOInOffset(now, SRI_LANKA_OFFSET_MINUTES);
 
-  const { start, end } = computeWindow({ now, dateISO, timeHHMM: time.hhmm, graceMinutes: config.graceMinutes });
+  const windowUTC = computeWindowUTC({
+    dateISO,
+    timeHHMM: time.hhmm,
+    graceMinutes: config.graceMinutes,
+    offsetMinutes: SRI_LANKA_OFFSET_MINUTES
+  });
+  if (!windowUTC) {
+    const err = new Error('Invalid slot window configuration');
+    err.status = 500;
+    throw err;
+  }
+
+  const { start, end } = windowUTC;
   if (now < start || now > end) {
     const err = new Error('Submission window closed');
     err.status = 403;
-    err.meta = { start: start.toISOString(), end: end.toISOString(), now: now.toISOString() };
+    err.meta = { start: start.toISOString(), end: end.toISOString(), now: now.toISOString(), report_date: dateISO };
     throw err;
   }
 

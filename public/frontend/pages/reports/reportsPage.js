@@ -28,11 +28,19 @@
     return { hh, mm, hhmm: `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}` };
   }
 
+  const SRI_LANKA_OFFSET_MINUTES = 330; // UTC+05:30
+
+  function nowInSriLanka() {
+    const now = new Date();
+    return new Date(now.getTime() + SRI_LANKA_OFFSET_MINUTES * 60 * 1000);
+  }
+
   function todayISO() {
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
+    // Compute YYYY-MM-DD in Sri Lanka time (independent of client device timezone settings)
+    const d = nowInSriLanka();
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   }
 
@@ -41,9 +49,14 @@
   }
 
   function computeWindowForToday(slotTimeHHMM, graceMinutes, baseDateISO = todayISO()) {
-    const start = new Date(`${baseDateISO}T${slotTimeHHMM}:00`);
-    const end = new Date(start.getTime() + graceMinutes * 60 * 1000);
-    return { start, end };
+    // Build a UTC window that corresponds to Sri Lanka local time.
+    const t = parseHHMM(slotTimeHHMM);
+    if (!t) return { start: new Date('invalid'), end: new Date('invalid') };
+    const parts = String(baseDateISO).split('-').map(Number);
+    const y = parts[0], m = parts[1], d = parts[2];
+    const startUTCms = Date.UTC(y, m - 1, d, t.hh, t.mm, 0) - SRI_LANKA_OFFSET_MINUTES * 60 * 1000;
+    const endUTCms = startUTCms + graceMinutes * 60 * 1000;
+    return { start: new Date(startUTCms), end: new Date(endUTCms) };
   }
 
   function isWindowOpen({ slotTimeHHMM, graceMinutes, now = new Date() }) {
