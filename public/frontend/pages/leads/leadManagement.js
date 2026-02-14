@@ -352,7 +352,7 @@ async function openManageLeadModal(leadId) {
           </button>
         </div>
         <div class="modal-body">
-          <form id="manageLeadForm" onsubmit="saveLeadManagement(event, ${lead.id})">
+          <form id="manageLeadForm" onsubmit="saveLeadManagement(event, ${JSON.stringify(String(lead.id))})">
             
             <!-- Section 1: Quick Actions / Outreach -->
             <div style="background: #f0f7ff; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
