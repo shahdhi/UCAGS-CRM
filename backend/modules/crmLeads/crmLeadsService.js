@@ -666,6 +666,31 @@ async function createOfficerLead({ officerName, batchName, sheetName, lead }) {
   return mapLeadRowToApi(data);
 }
 
+async function listAdminBatches({ assignedTo }) {
+  const sb = requireSupabase();
+  let q = sb.from('crm_leads').select('batch_name');
+  if (assignedTo) q = q.eq('assigned_to', cleanString(assignedTo));
+
+  const { data, error } = await q;
+  if (error) throw error;
+
+  const set = new Set((data || []).map(r => r.batch_name).filter(Boolean));
+  return Array.from(set).sort((a, b) => String(a).localeCompare(String(b)));
+}
+
+async function listAdminSheets({ assignedTo, batchName }) {
+  const sb = requireSupabase();
+  let q = sb.from('crm_leads').select('sheet_name');
+  if (assignedTo) q = q.eq('assigned_to', cleanString(assignedTo));
+  if (batchName) q = q.eq('batch_name', cleanString(batchName));
+
+  const { data, error } = await q;
+  if (error) throw error;
+
+  const set = new Set((data || []).map(r => r.sheet_name).filter(Boolean));
+  return Array.from(set).sort((a, b) => String(a).localeCompare(String(b)));
+}
+
 module.exports = {
   listMyLeads,
   listAdminLeads,
@@ -678,5 +703,7 @@ module.exports = {
   bulkDistributeAdmin,
   bulkDeleteAdmin,
   exportAdminCsv,
-  importAdminCsv
+  importAdminCsv,
+  listAdminBatches,
+  listAdminSheets
 };

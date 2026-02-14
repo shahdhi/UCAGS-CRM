@@ -235,8 +235,14 @@
     batchSel.innerHTML = `<option value="">Loading batches...</option>`;
 
     try {
+      const officer = getSelectedOfficer();
+      if (!officer) {
+        batchSel.innerHTML = `<option value="">Select officer first</option>`;
+        return;
+      }
+
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/batch-leads/batches', { headers });
+      const res = await fetch(`/api/crm-leads/admin/meta/batches?assignedTo=${encodeURIComponent(officer.officerName)}`, { headers });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Failed to load batches');
 
@@ -244,6 +250,11 @@
       batchSel.innerHTML = `<option value="">-- Select batch --</option>` + batches.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
 
       // auto-select first batch if none
+      if (!batches.length) {
+        batchSel.innerHTML = `<option value="">No batches</option>`;
+        return;
+      }
+
       if (!batchSel.value && batches.length) {
         batchSel.value = batches[0];
       }
@@ -269,13 +280,18 @@
 
     try {
       const headers = await getAuthHeaders();
-      const url = `/api/batch-leads/${encodeURIComponent(batch)}/officer/${encodeURIComponent(officer.officerName)}/sheets`;
+      const url = `/api/crm-leads/admin/meta/sheets?assignedTo=${encodeURIComponent(officer.officerName)}&batch=${encodeURIComponent(batch)}`;
       const res = await fetch(url, { headers });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error || 'Failed to load officer sheets');
+      if (!json.success) throw new Error(json.error || 'Failed to load sheets');
 
       const sheets = (json.sheets || []).filter(Boolean);
       const defaultSheet = 'Main Leads';
+
+      if (!sheets.length) {
+        sheetSel.innerHTML = `<option value="">No sheets</option>`;
+        return;
+      }
 
       sheetSel.innerHTML = sheets.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
 
