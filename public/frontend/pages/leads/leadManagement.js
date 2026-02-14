@@ -561,52 +561,58 @@ async function saveLeadManagement(event, leadId) {
     managementData.nextFollowUp = getNextFollowUpSchedule(managementData) || '';
     
     console.log('Saving lead management data:', managementData);
-    
-    // Persist to officer sheet (per batch + sheet)
+
+    // Optimistic UI: update local state + close modal immediately
     const lead = managementLeads.find(l => l.id == leadId);
-    if (lead) {
-      Object.assign(lead, managementData);
+    if (!lead) throw new Error('Lead not found');
 
-      // Always derive last follow-up comment (prefer follow-up comments)
-      lead.lastFollowUpComment = getLastFollowUpComment(lead);
+    Object.assign(lead, managementData);
+    lead.lastFollowUpComment = getLastFollowUpComment(lead);
 
-      // Save to backend
-      const batch = window.officerBatchFilter && window.officerBatchFilter !== 'all' ? window.officerBatchFilter : lead.batch;
-      const sheet = window.officerSheetFilter || 'Main Leads';
-
-      let authHeaders = { 'Content-Type': 'application/json' };
-      if (window.supabaseClient) {
-        const { data: { session } } = await window.supabaseClient.auth.getSession();
-        if (session && session.access_token) {
-          authHeaders['Authorization'] = `Bearer ${session.access_token}`;
-        }
-      }
-
-      const res = await fetch(`/api/crm-leads/my/${encodeURIComponent(batch)}/${encodeURIComponent(sheet)}/${encodeURIComponent(lead.id)}`, {
-        method: 'PUT',
-        headers: authHeaders,
-        body: JSON.stringify(lead)
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || 'Failed to save');
-
-      // Update local lead with latest server response (includes merged management_json)
-      if (json.lead) {
-        Object.assign(lead, json.lead);
-      }
-    }
-    
-    // Show success message
-    if (window.showToast) {
-      showToast('Lead management data saved successfully!', 'success');
-    } else {
-      alert('Lead management data saved!');
-    }
-    
-    // Close modal and refresh table
+    // Close modal and refresh table immediately (fast UX)
     closeManageLeadModal();
     renderManagementTable();
-    
+
+    // Show immediate feedback
+    showToast('Saving changes...', 'info');
+
+    // Save to backend in background
+    (async () => {
+      try {
+        const batch = window.officerBatchFilter && window.officerBatchFilter !== 'all' ? window.officerBatchFilter : lead.batch;
+        const sheet = window.officerSheetFilter || 'Main Leads';
+
+        let authHeaders = { 'Content-Type': 'application/json' };
+        if (window.supabaseClient) {
+          const { data: { session } } = await window.supabaseClient.auth.getSession();
+          if (session && session.access_token) {
+            authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+          }
+        }
+
+        const res = await fetch(`/api/crm-leads/my/${encodeURIComponent(batch)}/${encodeURIComponent(sheet)}/${encodeURIComponent(lead.id)}`, {
+          method: 'PUT',
+          headers: authHeaders,
+          body: JSON.stringify(lead)
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Failed to save');
+
+        if (json.lead) {
+          Object.assign(lead, json.lead);
+          renderManagementTable();
+        }
+
+        showToast('Saved successfully!', 'success');
+      } catch (err) {
+        console.error('Background save failed:', err);
+        showToast('Save failed: ' + (err.message || err), 'error');
+
+        // Reload to ensure UI reflects server truth
+        try { await loadLeadManagement(); } catch (e) { /* ignore */ }
+      }
+    })();
+
     // TODO: Phase 3 - Save to tracking spreadsheet
     console.log('Note: Data currently stored in memory. Phase 3 will save to tracking sheet.');
     
