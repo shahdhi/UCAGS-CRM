@@ -115,10 +115,13 @@ async function loadLeadManagement() {
         followups.forEach(f => {
           const n = Number(f.sequence);
           if (!n) return;
-          lead[`followUp${n}Schedule`] = f.scheduled_at ? String(f.scheduled_at).slice(0,16) : (lead[`followUp${n}Schedule`] || '');
-          lead[`followUp${n}Date`] = f.actual_at ? String(f.actual_at).slice(0,16) : (lead[`followUp${n}Date`] || '');
-          lead[`followUp${n}Answered`] = (f.answered === true) ? 'Yes' : (f.answered === false ? 'No' : (lead[`followUp${n}Answered`] || ''));
-          lead[`followUp${n}Comment`] = f.comment || (lead[`followUp${n}Comment`] || '');
+          // IMPORTANT: Do NOT fall back to existing lead fields here.
+          // If the followup row has null/empty values (e.g. officer cleared Actual Date / Comment),
+          // we must reflect that and not resurrect the old value from management_json.
+          lead[`followUp${n}Schedule`] = f.scheduled_at ? String(f.scheduled_at).slice(0, 16) : '';
+          lead[`followUp${n}Date`] = f.actual_at ? String(f.actual_at).slice(0, 16) : '';
+          lead[`followUp${n}Answered`] = (f.answered === true) ? 'Yes' : (f.answered === false ? 'No' : '');
+          lead[`followUp${n}Comment`] = (f.comment ?? '');
         });
 
         // Recompute derived fields

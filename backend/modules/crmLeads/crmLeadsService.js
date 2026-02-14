@@ -149,10 +149,12 @@ function rowToLead(r) {
     intake_json: intake,
 
     // management fields (compat)
-    priority: mgmt.priority || r.priority || '',
-    callFeedback: mgmt.callFeedback || r.call_feedback || '',
-    nextFollowUp: mgmt.nextFollowUp || r.next_follow_up || '',
-    lastFollowUpComment: mgmt.lastFollowUpComment || r.last_follow_up_comment || '',
+    // Use nullish coalescing (??) instead of || so that intentionally-cleared
+    // empty strings do NOT fall back to older denormalized DB columns.
+    priority: (mgmt.priority ?? r.priority ?? ''),
+    callFeedback: (mgmt.callFeedback ?? r.call_feedback ?? ''),
+    nextFollowUp: (mgmt.nextFollowUp ?? r.next_follow_up ?? ''),
+    lastFollowUpComment: (mgmt.lastFollowUpComment ?? r.last_follow_up_comment ?? ''),
     pdfSent: mgmt.pdfSent ?? r.pdf_sent ?? false,
     waSent: mgmt.waSent ?? r.wa_sent ?? false,
     emailSent: mgmt.emailSent ?? r.email_sent ?? false,
