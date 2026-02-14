@@ -7,8 +7,8 @@ let currentLeads = [];
 let currentPage = 1;
 let rowsPerPage = 1000000; // Show all leads on one page
 let totalPages = 1;
-let sortColumn = 'id';
-let sortDirection = 'desc';
+let sortColumn = ''; // empty = use backend default order
+let sortDirection = 'asc';
 
 /**
  * Initialize leads page
@@ -97,6 +97,10 @@ function setupLeadsEventListeners() {
           sortColumn = column;
           sortDirection = 'asc';
         }
+        // Visual indicator
+        headers.forEach(h => h.classList.remove('sorted-asc', 'sorted-desc'));
+        header.classList.add(sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+
         renderLeadsTable();
       });
     });
@@ -159,7 +163,7 @@ function renderLeadsTable() {
   if (currentLeads.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="9" style="text-align: center; padding: 40px;">
+        <td colspan="6" style="text-align: center; padding: 40px;">
           <i class="fas fa-inbox" style="font-size: 48px; color: #ccc; margin-bottom: 10px;"></i>
           <p style="color: #666;">No leads found</p>
         </td>
@@ -168,8 +172,12 @@ function renderLeadsTable() {
     return;
   }
 
-  // Don't sort - keep original order from sheet
-  const leadsToDisplay = currentLeads;
+  // Default: keep backend order (added order).
+  // If user clicked a header, apply client-side sorting.
+  let leadsToDisplay = currentLeads;
+  if (sortColumn) {
+    leadsToDisplay = [...currentLeads].sort((a, b) => compareLeads(a, b, sortColumn, sortDirection));
+  }
 
   // Pagination
   totalPages = Math.max(1, Math.ceil(leadsToDisplay.length / rowsPerPage));
@@ -188,23 +196,25 @@ function renderLeadsTable() {
         </td>
         <td><strong>${escapeHtml(lead.name)}</strong></td>
         <td>${escapeHtml(lead.email)}</td>
-        <td>${lead.phone ? `<a href="tel:${lead.phone}" onclick="event.stopPropagation()">${escapeHtml(lead.phone)}</a>` : '-'}</td>
-        <td>${escapeHtml(lead.course || lead.intake_json?.course) || '-'}</td>
-        <td>${escapeHtml(lead.source) || '-'}</td>
-        <td><span class="badge badge-${getStatusColor(lead.status)}">${escapeHtml(lead.status || '-')}</span></td>
-        <td>${escapeHtml(lead.priority) || '-'}</td>
+        <td>${lead.phone ? `<a href="tel:${lead.phone}" class="lead-phone-link">${escapeHtml(lead.phone)}</a>` : '-'}</td>
         <td>${escapeHtml(lead.assignedTo) || '-'}</td>
+        <td>${escapeHtml(formatDate(lead.createdDate)) || '-'}</td>
       </tr>
     `;
   }).join('');
 
-  // Attach checkbox handlers (avoid inline event issues)
+  // Attach handlers (avoid inline event issues)
   tbody.querySelectorAll('.lead-select-checkbox').forEach(cb => {
     cb.addEventListener('click', (e) => e.stopPropagation());
-    cb.addEventListener('change', (e) => {
+    cb.addEventListener('change', () => {
       const id = cb.getAttribute('data-lead-id');
       toggleLeadSelectionFromCheckbox(cb, id);
     });
+  });
+
+  // Phone link should not open modal when clicked
+  tbody.querySelectorAll('.lead-phone-link').forEach(a => {
+    a.addEventListener('click', (e) => e.stopPropagation());
   });
 
   // Sync header checkbox + toolbar
@@ -221,7 +231,7 @@ function showLeadsLoading() {
   if (tbody) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="9" class="loading" style="text-align: center; padding: 40px;">
+        <td colspan="6" class="loading" style="text-align: center; padding: 40px;">
           <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
           <p>Loading leads...</p>
         </td>
@@ -238,7 +248,7 @@ function showLeadsError(message) {
   if (tbody) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="9" style="text-align: center; padding: 40px;">
+        <td colspan="6" style="text-align: center; padding: 40px;">
           <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #f44336; margin-bottom: 10px;"></i>
           <p style="color: #f44336;"><strong>Error loading leads</strong></p>
           <p style="color: #666;">${escapeHtml(message)}</p>
@@ -297,7 +307,7 @@ function viewLeadDetails(leadId) {
               <h3><i class="fas fa-info-circle"></i> Lead Information</h3>
               <div class="detail-row">
                 <span class="detail-label">Course:</span>
-                <span class="detail-value">${escapeHtml(lead.course) || '-'}</span>
+                <span class="detail-value">${escapeHtml(lead.course || lead.intake_json?.course) || '-'}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">Source:</span>
@@ -306,6 +316,10 @@ function viewLeadDetails(leadId) {
               <div class="detail-row">
                 <span class="detail-label">Status:</span>
                 <span class="detail-value"><span class="badge badge-${getStatusColor(lead.status)}">${escapeHtml(lead.status)}</span></span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Priority:</span>
+                <span class="detail-value">${escapeHtml(lead.priority) || '-'}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">Assigned To:</span>
@@ -322,6 +336,13 @@ function viewLeadDetails(leadId) {
             <h3><i class="fas fa-sticky-note"></i> Notes</h3>
             <div class="notes-box">
               ${lead.notes ? escapeHtml(lead.notes).replace(/\n/g, '<br>') : '<em style="color: #999;">No notes available</em>'}
+            </div>
+          </div>
+
+          <div class="detail-section" style="margin-top: 20px;">
+            <h3><i class="fas fa-database"></i> Full Details</h3>
+            <div class="notes-box" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; white-space: pre-wrap;">
+              ${escapeHtml(JSON.stringify(lead, null, 2))}
             </div>
           </div>
           
@@ -603,6 +624,35 @@ function formatDate(dateString) {
   } catch {
     return dateString;
   }
+}
+
+function getSortValue(lead, column) {
+  switch (column) {
+    case 'course':
+      return lead.course || lead.intake_json?.course || '';
+    case 'createdDate':
+      return lead.createdDate || '';
+    default:
+      return lead[column] ?? '';
+  }
+}
+
+function compareLeads(a, b, column, direction) {
+  const av = getSortValue(a, column);
+  const bv = getSortValue(b, column);
+
+  // numeric compare if both look numeric
+  const an = typeof av === 'number' ? av : (String(av).match(/^\d+(\.\d+)?$/) ? Number(av) : NaN);
+  const bn = typeof bv === 'number' ? bv : (String(bv).match(/^\d+(\.\d+)?$/) ? Number(bv) : NaN);
+
+  let cmp;
+  if (!Number.isNaN(an) && !Number.isNaN(bn)) {
+    cmp = an - bn;
+  } else {
+    cmp = String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' });
+  }
+
+  return direction === 'desc' ? -cmp : cmp;
 }
 
 // -------------------------

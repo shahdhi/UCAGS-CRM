@@ -85,7 +85,11 @@ async function listMyLeads({ officerName, batchName, sheetName, search, status }
     q = q.or(`name.ilike.${s},email.ilike.${s},phone.ilike.${s}`);
   }
 
-  const { data, error } = await q.order('synced_at', { ascending: false, nullsFirst: false });
+  // Default order: lead added order (stable)
+  // Prefer created_at (when available), then sheet_lead_id.
+  const { data, error } = await q
+    .order('created_at', { ascending: true, nullsFirst: false })
+    .order('sheet_lead_id', { ascending: true });
   if (error) throw error;
 
   return (data || []).map(rowToLead);
@@ -108,7 +112,11 @@ async function listAdminLeads({ batchName, sheetName, search, status }) {
     q = q.or(`name.ilike.${s},email.ilike.${s},phone.ilike.${s}`);
   }
 
-  const { data, error } = await q.order('synced_at', { ascending: false, nullsFirst: false });
+  // Default order: lead added order (stable)
+  // Prefer created_at (when available), then sheet_lead_id.
+  const { data, error } = await q
+    .order('created_at', { ascending: true, nullsFirst: false })
+    .order('sheet_lead_id', { ascending: true });
   if (error) throw error;
 
   return (data || []).map(rowToLead);
@@ -133,7 +141,7 @@ function rowToLead(r) {
     platform: r.platform || '',
     status: r.status || 'New',
     assignedTo: r.assigned_to || '',
-    createdDate: r.created_date || '',
+    createdDate: r.created_date || r.created_at || '',
     notes: r.notes || '',
     source: r.source || '',
 
@@ -309,6 +317,8 @@ async function createAdminLead({ batchName, sheetName, lead }) {
     notes: cleanString(lead?.notes),
     assigned_to: cleanString(lead?.assignedTo),
     created_at: new Date().toISOString(),
+    // Keep legacy-compatible created_date (used by UI)
+    created_date: new Date().toISOString(),
     updated_at: new Date().toISOString()
   };
 

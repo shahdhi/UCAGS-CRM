@@ -671,19 +671,16 @@
                                 <th style="width: 40px;">
                                     <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()" title="Select All">
                                 </th>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Phone</th>
-                                <th>Course</th>
-                                <th>Source</th>
-                                <th>Status</th>
-                                <th>Priority</th>
-                                <th>Assigned To</th>
+                                <th data-sort="name">Name</th>
+                                <th data-sort="email">Email</th>
+                                <th data-sort="phone">Phone</th>
+                                <th data-sort="assignedTo">Assigned To</th>
+                                <th data-sort="createdDate">Created</th>
                             </tr>
                         </thead>
                         <tbody id="leadsTableBody">
                             <tr>
-                                <td colspan="9" class="loading">Loading leads...</td>
+                                <td colspan="6" class="loading">Loading leads...</td>
                             </tr>
                         </tbody>
                     </table>

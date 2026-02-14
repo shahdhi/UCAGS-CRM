@@ -822,6 +822,20 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.08em;
     border-bottom: 2px solid var(--bg-secondary);
+}
+
+/* Sort indicators for leads table (clickable headers) */
+.data-table th.sorted-asc::after {
+    content: " \25B2"; /* ▲ */
+    color: #1976d2;
+    font-size: 11px;
+}
+
+.data-table th.sorted-desc::after {
+    content: " \25BC"; /* ▼ */
+    color: #1976d2;
+    font-size: 11px;
+}
     background: var(--bg-secondary);
 }
 
