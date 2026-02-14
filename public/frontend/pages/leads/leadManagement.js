@@ -703,6 +703,9 @@ async function saveLeadManagement(event, leadId) {
           Object.assign(lead, json.lead);
         }
 
+        // Ensure status is always in canonical form for table rendering
+        lead.status = normalizeLeadStatus(lead.status);
+
         // Notify caller (staff view) if present
         if (ctx?.onAfterSave) {
           try { await ctx.onAfterSave(json.lead || lead); } catch (e) { /* ignore */ }
