@@ -33,6 +33,49 @@
     return ctx?.filteredLeadsRef || filteredManagementLeads;
   }
 
+  const CANONICAL_LEAD_STATUSES = [
+    'New',
+    'Contacted',
+    'Interested',
+    'Registered',
+    'Enrolled',
+    'Not Interested',
+    'Unreachable',
+    'No Answer',
+    'Awaiting Decision',
+    'No Response Next Batch'
+  ];
+
+  function normalizeLeadStatus(status) {
+    if (status == null) return '';
+    const raw = String(status).trim();
+    if (!raw) return '';
+
+    const key = raw.toLowerCase().replace(/\s+/g, ' ').trim();
+    switch (key) {
+      case 'new': return 'New';
+      case 'contacted': return 'Contacted';
+      case 'interested': return 'Interested';
+      case 'registered': return 'Registered';
+      case 'enrolled': return 'Enrolled';
+      case 'not interested': return 'Not Interested';
+      case 'unreachable': return 'Unreachable';
+      case 'no answer': return 'No Answer';
+      case 'awaiting decision': return 'Awaiting Decision';
+      case 'no response next batch': return 'No Response Next Batch';
+
+      // Legacy values still present in older UI
+      case 'follow-up':
+      case 'follow up': return 'Interested';
+      case 'closed': return 'Not Interested';
+
+      default:
+        // If it already matches canonical (case-insensitive), return canonical-cased version
+        const match = CANONICAL_LEAD_STATUSES.find(s => s.toLowerCase() === key);
+        return match || raw;
+    }
+  }
+
 /**
  * Initialize Lead Management page
  */
@@ -121,7 +164,7 @@ async function loadLeadManagement() {
     const res = await fetch(`/api/crm-leads/my?${params.toString()}`, { headers: authHeaders });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Failed to load leads');
-    managementLeads = data.leads || [];
+    managementLeads = (data.leads || []).map(l => ({ ...l, status: normalizeLeadStatus(l.status) }));
 
     // Load normalized followups for each lead (officer-owned) and hydrate legacy fields
     // This keeps the current UI working while storing followups in Supabase.
@@ -184,7 +227,7 @@ function filterManagementLeads() {
   const priorityFilter = document.getElementById('managementPriorityFilter');
   
   const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
-  const statusValue = statusFilter ? statusFilter.value : '';
+  const statusValue = normalizeLeadStatus(statusFilter ? statusFilter.value : '');
   const priorityValue = priorityFilter ? priorityFilter.value : '';
   
   filteredManagementLeads = managementLeads.filter(lead => {
@@ -195,7 +238,7 @@ function filterManagementLeads() {
       lead.phone?.includes(searchTerm);
     
     // Status filter
-    const matchesStatus = !statusValue || lead.status === statusValue;
+    const matchesStatus = !statusValue || normalizeLeadStatus(lead.status) === statusValue;
     
     // Priority filter
     const matchesPriority = !priorityValue || lead.priority === priorityValue;
@@ -237,7 +280,7 @@ function renderManagementTable() {
     <tr data-lead-id="${escapeHtml(String(lead.id))}">
       <td><strong>${escapeHtml(lead.name)}</strong></td>
       <td>${lead.phone ? `<a href="tel:${lead.phone}">${escapeHtml(lead.phone)}</a>` : '-'}</td>
-      <td><span class="badge badge-${getStatusColor(lead.status)}">${escapeHtml(lead.status || 'New')}</span></td>
+      <td><span class="badge badge-${getStatusColor(lead.status)}">${escapeHtml(normalizeLeadStatus(lead.status) || 'New')}</span></td>
       <td><span class="badge badge-${getPriorityColor(lead.priority)}">${escapeHtml(lead.priority || '-')}</span></td>
       <td>${escapeHtml(getLastFollowUpComment(lead)) || '-'}</td>
       <td>${getNextFollowUpSchedule(lead) ? formatDate(getNextFollowUpSchedule(lead)) : '-'}</td>
@@ -333,12 +376,21 @@ function getPriorityColor(priority) {
  * Get status badge color
  */
 function getStatusColor(status) {
-  switch(status) {
+  const s = normalizeLeadStatus(status);
+  switch (s) {
     case 'New': return 'primary';
     case 'Contacted': return 'info';
-    case 'Follow-up': return 'warning';
+    case 'Interested': return 'warning';
+    case 'Awaiting Decision': return 'warning';
     case 'Registered': return 'success';
-    case 'Closed': return 'secondary';
+    case 'Enrolled': return 'success';
+
+    case 'No Answer': return 'secondary';
+    case 'Unreachable': return 'secondary';
+
+    case 'Not Interested': return 'danger';
+    case 'No Response Next Batch': return 'dark';
+
     default: return 'secondary';
   }
 }
@@ -409,11 +461,7 @@ async function openManageLeadModal(leadId) {
               <div class="form-group">
                 <label for="leadStatus"><i class="fas fa-info-circle"></i> Lead Status *</label>
                 <select id="leadStatus" class="form-control" required>
-                  <option value="New" ${lead.status === 'New' ? 'selected' : ''}>New</option>
-                  <option value="Contacted" ${lead.status === 'Contacted' ? 'selected' : ''}>Contacted</option>
-                  <option value="Follow-up" ${lead.status === 'Follow-up' ? 'selected' : ''}>Follow-up</option>
-                  <option value="Registered" ${lead.status === 'Registered' ? 'selected' : ''}>Registered</option>
-                  <option value="Closed" ${lead.status === 'Closed' ? 'selected' : ''}>Closed</option>
+                  ${CANONICAL_LEAD_STATUSES.map(s => `<option value="${s}" ${normalizeLeadStatus(lead.status) === s ? 'selected' : ''}>${s}</option>`).join('')}
                 </select>
               </div>
               
@@ -564,7 +612,7 @@ async function saveLeadManagement(event, leadId) {
       pdfSent: document.getElementById('pdfSent').checked,
       waSent: document.getElementById('waSent').checked,
       emailSent: document.getElementById('emailSent').checked,
-      status: document.getElementById('leadStatus').value,
+      status: normalizeLeadStatus(document.getElementById('leadStatus').value),
       priority: document.getElementById('priority').value,
       nextFollowUp: document.getElementById('nextFollowUp').value,
       callFeedback: document.getElementById('callFeedback').value

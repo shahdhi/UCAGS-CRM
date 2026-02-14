@@ -39,13 +39,43 @@
       .replace(/'/g, '&#039;');
   }
 
+  function normalizeLeadStatus(status) {
+    if (status == null) return '';
+    const raw = String(status).trim();
+    if (!raw) return '';
+    const key = raw.toLowerCase().replace(/\s+/g, ' ').trim();
+    switch (key) {
+      case 'new': return 'New';
+      case 'contacted': return 'Contacted';
+      case 'interested': return 'Interested';
+      case 'registered': return 'Registered';
+      case 'enrolled': return 'Enrolled';
+      case 'not interested': return 'Not Interested';
+      case 'unreachable': return 'Unreachable';
+      case 'no answer': return 'No Answer';
+      case 'awaiting decision': return 'Awaiting Decision';
+      case 'no response next batch': return 'No Response Next Batch';
+      // legacy
+      case 'follow-up':
+      case 'follow up': return 'Interested';
+      case 'closed': return 'Not Interested';
+      default: return raw;
+    }
+  }
+
   function getStatusColor(status) {
-    switch (status) {
+    const s = normalizeLeadStatus(status);
+    switch (s) {
       case 'New': return 'primary';
       case 'Contacted': return 'info';
-      case 'Follow-up': return 'warning';
+      case 'Interested': return 'warning';
+      case 'Awaiting Decision': return 'warning';
       case 'Registered': return 'success';
-      case 'Closed': return 'secondary';
+      case 'Enrolled': return 'success';
+      case 'No Answer': return 'secondary';
+      case 'Unreachable': return 'secondary';
+      case 'Not Interested': return 'danger';
+      case 'No Response Next Batch': return 'dark';
       default: return 'secondary';
     }
   }
@@ -372,7 +402,7 @@
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Failed to load leads');
 
-      staffLeads = json.leads || [];
+      staffLeads = (json.leads || []).map(l => ({ ...l, status: normalizeLeadStatus(l.status) }));
 
       // hydrate followups for each lead (admin view, officer-owned followups)
       await Promise.all(staffLeads.map(async (lead) => {
@@ -422,7 +452,7 @@
         lead.email?.toLowerCase().includes(term) ||
         String(lead.phone || '').includes(term);
 
-      const matchesStatus = !status || lead.status === status;
+      const matchesStatus = !status || normalizeLeadStatus(lead.status) === normalizeLeadStatus(status);
       const matchesPrio = !prio || lead.priority === prio;
 
       return matchesSearch && matchesStatus && matchesPrio;
@@ -450,7 +480,7 @@
       <tr>
         <td><strong>${escapeHtml(lead.name)}</strong></td>
         <td>${lead.phone ? `<a href="tel:${escapeHtml(lead.phone)}">${escapeHtml(lead.phone)}</a>` : '-'}</td>
-        <td><span class="badge badge-${getStatusColor(lead.status)}">${escapeHtml(lead.status || 'New')}</span></td>
+        <td><span class="badge badge-${getStatusColor(lead.status)}">${escapeHtml(normalizeLeadStatus(lead.status) || 'New')}</span></td>
         <td><span class="badge badge-${getPriorityColor(lead.priority)}">${escapeHtml(lead.priority || '-')}</span></td>
         <td>${escapeHtml(getLastFollowUpComment(lead)) || '-'}</td>
         <td>${getNextFollowUpSchedule(lead) ? escapeHtml(formatDate(getNextFollowUpSchedule(lead))) : '-'}</td>
