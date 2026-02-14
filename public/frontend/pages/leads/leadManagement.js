@@ -352,7 +352,7 @@ async function openManageLeadModal(leadId) {
           </button>
         </div>
         <div class="modal-body">
-          <form id="manageLeadForm" onsubmit="saveLeadManagement(event, ${JSON.stringify(String(lead.id))})">
+          <form id="manageLeadForm">
             
             <!-- Section 1: Quick Actions / Outreach -->
             <div style="background: #f0f7ff; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
@@ -487,6 +487,12 @@ async function openManageLeadModal(leadId) {
   
   document.body.insertAdjacentHTML('beforeend', modalHTML);
   document.body.style.overflow = 'hidden';
+
+  // Bind submit handler safely (avoid inline onsubmit quoting issues)
+  const form = document.getElementById('manageLeadForm');
+  if (form) {
+    form.addEventListener('submit', (e) => saveLeadManagement(e, String(leadId)));
+  }
 }
 
 /**
