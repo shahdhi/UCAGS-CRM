@@ -280,13 +280,27 @@
 
     try {
       const headers = await getAuthHeaders();
-      const url = `/api/crm-leads/admin/meta/sheets?assignedTo=${encodeURIComponent(officer.officerName)}&batch=${encodeURIComponent(batch)}`;
-      const res = await fetch(url, { headers });
-      const json = await res.json();
+      // Prefer batch-filtered sheets, but if it returns empty we'll retry without batch filter.
+      let url = `/api/crm-leads/admin/meta/sheets?assignedTo=${encodeURIComponent(officer.officerName)}&batch=${encodeURIComponent(batch)}`;
+      let res = await fetch(url, { headers });
+      let json = await res.json();
       if (!json.success) throw new Error(json.error || 'Failed to load sheets');
 
-      const sheets = (json.sheets || []).filter(Boolean);
+      let sheets = (json.sheets || []).filter(Boolean);
+
+      // If none found for batch, retry without batch filter (in case data uses different batch naming)
+      if (!sheets.length) {
+        url = `/api/crm-leads/admin/meta/sheets?assignedTo=${encodeURIComponent(officer.officerName)}`;
+        res = await fetch(url, { headers });
+        json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Failed to load sheets');
+        sheets = (json.sheets || []).filter(Boolean);
+      }
+
       const defaultSheet = 'Main Leads';
+
+      // Add an "All Sheets" option
+      sheets = ['(All Sheets)', ...sheets];
 
       if (!sheets.length) {
         sheetSel.innerHTML = `<option value="">No sheets</option>`;
@@ -319,7 +333,7 @@
     if (batch) parts.push(batch);
     if (sheet) parts.push(sheet);
 
-    el.textContent = parts.length ? parts.join('  •  ') : "View any officer's sheets (including personal sheets)";
+    el.textContent = parts.length ? parts.join('  •  ') : "View any officer's lead lists (Supabase)";
   }
 
   async function refreshStaffLeadManagement() {
@@ -351,7 +365,7 @@
 
       const params = new URLSearchParams();
       params.set('batch', batch);
-      params.set('sheet', sheet);
+      if (sheet && sheet !== '(All Sheets)') params.set('sheet', sheet);
       params.set('assignedTo', officer.officerName);
 
       const res = await fetch(`/api/crm-leads/admin?${params.toString()}`, { headers });
@@ -424,7 +438,7 @@
     if (!filteredStaffLeads.length) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="7" style="text-align:center; padding:40px; color:#666;">
+          <td colspan="8" style="text-align:center; padding:40px; color:#666;">
             No leads found
           </td>
         </tr>
@@ -441,6 +455,11 @@
         <td>${escapeHtml(getLastFollowUpComment(lead)) || '-'}</td>
         <td>${getNextFollowUpSchedule(lead) ? escapeHtml(formatDate(getNextFollowUpSchedule(lead))) : '-'}</td>
         <td style="color:#999; font-size:12px;">${escapeHtml(lead.assignedTo || '')}</td>
+        <td>
+          <button class="btn btn-sm btn-primary" onclick="openStaffManageLeadModal('${escapeHtml(String(lead.id))}')" title="Manage Lead">
+            <i class="fas fa-edit"></i>
+          </button>
+        </td>
       </tr>
     `).join('');
   }
@@ -451,7 +470,7 @@
 
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align:center; padding:40px; color:#f44336;">
+        <td colspan="8" style="text-align:center; padding:40px; color:#f44336;">
           <strong>Error loading leads</strong><br/>
           ${escapeHtml(message)}
         </td>
@@ -459,7 +478,30 @@
     `;
   }
 
+  async function openStaffManageLeadModal(leadId) {
+    const officer = getSelectedOfficer();
+    if (!officer) return;
+
+    // Provide context so leadManagement.js modal can operate on staff leads list
+    window.__leadManagementContext = {
+      mode: 'admin',
+      leadsRef: staffLeads,
+      filteredLeadsRef: filteredStaffLeads,
+      onAfterSave: async () => {
+        // Reload current officer view after save so table stays consistent
+        await refreshStaffLeadManagement();
+      }
+    };
+
+    if (window.openManageLeadModal) {
+      await window.openManageLeadModal(leadId);
+    } else {
+      alert('Lead management modal not available');
+    }
+  }
+
   // globals
   window.initStaffLeadManagementPage = initStaffLeadManagementPage;
   window.refreshStaffLeadManagement = refreshStaffLeadManagement;
+  window.openStaffManageLeadModal = openStaffManageLeadModal;
 })();

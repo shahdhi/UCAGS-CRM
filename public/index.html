@@ -535,7 +535,7 @@
                 <div class="page-header">
                     <div>
                         <h1 style="margin:0;"><i class="fas fa-tasks"></i> Lead Management</h1>
-                        <div id="staffLeadMgmtSubtitle" style="margin-top:4px; font-size:12px; color:#666;">View any officer's sheets (including personal sheets)</div>
+                        <div id="staffLeadMgmtSubtitle" style="margin-top:4px; font-size:12px; color:#666;">View any officer's lead lists (Supabase)</div>
                     </div>
                     <div style="display:flex; gap:10px;">
                         <button class="btn btn-secondary" type="button" onclick="refreshStaffLeadManagement()">
@@ -576,10 +576,11 @@
                                 <th>Last Comment</th>
                                 <th>Next Follow-up</th>
                                 <th>Officer</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody id="staffLeadMgmtTableBody">
-                            <tr><td colspan="7" class="loading">Select an officer and sheet...</td></tr>
+                            <tr><td colspan="8" class="loading">Select an officer and sheet...</td></tr>
                         </tbody>
                     </table>
                 </div>

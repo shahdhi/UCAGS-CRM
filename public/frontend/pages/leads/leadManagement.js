@@ -12,6 +12,27 @@
   let isInitialized = false;
   let isLoading = false;
 
+  // Optional context override (used by admin Staff Lead Management view)
+  // window.__leadManagementContext = {
+  //   mode: 'admin',
+  //   leadsRef: [],
+  //   filteredLeadsRef: [],
+  //   onAfterSave: async () => {}
+  // }
+  function getLeadManagementContext() {
+    return window.__leadManagementContext || null;
+  }
+
+  function getContextLeads() {
+    const ctx = getLeadManagementContext();
+    return ctx?.leadsRef || managementLeads;
+  }
+
+  function getContextFilteredLeads() {
+    const ctx = getLeadManagementContext();
+    return ctx?.filteredLeadsRef || filteredManagementLeads;
+  }
+
 /**
  * Initialize Lead Management page
  */
@@ -344,7 +365,7 @@ function showManagementError(message) {
  * Open manage lead modal with full tracking fields
  */
 async function openManageLeadModal(leadId) {
-  const lead = filteredManagementLeads.find(l => l.id == leadId);
+  const lead = getContextFilteredLeads().find(l => l.id == leadId);
   if (!lead) {
     alert('Lead not found');
     return;
@@ -555,7 +576,7 @@ async function saveLeadManagement(event, leadId) {
     const followUpSections = container ? container.querySelectorAll('.followup-section') : [];
 
     // First clear any existing followUpN* fields on the lead (so removed followups are truly removed)
-    const existingLead = managementLeads.find(l => l.id == leadId) || {};
+    const existingLead = getContextLeads().find(l => l.id == leadId) || {};
     Object.keys(existingLead).forEach(k => {
       if (/^followUp\d+(Schedule|Date|Answered|Comment)$/.test(k)) {
         managementData[k] = '';
@@ -584,7 +605,7 @@ async function saveLeadManagement(event, leadId) {
     console.log('Saving lead management data:', managementData);
 
     // Optimistic UI: update local state + close modal immediately
-    const lead = managementLeads.find(l => l.id == leadId);
+    const lead = getContextLeads().find(l => l.id == leadId);
     if (!lead) throw new Error('Lead not found');
 
     Object.assign(lead, managementData);
@@ -592,7 +613,12 @@ async function saveLeadManagement(event, leadId) {
 
     // Close modal and refresh table immediately (fast UX)
     closeManageLeadModal();
-    renderManagementTable();
+    {
+      const ctx = getLeadManagementContext();
+      if (!ctx) {
+        renderManagementTable();
+      }
+    }
 
     // Show immediate feedback
     showToast('Saving changes...', 'info');
@@ -600,8 +626,10 @@ async function saveLeadManagement(event, leadId) {
     // Save to backend in background
     (async () => {
       try {
-        const batch = window.officerBatchFilter && window.officerBatchFilter !== 'all' ? window.officerBatchFilter : lead.batch;
-        const sheet = window.officerSheetFilter || 'Main Leads';
+        const ctx = getLeadManagementContext();
+        const batch = lead.batch;
+        const sheet = lead.sheet || 'Main Leads';
+        const isAdminMode = ctx?.mode === 'admin';
 
         let authHeaders = { 'Content-Type': 'application/json' };
         if (window.supabaseClient) {
@@ -611,7 +639,11 @@ async function saveLeadManagement(event, leadId) {
           }
         }
 
-        const res = await fetch(`/api/crm-leads/my/${encodeURIComponent(batch)}/${encodeURIComponent(sheet)}/${encodeURIComponent(lead.id)}`, {
+        const endpoint = isAdminMode
+          ? `/api/crm-leads/admin/${encodeURIComponent(batch)}/${encodeURIComponent(sheet)}/${encodeURIComponent(lead.id)}`
+          : `/api/crm-leads/my/${encodeURIComponent(batch)}/${encodeURIComponent(sheet)}/${encodeURIComponent(lead.id)}`;
+
+        const res = await fetch(endpoint, {
           method: 'PUT',
           headers: authHeaders,
           body: JSON.stringify(lead)
@@ -621,6 +653,12 @@ async function saveLeadManagement(event, leadId) {
 
         if (json.lead) {
           Object.assign(lead, json.lead);
+        }
+
+        // Notify caller (staff view) if present
+        if (ctx?.onAfterSave) {
+          try { await ctx.onAfterSave(json.lead || lead); } catch (e) { /* ignore */ }
+        } else {
           renderManagementTable();
         }
 
@@ -630,7 +668,10 @@ async function saveLeadManagement(event, leadId) {
         showToast('Save failed: ' + (err.message || err), 'error');
 
         // Reload to ensure UI reflects server truth
-        try { await loadLeadManagement(); } catch (e) { /* ignore */ }
+        const ctx = getLeadManagementContext();
+        if (!ctx) {
+          try { await loadLeadManagement(); } catch (e) { /* ignore */ }
+        }
       }
     })();
 
