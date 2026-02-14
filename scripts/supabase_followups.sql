@@ -40,22 +40,44 @@ create unique index if not exists crm_lead_followups_unique_seq
 alter table public.crm_lead_followups enable row level security;
 
 -- Officers can read/write only their own followups
-create policy if not exists "followups_select_own"
-  on public.crm_lead_followups for select
-  using (auth.uid() = officer_user_id);
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'crm_lead_followups'
+      and policyname = 'followups_select_own'
+  ) then
+    execute 'create policy "followups_select_own" on public.crm_lead_followups for select using (auth.uid() = officer_user_id)';
+  end if;
 
-create policy if not exists "followups_insert_own"
-  on public.crm_lead_followups for insert
-  with check (auth.uid() = officer_user_id);
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'crm_lead_followups'
+      and policyname = 'followups_insert_own'
+  ) then
+    execute 'create policy "followups_insert_own" on public.crm_lead_followups for insert with check (auth.uid() = officer_user_id)';
+  end if;
 
-create policy if not exists "followups_update_own"
-  on public.crm_lead_followups for update
-  using (auth.uid() = officer_user_id)
-  with check (auth.uid() = officer_user_id);
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'crm_lead_followups'
+      and policyname = 'followups_update_own'
+  ) then
+    execute 'create policy "followups_update_own" on public.crm_lead_followups for update using (auth.uid() = officer_user_id) with check (auth.uid() = officer_user_id)';
+  end if;
 
-create policy if not exists "followups_delete_own"
-  on public.crm_lead_followups for delete
-  using (auth.uid() = officer_user_id);
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'crm_lead_followups'
+      and policyname = 'followups_delete_own'
+  ) then
+    execute 'create policy "followups_delete_own" on public.crm_lead_followups for delete using (auth.uid() = officer_user_id)';
+  end if;
+end $$;
 
 -- 3) updated_at trigger
 create or replace function public.set_updated_at()
