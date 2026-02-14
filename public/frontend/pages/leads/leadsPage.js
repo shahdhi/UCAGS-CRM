@@ -183,8 +183,8 @@ function renderLeadsTable() {
     const isSelected = Boolean(window.__selectedLeadIds && window.__selectedLeadIds.has(String(lead.id)));
     return `
       <tr style="cursor: pointer;" onclick="viewLeadDetails(${JSON.stringify(lead.id)})" title="Click to view details">
-        <td style="width:40px;" onclick="return false;">
-          <input type="checkbox" class="lead-select-checkbox" data-lead-id="${escapeHtml(String(lead.id))}" ${isSelected ? 'checked' : ''} onchange="toggleLeadSelectionFromCheckbox(this, ${JSON.stringify(lead.id)})">
+        <td style="width:40px;">
+          <input type="checkbox" class="lead-select-checkbox" data-lead-id="${escapeHtml(String(lead.id))}" ${isSelected ? 'checked' : ''}>
         </td>
         <td><strong>${escapeHtml(lead.name)}</strong></td>
         <td>${escapeHtml(lead.email)}</td>
@@ -197,6 +197,15 @@ function renderLeadsTable() {
       </tr>
     `;
   }).join('');
+
+  // Attach checkbox handlers (avoid inline event issues)
+  tbody.querySelectorAll('.lead-select-checkbox').forEach(cb => {
+    cb.addEventListener('click', (e) => e.stopPropagation());
+    cb.addEventListener('change', (e) => {
+      const id = cb.getAttribute('data-lead-id');
+      toggleLeadSelectionFromCheckbox(cb, id);
+    });
+  });
 
   // Sync header checkbox + toolbar
   updateSelectionUI();
