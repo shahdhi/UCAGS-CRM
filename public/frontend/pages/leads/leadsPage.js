@@ -183,7 +183,7 @@ function renderLeadsTable() {
     const isSelected = Boolean(window.__selectedLeadIds && window.__selectedLeadIds.has(String(lead.id)));
     return `
       <tr style="cursor: pointer;" onclick="viewLeadDetails(${JSON.stringify(lead.id)})" title="Click to view details">
-        <td style="width:40px;" onclick="event.stopPropagation()">
+        <td style="width:40px;" onclick="return false;">
           <input type="checkbox" class="lead-select-checkbox" data-lead-id="${escapeHtml(String(lead.id))}" ${isSelected ? 'checked' : ''} onchange="toggleLeadSelectionFromCheckbox(this, ${JSON.stringify(lead.id)})">
         </td>
         <td><strong>${escapeHtml(lead.name)}</strong></td>
@@ -711,7 +711,7 @@ async function bulkAssignLeads() {
           <p style="margin-top:0; color:#555;">Choose an officer to assign. You can also unassign.</p>
 
           <label style="display:flex; align-items:center; gap:10px; padding: 10px 12px; border:1px dashed #bbb; border-radius: 8px; margin-bottom: 12px; cursor:pointer; background:#fafafa;">
-            <input type="checkbox" class="ba_choice" value="__UNASSIGN__" />
+            <input type="checkbox" id="ba_unassign" value="__UNASSIGN__" />
             <span style="font-weight:700;">Unassign (remove officer)</span>
           </label>
 
@@ -731,37 +731,54 @@ async function bulkAssignLeads() {
   document.body.insertAdjacentHTML('beforeend', html);
   document.body.style.overflow = 'hidden';
 
-  // Make checkboxes behave like single-select
   const choices = Array.from(document.querySelectorAll('#' + modalId + ' .ba_choice'));
-  choices.forEach(ch => {
-    ch.addEventListener('change', () => {
-      if (!ch.checked) return;
-      choices.forEach(other => { if (other !== ch) other.checked = false; });
+  const unassign = document.getElementById('ba_unassign');
+
+  // If Unassign is checked, clear officer selection. If any officer is checked, uncheck Unassign.
+  if (unassign) {
+    unassign.addEventListener('change', () => {
+      if (!unassign.checked) return;
+      choices.forEach(c => c.checked = false);
+    });
+  }
+  choices.forEach(c => {
+    c.addEventListener('change', () => {
+      if (c.checked && unassign) unassign.checked = false;
     });
   });
 
   document.getElementById('ba_submit')?.addEventListener('click', async () => {
-    const selected = choices.find(x => x.checked);
-    if (!selected) {
-      showToast('Select an officer or Unassign.', 'error');
+    const selectedOfficers = choices.filter(x => x.checked).map(x => x.value);
+    const doUnassign = Boolean(unassign && unassign.checked);
+
+    if (!doUnassign && selectedOfficers.length === 0) {
+      showToast('Select officer(s) or Unassign.', 'error');
       return;
     }
-
-    const assignedTo = selected.value === '__UNASSIGN__' ? '' : selected.value;
 
     const btn = document.getElementById('ba_submit');
     const old = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
     btn.disabled = true;
     try {
-      await API.leads.bulkAssign({ batchName, sheetName, leadIds: ids, assignedTo });
+      if (doUnassign) {
+        await API.leads.bulkAssign({ batchName, sheetName, leadIds: ids, assignedTo: '' });
+        showToast(`Unassigned ${ids.length} leads`, 'success');
+      } else if (selectedOfficers.length === 1) {
+        await API.leads.bulkAssign({ batchName, sheetName, leadIds: ids, assignedTo: selectedOfficers[0] });
+        showToast(`Assigned ${ids.length} leads to ${selectedOfficers[0]}`, 'success');
+      } else {
+        // Multi-officer selection => distribute selected leads round-robin
+        await API.leads.bulkDistribute({ batchName, sheetName, leadIds: ids, officers: selectedOfficers });
+        showToast(`Distributed ${ids.length} leads among ${selectedOfficers.length} officers`, 'success');
+      }
+
       closeLeadsActionModal(modalId);
       clearSelection();
       await loadLeads();
-      showToast(assignedTo ? `Assigned ${ids.length} leads to ${assignedTo}` : `Unassigned ${ids.length} leads`, 'success');
     } catch (err) {
       console.error(err);
-      showToast(err.message || 'Failed to assign', 'error');
+      showToast(err.message || 'Failed to update assignment', 'error');
     } finally {
       btn.innerHTML = old;
       btn.disabled = false;
