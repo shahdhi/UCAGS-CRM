@@ -162,7 +162,7 @@ function rowToLead(r) {
   };
 }
 
-async function updateMyLeadManagement({ officerName, batchName, sheetName, sheetLeadId, updates }) {
+async function updateMyLeadManagement({ officerName, batchName, sheetName, sheetLeadId, updates, officerUserId }) {
   const sb = requireSupabase();
 
   if (!officerName) {
@@ -200,6 +200,24 @@ async function updateMyLeadManagement({ officerName, batchName, sheetName, sheet
 
   const mgmtUpdates = pickManagementFields(updates || {});
   const mergedMgmt = { ...(existing.management_json || {}), ...mgmtUpdates };
+
+  // Also persist follow-ups in normalized table (officer-owned)
+  // Best-effort: does not block saving management_json.
+  try {
+    const followupsSvc = require('./followupsService');
+    if (officerUserId) {
+      await followupsSvc.syncLegacyFollowupsFromManagement({
+        officerUserId,
+        officerName,
+        batchName,
+        sheetName,
+        sheetLeadId,
+        management: mergedMgmt
+      });
+    }
+  } catch (e) {
+    console.warn('⚠️ Followups sync skipped/failed:', e.message);
+  }
 
   const patch = {
     management_json: mergedMgmt,

@@ -50,6 +50,7 @@ router.put('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, res
     const { batchName, sheetName, leadId } = req.params;
     const lead = await svc.updateMyLeadManagement({
       officerName,
+      officerUserId: req.user?.id,
       batchName,
       sheetName,
       sheetLeadId: leadId,
