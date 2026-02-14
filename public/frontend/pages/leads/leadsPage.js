@@ -83,9 +83,10 @@ function setupLeadsEventListeners() {
 
   // No pagination / rows-per-page / export/import on this screen
 
-  // Table header sorting
+  // Table header sorting (bind once; prevent duplicate handlers causing double-toggle)
   const table = document.getElementById('leadsTable');
-  if (table) {
+  if (table && !window.__leadsSortHandlersBound) {
+    window.__leadsSortHandlersBound = true;
     const headers = table.querySelectorAll('th[data-sort]');
     headers.forEach(header => {
       header.style.cursor = 'pointer';
@@ -190,7 +191,7 @@ function renderLeadsTable() {
   tbody.innerHTML = paginatedLeads.map(lead => {
     const isSelected = Boolean(window.__selectedLeadIds && window.__selectedLeadIds.has(String(lead.id)));
     return `
-      <tr style="cursor: pointer;" onclick="viewLeadDetails(${JSON.stringify(lead.id)})" title="Click to view details">
+      <tr class="lead-row" data-lead-id="${escapeHtml(String(lead.id))}" style="cursor: pointer;" title="Click to view details">
         <td style="width:40px;">
           <input type="checkbox" class="lead-select-checkbox" data-lead-id="${escapeHtml(String(lead.id))}" ${isSelected ? 'checked' : ''}>
         </td>
@@ -202,6 +203,14 @@ function renderLeadsTable() {
       </tr>
     `;
   }).join('');
+
+  // Row click opens details modal
+  tbody.querySelectorAll('tr.lead-row').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const id = tr.getAttribute('data-lead-id');
+      viewLeadDetails(id);
+    });
+  });
 
   // Attach handlers (avoid inline event issues)
   tbody.querySelectorAll('.lead-select-checkbox').forEach(cb => {
