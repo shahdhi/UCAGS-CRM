@@ -1460,19 +1460,15 @@ body.admin .content-view.officer-only {
     }
 }
 
-/* Smooth Scrolling (Apple-like: native wheel/trackpad, smooth only for programmatic jumps) */
-html {
-    scroll-behavior: smooth;
-    scrollbar-gutter: stable both-edges; /* prevents layout shift when scrollbar appears */
-}
-
+/* Scrolling: keep fully native (no forced smooth scroll) */
+html,
 body {
-    scroll-behavior: auto; /* allow native liquid scrolling for user input */
+    scroll-behavior: auto;
     overscroll-behavior-y: none;
     -webkit-overflow-scrolling: touch;
 }
 
-/* Scroll containers: keep native (no forced smooth) but enable momentum scrolling */
+/* Scroll containers: native + momentum scrolling */
 .modal-dialog,
 .recent-list,
 .followup-list,
@@ -1480,12 +1476,7 @@ body {
 .table-container {
     scroll-behavior: auto;
     -webkit-overflow-scrolling: touch;
-    scrollbar-gutter: stable;
 }
-
-/* IMPORTANT: Do NOT force smooth scrolling on every element.
-   It can cause subtle scroll jitter/flicker on nested scroll containers.
-   Keep smooth scrolling only for the document (programmatic scrolls / anchor jumps). */
 
 /* Accessibility: respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
