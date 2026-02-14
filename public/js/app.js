@@ -178,6 +178,24 @@ async function showDashboard() {
     // Initialize counts
     updateEnquiriesBadge();
 
+    // Initialize notification center dropdown
+    try {
+        if (window.NotificationCenter && typeof window.NotificationCenter.init === 'function') {
+            window.NotificationCenter.init();
+        }
+    } catch (e) {
+        console.warn('NotificationCenter init error:', e);
+    }
+
+    // Initialize client-side notifications (officer reminders)
+    try {
+        if (window.Notifications && typeof window.Notifications.init === 'function') {
+            window.Notifications.init(currentUser);
+        }
+    } catch (e) {
+        console.warn('Notifications init error:', e);
+    }
+
     // Preload Lead Management once after login so calendar deep-links work immediately
     if (!window.__leadManagementPreloaded && typeof window.initLeadManagementPage === 'function') {
         window.__leadManagementPreloaded = true;
@@ -1317,7 +1335,103 @@ async function loadReports() {
 // Load Settings view
 function loadSettings() {
     console.log('Loading Settings');
-    // This will be implemented to show settings
+
+    const isAdmin = currentUser?.role === 'admin' || document.body.classList.contains('admin');
+
+    const card = document.getElementById('settingsNotificationsCard');
+    const adminPlaceholder = document.getElementById('settingsAdminPlaceholder');
+
+    // Officer: show notification settings
+    if (!isAdmin) {
+        if (adminPlaceholder) adminPlaceholder.style.display = 'none';
+        if (card) card.style.display = 'block';
+
+        const msg = document.getElementById('settingsNotificationsMsg');
+        const btnBrowser = document.getElementById('settingsEnableBrowserAlertsBtn');
+        const btnDaily = document.getElementById('settingsDailyReportRemindersBtn');
+        const btnAssign = document.getElementById('settingsAssignAlertsBtn');
+        const btnFU = document.getElementById('settingsFollowupAlertsBtn');
+
+        const refresh = () => {
+            const s = window.Notifications?.getSettings ? window.Notifications.getSettings() : { dailyReports: true, assignments: true, followups: true };
+            if (btnDaily) btnDaily.textContent = s.dailyReports ? 'On' : 'Off';
+            if (btnAssign) btnAssign.textContent = s.assignments ? 'On' : 'Off';
+            if (btnFU) btnFU.textContent = s.followups ? 'On' : 'Off';
+
+            // Browser alerts
+            if (btnBrowser) {
+                if (!window.Notifications?.canUseBrowserNotifications?.()) {
+                    btnBrowser.disabled = true;
+                    btnBrowser.textContent = 'Not supported';
+                } else {
+                    const enabled = window.Notifications.browserNotificationsEnabled?.() === true;
+                    const perm = (window.Notification && Notification.permission) ? Notification.permission : 'default';
+                    if (perm === 'granted' && enabled) {
+                        btnBrowser.disabled = true;
+                        btnBrowser.textContent = 'Enabled';
+                    } else {
+                        btnBrowser.disabled = false;
+                        btnBrowser.textContent = 'Enable';
+                    }
+                }
+            }
+        };
+
+        if (btnBrowser) {
+            btnBrowser.onclick = async () => {
+                try {
+                    if (!window.Notifications?.requestBrowserPermission) throw new Error('Notifications module not loaded');
+                    const p = await window.Notifications.requestBrowserPermission();
+                    if (p === 'granted') {
+                        window.Notifications.setBrowserNotificationsEnabled(true);
+                        if (msg) msg.textContent = 'Browser alerts enabled.';
+                        if (window.showToast) showToast('Browser alerts enabled', 'success');
+                    } else {
+                        window.Notifications.setBrowserNotificationsEnabled(false);
+                        if (msg) msg.textContent = 'Browser alerts not allowed.';
+                        if (window.showToast) showToast('Browser alerts not allowed', 'warning');
+                    }
+                    refresh();
+                } catch (e) {
+                    if (msg) msg.textContent = e.message;
+                    if (window.showToast) showToast(e.message, 'error');
+                }
+            };
+        }
+
+        if (btnDaily) {
+            btnDaily.onclick = async () => {
+                const cur = window.Notifications?.getSettings ? window.Notifications.getSettings().dailyReports : true;
+                window.Notifications?.setSetting?.('dailyReports', !cur);
+                refresh();
+                // reschedule daily report timers immediately
+                try { await window.Notifications?.reschedule?.(); } catch (e) {}
+            };
+        }
+
+        if (btnAssign) {
+            btnAssign.onclick = () => {
+                const cur = window.Notifications?.getSettings ? window.Notifications.getSettings().assignments : true;
+                window.Notifications?.setSetting?.('assignments', !cur);
+                refresh();
+            };
+        }
+
+        if (btnFU) {
+            btnFU.onclick = () => {
+                const cur = window.Notifications?.getSettings ? window.Notifications.getSettings().followups : true;
+                window.Notifications?.setSetting?.('followups', !cur);
+                refresh();
+            };
+        }
+
+        refresh();
+        return;
+    }
+
+    // Admin: keep placeholder for now
+    if (card) card.style.display = 'none';
+    if (adminPlaceholder) adminPlaceholder.style.display = 'block';
 }
 
 // Load Receipts view (admin only)

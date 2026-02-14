@@ -1005,12 +1005,59 @@
                 </div>
             </div>
 
-            <!-- Settings View (Admin Only) -->
-            <div id="settingsView" class="content-view admin-only">
+            <!-- Settings View -->
+            <div id="settingsView" class="content-view">
                 <div class="page-header">
                     <h1>Settings</h1>
                 </div>
-                <div class="content-placeholder">
+
+                <!-- Notifications (Officer) -->
+                <div id="settingsNotificationsCard" class="dashboard-card" style="display:none; max-width: 900px;">
+                    <h3 style="margin-top:0;"><i class="fas fa-bell"></i> Notifications</h3>
+
+                    <div class="form-row" style="align-items:center;">
+                        <div class="form-group" style="flex:1; margin:0;">
+                            <label style="margin-bottom:4px;">Enable Browser Alerts</label>
+                            <small style="color:#666; display:block;">Shows desktop notifications (requires permission). Works while the app is open.</small>
+                        </div>
+                        <button id="settingsEnableBrowserAlertsBtn" class="btn btn-secondary" type="button">Enable</button>
+                    </div>
+
+                    <div style="height: 12px;"></div>
+
+                    <div class="form-row" style="align-items:center;">
+                        <div class="form-group" style="flex:1; margin:0;">
+                            <label style="margin-bottom:4px;">Daily Report Reminders</label>
+                            <small style="color:#666; display:block;">Remind you at each daily report submission time.</small>
+                        </div>
+                        <button id="settingsDailyReportRemindersBtn" class="btn btn-secondary" type="button">On</button>
+                    </div>
+
+                    <div style="height: 12px;"></div>
+
+                    <div class="form-row" style="align-items:center;">
+                        <div class="form-group" style="flex:1; margin:0;">
+                            <label style="margin-bottom:4px;">Assign Alerts</label>
+                            <small style="color:#666; display:block;">Notify when new leads are assigned to you.</small>
+                        </div>
+                        <button id="settingsAssignAlertsBtn" class="btn btn-secondary" type="button">On</button>
+                    </div>
+
+                    <div style="height: 12px;"></div>
+
+                    <div class="form-row" style="align-items:center;">
+                        <div class="form-group" style="flex:1; margin:0;">
+                            <label style="margin-bottom:4px;">Follow-up Alerts</label>
+                            <small style="color:#666; display:block;">Notify when a scheduled follow-up becomes due.</small>
+                        </div>
+                        <button id="settingsFollowupAlertsBtn" class="btn btn-secondary" type="button">On</button>
+                    </div>
+
+                    <div id="settingsNotificationsMsg" style="margin-top: 12px; color:#666;"></div>
+                </div>
+
+                <!-- Admin placeholder (optional future settings) -->
+                <div id="settingsAdminPlaceholder" class="content-placeholder" style="display:none;">
                     <i class="fas fa-cog"></i>
                     <p>System settings and configuration</p>
                 </div>
@@ -1388,5 +1435,7 @@
     <!-- Main App -->
     <script src="js/app.js?v=3"></script>
     <script src="js/ui.js?v=3"></script>
+    <script src="/js/notificationCenter.js?v=1"></script>
+    <script src="/js/notifications.js?v=1"></script>
 </body>
 </html>
