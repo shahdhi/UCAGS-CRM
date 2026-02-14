@@ -173,6 +173,16 @@ const leadsAPI = {
   },
 
   /**
+   * Create new lead (officer - My Leads)
+   */
+  createMy: async ({ batchName, sheetName, lead }) => {
+    return fetchAPI('/crm-leads/my/create', {
+      method: 'POST',
+      body: JSON.stringify({ batchName, sheetName, lead })
+    });
+  },
+
+  /**
    * Distribute all unassigned leads (admin)
    */
   distributeUnassigned: async ({ batchName, sheetName, officers }) => {

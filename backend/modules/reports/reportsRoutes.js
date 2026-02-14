@@ -39,6 +39,26 @@ router.post('/daily/submit', isAdminOrOfficer, async (req, res) => {
     const officerName = req.user?.name;
 
     const saved = await submitDailyReport({ officerUserId, officerName, slotKey, clientNowISO, payload });
+
+    // Notify admins
+    try {
+      const { listAdminUserIds, createNotification, getNotificationSettings } = require('../notifications/notificationsService');
+      const adminIds = await listAdminUserIds();
+      for (const adminId of adminIds) {
+        const s = await getNotificationSettings(adminId);
+        if (s && s.admin_daily_reports === false) continue;
+        await createNotification({
+          userId: adminId,
+          category: 'admin_daily_reports',
+          title: 'Daily report received',
+          message: `${officerName} submitted daily report (${slotKey}) for ${saved.report_date}.`,
+          type: 'info'
+        });
+      }
+    } catch (e) {
+      // ignore notification failures
+    }
+
     res.json({ success: true, report: saved });
   } catch (error) {
     console.error('POST /api/reports/daily/submit error:', error);

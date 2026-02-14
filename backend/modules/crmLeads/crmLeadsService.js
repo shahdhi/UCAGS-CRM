@@ -621,12 +621,57 @@ async function importAdminCsv({ batchName, sheetName, csvText }) {
   return { importedCount: patches.length };
 }
 
+async function createOfficerLead({ officerName, batchName, sheetName, lead }) {
+  const sb = requireSupabase();
+  if (!officerName) {
+    const err = new Error('Missing officerName');
+    err.status = 400;
+    throw err;
+  }
+  if (!batchName || batchName === 'all' || !sheetName) {
+    const err = new Error('Missing batchName/sheetName');
+    err.status = 400;
+    throw err;
+  }
+
+  const sheetLeadId = cleanString(lead?.id) || String(Date.now());
+  const row = {
+    batch_name: batchName,
+    sheet_name: sheetName,
+    sheet_lead_id: sheetLeadId,
+    name: cleanString(lead?.name),
+    email: cleanString(lead?.email),
+    phone: cleanString(lead?.phone),
+    source: cleanString(lead?.source),
+    status: cleanString(lead?.status) || 'New',
+    priority: cleanString(lead?.priority),
+    notes: cleanString(lead?.notes),
+    assigned_to: officerName,
+    created_at: new Date().toISOString(),
+    created_date: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  const course = cleanString(lead?.course);
+  if (course) row.intake_json = { course };
+
+  const { data, error } = await sb
+    .from('crm_leads')
+    .insert(row)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return mapLeadRowToApi(data);
+}
+
 module.exports = {
   listMyLeads,
   listAdminLeads,
   updateMyLeadManagement,
   updateAdminLead,
   createAdminLead,
+  createOfficerLead,
   distributeUnassignedAdmin,
   bulkAssignAdmin,
   bulkDistributeAdmin,

@@ -93,6 +93,20 @@ router.post('/admin/create', isAdmin, async (req, res) => {
   }
 });
 
+// POST /api/crm-leads/my/create
+// Officer can create a lead into a batch/sheet, assigned to themselves.
+// Body: { batchName, sheetName, lead: { name,email,phone,course,source,status,priority,notes } }
+router.post('/my/create', isAuthenticated, async (req, res) => {
+  try {
+    const officerName = req.user?.name;
+    const { batchName, sheetName, lead } = req.body || {};
+    const created = await svc.createOfficerLead({ officerName, batchName, sheetName, lead: lead || {} });
+    res.status(201).json({ success: true, lead: created });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 // POST /api/crm-leads/admin/distribute-unassigned
 // Body: { batchName, sheetName, officers:[] }
 router.post('/admin/distribute-unassigned', isAdmin, async (req, res) => {

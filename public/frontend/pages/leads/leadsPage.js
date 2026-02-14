@@ -1109,13 +1109,11 @@ function closeLeadsActionModalOnOverlayClick(event, modalId) {
 }
 
 async function openNewLeadModal() {
-  if (!window.currentUser || window.currentUser.role !== 'admin') {
-    showToast('Only admin can create leads.', 'error');
-    return;
-  }
+  const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
 
-  const batchName = window.adminBatchFilter;
-  const sheetName = window.adminSheetFilter || 'Main Leads';
+  const batchName = isOfficerView ? window.officerBatchFilter : window.adminBatchFilter;
+  const sheetName = (isOfficerView ? window.officerSheetFilter : window.adminSheetFilter) || 'Main Leads';
+
   if (!batchName || batchName === 'all') {
     showToast('Please select a batch/sheet from sidebar first.', 'error');
     return;
@@ -1163,6 +1161,7 @@ async function openNewLeadModal() {
                   <option value="Low">Low</option>
                 </select>
               </div>
+              ${isOfficerView ? '' : `
               <div class="form-group">
                 <label for="nl_assigned"><i class="fas fa-user-tie"></i> Assigned To</label>
                 <select id="nl_assigned" class="form-control">
@@ -1170,6 +1169,7 @@ async function openNewLeadModal() {
                 </select>
                 <small style="color:#666; margin-top:6px; display:block;">Optional. You can assign later too.</small>
               </div>
+              `}
               <div class="form-group full-width">
                 <label for="nl_notes"><i class="fas fa-sticky-note"></i> Notes</label>
                 <textarea id="nl_notes" class="form-control" rows="3"></textarea>
@@ -1189,20 +1189,22 @@ async function openNewLeadModal() {
   document.body.insertAdjacentHTML('beforeend', html);
   document.body.style.overflow = 'hidden';
 
-  // Populate officers dropdown
-  try {
-    const officers = await fetchOfficers();
-    const select = document.getElementById('nl_assigned');
-    if (select) {
-      officers.forEach(o => {
-        const opt = document.createElement('option');
-        opt.value = o;
-        opt.textContent = o;
-        select.appendChild(opt);
-      });
+  // Populate officers dropdown (admin only)
+  if (!isOfficerView) {
+    try {
+      const officers = await fetchOfficers();
+      const select = document.getElementById('nl_assigned');
+      if (select) {
+        officers.forEach(o => {
+          const opt = document.createElement('option');
+          opt.value = o;
+          opt.textContent = o;
+          select.appendChild(opt);
+        });
+      }
+    } catch (e) {
+      // ignore
     }
-  } catch (e) {
-    // ignore
   }
 
   const form = document.getElementById('newLeadForm');
@@ -1224,12 +1226,16 @@ async function openNewLeadModal() {
           course: document.getElementById('nl_course')?.value || '',
           source: document.getElementById('nl_source')?.value || '',
           priority: document.getElementById('nl_priority')?.value || '',
-          assignedTo: document.getElementById('nl_assigned')?.value || '',
+          assignedTo: isOfficerView ? '' : (document.getElementById('nl_assigned')?.value || ''),
           notes: document.getElementById('nl_notes')?.value || '',
           status: 'New'
         };
 
-        await API.leads.create({ batchName, sheetName, lead });
+        if (isOfficerView) {
+          await API.leads.createMy({ batchName, sheetName, lead });
+        } else {
+          await API.leads.create({ batchName, sheetName, lead });
+        }
         closeLeadsActionModal(modalId);
         showToast('Lead created', 'success');
         await loadLeads();

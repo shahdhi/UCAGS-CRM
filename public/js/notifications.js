@@ -58,8 +58,21 @@
     return localStorage.getItem('browserNotificationsEnabled') === 'true';
   }
 
+  // Server-backed preference (best effort). If false, never show browser notifications.
+  let serverBrowserEnabled = null;
+  async function refreshServerBrowserEnabled() {
+    try {
+      const res = await fetch('/api/notifications/settings', { headers: await getAuthHeaders() });
+      const json = await res.json();
+      if (json?.success && json.settings) {
+        serverBrowserEnabled = json.settings.browser_alerts_enabled;
+      }
+    } catch (e) {}
+  }
+
   function notifyBrowser(title, body) {
     if (!canUseBrowserNotifications()) return;
+    if (serverBrowserEnabled === false) return;
     if (!browserNotificationsEnabled()) return;
     if (Notification.permission !== 'granted') return;
 
@@ -133,6 +146,42 @@
     timers = [];
   }
 
+  function fireDailyReportReminder(schedule, dateISO, slot) {
+    if (wasReminderSent(dateISO, slot.key)) return;
+    const timeLabel = slot.label || slot.time;
+    const msg = `Daily report time: ${timeLabel}. Please submit within ${schedule.graceMinutes ?? 20} minutes.`;
+    notifyInApp(msg, 'info');
+    notifyBrowser('Daily Report Reminder', msg);
+    if (window.NotificationCenter && typeof window.NotificationCenter.add === 'function') {
+      window.NotificationCenter.add({ title: 'Daily Report Reminder', message: msg, ts: Date.now(), type: 'info' });
+    }
+    markReminderSent(dateISO, slot.key);
+  }
+
+  function missedKey(dateISO, slotKey) {
+    return `dailyReportMissedSent:${dateISO}:${slotKey}`;
+  }
+
+  function wasMissedSent(dateISO, slotKey) {
+    return localStorage.getItem(missedKey(dateISO, slotKey)) === 'true';
+  }
+
+  function markMissedSent(dateISO, slotKey) {
+    localStorage.setItem(missedKey(dateISO, slotKey), 'true');
+  }
+
+  function fireMissedDailyReport(schedule, dateISO, slot) {
+    if (wasMissedSent(dateISO, slot.key)) return;
+    const timeLabel = slot.label || slot.time;
+    const msg = `Missed daily report slot: ${timeLabel} (${dateISO}).`;
+    notifyInApp(msg, 'warning');
+    notifyBrowser('Missed Daily Report', msg);
+    if (window.NotificationCenter?.add) {
+      window.NotificationCenter.add({ title: 'Missed Daily Report', message: msg, ts: Date.now(), type: 'warning' });
+    }
+    markMissedSent(dateISO, slot.key);
+  }
+
   function scheduleForToday(schedule) {
     clearTimers();
 
@@ -140,6 +189,9 @@
     if (!settings().dailyReports) {
       return;
     }
+
+    const graceMin = schedule.graceMinutes ?? 20;
+    const graceMs = graceMin * 60 * 1000;
 
     const dateISO = toSriLankaDateISO();
     const slots = schedule?.slots || [];
@@ -149,22 +201,21 @@
       if (!startMs) return;
 
       const delay = startMs - Date.now();
-      if (delay < -5 * 60 * 1000) {
-        // already passed by >5 minutes; don't schedule
+
+      // Catch-up behavior: if user was offline and comes back within the grace window,
+      // show the reminder immediately.
+      if (delay <= 0 && Math.abs(delay) <= graceMs) {
+        fireDailyReportReminder(schedule, dateISO, slot);
         return;
       }
 
-      const id = setTimeout(() => {
-        if (wasReminderSent(dateISO, slot.key)) return;
-        const timeLabel = slot.label || slot.time;
-        const msg = `Daily report time: ${timeLabel}. Please submit within ${schedule.graceMinutes ?? 20} minutes.`;
-        notifyInApp(msg, 'info');
-        notifyBrowser('Daily Report Reminder', msg);
-        if (window.NotificationCenter && typeof window.NotificationCenter.add === 'function') {
-          window.NotificationCenter.add({ title: 'Daily Report Reminder', message: msg, ts: Date.now(), type: 'info' });
-        }
-        markReminderSent(dateISO, slot.key);
-      }, Math.max(0, delay));
+      // If we're beyond the grace window, record as missed.
+      if (delay < -graceMs) {
+        fireMissedDailyReport(schedule, dateISO, slot);
+        return;
+      }
+
+      const id = setTimeout(() => fireDailyReportReminder(schedule, dateISO, slot), Math.max(0, delay));
       timers.push(id);
     });
 
@@ -355,19 +406,99 @@
     // Run once quickly, then interval
     run();
     pollTimer = setInterval(run, 60 * 1000);
+
+    // When coming back online, run immediately + reschedule daily reminders
+    window.addEventListener('online', async () => {
+      try { await run(); } catch (e) {}
+      try { await window.Notifications?.reschedule?.(); } catch (e) {}
+    });
+  }
+
+  // Watcher for server-generated notifications (admin + officer)
+  let lastSeenNotificationId = null;
+
+  function loadLastSeen(userId) {
+    return localStorage.getItem(`notify:lastSeen:${userId}`) || null;
+  }
+
+  function saveLastSeen(userId, id) {
+    if (!id) return;
+    localStorage.setItem(`notify:lastSeen:${userId}`, String(id));
+  }
+
+  async function pollInbox(currentUser) {
+    try {
+      const userId = currentUser?.id || 'me';
+      const res = await fetch('/api/notifications?limit=20', { headers: await getAuthHeaders() });
+      const json = await res.json();
+      if (!json?.success) return;
+
+      const rows = json.notifications || [];
+      if (!rows.length) return;
+
+      const lastSeen = loadLastSeen(userId);
+      // newest first
+      const newest = rows[0];
+      if (!lastSeen) {
+        saveLastSeen(userId, newest.id);
+        return;
+      }
+
+      // find notifications newer than lastSeen
+      const idx = rows.findIndex(r => String(r.id) === String(lastSeen));
+      const newOnes = idx === -1 ? rows : rows.slice(0, idx);
+
+      // apply category toggles for admin
+      const isAdmin = (currentUser?.role === 'admin') || document.body.classList.contains('admin');
+      let settings = null;
+      try {
+        const r2 = await fetch('/api/notifications/settings', { headers: await getAuthHeaders() });
+        const j2 = await r2.json();
+        if (j2?.success) settings = j2.settings;
+      } catch (e) {}
+
+      newOnes.reverse().forEach(n => {
+        if (isAdmin && settings) {
+          if (n.category === 'admin_leave_requests' && settings.admin_leave_requests === false) return;
+          if (n.category === 'admin_daily_reports' && settings.admin_daily_reports === false) return;
+        }
+        // Only pop if unread
+        if (n.read_at) return;
+        const msg = `${n.title}: ${n.message}`;
+        notifyInApp(msg, n.type || 'info');
+        notifyBrowser(n.title, n.message);
+      });
+
+      saveLastSeen(userId, newest.id);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  let inboxTimer = null;
+  function startInboxWatcher(currentUser) {
+    if (inboxTimer) return;
+    // initial
+    pollInbox(currentUser);
+    inboxTimer = setInterval(() => pollInbox(currentUser), 30 * 1000);
   }
 
   async function init(currentUser) {
     try {
-      // Only officers get reminders
       const isAdmin = (currentUser?.role === 'admin') || document.body.classList.contains('admin');
-      if (!currentUser || isAdmin) return;
+      if (!currentUser) return;
 
-      const schedule = await fetchSchedule();
-      scheduleForToday(schedule);
+      await refreshServerBrowserEnabled();
 
-      // Start polling-based notifications
-      startPolling(currentUser);
+      // Officers: daily report reminders + polling of leads/followups
+      if (!isAdmin) {
+        const schedule = await fetchSchedule();
+        scheduleForToday(schedule);
+        startPolling(currentUser);
+      }
+
+      // Everyone: server inbox watcher (for admin events, and future server-generated events)
+      startInboxWatcher(currentUser);
     } catch (e) {
       console.warn('Notifications init failed:', e.message);
     }

@@ -1025,12 +1025,32 @@
 
                     <div style="height: 12px;"></div>
 
-                    <div class="form-row" style="align-items:center;">
+                    <div class="form-row officer-only" style="align-items:center;" id="settingsRowDailyReportReminders">
                         <div class="form-group" style="flex:1; margin:0;">
                             <label style="margin-bottom:4px;">Daily Report Reminders</label>
                             <small style="color:#666; display:block;">Remind you at each daily report submission time.</small>
                         </div>
                         <button id="settingsDailyReportRemindersBtn" class="btn btn-secondary" type="button">On</button>
+                    </div>
+
+                    <div style="height: 12px;"></div>
+
+                    <div class="form-row admin-only" style="align-items:center; display:none;" id="settingsRowAdminLeaveReq">
+                        <div class="form-group" style="flex:1; margin:0;">
+                            <label style="margin-bottom:4px;">Leave Request Alerts</label>
+                            <small style="color:#666; display:block;">Notify when a leave request is received.</small>
+                        </div>
+                        <button id="settingsAdminLeaveReqBtn" class="btn btn-secondary" type="button">On</button>
+                    </div>
+
+                    <div style="height: 12px;"></div>
+
+                    <div class="form-row admin-only" style="align-items:center; display:none;" id="settingsRowAdminDailyReports">
+                        <div class="form-group" style="flex:1; margin:0;">
+                            <label style="margin-bottom:4px;">Daily Report Received Alerts</label>
+                            <small style="color:#666; display:block;">Notify when an officer submits a daily report.</small>
+                        </div>
+                        <button id="settingsAdminDailyReportsBtn" class="btn btn-secondary" type="button">On</button>
                     </div>
 
                     <div style="height: 12px;"></div>

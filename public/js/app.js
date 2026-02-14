@@ -1333,7 +1333,7 @@ async function loadReports() {
 }
 
 // Load Settings view
-function loadSettings() {
+async function loadSettings() {
     console.log('Loading Settings');
 
     const isAdmin = currentUser?.role === 'admin' || document.body.classList.contains('admin');
@@ -1341,22 +1341,66 @@ function loadSettings() {
     const card = document.getElementById('settingsNotificationsCard');
     const adminPlaceholder = document.getElementById('settingsAdminPlaceholder');
 
-    // Officer: show notification settings
-    if (!isAdmin) {
-        if (adminPlaceholder) adminPlaceholder.style.display = 'none';
-        if (card) card.style.display = 'block';
+    // Officer/Admin: show notification settings
+    if (adminPlaceholder) adminPlaceholder.style.display = 'none';
+    if (card) card.style.display = 'block';
+
+    // Role-specific rows
+    const rowDaily = document.getElementById('settingsRowDailyReportReminders');
+    const rowAdminLeave = document.getElementById('settingsRowAdminLeaveReq');
+    const rowAdminDaily = document.getElementById('settingsRowAdminDailyReports');
+
+    if (rowDaily) rowDaily.style.display = isAdmin ? 'none' : 'flex';
+    if (rowAdminLeave) rowAdminLeave.style.display = isAdmin ? 'flex' : 'none';
+    if (rowAdminDaily) rowAdminDaily.style.display = isAdmin ? 'flex' : 'none';
+
+    // settings UI
+    {
 
         const msg = document.getElementById('settingsNotificationsMsg');
         const btnBrowser = document.getElementById('settingsEnableBrowserAlertsBtn');
         const btnDaily = document.getElementById('settingsDailyReportRemindersBtn');
         const btnAssign = document.getElementById('settingsAssignAlertsBtn');
         const btnFU = document.getElementById('settingsFollowupAlertsBtn');
+        const btnAdminLeave = document.getElementById('settingsAdminLeaveReqBtn');
+        const btnAdminDaily = document.getElementById('settingsAdminDailyReportsBtn');
+
+        async function loadServerSettings() {
+            try {
+                const headers = await getAuthHeadersWithRetry();
+                const res = await fetch('/api/notifications/settings', { headers });
+                const json = await res.json();
+                if (json?.success && json.settings) {
+                    return json.settings;
+                }
+            } catch (e) {}
+            return null;
+        }
+
+        async function saveServerSettings(patch) {
+            try {
+                const headers = { ...(await getAuthHeadersWithRetry()), 'Content-Type': 'application/json' };
+                const res = await fetch('/api/notifications/settings', { method: 'PUT', headers, body: JSON.stringify(patch) });
+                const json = await res.json();
+                if (json?.success && json.settings) return json.settings;
+            } catch (e) {}
+            return null;
+        }
+
+        let serverSettings = await loadServerSettings();
 
         const refresh = () => {
-            const s = window.Notifications?.getSettings ? window.Notifications.getSettings() : { dailyReports: true, assignments: true, followups: true };
-            if (btnDaily) btnDaily.textContent = s.dailyReports ? 'On' : 'Off';
-            if (btnAssign) btnAssign.textContent = s.assignments ? 'On' : 'Off';
-            if (btnFU) btnFU.textContent = s.followups ? 'On' : 'Off';
+            const local = window.Notifications?.getSettings ? window.Notifications.getSettings() : { dailyReports: true, assignments: true, followups: true };
+
+            if (!isAdmin) {
+                if (btnDaily) btnDaily.textContent = local.dailyReports ? 'On' : 'Off';
+                if (btnAssign) btnAssign.textContent = local.assignments ? 'On' : 'Off';
+                if (btnFU) btnFU.textContent = local.followups ? 'On' : 'Off';
+            } else {
+                const s = serverSettings || {};
+                if (btnAdminLeave) btnAdminLeave.textContent = (s.admin_leave_requests === false) ? 'Off' : 'On';
+                if (btnAdminDaily) btnAdminDaily.textContent = (s.admin_daily_reports === false) ? 'Off' : 'On';
+            }
 
             // Browser alerts
             if (btnBrowser) {
@@ -1367,8 +1411,8 @@ function loadSettings() {
                     const enabled = window.Notifications.browserNotificationsEnabled?.() === true;
                     const perm = (window.Notification && Notification.permission) ? Notification.permission : 'default';
                     if (perm === 'granted' && enabled) {
-                        btnBrowser.disabled = true;
-                        btnBrowser.textContent = 'Enabled';
+                        btnBrowser.disabled = false;
+                        btnBrowser.textContent = 'Disable';
                     } else {
                         btnBrowser.disabled = false;
                         btnBrowser.textContent = 'Enable';
@@ -1381,13 +1425,42 @@ function loadSettings() {
             btnBrowser.onclick = async () => {
                 try {
                     if (!window.Notifications?.requestBrowserPermission) throw new Error('Notifications module not loaded');
+
+                    // If already enabled locally + permission granted, clicking disables
+                    const enabledLocal = window.Notifications.browserNotificationsEnabled?.() === true;
+                    const perm = (window.Notification && Notification.permission) ? Notification.permission : 'default';
+                    if (perm === 'granted' && enabledLocal) {
+                        window.Notifications.setBrowserNotificationsEnabled(false);
+                        // persist server pref
+                        await fetch('/api/notifications/settings', {
+                            method: 'PUT',
+                            headers: { ...(await getAuthHeadersWithRetry()), 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ browser_alerts_enabled: false })
+                        });
+                        if (msg) msg.textContent = 'Browser alerts disabled.';
+                        if (window.showToast) showToast('Browser alerts disabled', 'info');
+                        refresh();
+                        return;
+                    }
+
                     const p = await window.Notifications.requestBrowserPermission();
                     if (p === 'granted') {
                         window.Notifications.setBrowserNotificationsEnabled(true);
+                        // persist server pref
+                        await fetch('/api/notifications/settings', {
+                            method: 'PUT',
+                            headers: { ...(await getAuthHeadersWithRetry()), 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ browser_alerts_enabled: true })
+                        });
                         if (msg) msg.textContent = 'Browser alerts enabled.';
                         if (window.showToast) showToast('Browser alerts enabled', 'success');
                     } else {
                         window.Notifications.setBrowserNotificationsEnabled(false);
+                        await fetch('/api/notifications/settings', {
+                            method: 'PUT',
+                            headers: { ...(await getAuthHeadersWithRetry()), 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ browser_alerts_enabled: false })
+                        });
                         if (msg) msg.textContent = 'Browser alerts not allowed.';
                         if (window.showToast) showToast('Browser alerts not allowed', 'warning');
                     }
@@ -1399,30 +1472,46 @@ function loadSettings() {
             };
         }
 
-        if (btnDaily) {
-            btnDaily.onclick = async () => {
-                const cur = window.Notifications?.getSettings ? window.Notifications.getSettings().dailyReports : true;
-                window.Notifications?.setSetting?.('dailyReports', !cur);
-                refresh();
-                // reschedule daily report timers immediately
-                try { await window.Notifications?.reschedule?.(); } catch (e) {}
-            };
-        }
+        if (!isAdmin) {
+            if (btnDaily) {
+                btnDaily.onclick = async () => {
+                    const cur = window.Notifications?.getSettings ? window.Notifications.getSettings().dailyReports : true;
+                    window.Notifications?.setSetting?.('dailyReports', !cur);
+                    refresh();
+                    try { await window.Notifications?.reschedule?.(); } catch (e) {}
+                };
+            }
 
-        if (btnAssign) {
-            btnAssign.onclick = () => {
-                const cur = window.Notifications?.getSettings ? window.Notifications.getSettings().assignments : true;
-                window.Notifications?.setSetting?.('assignments', !cur);
-                refresh();
-            };
-        }
+            if (btnAssign) {
+                btnAssign.onclick = () => {
+                    const cur = window.Notifications?.getSettings ? window.Notifications.getSettings().assignments : true;
+                    window.Notifications?.setSetting?.('assignments', !cur);
+                    refresh();
+                };
+            }
 
-        if (btnFU) {
-            btnFU.onclick = () => {
-                const cur = window.Notifications?.getSettings ? window.Notifications.getSettings().followups : true;
-                window.Notifications?.setSetting?.('followups', !cur);
-                refresh();
-            };
+            if (btnFU) {
+                btnFU.onclick = () => {
+                    const cur = window.Notifications?.getSettings ? window.Notifications.getSettings().followups : true;
+                    window.Notifications?.setSetting?.('followups', !cur);
+                    refresh();
+                };
+            }
+        } else {
+            if (btnAdminLeave) {
+                btnAdminLeave.onclick = async () => {
+                    const curOff = (serverSettings && serverSettings.admin_leave_requests === false);
+                    serverSettings = await saveServerSettings({ admin_leave_requests: curOff ? true : false });
+                    refresh();
+                };
+            }
+            if (btnAdminDaily) {
+                btnAdminDaily.onclick = async () => {
+                    const curOff = (serverSettings && serverSettings.admin_daily_reports === false);
+                    serverSettings = await saveServerSettings({ admin_daily_reports: curOff ? true : false });
+                    refresh();
+                };
+            }
         }
 
         refresh();

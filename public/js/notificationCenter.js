@@ -10,12 +10,47 @@
     try { return JSON.parse(s); } catch { return fallback; }
   }
 
-  function loadItems() {
+  async function authHeaders() {
+    const headers = {};
+    if (window.supabaseClient) {
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+    return headers;
+  }
+
+  function loadItemsLocal() {
     return safeJsonParse(localStorage.getItem(STORAGE_KEY) || '[]', []).filter(Boolean);
   }
 
-  function saveItems(items) {
+  function saveItemsLocal(items) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(0, MAX_ITEMS)));
+  }
+
+  async function loadItems() {
+    // Prefer Supabase-backed notifications; fallback to local.
+    try {
+      const res = await fetch('/api/notifications?limit=' + MAX_ITEMS, { headers: await authHeaders() });
+      const json = await res.json();
+      if (json?.success && Array.isArray(json.notifications)) {
+        return json.notifications.map(n => ({
+          id: String(n.id),
+          title: n.title,
+          message: n.message,
+          ts: new Date(n.created_at).getTime(),
+          type: n.type || 'info',
+          read_at: n.read_at
+        }));
+      }
+    } catch (e) {
+      // ignore
+    }
+    return loadItemsLocal();
+  }
+
+  function saveItems(items) {
+    // Local fallback cache only (server is source of truth)
+    saveItemsLocal(items);
   }
 
   function getReadAt() {
@@ -24,21 +59,51 @@
     return Number.isFinite(n) ? n : 0;
   }
 
-  function setReadNow() {
+  async function setReadNow() {
     localStorage.setItem(READ_KEY, String(Date.now()));
+    // Best-effort mark read in Supabase
+    try {
+      await fetch('/api/notifications/mark-all-read', {
+        method: 'POST',
+        headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+    } catch (e) {}
   }
 
-  function add({ title, message, ts = Date.now(), type = 'info' }) {
-    const items = loadItems();
-    items.unshift({ id: `${ts}:${Math.random().toString(16).slice(2)}`, title, message, ts, type });
-    saveItems(items);
+  async function add({ title, message, ts = Date.now(), type = 'info' }) {
+    // Optimistic local add
+    const items = loadItemsLocal();
+    const localItem = { id: `${ts}:${Math.random().toString(16).slice(2)}`, title, message, ts, type };
+    items.unshift(localItem);
+    saveItemsLocal(items);
     updateBadge();
+
+    // Best-effort persist to server
+    try {
+      const res = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, message, type })
+      });
+      const json = await res.json();
+      if (json?.success && json.notification) {
+        // Refresh from server to keep consistent
+        const serverItems = await loadItems();
+        saveItemsLocal(serverItems);
+        updateBadge();
+      }
+    } catch (e) {
+      // ignore
+    }
   }
 
-  function unreadCount() {
-    const items = loadItems();
+  function unreadCountFromItems(items) {
     const readAt = getReadAt();
-    return items.filter(x => (x.ts || 0) > readAt).length;
+    return (items || []).filter(x => {
+      if (x.read_at) return false;
+      return (x.ts || 0) > readAt;
+    }).length;
   }
 
   function formatTime(ts) {
@@ -73,10 +138,10 @@
 
     const markBtn = document.getElementById('notificationMarkReadBtn');
     if (markBtn) {
-      markBtn.addEventListener('click', () => {
-        setReadNow();
-        render();
-        updateBadge();
+      markBtn.addEventListener('click', async () => {
+        await setReadNow();
+        await render();
+        await updateBadge();
       });
     }
 
@@ -94,11 +159,12 @@
     return el;
   }
 
-  function render() {
+  async function render() {
     const list = document.getElementById('notificationDropdownList');
     if (!list) return;
 
-    const items = loadItems();
+    const items = await loadItems();
+    saveItemsLocal(items);
     const readAt = getReadAt();
 
     if (!items.length) {
@@ -120,9 +186,9 @@
     }).join('');
   }
 
-  function show() {
+  async function show() {
     const el = ensureDropdown();
-    render();
+    await render();
     el.classList.remove('hidden');
   }
 
@@ -140,13 +206,17 @@
     }
   }
 
-  function updateBadge() {
+  async function updateBadge() {
     const btn = document.getElementById('notificationsBtn');
     if (!btn) return;
     const badge = btn.querySelector('.notification-badge');
     if (!badge) return;
 
-    const n = unreadCount();
+    const items = await loadItems();
+    // cache locally for offline dropdown
+    saveItemsLocal(items);
+
+    const n = unreadCountFromItems(items);
     if (n > 0) {
       badge.textContent = String(n);
       badge.style.display = 'inline-flex';
@@ -166,7 +236,12 @@
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       toggle();
+      // Mark read when user opens the dropdown
+      setReadNow().then(() => updateBadge()).catch(() => {});
     });
+
+    // Refresh badge periodically (in case other tabs/devices add notifications)
+    setInterval(() => updateBadge(), 60 * 1000);
   }
 
   window.NotificationCenter = {
@@ -175,9 +250,9 @@
     updateBadge,
     show,
     hide,
-    markAllRead() {
-      setReadNow();
-      updateBadge();
+    async markAllRead() {
+      await setReadNow();
+      await updateBadge();
     }
   };
 })();

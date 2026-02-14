@@ -93,6 +93,26 @@ router.post('/me/leave-requests', isAuthenticated, async (req, res) => {
     const officerName = req.user?.name;
     const { date, reason } = req.body || {};
     const record = await submitLeaveRequest({ officerName, leaveDate: date, reason });
+
+    // Notify admins
+    try {
+      const { listAdminUserIds, createNotification, getNotificationSettings } = require('../notifications/notificationsService');
+      const adminIds = await listAdminUserIds();
+      for (const adminId of adminIds) {
+        const s = await getNotificationSettings(adminId);
+        if (s && s.admin_leave_requests === false) continue;
+        await createNotification({
+          userId: adminId,
+          category: 'admin_leave_requests',
+          title: 'Leave request received',
+          message: `${officerName} requested leave on ${date}.`,
+          type: 'warning'
+        });
+      }
+    } catch (e) {
+      // ignore notification failures
+    }
+
     res.status(201).json({ success: true, request: record });
   } catch (error) {
     console.error('POST /api/attendance/me/leave-requests error:', error);

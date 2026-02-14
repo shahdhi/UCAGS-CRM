@@ -8,8 +8,68 @@
 
 const { readSheet, writeSheet, appendSheet } = require('../../core/sheets/sheetsClient');
 const { getBatch, getOfficerSpreadsheetId } = require('../../core/batches/batchesStore');
+const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
+const { getAssigneeForDuplicatePhone } = require('./duplicatePhoneResolver');
 
 const DEFAULT_SHEET = 'Main Leads';
+
+function normalizePhoneToSL(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+
+  // Common forms:
+  //  - 777533241 (9 digits)
+  //  - 0777533241 (10 digits starting 0)
+  //  - 94777533241 (11 digits starting 94)
+  //  - +94777533241
+  if (digits.length === 11 && digits.startsWith('94')) return digits;
+  if (digits.length === 10 && digits.startsWith('0')) return `94${digits.slice(1)}`;
+  if (digits.length === 9) return `94${digits}`;
+
+  // fallback: if it ends with 9 digits, treat those as local
+  if (digits.length > 11) {
+    const last9 = digits.slice(-9);
+    return `94${last9}`;
+  }
+
+  return digits;
+}
+
+async function findDuplicateAssigneeInBatch({ batchName, phone, excludeLeadId }) {
+  const canonical = normalizePhoneToSL(phone);
+  if (!canonical || canonical.length < 9) return '';
+
+  const sb = getSupabaseAdmin();
+  if (!sb) return '';
+
+  const last9 = canonical.slice(-9);
+
+  // Query a small set of candidates by suffix match then confirm canonical match.
+  // (phone values in sheets may contain +, spaces, or may miss country code)
+  const { data, error } = await sb
+    .from('crm_leads')
+    .select('sheet_lead_id, phone, assigned_to, sheet_name')
+    .eq('batch_name', batchName)
+    .ilike('phone', `%${last9}`)
+    .order('updated_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.warn('Duplicate check query failed:', error.message || error);
+    return '';
+  }
+
+  for (const r of data || []) {
+    if (excludeLeadId && String(r.sheet_lead_id) === String(excludeLeadId)) continue;
+    const rCanon = normalizePhoneToSL(r.phone);
+    if (!rCanon) continue;
+    if (rCanon === canonical && r.assigned_to && String(r.assigned_to).trim()) {
+      return String(r.assigned_to).trim();
+    }
+  }
+
+  return '';
+}
 
 function colToLetter(col) {
   let temp = col + 1;
@@ -204,6 +264,22 @@ async function updateBatchLead(batchName, sheetName = DEFAULT_SHEET, leadId, upd
 
   const existing = leads[idx];
   const oldAssignedTo = existing.assignedTo;
+
+  // Duplicate-by-phone pre-check (batch-only):
+  // Check across ALL batch sheets (admin + all officer sheets + custom tabs).
+  // If phone already exists and is assigned, force assignment to that same officer.
+  if (updates.assignedTo !== undefined && updates.assignedTo) {
+    try {
+      const dupAssignedTo = await getAssigneeForDuplicatePhone(batchName, existing.phone || updates.phone);
+      if (dupAssignedTo) {
+        // Do not auto-assign to the same officer again. Mark as Duplicate.
+        updates.assignedTo = 'Duplicate';
+      }
+    } catch (e) {
+      // ignore duplicate-check failures
+    }
+  }
+
   const updated = { ...existing, ...updates };
 
   const rowNumber = idx + 2;

@@ -96,6 +96,9 @@ app.use('/api/analytics', require('./modules/analytics/analyticsRoutes'));
 // Reports (daily officer reports)
 app.use('/api/reports', require('./modules/reports/reportsRoutes'));
 
+// Notifications
+app.use('/api/notifications', require('./modules/notifications/notificationsRoutes'));
+
 // Attendance (check-in / check-out)
 app.use('/api/attendance', require('./modules/attendance/attendanceRoutes'));
 
