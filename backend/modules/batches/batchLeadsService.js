@@ -130,7 +130,9 @@ function buildRowFromLead(lead, headerInfo) {
   set('pdf_sent', lead.pdfSent ?? lead.pdf_sent ?? '');
   set('wa_sent', lead.waSent ?? lead.wa_sent ?? '');
   set('email_sent', lead.emailSent ?? lead.email_sent ?? '');
-  set('last_follow_up_comment', lead.lastFollowUpComment || lead.last_follow_up_comment || '');
+  // IMPORTANT: use ?? not || so intentionally-cleared empty string does not fall back
+  // to older values.
+  set('last_follow_up_comment', lead.lastFollowUpComment ?? lead.last_follow_up_comment ?? '');
 
   set('followup1_schedule', lead.followUp1Schedule || '');
   set('followup1_date', lead.followUp1Date || '');

@@ -284,11 +284,16 @@ function getLastFollowUpComment(lead) {
     if (entry.value) return entry.value;
   }
 
-  // Backward compatibility: some sheets may store an already-derived value
-  const stored = String(lead.lastFollowUpComment || '').trim();
-  if (stored) return stored;
+  // Backward compatibility:
+  // Only fall back to stored derived value if there are NO followUpNComment fields at all.
+  // If followUpNComment fields exist but are empty, that means the officer intentionally cleared them.
+  const hasAnyCommentField = Object.keys(lead).some(k => /^followUp\d+Comment$/.test(k));
+  if (!hasAnyCommentField) {
+    const stored = String(lead.lastFollowUpComment ?? '').trim();
+    if (stored) return stored;
+  }
 
-  return String(lead.callFeedback || '').trim();
+  return String(lead.callFeedback ?? '').trim();
 }
 
 /**

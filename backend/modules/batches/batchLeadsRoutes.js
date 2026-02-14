@@ -198,8 +198,9 @@ router.put('/:batchName/my-leads/:leadId', isAuthenticated, async (req, res) => 
 
     const updated = { ...leads[idx], ...(req.body || {}) };
 
-    // Compute last_follow_up_comment if not provided
-    if (!updated.lastFollowUpComment) {
+    // Compute last_follow_up_comment only if the client did NOT send it.
+    // IMPORTANT: empty string is a valid value meaning "cleared".
+    if (updated.lastFollowUpComment === undefined) {
       updated.lastFollowUpComment = updated.followUp3Comment || updated.followUp2Comment || updated.followUp1Comment || '';
     }
 
@@ -243,7 +244,7 @@ router.put('/:batchName/my-leads/:leadId', isAuthenticated, async (req, res) => 
     set('pdf_sent', updated.pdfSent ?? '');
     set('wa_sent', updated.waSent ?? '');
     set('email_sent', updated.emailSent ?? '');
-    set('last_follow_up_comment', updated.lastFollowUpComment || '');
+    set('last_follow_up_comment', updated.lastFollowUpComment ?? '');
 
     set('followup1_schedule', updated.followUp1Schedule || '');
     set('followup1_date', updated.followUp1Date || '');
