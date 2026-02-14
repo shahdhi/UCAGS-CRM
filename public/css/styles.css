@@ -1456,8 +1456,41 @@ body.admin .content-view.officer-only {
 }
 
 /* Smooth Scrolling */
+html,
+body {
+    scroll-behavior: smooth;
+}
+
+/* Smooth scrolling inside common scroll containers */
+.modal-dialog,
+.recent-list,
+.followup-list,
+.calendar-list,
+.table-container {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Keep legacy rule (some elements rely on it) */
 * {
     scroll-behavior: smooth;
+}
+
+/* Accessibility: respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    html,
+    body,
+    * {
+        scroll-behavior: auto !important;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
 }
 
 /* WhatsApp Drawer + Inbox Styles */

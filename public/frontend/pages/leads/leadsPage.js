@@ -325,25 +325,27 @@ function viewLeadDetails(leadId) {
               <div class="detail-row">
                 <span class="detail-label">Start Immediately?</span>
                 <span class="detail-value">${escapeHtml(getIntakeValue(
-                  lead.intake_json,
+                  { ...(lead.intake_json || {}), ...lead },
                   'are_you_planning_to_start_immediately?',
                   'are_you_planning_to_start_immediately',
                   'planning_to_start_immediately',
                   'start_immediately',
                   'start immediately',
-                  'Are you planning to start immediately?'
+                  'Are you planning to start immediately?',
+                  'are you planning to start immediately'
                 )) || '-'}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">Why Interested?</span>
                 <span class="detail-value">${escapeHtml(getIntakeValue(
-                  lead.intake_json,
+                  { ...(lead.intake_json || {}), ...lead },
                   'why_are_you_interested_in_this_diploma?',
                   'why_are_you_interested_in_this_diploma',
                   'why_interested',
                   'interest_reason',
                   'why are you interested in this diploma?',
-                  'Why are you interested in this diploma?'
+                  'Why are you interested in this diploma?',
+                  'why are you interested in this diploma'
                 )) || '-'}</span>
               </div>
               <div class="detail-row">
@@ -644,7 +646,18 @@ function normalizeKey(k) {
 }
 
 function getIntakeValue(intake, ...candidateKeys) {
-  if (!intake || typeof intake !== 'object') return '';
+  if (!intake) return '';
+
+  // Some rows may come through with intake_json as a JSON string
+  if (typeof intake === 'string') {
+    try {
+      intake = JSON.parse(intake);
+    } catch {
+      return '';
+    }
+  }
+
+  if (typeof intake !== 'object') return '';
 
   // Direct match first
   for (const k of candidateKeys) {

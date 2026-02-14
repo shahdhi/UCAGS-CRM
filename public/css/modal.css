@@ -31,6 +31,8 @@
     width: 90%;
     max-height: 85vh;
     overflow-y: auto;
+    scroll-behavior: smooth;
+    scrollbar-gutter: stable;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
     animation: slideUp 0.3s ease-out;
 }
