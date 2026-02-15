@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register Online</title>
+  <link rel="icon" href="/favicon.png" />
+
+  <!-- Reuse existing CRM styles for quick look/feel -->
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/modal.css" />
+
+  <style>
+    body { background:#f5f5f5; }
+    .reg-shell { max-width: 860px; margin: 30px auto; padding: 0 16px; }
+    .reg-card { background:#fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); padding: 22px; }
+    .reg-header { display:flex; align-items:center; justify-content:space-between; gap: 16px; margin-bottom: 18px; }
+    .reg-brand { display:flex; align-items:center; gap: 10px; }
+    .reg-brand img { width: 44px; height: 44px; object-fit: contain; }
+    .reg-brand a { text-decoration:none; color: inherit; }
+    .reg-title { margin:0; font-size: 22px; }
+    .reg-sub { margin: 4px 0 0; color:#666; font-size: 13px; }
+
+    .reg-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 720px) { .reg-grid { grid-template-columns: 1fr; } }
+
+    .reg-field label { display:block; font-weight: 600; font-size: 13px; margin-bottom: 6px; color:#333; }
+    .reg-field .form-control { width: 100%; }
+
+    .reg-actions { display:flex; gap: 10px; align-items:center; justify-content:flex-end; margin-top: 18px; }
+    .reg-status { margin-top: 12px; font-size: 13px; color:#333; }
+    .reg-status.ok { color: #1b5e20; }
+    .reg-status.err { color: #b71c1c; }
+
+    .reg-footer { margin-top: 16px; color:#777; font-size: 12px; text-align:center; }
+    .reg-footer a { color:#1976d2; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <div class="reg-shell">
+    <div class="reg-card">
+      <div class="reg-header">
+        <div class="reg-brand">
+          <a href="https://ucags.edu.lk/" target="_blank" rel="noreferrer">
+            <img src="/logo.png" alt="UCAGS" />
+          </a>
+          <div>
+            <h1 class="reg-title">Register Online</h1>
+            <p class="reg-sub">This form is for UCAGS registrations. For official site visit ucags.edu.lk</p>
+          </div>
+        </div>
+        <div>
+          <a class="btn btn-secondary" href="https://ucags.edu.lk/register-online/" target="_blank" rel="noreferrer">Official Page</a>
+        </div>
+      </div>
+
+      <form id="registrationForm">
+        <div class="reg-grid">
+          <div class="reg-field">
+            <label for="reg_name">Name</label>
+            <input id="reg_name" name="name" class="form-control" type="text" required />
+          </div>
+
+          <div class="reg-field">
+            <label for="reg_gender">Gender</label>
+            <select id="reg_gender" name="gender" class="form-control" required>
+              <option value="">Select</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="reg-field">
+            <label for="reg_dob">Date of Birth</label>
+            <input id="reg_dob" name="date_of_birth" class="form-control" type="date" />
+          </div>
+
+          <div class="reg-field">
+            <label for="reg_country">Country</label>
+            <input id="reg_country" name="country" class="form-control" type="text" />
+          </div>
+
+          <div class="reg-field" style="grid-column: 1 / -1;">
+            <label for="reg_address">Address</label>
+            <input id="reg_address" name="address" class="form-control" type="text" />
+          </div>
+
+          <div class="reg-field">
+            <label for="reg_phone">Phone Number</label>
+            <input id="reg_phone" name="phone_number" class="form-control" type="tel" required />
+          </div>
+
+          <div class="reg-field">
+            <label for="reg_wa">WA Number</label>
+            <input id="reg_wa" name="wa_number" class="form-control" type="tel" />
+          </div>
+
+          <div class="reg-field">
+            <label for="reg_email">Email</label>
+            <input id="reg_email" name="email" class="form-control" type="email" />
+          </div>
+
+          <div class="reg-field">
+            <label for="reg_working">Working Status</label>
+            <input id="reg_working" name="working_status" class="form-control" type="text" placeholder="e.g. Working / Student" />
+          </div>
+        </div>
+
+        <div class="reg-actions">
+          <button id="regSubmitBtn" class="btn btn-primary" type="submit">Submit Registration</button>
+        </div>
+
+        <div id="regStatus" class="reg-status" style="display:none;"></div>
+
+        <div class="reg-footer">
+          By submitting you agree to be contacted by UCAGS. <a href="https://ucags.edu.lk/" target="_blank" rel="noreferrer">ucags.edu.lk</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function showStatus(message, kind) {
+      const el = document.getElementById('regStatus');
+      el.style.display = 'block';
+      el.textContent = message;
+      el.className = 'reg-status ' + (kind || '');
+    }
+
+    function hideStatus() {
+      const el = document.getElementById('regStatus');
+      el.style.display = 'none';
+      el.textContent = '';
+      el.className = 'reg-status';
+    }
+
+    document.getElementById('registrationForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideStatus();
+
+      const btn = document.getElementById('regSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+
+      try {
+        const form = e.target;
+        const fd = new FormData(form);
+        const payload = Object.fromEntries(fd.entries());
+
+        const res = await fetch('/api/registrations/intake', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Failed');
+
+        showStatus('Registration submitted successfully', 'ok');
+        form.reset();
+      } catch (err) {
+        showStatus(err.message || 'Error submitting registration', 'err');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Submit Registration';
+      }
+    });
+  </script>
+</body>
+</html>
