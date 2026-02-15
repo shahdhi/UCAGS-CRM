@@ -6,36 +6,43 @@
   <title>Register Online</title>
   <link rel="icon" href="/favicon.png" />
 
-  <!-- Fonts used by the official WordPress page -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Saved assets from: https://ucags.edu.lk/register-online/ -->
+  <!-- NOTE: These are loaded locally from /ucags_register_files to enable pixel-identical rendering without hitting the live site. -->
+  <link rel="stylesheet" href="/ucags_register_files/dmsans.css" />
+  <link rel="stylesheet" href="/ucags_register_files/cormorant.css" />
 
-  <!-- Load WordPress (Astra + Elementor) styles to closely match the official site -->
-  <link rel="stylesheet" href="https://ucags.edu.lk/wp-content/themes/astra/assets/css/minified/main.min.css?ver=4.12.0" />
-  <link rel="stylesheet" href="https://ucags.edu.lk/wp-content/plugins/elementor/assets/css/frontend.min.css?ver=3.34.1" />
-  <link rel="stylesheet" href="https://ucags.edu.lk/wp-content/plugins/elementor/assets/lib/eicons/css/elementor-icons.min.css?ver=5.34.0" />
-  <link rel="stylesheet" href="https://ucags.edu.lk/wp-content/plugins/elementor/assets/lib/font-awesome/css/all.min.css?ver=3.34.1" />
-  <link rel="stylesheet" href="https://ucags.edu.lk/wp-content/plugins/elementor/assets/lib/font-awesome/css/v4-shims.min.css?ver=3.34.1" />
-  <link rel="stylesheet" href="https://ucags.edu.lk/wp-content/plugins/elementor/assets/lib/font-awesome/css/fontawesome.css?ver=5.15.3" />
-  <link rel="stylesheet" href="https://ucags.edu.lk/wp-content/plugins/elementor/assets/lib/font-awesome/css/brands.css?ver=5.15.3" />
-  <link rel="stylesheet" href="https://ucags.edu.lk/wp-content/plugins/header-footer-elementor/inc/widgets-css/frontend.css?ver=2.8.1" />
-  <link rel="stylesheet" href="https://ucags.edu.lk/wp-content/plugins/header-footer-elementor/assets/css/header-footer-elementor.css?ver=2.8.1" />
-  <link rel="stylesheet" href="https://ucags.edu.lk/wp-content/plugins/jeg-elementor-kit/assets/css/elements/main.css?ver=3.0.2" />
-  <link rel="stylesheet" href="https://ucags.edu.lk/wp-content/plugins/metform/public/assets/css/metform-ui.css?ver=4.1.2" />
-  <link rel="stylesheet" href="https://ucags.edu.lk/wp-content/plugins/metform/public/assets/css/style.css?ver=4.1.2" />
-  <link rel="stylesheet" href="https://ucags.edu.lk/wp-content/plugins/metform/public/assets/lib/cute-alert/style.css?ver=4.1.2" />
-  <link rel="stylesheet" href="https://ucags.edu.lk/wp-content/plugins/elementor/assets/css/widget-social-icons.min.css?ver=3.24.0" />
-  <link rel="stylesheet" href="https://ucags.edu.lk/wp-content/uploads/elementor/css/base-desktop.css?ver=6985a3b865c27" />
+  <link rel="stylesheet" href="/ucags_register_files/main.min.css" />
+  <link rel="stylesheet" href="/ucags_register_files/frontend.min.css" />
+  <link rel="stylesheet" href="/ucags_register_files/elementor-icons.min.css" />
+
+  <link rel="stylesheet" href="/ucags_register_files/all.min.css" />
+  <link rel="stylesheet" href="/ucags_register_files/v4-shims.min.css" />
+  <link rel="stylesheet" href="/ucags_register_files/fontawesome.css" />
+  <link rel="stylesheet" href="/ucags_register_files/brands.css" />
+  <link rel="stylesheet" href="/ucags_register_files/solid.css" />
+
+  <link rel="stylesheet" href="/ucags_register_files/header-footer-elementor.css" />
+  <link rel="stylesheet" href="/ucags_register_files/metform-ui.css" />
+  <link rel="stylesheet" href="/ucags_register_files/style(1).css" />
+  <link rel="stylesheet" href="/ucags_register_files/base-desktop.css" />
+  <link rel="stylesheet" href="/ucags_register_files/widget-social-icons.min.css" />
+  <link rel="stylesheet" href="/ucags_register_files/widget-heading.min.css" />
+
+  <!-- Elementor kit + page-specific CSS (contains the exact global colors/typography) -->
+  <link rel="stylesheet" href="/ucags_register_files/post-4322.css" />
+  <link rel="stylesheet" href="/ucags_register_files/post-3787.css" />
 
   <!-- Keep CRM styles for shared button styles and inputs (used by this page) -->
   <link rel="stylesheet" href="/css/styles.css" />
 
   <style>
     :root {
-      /* Best-effort matches for Elementor global colors */
-      --ucags-accent: #c89b3c; /* fallback for globals/colors?id=730e9b0 */
-      --ucags-border: rgba(255,255,255,0.25); /* fallback for globals/colors?id=c54ab47 */
+      /* Exact global colors from saved Elementor kit (post-4322.css):
+         --e-global-color-730e9b0 = #592C88
+         --e-global-color-c54ab47 = #FFFFFF
+      */
+      --ucags-accent: var(--e-global-color-730e9b0, #592C88);
+      --ucags-border: rgba(255,255,255,0.25);
       --ucags-overlay: #010035; /* from Elementor export */
     }
 
@@ -70,7 +77,7 @@
       content: "";
       position: absolute;
       inset: 0;
-      background-image: url("https://ucags.edu.lk/wp-content/uploads/2025/08/Background-arizon.png");
+      background-image: url("/ucags_register_files/Background-arizon.png");
       background-position: center center;
       background-repeat: no-repeat;
       background-size: cover;
@@ -254,7 +261,7 @@
   </style>
 </head>
 
-<body class="ast-page-builder-template astra wp-custom-logo ast-single-post ast-inherit-site-logo-transparent ast-theme-transparent-header elementor-default elementor-kit-1 elementor-page">
+<body class="ast-page-builder-template astra wp-custom-logo ast-single-post ast-inherit-site-logo-transparent ast-theme-transparent-header elementor-default elementor-kit-4322 elementor-page elementor-3787">
 
   <header class="ucags-topbar" aria-label="Header">
     <div class="inner">
@@ -351,9 +358,9 @@
   <script>
     // Background slideshow gallery extracted from Elementor export for the official page.
     const ucagsHeroImages = [
-      'https://ucags.edu.lk/wp-content/uploads/2025/08/modern-living-room-with-black-leather-sofa-in-front-of-a-wooden-panel.jpg',
-      'https://ucags.edu.lk/wp-content/uploads/2025/08/black-wooden-furniture-and-an-industrial-lamp-above-a-coffee-mac.jpg',
-      'https://ucags.edu.lk/wp-content/uploads/2025/08/3d-rendering-luxury-and-modern-living-room-with-good-design-leather-sofa.jpg'
+      '/ucags_register_files/modern-living-room-with-black-leather-sofa-in-front-of-a-wooden-panel.jpg',
+      '/ucags_register_files/black-wooden-furniture-and-an-industrial-lamp-above-a-coffee-mac.jpg',
+      '/ucags_register_files/3d-rendering-luxury-and-modern-living-room-with-good-design-leather-sofa.jpg'
     ];
 
     (function initHeroSlideshow(){
