@@ -1,418 +1,589 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Register Online</title>
+  <title>Online Registration | UCAGS</title>
   <link rel="icon" href="/favicon.png" />
 
-  <!-- Saved assets from: https://ucags.edu.lk/register-online/ -->
-  <!-- NOTE: These are loaded locally from /ucags_register_files to enable pixel-identical rendering without hitting the live site. -->
-  <link rel="stylesheet" href="/ucags_register_files/dmsans.css" />
-  <link rel="stylesheet" href="/ucags_register_files/cormorant.css" />
-
-  <link rel="stylesheet" href="/ucags_register_files/main.min.css" />
-  <link rel="stylesheet" href="/ucags_register_files/frontend.min.css" />
-  <link rel="stylesheet" href="/ucags_register_files/elementor-icons.min.css" />
-
-  <link rel="stylesheet" href="/ucags_register_files/all.min.css" />
-  <link rel="stylesheet" href="/ucags_register_files/v4-shims.min.css" />
-  <link rel="stylesheet" href="/ucags_register_files/fontawesome.css" />
-  <link rel="stylesheet" href="/ucags_register_files/brands.css" />
-  <link rel="stylesheet" href="/ucags_register_files/solid.css" />
-
-  <link rel="stylesheet" href="/ucags_register_files/header-footer-elementor.css" />
-  <link rel="stylesheet" href="/ucags_register_files/metform-ui.css" />
-  <link rel="stylesheet" href="/ucags_register_files/style(1).css" />
-  <link rel="stylesheet" href="/ucags_register_files/base-desktop.css" />
-  <link rel="stylesheet" href="/ucags_register_files/widget-social-icons.min.css" />
-  <link rel="stylesheet" href="/ucags_register_files/widget-heading.min.css" />
-
-  <!-- Elementor kit + page-specific CSS (contains the exact global colors/typography) -->
-  <link rel="stylesheet" href="/ucags_register_files/post-4322.css" />
-  <link rel="stylesheet" href="/ucags_register_files/post-3787.css" />
-
-  <!-- Keep CRM styles for shared button styles and inputs (used by this page) -->
-  <link rel="stylesheet" href="/css/styles.css" />
+  <!-- Brand fonts (safe, professional) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Cormorant:wght@500;600;700&display=swap" rel="stylesheet">
 
   <style>
     :root {
-      /* Exact global colors from saved Elementor kit (post-4322.css):
-         --e-global-color-730e9b0 = #592C88
-         --e-global-color-c54ab47 = #FFFFFF
-      */
-      --ucags-accent: var(--e-global-color-730e9b0, #592C88);
-      --ucags-border: rgba(255,255,255,0.25);
-      --ucags-overlay: #010035; /* from Elementor export */
+      /* UCAGS-inspired palette (deep purple + gold) */
+      --bg: #0b1020;
+      --surface: #0f1730;
+      --card: #ffffff;
+      --text: #101828;
+      --muted: #475467;
+
+      --brand: #592c88;      /* purple */
+      --brand-2: #7b3bd6;    /* lighter purple */
+      --accent: #c89b3c;     /* gold */
+
+      --border: rgba(16, 24, 40, 0.12);
+      --shadow: 0 18px 45px rgba(2, 6, 23, 0.22);
+
+      --radius: 16px;
+      --radius-sm: 12px;
+
+      --container: 1120px;
     }
+
+    * { box-sizing: border-box; }
 
     html, body { height: 100%; }
     body {
       margin: 0;
-      font-family: "DM Sans", sans-serif;
-      background: #ffffff;
+      font-family: "DM Sans", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      color: var(--text);
+      background:
+        radial-gradient(900px 420px at 20% 10%, rgba(123, 59, 214, 0.18), transparent 60%),
+        radial-gradient(900px 420px at 80% 0%, rgba(200, 155, 60, 0.16), transparent 55%),
+        linear-gradient(180deg, #070b16 0%, #0b1020 55%, #0b1020 100%);
     }
 
-    /* HERO (from Elementor export) */
-    .ucags-register-hero {
-      position: relative;
-      padding: 320px 0 80px;
-      overflow: hidden;
-      background-color: #000;
-      background-position: center center;
-      background-size: cover;
-      transition: background-image 800ms ease;
-    }
+    a { color: inherit; }
 
-    .ucags-register-hero::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: var(--ucags-overlay);
-      opacity: 0.70;
-      pointer-events: none;
-    }
-
-    .ucags-register-hero::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background-image: url("/ucags_register_files/Background-arizon.png");
-      background-position: center center;
-      background-repeat: no-repeat;
-      background-size: cover;
-      opacity: 0.55;
-      pointer-events: none;
-      mix-blend-mode: screen;
-    }
-
-    .ucags-register-hero .elementor-container,
-    .ucags-register-content .elementor-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 16px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .ucags-hero-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      align-items: center;
-    }
-
-    @media (max-width: 768px) {
-      .ucags-register-hero { padding: 180px 0 70px; }
-      .ucags-hero-grid { grid-template-columns: 1fr; }
-    }
-
-    /* Headings mimic Elementor typography (best-effort) */
-    .ucags-hero-eyebrow {
-      margin: 0;
-      color: #ffffff;
-      font-family: "Cormorant", serif;
-      font-size: 48px;
-      font-weight: 600;
-      line-height: 1.05;
-    }
-
-    .ucags-hero-title {
-      margin: 4px 0 0;
-      color: #ffffff;
-      font-family: "Cormorant", serif;
-      font-size: 72px;
-      font-weight: 700;
-      line-height: 0.95;
-      text-align: left;
-    }
-
-    @media (max-width: 768px) {
-      .ucags-hero-eyebrow { font-size: 36px; }
-      .ucags-hero-title { font-size: 54px; }
-    }
-
-    /* CONTENT area */
-    .ucags-register-content {
-      padding: 60px 0 80px;
-      background: #ffffff;
-    }
-
-    .ucags-register-h2 {
-      margin: 0;
-      text-align: center;
-      font-family: "Cormorant", serif;
-      font-size: 44px;
-      font-weight: 700;
-      color: var(--ucags-accent);
-    }
-
-    .ucags-form-shell {
-      /* Elementor export (metform widget): margin top 17px, left ~204px, right ~214px,
-         and padding top 40px right 5px bottom 30px left 15px.
-         We approximate this with a fixed max width that matches those margins inside a 1200px container. */
-      max-width: 782px;
-      margin: 17px auto 0;
-      padding: 40px 5px 30px 15px;
-      border: 1px solid var(--ucags-border);
-      background: #ffffff;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-    }
-
-    /* MetForm-like spacing + typography */
-    .ucags-form-shell .ucags-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 18px 18px;
-    }
-
-    @media (max-width: 720px) {
-      .ucags-form-shell .ucags-grid { grid-template-columns: 1fr; }
-    }
-
-    .ucags-field label {
-      display: block;
-      margin: 0 0 8px;
-      font-size: 14px;
-      font-weight: 600;
-      color: #1f1f1f;
-    }
-
-    .ucags-field input,
-    .ucags-field select {
+    .container {
       width: 100%;
-      height: 46px;
-      padding: 10px 14px;
-      border: 1px solid rgba(0,0,0,0.18);
-      border-radius: 2px;
-      background: #fff;
-      font-size: 15px;
-      outline: none;
-      transition: border-color 150ms ease, box-shadow 150ms ease;
-    }
-
-    .ucags-field input:focus,
-    .ucags-field select:focus {
-      border-color: rgba(0,0,0,0.45);
-      box-shadow: 0 0 0 3px rgba(200,155,60,0.18);
-    }
-
-    .ucags-actions {
-      display: flex;
-      justify-content: center;
-      margin-top: 18px;
-    }
-
-    /* Prefer WP/Astra button styles if present, but ensure it looks like the site */
-    .ucags-submit {
-      padding: 14px 34px;
-      border-radius: 2px;
-      border: 0;
-      background: var(--ucags-accent);
-      color: #fff;
-      font-weight: 700;
-      letter-spacing: 0.3px;
-      cursor: pointer;
-    }
-
-    .ucags-submit:disabled { opacity: 0.7; cursor: not-allowed; }
-
-    .ucags-status {
-      margin-top: 14px;
-      text-align: center;
-      font-size: 14px;
-      display: none;
-    }
-
-    .ucags-status.ok { color: #1b5e20; }
-    .ucags-status.err { color: #b71c1c; }
-
-    .ucags-topbar {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 2;
-      padding: 18px 0;
-    }
-
-    .ucags-topbar .inner {
-      max-width: 1200px;
+      max-width: var(--container);
       margin: 0 auto;
-      padding: 0 16px;
+      padding: 0 18px;
+    }
+
+    /* Header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(12px);
+      background: rgba(11, 16, 32, 0.62);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .nav {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
+      padding: 14px 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .brand img {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.08);
+      padding: 6px;
+    }
+
+    .brand .text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.05;
       color: #fff;
     }
 
-    .ucags-brand {
+    .brand .text strong {
+      font-size: 14px;
+      letter-spacing: 0.7px;
+      text-transform: uppercase;
+      opacity: 0.95;
+    }
+
+    .brand .text span {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    .nav-actions {
       display: flex;
       align-items: center;
       gap: 10px;
-      text-decoration: none;
-      color: inherit;
     }
 
-    .ucags-brand img { width: 44px; height: 44px; object-fit: contain; }
-    .ucags-official-link { color: #fff; text-decoration: none; font-weight: 600; }
-    .ucags-official-link:hover { text-decoration: underline; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 13px;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+      white-space: nowrap;
+    }
+
+    .pill:hover {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,0.09);
+      border-color: rgba(255,255,255,0.22);
+    }
+
+    .pill.primary {
+      background: linear-gradient(135deg, var(--accent), #e0b95b);
+      color: #1b1423;
+      border-color: rgba(255,255,255,0);
+    }
+
+    .pill.primary:hover { background: linear-gradient(135deg, #e0b95b, var(--accent)); }
+
+    /* Hero */
+    .hero {
+      padding: 48px 0 18px;
+      color: #fff;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 26px;
+      align-items: start;
+    }
+
+    .hero h1 {
+      font-family: "Cormorant", serif;
+      font-size: 56px;
+      line-height: 1.02;
+      margin: 0;
+      letter-spacing: -0.5px;
+    }
+
+    .hero p {
+      margin: 14px 0 0;
+      max-width: 56ch;
+      color: rgba(255,255,255,0.85);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .hero-cards {
+      display: grid;
+      gap: 12px;
+    }
+
+    .mini-card {
+      border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.06);
+      padding: 14px 14px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .mini-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      background: rgba(200,155,60,0.18);
+      border: 1px solid rgba(200,155,60,0.25);
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      color: #ffd88a;
+      font-weight: 800;
+    }
+
+    .mini-card strong {
+      display: block;
+      font-size: 14px;
+      margin: 0;
+    }
+
+    .mini-card span {
+      display: block;
+      margin-top: 4px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.78);
+      line-height: 1.45;
+    }
+
+    /* Content area */
+    main {
+      padding: 18px 0 70px;
+    }
+
+    .panel {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: calc(var(--radius) + 6px);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .form-card {
+      background: var(--card);
+      border-radius: calc(var(--radius) + 6px);
+      overflow: hidden;
+    }
+
+    .form-head {
+      padding: 22px 22px;
+      background:
+        radial-gradient(900px 420px at 20% 10%, rgba(123, 59, 214, 0.12), transparent 55%),
+        radial-gradient(700px 320px at 90% 0%, rgba(200, 155, 60, 0.14), transparent 55%),
+        linear-gradient(135deg, rgba(89,44,136,0.10), rgba(200,155,60,0.08));
+      border-bottom: 1px solid var(--border);
+    }
+
+    .form-head h2 {
+      margin: 0;
+      font-family: "Cormorant", serif;
+      font-size: 30px;
+      letter-spacing: -0.3px;
+      color: var(--text);
+    }
+
+    .form-head p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    form {
+      padding: 22px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .field { display: grid; gap: 7px; }
+
+    label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1d2939;
+    }
+
+    .req { color: #b42318; font-weight: 800; }
+
+    input, select {
+      height: 44px;
+      padding: 10px 12px;
+      border: 1px solid rgba(16, 24, 40, 0.16);
+      border-radius: 12px;
+      font-size: 14px;
+      outline: none;
+      transition: box-shadow 120ms ease, border-color 120ms ease;
+      background: #fff;
+    }
+
+    input::placeholder { color: rgba(71, 84, 103, 0.75); }
+
+    input:focus, select:focus {
+      border-color: rgba(89, 44, 136, 0.55);
+      box-shadow: 0 0 0 4px rgba(123, 59, 214, 0.14);
+    }
+
+    .field.full { grid-column: 1 / -1; }
+
+    .help {
+      font-size: 12px;
+      color: #667085;
+      margin-top: -2px;
+      line-height: 1.35;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      align-items: center;
+      padding-top: 16px;
+    }
+
+    .btn {
+      height: 44px;
+      padding: 0 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(16, 24, 40, 0.14);
+      background: #fff;
+      color: #101828;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+    }
+
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(16,24,40,0.10); }
+
+    .btn.primary {
+      border: 0;
+      color: #fff;
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+    }
+
+    .btn.primary:hover { box-shadow: 0 12px 28px rgba(89,44,136,0.28); }
+
+    .btn:disabled { opacity: 0.65; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .status {
+      display: none;
+      margin-top: 14px;
+      padding: 12px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .status.ok { display: block; background: #ecfdf3; color: #067647; border: 1px solid #abefc6; }
+    .status.err { display: block; background: #fef3f2; color: #b42318; border: 1px solid #fecdca; }
+
+    footer {
+      padding: 22px 0 38px;
+      color: rgba(255,255,255,0.72);
+      font-size: 13px;
+    }
+
+    footer .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 18px;
+    }
+
+    @media (max-width: 900px) {
+      .hero-grid { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 46px; }
+    }
+
+    @media (max-width: 720px) {
+      .grid { grid-template-columns: 1fr; }
+      .hero { padding: 34px 0 12px; }
+      .hero h1 { font-size: 40px; }
+      .actions { justify-content: stretch; }
+      .actions .btn { flex: 1; }
+    }
   </style>
 </head>
 
-<body class="ast-page-builder-template astra wp-custom-logo ast-single-post ast-inherit-site-logo-transparent ast-theme-transparent-header elementor-default elementor-kit-4322 elementor-page elementor-3787">
+<body>
+  <header>
+    <div class="container">
+      <div class="nav">
+        <a class="brand" href="/" aria-label="UCAGS Home">
+          <img src="/ucags_register_files/Unversal-logo-2025-05-16.png" alt="UCAGS Logo" />
+          <div class="text">
+            <strong>UCAGS</strong>
+            <span>Universal College of Applied &amp; General Studies</span>
+          </div>
+        </a>
 
-  <header class="ucags-topbar" aria-label="Header">
-    <div class="inner">
-      <a class="ucags-brand" href="https://ucags.edu.lk/" target="_blank" rel="noreferrer">
-        <img src="/logo.png" alt="UCAGS" />
-        <span style="font-weight:700; letter-spacing:0.2px;">UCAGS</span>
-      </a>
-      <a class="ucags-official-link" href="https://ucags.edu.lk/register-online/" target="_blank" rel="noreferrer">Official Page</a>
+        <div class="nav-actions">
+          <a class="pill" href="/" title="Back to main site">Home</a>
+          <a class="pill primary" href="#register" title="Jump to registration">Register</a>
+        </div>
+      </div>
     </div>
   </header>
 
-  <!-- HERO: matches Elementor export (section padding + slideshow + overlay) -->
-  <section class="ucags-register-hero elementor-section elementor-top-section" aria-label="Hero">
-    <div class="elementor-container">
-      <div class="ucags-hero-grid">
+  <section class="hero">
+    <div class="container">
+      <div class="hero-grid">
         <div>
-          <h2 class="ucags-hero-eyebrow">Quick &amp; Easy</h2>
-          <h1 class="ucags-hero-title">Registration</h1>
+          <h1>Online Registration</h1>
+          <p>
+            Submit your details to begin the registration process. Our admissions team will contact you with the next steps.
+            Fields marked with <span class="req">*</span> are required.
+          </p>
         </div>
-        <div></div>
+
+        <div class="hero-cards" aria-label="Highlights">
+          <div class="mini-card">
+            <div class="mini-icon">1</div>
+            <div>
+              <strong>Quick submission</strong>
+              <span>Complete the form in under 2 minutes using your phone or laptop.</span>
+            </div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-icon">2</div>
+            <div>
+              <strong>Secure handling</strong>
+              <span>Your information is used only for admissions and student support.</span>
+            </div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-icon">3</div>
+            <div>
+              <strong>Fast follow-up</strong>
+              <span>We’ll contact you via phone or WhatsApp after submission.</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- FORM AREA -->
-  <main class="ucags-register-content" aria-label="Register">
-    <div class="elementor-container">
-      <h2 class="ucags-register-h2">Register Here</h2>
-
-      <div class="ucags-form-shell">
-        <form id="registrationForm" novalidate>
-          <div class="ucags-grid">
-            <div class="ucags-field">
-              <label for="reg_name">Name *</label>
-              <input id="reg_name" name="name" type="text" required />
-            </div>
-
-            <div class="ucags-field">
-              <label for="reg_gender">Gender *</label>
-              <select id="reg_gender" name="gender" required>
-                <option value="">Select</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
-            <div class="ucags-field">
-              <label for="reg_dob">Date of Birth</label>
-              <input id="reg_dob" name="date_of_birth" type="date" />
-            </div>
-
-            <div class="ucags-field">
-              <label for="reg_country">Country</label>
-              <input id="reg_country" name="country" type="text" />
-            </div>
-
-            <div class="ucags-field" style="grid-column: 1 / -1;">
-              <label for="reg_address">Address</label>
-              <input id="reg_address" name="address" type="text" />
-            </div>
-
-            <div class="ucags-field">
-              <label for="reg_phone">Phone Number *</label>
-              <input id="reg_phone" name="phone_number" type="tel" required />
-            </div>
-
-            <div class="ucags-field">
-              <label for="reg_wa">WA Number</label>
-              <input id="reg_wa" name="wa_number" type="tel" />
-            </div>
-
-            <div class="ucags-field">
-              <label for="reg_email">Email</label>
-              <input id="reg_email" name="email" type="email" />
-            </div>
-
-            <div class="ucags-field">
-              <label for="reg_working">Working Status</label>
-              <input id="reg_working" name="working_status" type="text" placeholder="e.g. Working / Student" />
-            </div>
+  <main id="register">
+    <div class="container">
+      <div class="panel">
+        <div class="form-card">
+          <div class="form-head">
+            <h2>Student Details</h2>
+            <p>Please enter accurate information so we can contact you and process your registration correctly.</p>
           </div>
 
-          <div class="ucags-actions">
-            <button id="regSubmitBtn" class="ucags-submit" type="submit">Submit</button>
-          </div>
+          <form id="registrationForm" novalidate>
+            <div class="grid">
+              <div class="field">
+                <label for="name">Full name <span class="req">*</span></label>
+                <input id="name" name="name" type="text" autocomplete="name" placeholder="e.g., A. B. Perera" required />
+              </div>
 
-          <div id="regStatus" class="ucags-status"></div>
-        </form>
+              <div class="field">
+                <label for="gender">Gender <span class="req">*</span></label>
+                <select id="gender" name="gender" required>
+                  <option value="">Select</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="dob">Date of birth</label>
+                <input id="dob" name="date_of_birth" type="date" />
+              </div>
+
+              <div class="field">
+                <label for="country">Country</label>
+                <input id="country" name="country" type="text" autocomplete="country-name" placeholder="Sri Lanka" />
+              </div>
+
+              <div class="field full">
+                <label for="address">Address</label>
+                <input id="address" name="address" type="text" autocomplete="street-address" placeholder="House No, Street, City" />
+              </div>
+
+              <div class="field">
+                <label for="phone">Phone number <span class="req">*</span></label>
+                <input id="phone" name="phone_number" type="tel" autocomplete="tel" placeholder="07X XXX XXXX" required />
+                <div class="help">Use a number we can reach during office hours.</div>
+              </div>
+
+              <div class="field">
+                <label for="wa">WhatsApp number</label>
+                <input id="wa" name="wa_number" type="tel" autocomplete="tel" placeholder="If different from phone" />
+              </div>
+
+              <div class="field">
+                <label for="email">Email</label>
+                <input id="email" name="email" type="email" autocomplete="email" placeholder="name@example.com" />
+              </div>
+
+              <div class="field">
+                <label for="working">Working status</label>
+                <input id="working" name="working_status" type="text" placeholder="e.g., Working / Student" />
+              </div>
+            </div>
+
+            <div class="actions">
+              <button class="btn" type="reset">Clear</button>
+              <button id="submitBtn" class="btn primary" type="submit">Submit registration</button>
+            </div>
+
+            <div id="status" class="status" role="status" aria-live="polite"></div>
+          </form>
+        </div>
       </div>
+
+      <footer>
+        <div class="row">
+          <div>© <span id="year"></span> UCAGS. All rights reserved.</div>
+          <div style="opacity:.9">Need help? Contact admissions via phone or WhatsApp.</div>
+        </div>
+      </footer>
     </div>
   </main>
 
   <script>
-    // Background slideshow gallery extracted from Elementor export for the official page.
-    const ucagsHeroImages = [
-      '/ucags_register_files/modern-living-room-with-black-leather-sofa-in-front-of-a-wooden-panel.jpg',
-      '/ucags_register_files/black-wooden-furniture-and-an-industrial-lamp-above-a-coffee-mac.jpg',
-      '/ucags_register_files/3d-rendering-luxury-and-modern-living-room-with-good-design-leather-sofa.jpg'
-    ];
+    document.getElementById('year').textContent = new Date().getFullYear();
 
-    (function initHeroSlideshow(){
-      const hero = document.querySelector('.ucags-register-hero');
-      if (!hero) return;
+    const form = document.getElementById('registrationForm');
+    const statusEl = document.getElementById('status');
+    const submitBtn = document.getElementById('submitBtn');
 
-      let i = 0;
-      function apply(){
-        hero.style.backgroundImage = 'url(' + ucagsHeroImages[i] + ')';
+    function setStatus(type, message) {
+      statusEl.className = 'status ' + type;
+      statusEl.textContent = message;
+    }
+
+    function clearStatus() {
+      statusEl.className = 'status';
+      statusEl.textContent = '';
+    }
+
+    function normalizePhone(v) {
+      return String(v || '').trim();
+    }
+
+    function validate(payload) {
+      if (!payload.name || payload.name.trim().length < 2) {
+        return 'Please enter your full name.';
       }
-      apply();
-
-      // Simple fade-like swap (Elementor uses ken burns; this is a lightweight approximation)
-      setInterval(() => {
-        i = (i + 1) % ucagsHeroImages.length;
-        apply();
-      }, 6500);
-    })();
-
-    function showStatus(message, kind) {
-      const el = document.getElementById('regStatus');
-      el.style.display = 'block';
-      el.textContent = message;
-      el.className = 'ucags-status ' + (kind || '');
+      if (!payload.gender) {
+        return 'Please select gender.';
+      }
+      const phone = normalizePhone(payload.phone_number);
+      if (!phone) {
+        return 'Please enter a phone number.';
+      }
+      if (phone.replace(/\D/g, '').length < 9) {
+        return 'Please enter a valid phone number.';
+      }
+      if (payload.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
+        return 'Please enter a valid email address.';
+      }
+      return null;
     }
 
-    function hideStatus() {
-      const el = document.getElementById('regStatus');
-      el.style.display = 'none';
-      el.textContent = '';
-      el.className = 'ucags-status';
-    }
+    form.addEventListener('reset', () => {
+      // Ensure the UX feels clean when the user clears the form
+      clearStatus();
+    });
 
-    document.getElementById('registrationForm').addEventListener('submit', async (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      hideStatus();
+      clearStatus();
 
-      const btn = document.getElementById('regSubmitBtn');
-      btn.disabled = true;
-      const oldText = btn.textContent;
-      btn.textContent = 'Submitting...';
+      const fd = new FormData(form);
+      const payload = Object.fromEntries(fd.entries());
+
+      const err = validate(payload);
+      if (err) {
+        setStatus('err', err);
+        statusEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        return;
+      }
+
+      submitBtn.disabled = true;
+      const oldText = submitBtn.textContent;
+      submitBtn.textContent = 'Submitting...';
 
       try {
-        const form = e.target;
-        const fd = new FormData(form);
-        const payload = Object.fromEntries(fd.entries());
-
-        // Basic required validation to mimic MetForm behaviour
-        if (!payload.name || !payload.gender || !payload.phone_number) {
-          throw new Error('Please fill the required fields.');
-        }
-
         const res = await fetch('/api/registrations/intake', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -420,15 +591,19 @@
         });
 
         const json = await res.json().catch(() => ({}));
-        if (!res.ok || !json.success) throw new Error(json.error || 'Failed');
+        if (!res.ok || json.success === false) {
+          throw new Error(json.error || 'Submission failed. Please try again.');
+        }
 
-        showStatus('Registration submitted successfully', 'ok');
+        setStatus('ok', 'Thank you. Your registration has been submitted successfully. We will contact you soon.');
+        statusEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         form.reset();
-      } catch (err) {
-        showStatus(err.message || 'Error submitting registration', 'err');
+      } catch (error) {
+        setStatus('err', error.message || 'Something went wrong. Please try again.');
+        statusEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       } finally {
-        btn.disabled = false;
-        btn.textContent = oldText;
+        submitBtn.disabled = false;
+        submitBtn.textContent = oldText;
       }
     });
   </script>
