@@ -413,7 +413,8 @@
       position: relative;
       z-index: 1;
       width: 100%;
-      max-width: var(--container);
+      /* allow footer content to use the full viewport width */
+      max-width: 100%;
       margin: 0 auto;
       display: grid;
       gap: 6px;
@@ -425,6 +426,20 @@
       justify-content: flex-start;
       gap: 12px;
       width: 100%;
+    }
+
+    /* Keep logo + bottom centered to container, but let contact row go full-bleed */
+    .footer .brandRow,
+    .footer .bottom {
+      max-width: var(--container);
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .footer .contact {
+      max-width: 100%;
+      margin-left: 0;
+      margin-right: 0;
     }
 
     .footer .brandRow img {
@@ -446,9 +461,11 @@
 
     .footer .contact {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      /* Full-bleed row across the screen */
+      width: 100%;
+      grid-template-columns: minmax(220px, 1fr) minmax(520px, 2.4fr) minmax(220px, 1fr);
       align-items: center;
-      gap: 6px 10px;
+      gap: 6px 18px;
       font-size: 13px;
       line-height: 1.35;
       opacity: 0.95;
@@ -459,6 +476,13 @@
       white-space: normal;
       overflow: visible;
       text-overflow: initial;
+    }
+
+    /* keep the address in one line on larger screens */
+    @media (min-width: 980px) {
+      .footer .contact .block:nth-child(2) {
+        white-space: nowrap;
+      }
     }
 
     .footer .contact .block:nth-child(1) { text-align: left; }
