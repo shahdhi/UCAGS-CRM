@@ -269,6 +269,18 @@ const registrationsAPI = {
     return fetchAPI(`/registrations/admin/${encodeURIComponent(id)}`, {
       method: 'DELETE'
     });
+  },
+  myList: async (limit = 200) => {
+    const params = new URLSearchParams();
+    params.set('limit', String(limit));
+    return fetchAPI(`/registrations/my?${params.toString()}`);
+  },
+  adminAssign: async (id, assignedTo) => {
+    if (!id) throw new Error('Missing registration id');
+    return fetchAPI(`/registrations/admin/${encodeURIComponent(id)}/assign`, {
+      method: 'PUT',
+      body: JSON.stringify({ assigned_to: assignedTo })
+    });
   }
 };
 
@@ -299,6 +311,12 @@ const dashboardAPI = {
 /**
  * Authentication API
  */
+const usersAPI = {
+  officers: async () => {
+    return fetchAPI('/users/officers');
+  }
+};
+
 const authAPI = {
   /**
    * Login user
@@ -597,6 +615,7 @@ const healthAPI = {
 
 // Export all APIs - compatible with existing code
 window.API = {
+  users: usersAPI,
   auth: authAPI,
   enquiries: enquiriesAPI,
   leads: leadsAPI,

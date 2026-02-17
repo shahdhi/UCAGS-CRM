@@ -1305,6 +1305,11 @@ async function navigateToPage(page) {
                 await window.initRegistrationsPage();
             }
             break;
+        case 'registrations-my':
+            if (window.initMyRegistrationsPage) {
+                await window.initMyRegistrationsPage();
+            }
+            break;
         case 'receipts':
             loadReceipts();
             break;

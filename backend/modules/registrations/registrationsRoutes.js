@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
-const { isAdmin } = require('../../../server/middleware/auth');
+const { isAdmin, isAdminOrOfficer } = require('../../../server/middleware/auth');
 const { findAssigneeByPhoneAcrossAllSheets, normalizePhoneToSL } = require('./registrationAssignmentService');
 
 function cleanString(v) {
@@ -69,7 +69,32 @@ router.post('/intake', async (req, res) => {
   }
 });
 
-// Admin list endpoint (for future admin tab)
+// Officer list endpoint (assigned to the logged-in officer)
+// GET /api/registrations/my?limit=100
+router.get('/my', isAdminOrOfficer, async (req, res) => {
+  try {
+    // Officers see only their assigned registrations; admins can also use this endpoint.
+    const officerName = String(req.user?.name || '').trim();
+    if (!officerName) return res.status(400).json({ success: false, error: 'Missing officer name' });
+
+    const sb = getSupabaseAdmin();
+    const limit = Math.min(parseInt(req.query.limit || '100', 10) || 100, 500);
+
+    const { data, error } = await sb
+      .from('registrations')
+      .select('*')
+      .eq('assigned_to', officerName)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    res.json({ success: true, registrations: data || [] });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// Admin list endpoint
 // GET /api/registrations/admin?limit=100
 router.get('/admin', isAdmin, async (req, res) => {
   try {
@@ -84,6 +109,29 @@ router.get('/admin', isAdmin, async (req, res) => {
 
     if (error) throw error;
     res.json({ success: true, registrations: data || [] });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// Update assignment (admin)
+// PUT /api/registrations/admin/:id/assign { assigned_to }
+router.put('/admin/:id/assign', isAdmin, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+    const id = String(req.params.id || '').trim();
+    const assignedTo = String(req.body?.assigned_to || '').trim();
+    if (!id) return res.status(400).json({ success: false, error: 'Missing id' });
+
+    const { data, error } = await sb
+      .from('registrations')
+      .update({ assigned_to: assignedTo || null })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, registration: data });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }

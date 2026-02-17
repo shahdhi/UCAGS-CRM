@@ -29,11 +29,22 @@
   let lastRowsById = new Map();
   let selectedRegistrationId = null;
 
-  function openDetailsModal(reg) {
+  let cachedOfficers = null;
+
+  async function ensureOfficersLoaded() {
+    if (cachedOfficers) return cachedOfficers;
+    const res = await window.API.users.officers();
+    cachedOfficers = (res.officers || []).map(o => o.name).filter(Boolean);
+    return cachedOfficers;
+  }
+
+  async function openDetailsModal(reg) {
     selectedRegistrationId = reg?.id || null;
 
     const body = qs('registrationDetailsModalBody');
     const delBtn = qs('registrationDeleteBtn');
+    const actions = qs('registrationDetailsModalActions');
+    if (actions) actions.style.display = 'flex';
 
     const payload = reg?.payload || {};
     const get = (key) => reg?.[key] ?? payload?.[key] ?? '';
@@ -41,20 +52,43 @@
     const details = {
       'Submitted At': formatDateTimeLocal(reg?.created_at),
       'Name': get('name'),
+      'Phone': get('phone_number'),
+      'Email': get('email'),
       'Gender': get('gender'),
       'Date of Birth': get('date_of_birth'),
       'Address': get('address'),
       'Country': get('country'),
-      'Phone': get('phone_number'),
       'WhatsApp': get('wa_number'),
-      'Email': get('email'),
       'Working Status': get('working_status'),
       'Course/Program': get('course_program'),
       'Source': get('source')
     };
 
     if (body) {
+      const currentAssigned = reg?.assigned_to ?? reg?.payload?.assigned_to ?? '';
+      let officerOptions = '';
+      try {
+        const officers = await ensureOfficersLoaded();
+        officerOptions = [''].concat(officers).map(name => {
+          const label = name || 'Unassigned';
+          const selected = String(name) === String(currentAssigned) ? 'selected' : '';
+          return `<option value="${escapeHtml(name)}" ${selected}>${escapeHtml(label)}</option>`;
+        }).join('');
+      } catch (e) {
+        console.warn('Failed to load officers for assignment dropdown:', e);
+      }
+
       body.innerHTML = `
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom: 12px;">
+          <div style="font-size:13px; color:#667085;">Assigned</div>
+          <select id="registrationAssignedSelect" class="form-control" style="min-width: 220px;">
+            ${officerOptions || `<option value="${escapeHtml(currentAssigned)}" selected>${escapeHtml(currentAssigned || 'Unassigned')}</option>`}
+          </select>
+          <button type="button" class="btn btn-primary" id="registrationAssignedSaveBtn">
+            <i class="fas fa-save"></i> Save
+          </button>
+        </div>
+
         <div class="lead-details-grid" style="grid-template-columns: 1fr 1fr;">
           ${Object.entries(details).map(([k, v]) => `
             <div class="lead-detail-item">
@@ -64,9 +98,29 @@
           `).join('')}
         </div>
       `;
+
+      const saveBtn = qs('registrationAssignedSaveBtn');
+      const sel = qs('registrationAssignedSelect');
+      if (saveBtn && sel) {
+        saveBtn.onclick = async () => {
+          try {
+            saveBtn.disabled = true;
+            const assignedTo = sel.value;
+            await window.API.registrations.adminAssign(selectedRegistrationId, assignedTo);
+            if (window.UI && UI.showToast) UI.showToast('Assignment updated', 'success');
+            await loadRegistrations();
+          } catch (e) {
+            console.error(e);
+            if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to update assignment', 'error');
+          } finally {
+            saveBtn.disabled = false;
+          }
+        };
+      }
     }
 
     if (delBtn) {
+      delBtn.style.display = ''; // ensure visible for admins (officer page hides it)
       delBtn.onclick = async () => {
         if (!selectedRegistrationId) return;
         const ok = confirm('Delete this registration permanently?');
@@ -131,7 +185,7 @@
       tr.addEventListener('click', () => {
         const id = tr.getAttribute('data-registration-id');
         const reg = lastRowsById.get(id);
-        if (reg) openDetailsModal(reg);
+        if (reg) openDetailsModal(reg).catch(console.error);
       });
     });
   }

@@ -61,7 +61,8 @@ async function isAdmin(req, res, next) {
 async function isAdminOrOfficer(req, res, next) {
   // First check authentication
   await isAuthenticated(req, res, async () => {
-    if (req.user && (req.user.role === 'admin' || req.user.role === 'officer')) {
+    // Treat any authenticated non-admin staff as "officer" for access control
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'officer' || req.user.role === 'user')) {
       return next();
     }
     res.status(403).json({ error: 'Forbidden. Admin or Officer access required.' });
