@@ -375,13 +375,12 @@
     }
 
     .footer {
-      width: 100vw;
-      margin-left: calc(50% - 50vw);
-      margin-right: calc(50% - 50vw);
+      /* Footer-only: avoid 100vw + negative margins (can create horizontal scrollbar) */
+      width: 100%;
+      margin: 18px 0 0;
       background: var(--primary);
       color: rgba(255, 255, 255, 0.92);
-      padding: 10px 16px;
-      margin-top: 18px;
+      padding: 14px 0 18px; /* vertical padding handled here; side padding on rows */
       position: relative;
       overflow: hidden;
       font-family: Verdana, Geneva, Tahoma, sans-serif;
@@ -436,16 +435,16 @@
       max-width: 100%;
       margin-left: 0;
       margin-right: 0;
-      padding-left: 28px;
-      padding-right: 28px;
+      padding-left: 16px;  /* reduce left space so logo sits closer to edge */
+      padding-right: 16px;
     }
 
     @media (max-width: 560px) {
       .footer .brandRow,
       .footer .contact,
       .footer .bottom {
-        padding-left: 18px;
-        padding-right: 18px;
+        padding-left: 12px;
+        padding-right: 12px;
       }
     }
 
@@ -468,14 +467,16 @@
 
     .footer .contact {
       display: grid;
-      /* Full-bleed row across the screen */
       width: 100%;
-      grid-template-columns: minmax(220px, 1fr) minmax(520px, 2.4fr) minmax(220px, 1fr);
+      /* Use flexible columns to prevent overflow between 760px–980px */
+      grid-template-columns: 1fr minmax(0, 2.4fr) 1fr;
       align-items: center;
       gap: 6px 18px;
       font-size: 13px;
       line-height: 1.35;
       opacity: 0.95;
+      margin-top: 8px;
+      margin-bottom: 16px; /* increase spacing after contact row */
     }
 
     .footer .contact .block {
@@ -485,8 +486,8 @@
       text-overflow: initial;
     }
 
-    /* keep the address in one line on larger screens */
-    @media (min-width: 980px) {
+    /* keep the address in one line only on very large screens */
+    @media (min-width: 1200px) {
       .footer .contact .block:nth-child(2) {
         white-space: nowrap;
       }
@@ -512,8 +513,9 @@
     }
 
     .footer .bottom {
-      margin-top: 10px;
-      padding-top: 12px;
+      margin-top: 16px; /* increase spacing after contact row */
+      padding-top: 16px; /* increase spacing above divider line */
+      padding-bottom: 10px; /* increase spacing after copyright line */
       border-top: 1px solid rgba(255, 255, 255, 0.26);
       text-align: center;
       font-size: 13px;
