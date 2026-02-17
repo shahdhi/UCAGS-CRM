@@ -23,6 +23,8 @@ create table if not exists public.registrations (
 );
 
 -- If the table already existed before running this script, ensure new columns exist.
+alter table public.registrations add column if not exists working_status text;
+alter table public.registrations add column if not exists course_program text;
 alter table public.registrations add column if not exists assigned_to text;
 
 create index if not exists registrations_created_at_idx

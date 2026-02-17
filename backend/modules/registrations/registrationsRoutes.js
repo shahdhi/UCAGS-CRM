@@ -46,23 +46,45 @@ router.post('/intake', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Name and Phone Number are required' });
     }
 
-    const { data, error } = await sb
-      .from('registrations')
-      .insert(row)
-      .select('*')
-      .single();
+    async function insertWithMissingColumnFallback(insertRow) {
+      const first = await sb
+        .from('registrations')
+        .insert(insertRow)
+        .select('*')
+        .single();
 
-    if (error) {
+      if (!first.error) return first.data;
+
+      const msg = String(first.error.message || '').toLowerCase();
+
       // Helpful message if table is missing
-      if (String(error.message || '').toLowerCase().includes('relation') || String(error.message || '').toLowerCase().includes('does not exist')) {
-        return res.status(500).json({
-          success: false,
-          error: 'Supabase table "registrations" not found. Create it first.'
-        });
+      if (msg.includes('relation') || msg.includes('does not exist')) {
+        const err = new Error('Supabase table "registrations" not found. Create it first.');
+        err.status = 500;
+        throw err;
       }
-      throw error;
+
+      // If schema cache/table is missing newer columns, retry without them.
+      // Example error: "Could not find the 'course_program' column of 'registrations' in the schema cache"
+      if (msg.includes('schema cache') && msg.includes("could not find")) {
+        const retryRow = { ...insertRow };
+        // remove optional columns that may not exist yet
+        ['course_program', 'working_status', 'assigned_to', 'wa_number', 'email', 'gender', 'date_of_birth', 'address', 'country', 'source']
+          .forEach((c) => { delete retryRow[c]; });
+
+        const retry = await sb
+          .from('registrations')
+          .insert(retryRow)
+          .select('*')
+          .single();
+
+        if (!retry.error) return retry.data;
+      }
+
+      throw first.error;
     }
 
+    const data = await insertWithMissingColumnFallback(row);
     res.json({ success: true, registration: data });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
