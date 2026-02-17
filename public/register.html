@@ -44,7 +44,7 @@
 
     .page {
       min-height: 100%;
-      padding: 28px 16px 56px;
+      padding: 0 16px 56px;
       display: grid;
       place-items: start center;
       background:
@@ -53,30 +53,93 @@
         linear-gradient(180deg, #ffffff 0%, #fbfaff 100%);
     }
 
+    /* Apple-like fluid + glass header */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      width: 100%;
+      margin: 0 -16px 18px;
+      padding: 18px 16px;
+      background:
+        radial-gradient(900px 420px at 15% 0%, rgba(200, 155, 60, 0.20), transparent 55%),
+        radial-gradient(900px 420px at 85% 20%, rgba(123, 59, 214, 0.30), transparent 60%),
+        linear-gradient(135deg, rgba(89, 44, 136, 0.78), rgba(75, 35, 118, 0.78));
+      color: #fff;
+      backdrop-filter: saturate(180%) blur(18px);
+      -webkit-backdrop-filter: saturate(180%) blur(18px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 18px 40px rgba(16, 24, 40, 0.16);
+    }
+
+    .topbar .inner {
+      width: 100%;
+      max-width: var(--container);
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .topbar img {
+      width: min(520px, 92vw);
+      max-height: 90px;
+      height: auto;
+      object-fit: contain;
+      display: block;
+      filter: drop-shadow(0 12px 22px rgba(0,0,0,0.22));
+    }
+
+    @media (min-width: 720px) {
+      .topbar { padding: 22px 16px; }
+      .topbar img { max-height: 110px; }
+    }
+
     .wrap {
       width: 100%;
       max-width: var(--container);
     }
 
-    /* HEADER SECTION */
+    /* TITLE SECTION */
     .header {
-      text-align: center;
-      padding: 18px 8px 22px;
+      text-align: left;
+      padding: 18px 6px 22px;
+    }
+
+    .header .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(89, 44, 136, 0.80);
+    }
+
+    .header .eyebrow::before {
+      content: "";
+      width: 38px;
+      height: 2px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--accent), rgba(89, 44, 136, 0.85));
     }
 
     .header h1 {
-      margin: 0;
-      font-size: clamp(28px, 4.6vw, 40px);
-      letter-spacing: -0.4px;
-      color: var(--primary);
-      font-weight: 800;
+      margin: 10px 0 0;
+      font-size: clamp(34px, 5.6vw, 54px);
+      letter-spacing: -0.8px;
+      color: #101828;
+      font-weight: 900;
+      line-height: 1.05;
     }
 
     .header .subtitle {
-      margin: 8px 0 0;
-      font-size: 16px;
+      margin: 10px 0 0;
+      font-size: 15px;
       color: var(--muted);
       font-weight: 600;
+      max-width: 52ch;
     }
 
     /* FORM CONTAINER */
@@ -243,10 +306,17 @@
 
 <body>
   <div class="page">
+    <div class="topbar" role="banner" aria-label="UCAGS">
+      <div class="inner">
+        <img src="/ucags_register_files/Unversal-logo-2025-05-16.png" alt="UCAGS" />
+      </div>
+    </div>
+
     <div class="wrap">
       <header class="header">
-        <h1>Quick &amp; Easy Registration</h1>
-        <div class="subtitle">Register Here</div>
+        <div class="eyebrow">Quick &amp; Easy</div>
+        <h1>Registration</h1>
+        <div class="subtitle">Complete the form below. Fields marked with <span class="req">*</span> are required.</div>
       </header>
 
       <section class="card" aria-label="Online Registration Form">
@@ -338,7 +408,7 @@
         </form>
       </section>
 
-      <div class="footer">© <span id="year"></span> UCAGS. Your details are handled securely for admissions support.</div>
+      <div class="footer">Copyright © <span id="year"></span> UCAGS. All rights reserved.</div>
     </div>
   </div>
 
