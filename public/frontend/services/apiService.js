@@ -255,6 +255,17 @@ const leadsAPI = {
 /**
  * Dashboard API
  */
+/**
+ * Registrations API (admin)
+ */
+const registrationsAPI = {
+  adminList: async (limit = 200) => {
+    const params = new URLSearchParams();
+    params.set('limit', String(limit));
+    return fetchAPI(`/registrations/admin?${params.toString()}`);
+  }
+};
+
 const dashboardAPI = {
   /**
    * Get dashboard statistics
@@ -583,6 +594,7 @@ window.API = {
   auth: authAPI,
   enquiries: enquiriesAPI,
   leads: leadsAPI,
+  registrations: registrationsAPI,
   dashboard: dashboardAPI,
   officers: officersAPI,
   email: emailAPI,

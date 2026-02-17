@@ -29,6 +29,7 @@ router.post('/intake', async (req, res) => {
       wa_number: cleanString(payload.wa_number),
       email: cleanString(payload.email),
       working_status: cleanString(payload.working_status),
+      course_program: cleanString(payload.course_program),
       source: 'crm-register-page',
       payload
     };

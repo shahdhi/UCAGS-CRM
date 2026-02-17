@@ -1300,6 +1300,11 @@ async function navigateToPage(page) {
                 }
             }
             break;
+        case 'registrations':
+            if (window.initRegistrationsPage) {
+                await window.initRegistrationsPage();
+            }
+            break;
         case 'receipts':
             loadReceipts();
             break;
