@@ -216,8 +216,28 @@
       outline: none;
     }
 
-    /* DOB text field hint styling */
-    #dob::placeholder { color: rgba(71, 84, 103, 0.70); }
+    .hint {
+      font-size: 12px;
+      color: rgba(71, 84, 103, 0.80);
+      margin-top: 2px;
+    }
+
+    /* Date input styling (calendar is browser-native) */
+    input[type="date"] {
+      appearance: none;
+      -webkit-appearance: none;
+      padding-right: 42px;
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      opacity: 0.85;
+      cursor: pointer;
+      filter: invert(16%) sepia(16%) saturate(2200%) hue-rotate(240deg) brightness(92%) contrast(92%);
+    }
+
+    input[type="date"]:hover::-webkit-calendar-picker-indicator {
+      opacity: 1;
+    }
 
     /* Modern select styling (website-like, not browser default) */
     select {
@@ -544,12 +564,12 @@
               <input
                 id="dob"
                 name="date_of_birth"
-                type="text"
-                inputmode="numeric"
-                placeholder="dd/mm/yyyy"
+                type="date"
+                lang="en-GB"
                 autocomplete="bday"
                 required
               />
+              <div class="hint">Format: dd/mm/yyyy</div>
             </div>
           </div>
 
@@ -705,8 +725,20 @@
     }
 
     function parseDobToISO(value) {
-      // Accept dd/mm/yyyy (also tolerate d/m/yyyy)
       const v = String(value || '').trim();
+
+      // Accept native date input value: yyyy-mm-dd
+      const iso = v.match(/^\s*(\d{4})-(\d{2})-(\d{2})\s*$/);
+      if (iso) {
+        const yyyy = Number(iso[1]);
+        const mm = Number(iso[2]);
+        const dd = Number(iso[3]);
+        const d = new Date(Date.UTC(yyyy, mm - 1, dd));
+        if (d.getUTCFullYear() !== yyyy || (d.getUTCMonth() + 1) !== mm || d.getUTCDate() !== dd) return null;
+        return v;
+      }
+
+      // Also accept dd/mm/yyyy (manual entry)
       const m = v.match(/^\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\s*$/);
       if (!m) return null;
       const dd = Number(m[1]);
@@ -716,17 +748,16 @@
       if (mm < 1 || mm > 12) return null;
       if (dd < 1 || dd > 31) return null;
 
-      // Validate actual calendar date
       const d = new Date(Date.UTC(yyyy, mm - 1, dd));
       if (d.getUTCFullYear() !== yyyy || (d.getUTCMonth() + 1) !== mm || d.getUTCDate() !== dd) return null;
 
       const pad = (n) => String(n).padStart(2, '0');
-      return `${yyyy}-${pad(mm)}-${pad(dd)}`; // ISO date (yyyy-mm-dd)
+      return `${yyyy}-${pad(mm)}-${pad(dd)}`;
     }
 
     function validate(payload) {
       if (!payload.name) return 'Please enter your full name.';
-      if (!payload.date_of_birth) return 'Please enter your date of birth (dd/mm/yyyy).';
+      if (!payload.date_of_birth) return 'Please select your date of birth.';
       if (!parseDobToISO(payload.date_of_birth)) return 'Please enter a valid date of birth (dd/mm/yyyy).';
       if (!payload.address) return 'Please enter your address.';
       if (!payload.country) return 'Please enter your country.';
