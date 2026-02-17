@@ -3,6 +3,7 @@ const router = express.Router();
 
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
 const { isAdmin } = require('../../../server/middleware/auth');
+const { findAssigneeByPhoneAcrossAllSheets, normalizePhoneToSL } = require('./registrationAssignmentService');
 
 function cleanString(v) {
   if (v === undefined || v === null) return null;
@@ -18,6 +19,12 @@ router.post('/intake', async (req, res) => {
 
     const payload = req.body || {};
 
+    // Normalize phone numbers (Sri Lanka)
+    const canonicalPhone = normalizePhoneToSL(payload.phone_number);
+
+    // Determine assignee (if the number already exists in sheets)
+    const inferredAssignee = await findAssigneeByPhoneAcrossAllSheets(canonicalPhone);
+
     // Extract common fields (we also store full payload as JSON)
     const row = {
       name: cleanString(payload.name),
@@ -25,12 +32,12 @@ router.post('/intake', async (req, res) => {
       date_of_birth: cleanString(payload.date_of_birth),
       address: cleanString(payload.address),
       country: cleanString(payload.country),
-      phone_number: cleanString(payload.phone_number),
-      wa_number: cleanString(payload.wa_number),
+      phone_number: cleanString(canonicalPhone || payload.phone_number),
+      wa_number: cleanString(normalizePhoneToSL(payload.wa_number || payload.phone_number) || payload.wa_number),
       email: cleanString(payload.email),
       working_status: cleanString(payload.working_status),
       course_program: cleanString(payload.course_program),
-      assigned_to: cleanString(payload.assigned_to),
+      assigned_to: cleanString(payload.assigned_to) || cleanString(inferredAssignee),
       source: 'crm-register-page',
       payload
     };
