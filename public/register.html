@@ -24,7 +24,7 @@
       --radius: 10px;
       --radius-input: 8px;
 
-      --container: 650px;
+      --container: 860px;
 
       --shadow: 0 16px 40px rgba(16, 24, 40, 0.10);
       --ring: 0 0 0 4px rgba(89, 44, 136, 0.14);
@@ -78,10 +78,11 @@
       position: absolute;
       inset: 0;
       background: url('/jYM5GYnXPS3zN6pxuFFY.webp') center / cover no-repeat;
-      transform: scale(1.03);
-      /* Less blur so the image is visible */
-      filter: blur(2px);
-      opacity: 1;
+      /* Parallax-driven transforms via CSS variables */
+      transform: translate3d(0, var(--hero-bg-y, 0px), 0) scale(var(--hero-bg-scale, 1.03));
+      filter: blur(1.5px);
+      opacity: var(--hero-bg-opacity, 1);
+      will-change: transform, opacity;
     }
 
     .heroHeader::after {
@@ -104,6 +105,9 @@
       display: grid;
       justify-items: center;
       gap: 12px;
+      transform: translate3d(0, var(--hero-fg-y, 0px), 0) scale(var(--hero-fg-scale, 1));
+      opacity: var(--hero-fg-opacity, 1);
+      will-change: transform, opacity;
     }
 
     .heroHeader .logo {
@@ -123,18 +127,20 @@
 
     .heroHeader .kicker {
       font-size: 13px;
-      font-weight: 800;
-      letter-spacing: 0.10em;
+      font-weight: 750;
+      letter-spacing: 0.22em;
       text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.88);
+      color: rgba(255, 255, 255, 0.86);
     }
 
     .heroHeader .title {
       margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial;
       font-size: clamp(34px, 5.8vw, 56px);
-      line-height: 1.05;
-      letter-spacing: -0.9px;
-      font-weight: 950;
+      line-height: 1.02;
+      letter-spacing: 0.06em;
+      font-weight: 900;
+      text-transform: uppercase;
       color: #fff;
       text-shadow: 0 14px 30px rgba(0,0,0,0.28);
     }
@@ -144,60 +150,22 @@
       .heroHeader .logo { max-height: 140px; }
     }
 
-    /* Sticky glass bar appears after scrolling (Apple-like) */
-    .glassBar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 60;
-      height: 56px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 16px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.86), rgba(255,255,255,0.70));
-      border-bottom: 1px solid rgba(16, 24, 40, 0.10);
-      backdrop-filter: saturate(180%) blur(18px);
-      -webkit-backdrop-filter: saturate(180%) blur(18px);
-      box-shadow: 0 10px 26px rgba(16,24,40,0.10);
-      transform: translateY(-110%);
-      opacity: 0;
-      pointer-events: none;
-      transition: transform 220ms ease, opacity 220ms ease;
-    }
-
-    .glassBar.is-visible {
-      transform: translateY(0);
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .glassBar .inner {
-      width: 100%;
-      max-width: var(--container);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      color: rgba(16,24,40,0.86);
-      font-weight: 800;
-      letter-spacing: -0.2px;
-    }
-
-    .glassBar .pill {
-      font-size: 14px;
-      color: rgba(16,24,40,0.86);
-    }
-
-
     /* FORM CONTAINER */
     .card {
       background: #ffffff;
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       border: 1px solid rgba(16, 24, 40, 0.08);
-      padding: 26px;
+      padding: 28px;
+    }
+
+    .cardTitle {
+      font-family: ui-sans-serif, system-ui, -apple-system, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: -0.2px;
+      color: #101828;
+      margin: 0 0 18px;
     }
 
     @media (max-width: 520px) {
@@ -286,6 +254,10 @@
       padding-top: 4px;
     }
 
+    .actions .btn {
+      width: 100%;
+    }
+
     .btn {
       height: 46px;
       padding: 0 18px;
@@ -297,7 +269,7 @@
       color: #fff;
       transition: background 120ms ease, transform 120ms ease, box-shadow 120ms ease;
       width: 100%;
-      max-width: 340px; /* medium width on desktop */
+      max-width: none; /* full width */
     }
 
     .btn:hover {
@@ -355,12 +327,6 @@
 
 <body>
   <div class="page">
-    <div class="glassBar" aria-hidden="true">
-      <div class="inner">
-        <div class="pill">Registration</div>
-      </div>
-    </div>
-
     <header class="heroHeader" role="banner" aria-label="UCAGS Registration">
       <div class="inner">
         <img class="logo" src="/ucags_register_files/Unversal-logo-2025-05-16.png" alt="UCAGS" />
@@ -374,6 +340,7 @@
     <div class="wrap">
 
       <section class="card" aria-label="Online Registration Form">
+        <div class="cardTitle">Online Registration Form</div>
         <form id="registrationForm" novalidate>
           <div class="field">
             <label for="fullName">Full Name<span class="req">*</span></label>
@@ -467,32 +434,47 @@
   </div>
 
   <script>
-    // Smooth Apple-like sticky header state (no flicker)
-    const glassBar = document.querySelector('.glassBar');
-    let ticking = false;
-    let isVisible = false;
+    // Liquid / parallax scroll motion inspired by Apple.com
+    // Uses requestAnimationFrame + CSS variables (no layout thrash). Respects reduced-motion.
+    const hero = document.querySelector('.heroHeader');
+    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    const ENTER_Y = 120;
-    const EXIT_Y = 70;
+    if (hero && !prefersReduced) {
+      let raf = 0;
+      const update = () => {
+        raf = 0;
+        const y = Math.max(0, window.scrollY || 0);
+        const h = hero.offsetHeight || 1;
+        const t = Math.min(1, y / Math.max(1, h)); // 0..1
 
-    function updateGlassBar() {
-      ticking = false;
-      const y = window.scrollY || 0;
-      const next = isVisible ? (y > EXIT_Y) : (y > ENTER_Y);
-      if (next !== isVisible) {
-        isVisible = next;
-        glassBar?.classList.toggle('is-visible', isVisible);
-      }
+        // background moves slower, slight scale down
+        const bgY = Math.round(y * 0.22);
+        const bgScale = 1.03 - (t * 0.02);
+        const bgOpacity = 1 - (t * 0.12);
+
+        // foreground gently drifts up and fades a touch
+        const fgY = Math.round(-t * 10);
+        const fgScale = 1 - (t * 0.015);
+        const fgOpacity = 1 - (t * 0.18);
+
+        hero.style.setProperty('--hero-bg-y', bgY + 'px');
+        hero.style.setProperty('--hero-bg-scale', bgScale.toFixed(4));
+        hero.style.setProperty('--hero-bg-opacity', bgOpacity.toFixed(4));
+
+        hero.style.setProperty('--hero-fg-y', fgY + 'px');
+        hero.style.setProperty('--hero-fg-scale', fgScale.toFixed(4));
+        hero.style.setProperty('--hero-fg-opacity', fgOpacity.toFixed(4));
+      };
+
+      const onScroll = () => {
+        if (raf) return;
+        raf = requestAnimationFrame(update);
+      };
+
+      window.addEventListener('scroll', onScroll, { passive: true });
+      window.addEventListener('resize', onScroll);
+      update();
     }
-
-    window.addEventListener('scroll', () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(updateGlassBar);
-    }, { passive: true });
-
-    // initialize
-    updateGlassBar();
 
     const form = document.getElementById('registrationForm');
     const statusEl = document.getElementById('status');
