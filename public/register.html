@@ -56,6 +56,15 @@
       padding: 0 16px;
     }
 
+    .betweenTitle {
+      margin: 14px 0 10px;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: none;
+    }
+
     /* Apple-like hero header: background image + overlay (NOT sticky) */
     .heroHeader {
       position: relative;
@@ -415,8 +424,9 @@
     }
 
     .footer .brandRow img {
-      width: 248px;
-      height: 248px;
+      width: min(520px, 70vw);
+      height: auto;
+      max-height: 140px;
       object-fit: contain;
       background: transparent;
       border-radius: 0;
@@ -426,8 +436,7 @@
 
     @media (max-width: 560px) {
       .footer .brandRow img {
-        width: 160px;
-        height: 160px;
+        max-height: 110px;
       }
     }
 
@@ -492,6 +501,7 @@
     </header>
 
     <div class="wrap">
+      <div class="betweenTitle">Register Here</div>
 
       <section class="card" aria-label="Online Registration Form">
         <div class="cardTitle">Online Registration Form</div>
@@ -585,7 +595,7 @@
       <footer class="footer" aria-label="Footer">
         <div class="inner">
           <div class="brandRow">
-            <img src="/logo.png" alt="UCAGS" />
+            <img src="/ucags_register_files/Unversal-logo-2025-05-16.png" alt="UCAGS" />
           </div>
 
           <div class="contact">
