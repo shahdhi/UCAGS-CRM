@@ -412,11 +412,19 @@
       position: relative;
       z-index: 1;
       width: 100%;
-      /* allow footer content to use the full viewport width */
-      max-width: 100%;
-      margin: 0 auto;
+      max-width: 100%; /* footer content spans full screen */
+      margin: 0;
+      padding-left: 16px;
+      padding-right: 16px;
       display: grid;
       gap: 6px;
+    }
+
+    @media (max-width: 560px) {
+      .footer .inner {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
     }
 
     .footer .brandRow {
@@ -425,9 +433,10 @@
       justify-content: flex-start;
       gap: 12px;
       width: 100%;
+      margin-top: 4px;
     }
 
-    /* Full-bleed footer rows with comfortable side padding */
+    /* Rows inside footer use the inner container padding */
     .footer .brandRow,
     .footer .contact,
     .footer .bottom {
@@ -435,28 +444,21 @@
       max-width: 100%;
       margin-left: 0;
       margin-right: 0;
-      padding-left: 16px;  /* reduce left space so logo sits closer to edge */
-      padding-right: 16px;
-    }
-
-    @media (max-width: 560px) {
-      .footer .brandRow,
-      .footer .contact,
-      .footer .bottom {
-        padding-left: 12px;
-        padding-right: 12px;
-      }
+      padding-left: 0;
+      padding-right: 0;
     }
 
     .footer .brandRow img {
-      width: min(520px, 70vw);
+      width: auto;
+      max-width: 220px;
       height: auto;
-      max-height: 140px;
+      max-height: 80px;
       object-fit: contain;
       background: transparent;
       border-radius: 0;
       padding: 0;
       display: block;
+      margin-left: 0;
     }
 
     @media (max-width: 560px) {
@@ -629,22 +631,23 @@
         </form>
       </section>
 
-      <footer class="footer" aria-label="Footer">
-        <div class="inner">
-          <div class="brandRow">
-            <img src="/ucags_register_files/Unversal-logo-2025-05-16.png" alt="UCAGS" />
-          </div>
-
-          <div class="contact">
-            <div class="block">Hotline: +94763313333</div>
-            <div class="block">190A, Allen Avenue, Dehiwala, Colombo,&nbsp;Sri&nbsp;Lanka</div>
-            <div class="block">Email: study@ucags.edu.lk</div>
-          </div>
-
-          <div class="bottom">Copyright © <span id="year"></span> UCAGS. All rights reserved.</div>
-        </div>
-      </footer>
     </div>
+
+    <footer class="footer" aria-label="Footer">
+      <div class="inner">
+        <div class="brandRow">
+          <img src="/ucags_register_files/Unversal-logo-2025-05-16.png" alt="UCAGS" />
+        </div>
+
+        <div class="contact">
+          <div class="block">Hotline: +94763313333</div>
+          <div class="block">190A, Allen Avenue, Dehiwala, Colombo,&nbsp;Sri&nbsp;Lanka</div>
+          <div class="block">Email: study@ucags.edu.lk</div>
+        </div>
+
+        <div class="bottom">Copyright © <span id="year"></span> UCAGS. All rights reserved.</div>
+      </div>
+    </footer>
   </div>
 
   <script>
