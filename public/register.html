@@ -428,18 +428,25 @@
       width: 100%;
     }
 
-    /* Keep logo + bottom centered to container, but let contact row go full-bleed */
+    /* Full-bleed footer rows with comfortable side padding */
     .footer .brandRow,
+    .footer .contact,
     .footer .bottom {
-      max-width: var(--container);
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .footer .contact {
+      width: 100%;
       max-width: 100%;
       margin-left: 0;
       margin-right: 0;
+      padding-left: 28px;
+      padding-right: 28px;
+    }
+
+    @media (max-width: 560px) {
+      .footer .brandRow,
+      .footer .contact,
+      .footer .bottom {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
     }
 
     .footer .brandRow img {
@@ -505,9 +512,9 @@
     }
 
     .footer .bottom {
-      margin-top: 6px;
-      padding-top: 10px;
-      border-top: 1px solid rgba(255, 255, 255, 0.22);
+      margin-top: 10px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.26);
       text-align: center;
       font-size: 13px;
       font-weight: 400;
