@@ -13,9 +13,9 @@
 
   <style>
     :root {
-      /* UCAGS-inspired palette (deep purple + gold) */
-      --bg: #0b1020;
-      --surface: #0f1730;
+      /* UCAGS-inspired palette (purple + gold) on a light canvas */
+      --bg: #ffffff;
+      --surface: #ffffff;
       --card: #ffffff;
       --text: #101828;
       --muted: #475467;
@@ -25,7 +25,7 @@
       --accent: #c89b3c;     /* gold */
 
       --border: rgba(16, 24, 40, 0.12);
-      --shadow: 0 18px 45px rgba(2, 6, 23, 0.22);
+      --shadow: 0 18px 45px rgba(2, 6, 23, 0.10);
 
       --radius: 16px;
       --radius-sm: 12px;
@@ -41,9 +41,9 @@
       font-family: "DM Sans", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
       color: var(--text);
       background:
-        radial-gradient(900px 420px at 20% 10%, rgba(123, 59, 214, 0.18), transparent 60%),
-        radial-gradient(900px 420px at 80% 0%, rgba(200, 155, 60, 0.16), transparent 55%),
-        linear-gradient(180deg, #070b16 0%, #0b1020 55%, #0b1020 100%);
+        radial-gradient(900px 520px at 10% -10%, rgba(123, 59, 214, 0.10), transparent 60%),
+        radial-gradient(800px 480px at 95% 0%, rgba(200, 155, 60, 0.10), transparent 55%),
+        linear-gradient(180deg, #ffffff 0%, #fbfaff 100%);
     }
 
     a { color: inherit; }
@@ -60,9 +60,9 @@
       position: sticky;
       top: 0;
       z-index: 10;
-      backdrop-filter: blur(12px);
-      background: rgba(11, 16, 32, 0.62);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(10px);
+      background: rgba(255, 255, 255, 0.82);
+      border-bottom: 1px solid rgba(16, 24, 40, 0.10);
     }
 
     .nav {
@@ -85,7 +85,8 @@
       height: 44px;
       object-fit: contain;
       border-radius: 10px;
-      background: rgba(255,255,255,0.08);
+      background: rgba(89,44,136,0.06);
+      border: 1px solid rgba(89,44,136,0.14);
       padding: 6px;
     }
 
@@ -93,7 +94,7 @@
       display: flex;
       flex-direction: column;
       line-height: 1.05;
-      color: #fff;
+      color: var(--text);
     }
 
     .brand .text strong {
@@ -121,19 +122,19 @@
       padding: 10px 12px;
       border-radius: 999px;
       text-decoration: none;
-      font-weight: 600;
+      font-weight: 700;
       font-size: 13px;
-      color: #fff;
-      border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border: 1px solid rgba(16,24,40,0.14);
+      background: rgba(255,255,255,0.70);
       transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
       white-space: nowrap;
     }
 
     .pill:hover {
       transform: translateY(-1px);
-      background: rgba(255,255,255,0.09);
-      border-color: rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.95);
+      border-color: rgba(16,24,40,0.20);
     }
 
     .pill.primary {
@@ -146,14 +147,14 @@
 
     /* Hero */
     .hero {
-      padding: 48px 0 18px;
-      color: #fff;
+      padding: 44px 0 10px;
+      color: var(--text);
     }
 
     .hero-grid {
       display: grid;
-      grid-template-columns: 1.05fr 0.95fr;
-      gap: 26px;
+      grid-template-columns: 1fr;
+      gap: 18px;
       align-items: start;
     }
 
@@ -167,52 +168,10 @@
 
     .hero p {
       margin: 14px 0 0;
-      max-width: 56ch;
-      color: rgba(255,255,255,0.85);
+      max-width: 70ch;
+      color: var(--muted);
       font-size: 16px;
       line-height: 1.6;
-    }
-
-    .hero-cards {
-      display: grid;
-      gap: 12px;
-    }
-
-    .mini-card {
-      border-radius: var(--radius);
-      border: 1px solid rgba(255,255,255,0.10);
-      background: rgba(255,255,255,0.06);
-      padding: 14px 14px;
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-    }
-
-    .mini-icon {
-      width: 36px;
-      height: 36px;
-      border-radius: 12px;
-      background: rgba(200,155,60,0.18);
-      border: 1px solid rgba(200,155,60,0.25);
-      display: grid;
-      place-items: center;
-      flex: 0 0 auto;
-      color: #ffd88a;
-      font-weight: 800;
-    }
-
-    .mini-card strong {
-      display: block;
-      font-size: 14px;
-      margin: 0;
-    }
-
-    .mini-card span {
-      display: block;
-      margin-top: 4px;
-      font-size: 13px;
-      color: rgba(255,255,255,0.78);
-      line-height: 1.45;
     }
 
     /* Content area */
@@ -221,8 +180,8 @@
     }
 
     .panel {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.75);
+      border: 1px solid rgba(16, 24, 40, 0.10);
       border-radius: calc(var(--radius) + 6px);
       padding: 18px;
       box-shadow: var(--shadow);
@@ -351,7 +310,7 @@
 
     footer {
       padding: 22px 0 38px;
-      color: rgba(255,255,255,0.72);
+      color: rgba(16, 24, 40, 0.62);
       font-size: 13px;
     }
 
@@ -360,7 +319,7 @@
       justify-content: space-between;
       gap: 14px;
       flex-wrap: wrap;
-      border-top: 1px solid rgba(255,255,255,0.08);
+      border-top: 1px solid rgba(16,24,40,0.10);
       padding-top: 18px;
     }
 
@@ -405,34 +364,10 @@
         <div>
           <h1>Online Registration</h1>
           <p>
-            Submit your details to begin the registration process. Our admissions team will contact you with the next steps.
-            Fields marked with <span class="req">*</span> are required.
+            Submit your details to begin the registration process. Our admissions team will contact you with the next steps. Fields marked with <span class="req">*</span> are required.
           </p>
         </div>
 
-        <div class="hero-cards" aria-label="Highlights">
-          <div class="mini-card">
-            <div class="mini-icon">1</div>
-            <div>
-              <strong>Quick submission</strong>
-              <span>Complete the form in under 2 minutes using your phone or laptop.</span>
-            </div>
-          </div>
-          <div class="mini-card">
-            <div class="mini-icon">2</div>
-            <div>
-              <strong>Secure handling</strong>
-              <span>Your information is used only for admissions and student support.</span>
-            </div>
-          </div>
-          <div class="mini-card">
-            <div class="mini-icon">3</div>
-            <div>
-              <strong>Fast follow-up</strong>
-              <span>We’ll contact you via phone or WhatsApp after submission.</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </section>
