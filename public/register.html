@@ -378,6 +378,7 @@
       /* Footer-only: avoid 100vw + negative margins (can create horizontal scrollbar) */
       width: 100%;
       margin: 18px 0 0;
+      /* fallback color (if image fails to load) */
       background: var(--primary);
       color: rgba(255, 255, 255, 0.92);
       padding: 14px 0 18px; /* vertical padding handled here; side padding on rows */
@@ -393,8 +394,8 @@
       position: absolute;
       inset: 0;
       background: url('https://t4.ftcdn.net/jpg/07/23/10/29/360_F_723102961_L3tR7s92Wg2XQ4tYFuFdnIbyd67Svx4L.jpg') center / cover no-repeat;
-      opacity: 0.08;
-      filter: saturate(110%) contrast(105%);
+      opacity: 0.22;
+      filter: saturate(115%) contrast(108%);
       transform: scale(1.04);
       z-index: 0;
     }
@@ -404,7 +405,7 @@
       content: "";
       position: absolute;
       inset: 0;
-      background: linear-gradient(180deg, rgba(89, 44, 136, 0.70), rgba(89, 44, 136, 0.88));
+      background: linear-gradient(180deg, rgba(89, 44, 136, 0.35), rgba(89, 44, 136, 0.65));
       z-index: 0;
     }
 
