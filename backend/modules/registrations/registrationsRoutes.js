@@ -30,6 +30,7 @@ router.post('/intake', async (req, res) => {
       email: cleanString(payload.email),
       working_status: cleanString(payload.working_status),
       course_program: cleanString(payload.course_program),
+      assigned_to: cleanString(payload.assigned_to),
       source: 'crm-register-page',
       payload
     };
@@ -76,6 +77,26 @@ router.get('/admin', isAdmin, async (req, res) => {
 
     if (error) throw error;
     res.json({ success: true, registrations: data || [] });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// Delete a registration (admin)
+// DELETE /api/registrations/admin/:id
+router.delete('/admin/:id', isAdmin, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ success: false, error: 'Missing id' });
+
+    const { error } = await sb
+      .from('registrations')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    res.json({ success: true });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }

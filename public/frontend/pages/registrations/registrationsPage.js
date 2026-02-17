@@ -26,6 +26,74 @@
     });
   }
 
+  let lastRowsById = new Map();
+  let selectedRegistrationId = null;
+
+  function openDetailsModal(reg) {
+    selectedRegistrationId = reg?.id || null;
+
+    const body = qs('registrationDetailsModalBody');
+    const delBtn = qs('registrationDeleteBtn');
+
+    const payload = reg?.payload || {};
+    const get = (key) => reg?.[key] ?? payload?.[key] ?? '';
+
+    const details = {
+      'Submitted At': formatDateTimeLocal(reg?.created_at),
+      'Name': get('name'),
+      'Gender': get('gender'),
+      'Date of Birth': get('date_of_birth'),
+      'Address': get('address'),
+      'Country': get('country'),
+      'Phone': get('phone_number'),
+      'WhatsApp': get('wa_number'),
+      'Email': get('email'),
+      'Working Status': get('working_status'),
+      'Course/Program': get('course_program'),
+      'Source': get('source')
+    };
+
+    if (body) {
+      body.innerHTML = `
+        <div class="lead-details-grid" style="grid-template-columns: 1fr 1fr;">
+          ${Object.entries(details).map(([k, v]) => `
+            <div class="lead-detail-item">
+              <div class="lead-detail-label">${escapeHtml(k)}</div>
+              <div class="lead-detail-value">${escapeHtml(v || '')}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div style="margin-top:12px;">
+          <div style="font-size:12px; color:#667085; margin-bottom:6px;">Raw payload</div>
+          <pre style="white-space:pre-wrap; word-break:break-word; background:#f9fafb; border:1px solid #eaecf0; padding:10px; border-radius:10px; max-height: 240px; overflow:auto;">${escapeHtml(JSON.stringify(payload, null, 2))}</pre>
+        </div>
+      `;
+    }
+
+    if (delBtn) {
+      delBtn.onclick = async () => {
+        if (!selectedRegistrationId) return;
+        const ok = confirm('Delete this registration permanently?');
+        if (!ok) return;
+
+        try {
+          delBtn.disabled = true;
+          await window.API.registrations.adminDelete(selectedRegistrationId);
+          if (window.UI && UI.showToast) UI.showToast('Registration deleted', 'success');
+          closeModal('registrationDetailsModal');
+          await loadRegistrations();
+        } catch (e) {
+          console.error(e);
+          if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to delete registration', 'error');
+        } finally {
+          delBtn.disabled = false;
+        }
+      };
+    }
+
+    openModal('registrationDetailsModal');
+  }
+
   async function loadRegistrations() {
     const tbody = qs('registrationsTableBody');
     const limitEl = qs('registrationsLimit');
@@ -38,43 +106,38 @@
     const res = await window.API.registrations.adminList(limit);
     const rows = res.registrations || [];
 
+    lastRowsById = new Map(rows.map(r => [r.id, r]));
+
     if (!tbody) return;
 
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="12" class="loading">No registrations found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="loading">No registrations found</td></tr>';
       return;
     }
 
     tbody.innerHTML = rows.map(r => {
       const submittedAt = formatDateTimeLocal(r.created_at);
-      // Prefer top-level columns, fallback to payload for older rows
-      const gender = r.gender ?? r.payload?.gender;
-      const dob = r.date_of_birth ?? r.payload?.date_of_birth;
-      const address = r.address ?? r.payload?.address;
-      const country = r.country ?? r.payload?.country;
-      const wa = r.wa_number ?? r.payload?.wa_number;
-      const email = r.email ?? r.payload?.email;
-      const working = r.working_status ?? r.payload?.working_status;
-      const course = r.course_program ?? r.payload?.course_program;
-      const source = r.source ?? r.payload?.source;
-
+      const email = r.email ?? r.payload?.email ?? '';
+      const assigned = r.assigned_to ?? r.payload?.assigned_to ?? '';
       return `
-        <tr>
+        <tr class="clickable" data-registration-id="${escapeHtml(r.id)}" style="cursor:pointer;">
           <td>${escapeHtml(submittedAt)}</td>
           <td>${escapeHtml(r.name)}</td>
-          <td>${escapeHtml(gender || '')}</td>
-          <td>${escapeHtml(dob || '')}</td>
-          <td>${escapeHtml(address || '')}</td>
-          <td>${escapeHtml(country || '')}</td>
           <td>${escapeHtml(r.phone_number)}</td>
-          <td>${escapeHtml(wa || '')}</td>
-          <td>${escapeHtml(email || '')}</td>
-          <td>${escapeHtml(working || '')}</td>
-          <td>${escapeHtml(course || '')}</td>
-          <td>${escapeHtml(source || '')}</td>
+          <td>${escapeHtml(email)}</td>
+          <td>${escapeHtml(assigned)}</td>
         </tr>
       `;
     }).join('');
+
+    // row click -> details
+    tbody.querySelectorAll('tr[data-registration-id]').forEach(tr => {
+      tr.addEventListener('click', () => {
+        const id = tr.getAttribute('data-registration-id');
+        const reg = lastRowsById.get(id);
+        if (reg) openDetailsModal(reg);
+      });
+    });
   }
 
   async function initRegistrationsPage() {

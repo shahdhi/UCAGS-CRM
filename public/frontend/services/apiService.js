@@ -263,6 +263,12 @@ const registrationsAPI = {
     const params = new URLSearchParams();
     params.set('limit', String(limit));
     return fetchAPI(`/registrations/admin?${params.toString()}`);
+  },
+  adminDelete: async (id) => {
+    if (!id) throw new Error('Missing registration id');
+    return fetchAPI(`/registrations/admin/${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    });
   }
 };
 

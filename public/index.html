@@ -779,20 +779,13 @@
                                 <tr>
                                     <th>Submitted At</th>
                                     <th>Name</th>
-                                    <th>Gender</th>
-                                    <th>DOB</th>
-                                    <th>Address</th>
-                                    <th>Country</th>
                                     <th>Phone</th>
-                                    <th>WhatsApp</th>
                                     <th>Email</th>
-                                    <th>Working Status</th>
-                                    <th>Course/Program</th>
-                                    <th>Source</th>
+                                    <th>Assigned</th>
                                 </tr>
                             </thead>
                             <tbody id="registrationsTableBody">
-                                <tr><td colspan="12" class="loading">Loading registrations...</td></tr>
+                                <tr><td colspan="5" class="loading">Loading registrations...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1408,6 +1401,27 @@
     </div>
 
     <!-- Modal: Enquiry Details -->
+    <div id="registrationDetailsModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2><i class="fas fa-clipboard-list"></i> Registration Details</h2>
+                <button class="modal-close" onclick="closeModal('registrationDetailsModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="registrationDetailsModalBody"></div>
+            <div class="modal-actions" style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
+                <div style="color:#667085; font-size: 13px;">Deleting is permanent.</div>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="btn btn-danger" id="registrationDeleteBtn">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('registrationDetailsModal')">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="enquiryModal" class="modal">
         <div class="modal-content large">
             <div class="modal-header">

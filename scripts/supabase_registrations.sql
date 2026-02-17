@@ -14,12 +14,16 @@ create table if not exists public.registrations (
   email text null,
   working_status text null,
   course_program text null,
+  assigned_to text null,
 
   source text null,
   payload jsonb null,
 
   created_at timestamptz not null default now()
 );
+
+-- If the table already existed before running this script, ensure new columns exist.
+alter table public.registrations add column if not exists assigned_to text;
 
 create index if not exists registrations_created_at_idx
   on public.registrations(created_at desc);
@@ -29,6 +33,9 @@ create index if not exists registrations_phone_idx
 
 create index if not exists registrations_email_idx
   on public.registrations(email);
+
+create index if not exists registrations_assigned_to_idx
+  on public.registrations(assigned_to);
 
 -- Optional: allow public insert via anon if you ever switch from server-side insert to client-side.
 -- For current architecture, inserts are done via backend using service-role, so RLS isn't strictly required.
