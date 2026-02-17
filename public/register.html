@@ -216,30 +216,8 @@
       outline: none;
     }
 
-    /* Modern date input styling (popup is browser-native; field can be styled) */
-    input[type="date"] {
-      appearance: none;
-      -webkit-appearance: none;
-      padding-right: 42px;
-      background-image:
-        radial-gradient(circle at 22px 50%, rgba(89,44,136,0.12) 0 10px, transparent 11px),
-        linear-gradient(180deg, rgba(255,255,255,0.0), rgba(255,255,255,0.0));
-      background-position: calc(100% - 16px) 50%, 0 0;
-      background-size: 24px 24px, 100% 100%;
-      background-repeat: no-repeat;
-      cursor: pointer;
-    }
-
-    /* Calendar icon (Chrome/Edge/Safari) */
-    input[type="date"]::-webkit-calendar-picker-indicator {
-      opacity: 0.85;
-      cursor: pointer;
-      filter: invert(16%) sepia(16%) saturate(2200%) hue-rotate(240deg) brightness(92%) contrast(92%);
-    }
-
-    input[type="date"]:hover::-webkit-calendar-picker-indicator {
-      opacity: 1;
-    }
+    /* DOB text field hint styling */
+    #dob::placeholder { color: rgba(71, 84, 103, 0.70); }
 
     /* Modern select styling (website-like, not browser default) */
     select {
@@ -563,7 +541,15 @@
 
             <div class="field">
               <label for="dob">Date of Birth<span class="req">*</span></label>
-              <input id="dob" name="date_of_birth" type="date" required />
+              <input
+                id="dob"
+                name="date_of_birth"
+                type="text"
+                inputmode="numeric"
+                placeholder="dd/mm/yyyy"
+                autocomplete="bday"
+                required
+              />
             </div>
           </div>
 
@@ -718,9 +704,30 @@
       return String(value).trim();
     }
 
+    function parseDobToISO(value) {
+      // Accept dd/mm/yyyy (also tolerate d/m/yyyy)
+      const v = String(value || '').trim();
+      const m = v.match(/^\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\s*$/);
+      if (!m) return null;
+      const dd = Number(m[1]);
+      const mm = Number(m[2]);
+      const yyyy = Number(m[3]);
+      if (yyyy < 1900 || yyyy > 2100) return null;
+      if (mm < 1 || mm > 12) return null;
+      if (dd < 1 || dd > 31) return null;
+
+      // Validate actual calendar date
+      const d = new Date(Date.UTC(yyyy, mm - 1, dd));
+      if (d.getUTCFullYear() !== yyyy || (d.getUTCMonth() + 1) !== mm || d.getUTCDate() !== dd) return null;
+
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${yyyy}-${pad(mm)}-${pad(dd)}`; // ISO date (yyyy-mm-dd)
+    }
+
     function validate(payload) {
       if (!payload.name) return 'Please enter your full name.';
-      if (!payload.date_of_birth) return 'Please select your date of birth.';
+      if (!payload.date_of_birth) return 'Please enter your date of birth (dd/mm/yyyy).';
+      if (!parseDobToISO(payload.date_of_birth)) return 'Please enter a valid date of birth (dd/mm/yyyy).';
       if (!payload.address) return 'Please enter your address.';
       if (!payload.country) return 'Please enter your country.';
 
@@ -743,6 +750,10 @@
 
       const fd = new FormData(form);
       const payload = Object.fromEntries(fd.entries());
+
+      // Normalize DOB to ISO format for backend storage
+      const dobIso = parseDobToISO(payload.date_of_birth);
+      if (dobIso) payload.date_of_birth = dobIso;
 
       const err = validate(payload);
       if (err) {
@@ -767,9 +778,8 @@
           throw new Error(json.error || 'Submission failed. Please try again.');
         }
 
-        setStatus('ok', 'Thank you. Your registration has been submitted successfully. We will contact you soon.');
-        statusEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        form.reset();
+        // Go to success page, then redirect to main site
+        window.location.href = '/registration-success.html';
       } catch (error) {
         setStatus('err', error.message || 'Something went wrong. Please try again.');
         statusEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Registration Submitted | UCAGS</title>
+  <link rel="icon" href="/favicon.png" />
+  <style>
+    :root { --primary:#592c88; --text:#101828; --muted:#475467; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
+      background: #fff;
+      color: var(--text);
+    }
+    .card {
+      width: min(640px, calc(100% - 32px));
+      border: 1px solid rgba(16,24,40,0.10);
+      border-radius: 14px;
+      padding: 22px 20px;
+      box-shadow: 0 18px 44px rgba(16,24,40,0.10);
+    }
+    h1 { margin: 0 0 8px; font-size: 24px; font-weight: 650; color: var(--primary); }
+    p { margin: 0; color: var(--muted); line-height: 1.45; }
+    .small { margin-top: 14px; font-size: 13px; }
+    a { color: var(--primary); text-decoration: none; }
+  </style>
+  <meta http-equiv="refresh" content="3;url=https://ucags.edu.lk/" />
+</head>
+<body>
+  <div class="card" role="status" aria-live="polite">
+    <h1>Registration submitted</h1>
+    <p>Thank you. Your registration has been submitted successfully.</p>
+    <p class="small">Redirecting you to <a href="https://ucags.edu.lk/">ucags.edu.lk</a>...</p>
+  </div>
+  <script>
+    // JS fallback redirect
+    setTimeout(() => { window.location.href = 'https://ucags.edu.lk/'; }, 3000);
+  </script>
+</body>
+</html>
