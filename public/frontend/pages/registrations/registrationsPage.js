@@ -63,10 +63,6 @@
             </div>
           `).join('')}
         </div>
-        <div style="margin-top:12px;">
-          <div style="font-size:12px; color:#667085; margin-bottom:6px;">Raw payload</div>
-          <pre style="white-space:pre-wrap; word-break:break-word; background:#f9fafb; border:1px solid #eaecf0; padding:10px; border-radius:10px; max-height: 240px; overflow:auto;">${escapeHtml(JSON.stringify(payload, null, 2))}</pre>
-        </div>
       `;
     }
 
