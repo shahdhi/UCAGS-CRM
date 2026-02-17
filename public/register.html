@@ -809,8 +809,9 @@
           throw new Error(json.error || 'Submission failed. Please try again.');
         }
 
-        // Go to success page, then redirect to main site
-        window.location.href = '/registration-success.html';
+        setStatus('ok', 'Thank you. Your registration has been submitted successfully. We will contact you soon.');
+        statusEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        form.reset();
       } catch (error) {
         setStatus('err', error.message || 'Something went wrong. Please try again.');
         statusEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
