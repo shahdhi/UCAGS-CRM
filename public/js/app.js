@@ -676,12 +676,6 @@ async function loadBatchesMenu() {
             menu.appendChild(await createBatchGroup(batchName));
         }
 
-        // Add back the "Add New Batch" button
-        if (renderVersion !== window.__adminBatchesRenderVersion) return;
-        if (addBatchBtn) {
-            menu.appendChild(addBatchBtn);
-        }
-
         console.log(`✓ Loaded ${batches.length} batches (expanded with sheets)`);
     } catch (error) {
         console.error('Error loading batches:', error);
