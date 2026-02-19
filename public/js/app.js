@@ -459,6 +459,12 @@ async function loadBatchesMenu() {
             a.className = 'nav-subitem';
             a.dataset.page = page;
             a.innerHTML = `<i class="fas fa-folder"></i><span>${label}</span>`;
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.location.hash = page;
+                navigateToPage(page);
+                closeMobileMenu();
+            });
             return a;
         };
 

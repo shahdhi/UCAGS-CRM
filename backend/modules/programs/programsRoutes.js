@@ -63,19 +63,52 @@ router.get('/', isAdmin, async (req, res) => {
   }
 });
 
-// Admin: delete program (also deletes its program_batches mappings)
+// Admin: delete program (HARD delete)
+// - removes program + program_batches
+// - deletes Supabase leads for all batches in this program (crm_leads)
+// - removes batch -> Google Sheet mapping from batchesStore (batches + batch_officer_sheets tables)
 router.delete('/:programId', isAdmin, async (req, res) => {
   try {
     const sb = getSupabaseAdmin();
     const programId = String(req.params.programId || '').trim();
 
-    // Delete batches under this program first
+    // Fetch batches first
+    const { data: pb, error: pbErr } = await sb
+      .from('program_batches')
+      .select('id,batch_name')
+      .eq('program_id', programId);
+    if (pbErr) throw pbErr;
+
+    const batchNames = (pb || []).map(r => r.batch_name).filter(Boolean);
+
+    // Delete leads + batch mappings for each batch
+    for (const batchName of batchNames) {
+      // Remove leads in Supabase
+      const { error: leadsErr } = await sb
+        .from('crm_leads')
+        .delete()
+        .eq('batch_name', batchName);
+      if (leadsErr) throw leadsErr;
+
+      // Remove batch officer sheet mappings (if table exists)
+      try {
+        await sb.from('batch_officer_sheets').delete().eq('batch_name', batchName);
+      } catch (_) {}
+
+      // Remove batch -> sheet mapping
+      try {
+        await sb.from('batches').delete().eq('name', batchName);
+      } catch (_) {}
+    }
+
+    // Delete program_batches rows
     const { error: bErr } = await sb
       .from('program_batches')
       .delete()
       .eq('program_id', programId);
     if (bErr) throw bErr;
 
+    // Delete program
     const { data, error } = await sb
       .from('programs')
       .delete()
@@ -84,7 +117,7 @@ router.delete('/:programId', isAdmin, async (req, res) => {
       .maybeSingle();
 
     if (error) throw error;
-    res.json({ success: true, program: data || null });
+    res.json({ success: true, program: data || null, deleted_batches: batchNames, deleted_leads_batches: batchNames });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }
@@ -139,13 +172,40 @@ router.post('/:programId/batches', isAdmin, async (req, res) => {
   }
 });
 
-// Admin: delete batch
+// Admin: delete batch (HARD delete)
+// - deletes leads in Supabase for that batch
+// - removes batch -> Google Sheet mapping from batchesStore
+// - removes the program_batches mapping
 router.delete('/:programId/batches/:batchId', isAdmin, async (req, res) => {
   try {
     const sb = getSupabaseAdmin();
     const programId = String(req.params.programId || '').trim();
     const batchId = String(req.params.batchId || '').trim();
 
+    // Get batch info first
+    const { data: existing, error: getErr } = await sb
+      .from('program_batches')
+      .select('*')
+      .eq('id', batchId)
+      .eq('program_id', programId)
+      .maybeSingle();
+    if (getErr) throw getErr;
+
+    const batchName = existing?.batch_name;
+    if (!batchName) return res.status(404).json({ success: false, error: 'Batch not found' });
+
+    // Delete leads
+    const { error: leadsErr } = await sb
+      .from('crm_leads')
+      .delete()
+      .eq('batch_name', batchName);
+    if (leadsErr) throw leadsErr;
+
+    // Remove batch mappings
+    try { await sb.from('batch_officer_sheets').delete().eq('batch_name', batchName); } catch (_) {}
+    try { await sb.from('batches').delete().eq('name', batchName); } catch (_) {}
+
+    // Remove mapping
     const { data, error } = await sb
       .from('program_batches')
       .delete()
@@ -156,7 +216,7 @@ router.delete('/:programId/batches/:batchId', isAdmin, async (req, res) => {
 
     if (error) throw error;
 
-    res.json({ success: true, batch: data || null });
+    res.json({ success: true, batch: data || null, deleted_leads_batch: batchName });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }

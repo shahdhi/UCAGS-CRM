@@ -157,7 +157,7 @@
     wrap.querySelectorAll('button[data-action="delete-program"]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const programId = btn.getAttribute('data-program-id');
-        if (!confirm('Delete this program and all its batch mappings? (This will not delete leads or Google Sheets.)')) return;
+        if (!confirm('Delete this program? This will delete Supabase leads for all its batches and unlink their Google Sheet mappings.')) return;
         try {
           await deleteProgram(programId);
           if (window.UI && UI.showToast) UI.showToast('Program deleted', 'success');
@@ -202,7 +202,7 @@
       btn.addEventListener('click', async () => {
         const programId = btn.getAttribute('data-program-id');
         const batchId = btn.getAttribute('data-batch-id');
-        if (!confirm('Delete this batch from the program? (This will not delete Google Sheets or leads.)')) return;
+        if (!confirm('Delete this batch? This will delete Supabase leads for this batch and unlink the Google Sheet mapping.')) return;
         try {
           await deleteBatch(programId, batchId);
           if (window.UI && UI.showToast) UI.showToast('Batch deleted', 'success');
