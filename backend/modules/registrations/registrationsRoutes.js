@@ -91,6 +91,29 @@ router.post('/intake', async (req, res) => {
   }
 });
 
+async function attachPaymentFlags(sb, registrations) {
+  const ids = (registrations || []).map(r => r.id).filter(Boolean);
+  if (!ids.length) return registrations || [];
+
+  const { data, error } = await sb
+    .from('payments')
+    .select('registration_id')
+    .in('registration_id', ids);
+
+  if (error) {
+    // If payments table doesn't exist yet, ignore.
+    const msg = String(error.message || '').toLowerCase();
+    if (msg.includes('relation') || msg.includes('does not exist')) return registrations || [];
+    throw error;
+  }
+
+  const paidSet = new Set((data || []).map(r => r.registration_id));
+  return (registrations || []).map(r => ({
+    ...r,
+    payment_received: paidSet.has(r.id)
+  }));
+}
+
 // Officer list endpoint (assigned to the logged-in officer)
 // GET /api/registrations/my?limit=100
 router.get('/my', isAdminOrOfficer, async (req, res) => {
@@ -110,7 +133,8 @@ router.get('/my', isAdminOrOfficer, async (req, res) => {
       .limit(limit);
 
     if (error) throw error;
-    res.json({ success: true, registrations: data || [] });
+    const withPayments = await attachPaymentFlags(sb, data || []);
+    res.json({ success: true, registrations: withPayments });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }
@@ -130,7 +154,8 @@ router.get('/admin', isAdmin, async (req, res) => {
       .limit(limit);
 
     if (error) throw error;
-    res.json({ success: true, registrations: data || [] });
+    const withPayments = await attachPaymentFlags(sb, data || []);
+    res.json({ success: true, registrations: withPayments });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }
@@ -159,9 +184,9 @@ router.put('/admin/:id/assign', isAdmin, async (req, res) => {
   }
 });
 
-// Add payment for a registration (admin)
-// POST /api/registrations/admin/:id/payments
-router.post('/admin/:id/payments', isAdmin, async (req, res) => {
+// Add payment for a registration (admin/officer)
+// POST /api/registrations/:id/payments
+router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
   try {
     const sb = getSupabaseAdmin();
     const id = String(req.params.id || '').trim();

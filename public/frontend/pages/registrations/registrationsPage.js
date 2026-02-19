@@ -88,43 +88,6 @@
             <i class="fas fa-save"></i> Save
           </button>
 
-          <button type="button" class="btn btn-success" id="registrationPaymentToggleBtn">
-            <i class="fas fa-money-bill-wave"></i> Payment received
-          </button>
-        </div>
-
-        <div id="registrationPaymentSection" style="display:none; margin: 6px 0 14px; padding: 12px; border: 1px solid #eaecf0; border-radius: 12px; background: #f9fafb;">
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
-            <div style="font-weight:600; color:#101828;">Payment Details</div>
-            <button type="button" class="btn btn-primary" id="registrationPaymentSaveBtn">
-              <i class="fas fa-save"></i> Save payment
-            </button>
-          </div>
-          <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-            <div class="form-group" style="margin:0;">
-              <label style="font-size:13px; color:#344054; font-weight:600;">Payment plan</label>
-              <select id="registrationPaymentPlan" class="form-control">
-                <option value="Installment">Installment</option>
-                <option value="Installment with early bird">Installment with early bird</option>
-                <option value="Full payment">Full payment</option>
-                <option value="Full payment with early bird">Full payment with early bird</option>
-                <option value="registration fee only">registration fee only</option>
-              </select>
-            </div>
-            <div class="form-group" style="margin:0;">
-              <label style="font-size:13px; color:#344054; font-weight:600;">Payment date</label>
-              <input id="registrationPaymentDate" type="date" class="form-control" />
-            </div>
-            <div class="form-group" style="margin:0;">
-              <label style="font-size:13px; color:#344054; font-weight:600;">Amount</label>
-              <input id="registrationPaymentAmount" type="number" min="0" step="0.01" class="form-control" placeholder="0.00" />
-            </div>
-            <div class="form-group" style="margin:0; display:flex; align-items:center; gap:10px;">
-              <input id="registrationReceiptReceived" type="checkbox" />
-              <label for="registrationReceiptReceived" style="margin:0; font-size:13px; color:#344054; font-weight:600;">Payment receipt received</label>
-            </div>
-          </div>
-        </div>
 
         <div class="lead-details-grid" style="grid-template-columns: 1fr 1fr;">
           ${Object.entries(details).map(([k, v]) => `
@@ -133,6 +96,45 @@
               <div class="lead-detail-value">${escapeHtml(v || '')}</div>
             </div>
           `).join('')}
+        </div>
+
+        <div style="margin-top: 14px;">
+          <button type="button" class="btn btn-success" id="registrationPaymentToggleBtn">
+            <i class="fas fa-money-bill-wave"></i> Payment received
+          </button>
+
+          <div id="registrationPaymentSection" style="display:none; margin: 10px 0 0; padding: 12px; border: 1px solid #eaecf0; border-radius: 12px; background: #f9fafb;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+              <div style="font-weight:600; color:#101828;">Payment Details</div>
+              <button type="button" class="btn btn-primary" id="registrationPaymentSaveBtn">
+                <i class="fas fa-save"></i> Save payment
+              </button>
+            </div>
+            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="form-group" style="margin:0;">
+                <label style="font-size:13px; color:#344054; font-weight:600;">Payment plan</label>
+                <select id="registrationPaymentPlan" class="form-control">
+                  <option value="Installment">Installment</option>
+                  <option value="Installment with early bird">Installment with early bird</option>
+                  <option value="Full payment">Full payment</option>
+                  <option value="Full payment with early bird">Full payment with early bird</option>
+                  <option value="registration fee only">registration fee only</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label style="font-size:13px; color:#344054; font-weight:600;">Payment date</label>
+                <input id="registrationPaymentDate" type="date" class="form-control" />
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label style="font-size:13px; color:#344054; font-weight:600;">Amount</label>
+                <input id="registrationPaymentAmount" type="number" min="0" step="0.01" class="form-control" placeholder="0.00" />
+              </div>
+              <div class="form-group" style="margin:0; display:flex; align-items:center; gap:10px;">
+                <input id="registrationReceiptReceived" type="checkbox" />
+                <label for="registrationReceiptReceived" style="margin:0; font-size:13px; color:#344054; font-weight:600;">Payment receipt received</label>
+              </div>
+            </div>
+          </div>
         </div>
       `;
 
@@ -171,7 +173,7 @@
 
           try {
             paySaveBtn.disabled = true;
-            await window.API.registrations.adminAddPayment(selectedRegistrationId, {
+            await window.API.registrations.addPayment(selectedRegistrationId, {
               payment_plan: plan,
               payment_date: date || null,
               amount,
@@ -244,7 +246,7 @@
     const limit = Math.min(parseInt(limitEl?.value || '100', 10) || 100, 500);
 
     if (tbody) {
-      tbody.innerHTML = '<tr><td colspan="5" class="loading">Loading registrations...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading registrations...</td></tr>';
     }
 
     const res = await window.API.registrations.adminList(limit);
@@ -255,7 +257,7 @@
     if (!tbody) return;
 
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="loading">No registrations found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="loading">No registrations found</td></tr>';
       return;
     }
 
@@ -263,12 +265,18 @@
       const submittedAt = formatDateTimeLocal(r.created_at);
       const email = r.email ?? r.payload?.email ?? '';
       const assigned = r.assigned_to ?? r.payload?.assigned_to ?? '';
+      const paid = !!(r.payment_received);
+      const paymentCell = paid
+        ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Received</span>'
+        : '<span style="color:#98a2b3;">-</span>';
+
       return `
         <tr class="clickable" data-registration-id="${escapeHtml(r.id)}" style="cursor:pointer;">
           <td>${escapeHtml(submittedAt)}</td>
           <td>${escapeHtml(r.name)}</td>
           <td>${escapeHtml(r.phone_number)}</td>
           <td>${escapeHtml(email)}</td>
+          <td>${paymentCell}</td>
           <td>${escapeHtml(assigned)}</td>
         </tr>
       `;
