@@ -235,13 +235,9 @@ async function loadOfficerLeadsBatchesMenu() {
         const mgmtMenu = document.getElementById('officerLeadManagementBatchesMenu');
         if (!leadsMenu || !mgmtMenu) return;
 
-        // Keep the first item ("All") and clear the rest
-        const keepLeadsAll = leadsMenu.querySelector('a[data-page="leads-myLeads"]');
-        const keepMgmtAll = mgmtMenu.querySelector('a[data-page="lead-management"]');
+        // Clear existing items (sidebar will show only programs)
         leadsMenu.innerHTML = '';
         mgmtMenu.innerHTML = '';
-        if (keepLeadsAll) leadsMenu.appendChild(keepLeadsAll);
-        if (keepMgmtAll) mgmtMenu.appendChild(keepMgmtAll);
 
         // Load programs + batches (same view as admin)
         const authHeaders = await getAuthHeadersWithRetry();
@@ -276,14 +272,6 @@ async function loadOfficerLeadsBatchesMenu() {
             });
             return a;
         };
-
-        // Clear and keep All links
-        const keepLeadsAll = leadsMenu.querySelector('a[data-page="leads-myLeads"]');
-        const keepMgmtAll = mgmtMenu.querySelector('a[data-page="lead-management"]');
-        leadsMenu.innerHTML = '';
-        mgmtMenu.innerHTML = '';
-        if (keepLeadsAll) leadsMenu.appendChild(keepLeadsAll);
-        if (keepMgmtAll) mgmtMenu.appendChild(keepMgmtAll);
 
         for (const p of programs) {
             const bs = byProgram.get(p.id) || [];
