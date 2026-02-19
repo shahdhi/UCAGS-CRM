@@ -126,33 +126,14 @@
     wrap.querySelectorAll('button[data-action="add-batch"]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const programId = btn.getAttribute('data-program-id');
-        const batchName = prompt('New batch name (example: Batch-14):');
-        if (!batchName) return;
-        const mainSheetUrl = prompt('Main Google Sheet URL for this batch (required):');
-        if (!mainSheetUrl) return;
-
-        try {
-          // 1) Link/provision the batch Google Sheet + sync leads
-          const res = await fetch('/api/batches/create', {
-            method: 'POST',
-            headers: {
-              ...(await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {})),
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ batchName, mainSpreadsheetUrl: mainSheetUrl })
-          });
-          const json = await res.json();
-          if (!json.success) throw new Error(json.error || 'Failed to link Google Sheet');
-
-          // 2) Register the batch under this program (and set as current)
-          await addBatch(programId, batchName);
-
-          if (window.UI && UI.showToast) UI.showToast('Batch created, sheet linked, and set as current', 'success');
-          await load();
-        } catch (e) {
-          console.error(e);
-          if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to add batch', 'error');
-        }
+        // Open modal
+        const pid = qs('programBatchProgramId');
+        const bn = qs('programBatchName');
+        const url = qs('programBatchSheetUrl');
+        if (pid) pid.value = programId;
+        if (bn) bn.value = '';
+        if (url) url.value = '';
+        openModal('programBatchAddModal');
       });
     });
 
@@ -179,6 +160,48 @@
     render(data);
   }
 
+  async function handleCreateBatch() {
+    const saveBtn = qs('programBatchAddSaveBtn');
+    const programId = qs('programBatchProgramId')?.value;
+    const batchName = qs('programBatchName')?.value?.trim();
+    const mainSheetUrl = qs('programBatchSheetUrl')?.value?.trim();
+
+    if (!programId) return;
+    if (!batchName) {
+      if (window.UI && UI.showToast) UI.showToast('Batch name is required', 'error');
+      return;
+    }
+    if (!mainSheetUrl) {
+      if (window.UI && UI.showToast) UI.showToast('Main Google Sheet URL is required', 'error');
+      return;
+    }
+
+    try {
+      if (saveBtn) saveBtn.disabled = true;
+
+      const res = await fetch('/api/batches/create', {
+        method: 'POST',
+        headers: {
+          ...(await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {})),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ batchName, mainSpreadsheetUrl: mainSheetUrl })
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Failed to link Google Sheet');
+
+      await addBatch(programId, batchName);
+      closeModal('programBatchAddModal');
+      if (window.UI && UI.showToast) UI.showToast('Batch created, sheet linked, and set as current', 'success');
+      await load();
+    } catch (e) {
+      console.error(e);
+      if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to add batch', 'error');
+    } finally {
+      if (saveBtn) saveBtn.disabled = false;
+    }
+  }
+
   async function initProgramsPage() {
     if (!window.currentUser || window.currentUser.role !== 'admin') return;
 
@@ -193,17 +216,40 @@
     if (addBtn && !addBtn.__bound) {
       addBtn.__bound = true;
       addBtn.addEventListener('click', async () => {
-        const name = prompt('Program name:');
-        if (!name) return;
+        const input = qs('programAddName');
+        if (input) input.value = '';
+        openModal('programAddModal');
+      });
+    }
+
+    const programSaveBtn = qs('programAddSaveBtn');
+    if (programSaveBtn && !programSaveBtn.__bound) {
+      programSaveBtn.__bound = true;
+      programSaveBtn.addEventListener('click', async () => {
+        const name = qs('programAddName')?.value?.trim();
+        if (!name) {
+          if (window.UI && UI.showToast) UI.showToast('Program name is required', 'error');
+          return;
+        }
         try {
+          programSaveBtn.disabled = true;
           await createProgram(name);
+          closeModal('programAddModal');
           if (window.UI && UI.showToast) UI.showToast('Program created', 'success');
           await load();
         } catch (e) {
           console.error(e);
           if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to create program', 'error');
+        } finally {
+          programSaveBtn.disabled = false;
         }
       });
+    }
+
+    const batchSaveBtn = qs('programBatchAddSaveBtn');
+    if (batchSaveBtn && !batchSaveBtn.__bound) {
+      batchSaveBtn.__bound = true;
+      batchSaveBtn.addEventListener('click', () => handleCreateBatch());
     }
 
     await load();

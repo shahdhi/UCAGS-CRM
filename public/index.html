@@ -1468,6 +1468,52 @@
     </div>
 
     <!-- Modal: Enquiry Details -->
+    <div id="programAddModal" class="modal">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-layer-group"></i> Add Program</h2>
+                <button class="modal-close" onclick="closeModal('programAddModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="programAddName">Program name</label>
+                    <input id="programAddName" class="form-control" type="text" placeholder="e.g., Diploma in Psychology" />
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('programAddModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" id="programAddSaveBtn"><i class="fas fa-save"></i> Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="programBatchAddModal" class="modal">
+        <div class="modal-content" style="max-width: 640px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-layer-group"></i> Add Batch</h2>
+                <button class="modal-close" onclick="closeModal('programBatchAddModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="programBatchProgramId" />
+                <div class="form-row" style="grid-template-columns: 1fr;">
+                    <div class="form-group">
+                        <label for="programBatchName">Batch name (no spaces)</label>
+                        <input id="programBatchName" class="form-control" type="text" placeholder="e.g., Batch-14" />
+                    </div>
+                    <div class="form-group">
+                        <label for="programBatchSheetUrl">Main Google Sheet URL</label>
+                        <input id="programBatchSheetUrl" class="form-control" type="text" placeholder="https://docs.google.com/spreadsheets/d/..." />
+                        <small style="color:#667085; display:block; margin-top:6px;">This will link/provision the sheet and sync leads. Required.</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('programBatchAddModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" id="programBatchAddSaveBtn"><i class="fas fa-save"></i> Create Batch</button>
+            </div>
+        </div>
+    </div>
+
     <div id="registrationDetailsModal" class="modal">
         <div class="modal-content large">
             <div class="modal-header">
