@@ -63,6 +63,33 @@ router.get('/', isAdmin, async (req, res) => {
   }
 });
 
+// Admin: delete program (also deletes its program_batches mappings)
+router.delete('/:programId', isAdmin, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+    const programId = String(req.params.programId || '').trim();
+
+    // Delete batches under this program first
+    const { error: bErr } = await sb
+      .from('program_batches')
+      .delete()
+      .eq('program_id', programId);
+    if (bErr) throw bErr;
+
+    const { data, error } = await sb
+      .from('programs')
+      .delete()
+      .eq('id', programId)
+      .select('*')
+      .maybeSingle();
+
+    if (error) throw error;
+    res.json({ success: true, program: data || null });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 // Admin: create program
 router.post('/', isAdmin, async (req, res) => {
   try {

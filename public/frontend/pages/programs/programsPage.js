@@ -35,7 +35,20 @@
     return json.program;
   }
 
-  async function addBatch(programId, batchName) {
+  async function deleteProgram(programId) {
+    const res = await fetch(`/api/programs/${encodeURIComponent(programId)}`, {
+      method: 'DELETE',
+      headers: {
+        ...(await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {})),
+        'Content-Type': 'application/json'
+      }
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Failed to delete program');
+    return json.program;
+  }
+
+  async function addBatch(programId, batchName) { 
     const res = await fetch(`/api/programs/${encodeURIComponent(programId)}/batches`, {
       method: 'POST',
       headers: {
@@ -99,6 +112,7 @@
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
               <button class="btn btn-secondary" type="button" data-action="add-batch" data-program-id="${escapeHtml(p.id)}">Add Batch</button>
+              <button class="btn btn-danger" type="button" data-action="delete-program" data-program-id="${escapeHtml(p.id)}">Delete Program</button>
             </div>
           </div>
 
@@ -140,6 +154,21 @@
     }).join('');
 
     // Bind buttons
+    wrap.querySelectorAll('button[data-action="delete-program"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const programId = btn.getAttribute('data-program-id');
+        if (!confirm('Delete this program and all its batch mappings? (This will not delete leads or Google Sheets.)')) return;
+        try {
+          await deleteProgram(programId);
+          if (window.UI && UI.showToast) UI.showToast('Program deleted', 'success');
+          await load();
+        } catch (e) {
+          console.error(e);
+          if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to delete program', 'error');
+        }
+      });
+    });
+
     wrap.querySelectorAll('button[data-action="add-batch"]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const programId = btn.getAttribute('data-program-id');

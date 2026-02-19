@@ -28,7 +28,16 @@ async function fetchAPI(endpoint, options = {}) {
       ...options
     });
 
-    const data = await response.json();
+    const contentType = response.headers.get('content-type') || '';
+    let data;
+
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      // If the backend returned HTML (often means API route not reached), throw a clearer error
+      const text = await response.text();
+      throw new Error(`API returned non-JSON response for ${endpoint} (status ${response.status}). Check API routing/auth. Body starts: ${text.slice(0, 60)}`);
+    }
 
     if (!response.ok) {
       throw new Error(data.error || `HTTP error! status: ${response.status}`);
