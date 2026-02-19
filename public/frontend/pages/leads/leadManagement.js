@@ -157,6 +157,57 @@ async function loadLeadManagement() {
     }
     
     // Supabase CRM: load officer leads (fast)
+    // Program context batch dropdown (officer)
+    const sel = document.getElementById('managementProgramBatchSelect');
+    if (sel) {
+      const programId = window.officerProgramId;
+      if (programId) {
+        sel.style.display = '';
+        if (!sel.__bound) {
+          sel.__bound = true;
+          sel.addEventListener('change', () => {
+            const v = sel.value;
+            if (v) {
+              window.officerBatchFilter = v;
+              window.officerSheetFilter = 'Main Leads';
+              // navigate to keep URL in sync
+              window.location.hash = `lead-management-batch-${encodeURIComponent(v)}__sheet__${encodeURIComponent('Main Leads')}`;
+              initLeadManagementPage();
+            }
+          });
+        }
+
+        if (!sel.__loadedFor || sel.__loadedFor !== programId) {
+          sel.__loadedFor = programId;
+          try {
+            const authHeaders = {};
+            if (window.supabaseClient) {
+              const { data: { session } } = await window.supabaseClient.auth.getSession();
+              if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+            }
+            const r = await fetch('/api/programs/sidebar', { headers: authHeaders });
+            const j = await r.json();
+            const batches = (j.batches || []).filter(b => String(b.program_id) === String(programId));
+            const current = batches.find(b => b.is_current);
+            sel.innerHTML = '';
+            batches.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).forEach(b => {
+              const opt = document.createElement('option');
+              opt.value = b.batch_name;
+              opt.textContent = b.batch_name;
+              sel.appendChild(opt);
+            });
+            const active = window.officerBatchFilter;
+            if (active && active !== 'all') sel.value = active;
+            else if (current?.batch_name) sel.value = current.batch_name;
+          } catch (e) {
+            console.warn('Failed to load batches for management dropdown', e);
+          }
+        }
+      } else {
+        sel.style.display = 'none';
+      }
+    }
+
     const batchFilter = window.officerBatchFilter;
     const sheet = window.officerSheetFilter || 'Main Leads';
 

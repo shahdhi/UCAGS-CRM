@@ -35,6 +35,36 @@ router.get('/public', async (req, res) => {
   }
 });
 
+// Sidebar/CRM: list programs + batches (admin/officer)
+router.get('/sidebar', require('../../../server/middleware/auth').isAdminOrOfficer, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+    const { data: programs, error: pErr } = await sb
+      .from('programs')
+      .select('*')
+      .eq('is_active', true)
+      .order('name', { ascending: true });
+    if (pErr) throw pErr;
+
+    const programIds = (programs || []).map(p => p.id);
+    let batches = [];
+    if (programIds.length) {
+      const { data: b, error: bErr } = await sb
+        .from('program_batches')
+        .select('*')
+        .in('program_id', programIds)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+      if (bErr) throw bErr;
+      batches = b || [];
+    }
+
+    res.json({ success: true, programs: programs || [], batches });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 // Admin: list programs + batches
 router.get('/', isAdmin, async (req, res) => {
   try {

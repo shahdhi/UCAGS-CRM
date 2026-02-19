@@ -70,10 +70,17 @@ function setupLeadsEventListeners() {
     programBatchSelect.addEventListener('change', () => {
       const v = programBatchSelect.value;
       if (v) {
-        window.adminBatchFilter = v;
-        window.adminSheetFilter = 'Main Leads';
+        if (window.currentUser && window.currentUser.role === 'admin') {
+          window.adminBatchFilter = v;
+          window.adminSheetFilter = 'Main Leads';
+        } else {
+          window.officerBatchFilter = v;
+          window.officerSheetFilter = 'Main Leads';
+        }
         // update hash
-        const leadsPage = `leads-batch-${encodeURIComponent(v)}__sheet__${encodeURIComponent('Main Leads')}`;
+        const leadsPage = (window.currentUser && window.currentUser.role === 'admin')
+          ? `leads-batch-${encodeURIComponent(v)}__sheet__${encodeURIComponent('Main Leads')}`
+          : `leads-myLeads-batch-${encodeURIComponent(v)}__sheet__${encodeURIComponent('Main Leads')}`;
         window.location.hash = leadsPage;
         currentPage = 1;
         loadLeads();
@@ -148,21 +155,22 @@ async function loadLeads() {
     // Officer view: always use /crm-leads/my (never admin endpoint)
     const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
 
-    // Admin: if program context is set, show batch dropdown for that program
-    if (!isOfficerView) {
+    // Program context batch dropdown (admin + officer)
+    if (true) {
       const sel = document.getElementById('leadsProgramBatchSelect');
       if (sel) {
-        if (window.adminProgramId) {
+        const programId = window.adminProgramId || window.officerProgramId;
+        if (programId) {
           sel.style.display = '';
           // load once per program
-          const cacheKey = `programBatches:${window.adminProgramId}`;
+          const cacheKey = `programBatches:${programId}`;
           window.__programBatchesCache = window.__programBatchesCache || new Map();
           if (!window.__programBatchesCache.has(cacheKey)) {
             try {
               const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
-              const r = await fetch('/api/programs', { headers: authHeaders });
+              const r = await fetch('/api/programs/sidebar', { headers: authHeaders });
               const j = await r.json();
-              const batches = (j.batches || []).filter(b => String(b.program_id) === String(window.adminProgramId));
+              const batches = (j.batches || []).filter(b => String(b.program_id) === String(programId));
               // build options
               const current = batches.find(b => b.is_current);
               sel.innerHTML = '';
@@ -175,8 +183,11 @@ async function loadLeads() {
                   sel.appendChild(opt);
                 });
               // default
-              if (window.adminBatchFilter) sel.value = window.adminBatchFilter;
-              else if (current?.batch_name) sel.value = current.batch_name;
+              // Default selection: current batch
+              const currentBatchName = current?.batch_name;
+              const activeBatch = (window.adminBatchFilter || window.officerBatchFilter);
+              if (activeBatch && activeBatch !== 'all') sel.value = activeBatch;
+              else if (currentBatchName) sel.value = currentBatchName;
               window.__programBatchesCache.set(cacheKey, true);
             } catch (e) {
               console.warn('Failed to load program batches for dropdown', e);
@@ -187,11 +198,13 @@ async function loadLeads() {
           if (window.adminBatchFilter) {
             try {
               const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
-              const r = await fetch('/api/programs', { headers: authHeaders });
+              const r = await fetch('/api/programs/sidebar', { headers: authHeaders });
               const j = await r.json();
-              const match = (j.batches || []).find(b => String(b.batch_name) === String(window.adminBatchFilter));
+              const activeBatch = window.adminBatchFilter || window.officerBatchFilter;
+              const match = (j.batches || []).find(b => String(b.batch_name) === String(activeBatch));
               if (match?.program_id) {
-                window.adminProgramId = match.program_id;
+                window.adminProgramId = window.adminProgramId || match.program_id;
+                window.officerProgramId = window.officerProgramId || match.program_id;
                 // re-run load once program context exists
                 await loadLeads();
                 return;

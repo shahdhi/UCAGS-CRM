@@ -243,35 +243,33 @@ async function loadOfficerLeadsBatchesMenu() {
         if (keepLeadsAll) leadsMenu.appendChild(keepLeadsAll);
         if (keepMgmtAll) mgmtMenu.appendChild(keepMgmtAll);
 
-        // Fetch global batches list (created by admins). Officers should see these tabs even if they have no leads yet.
-        // IMPORTANT: on some logins the session token isn't immediately available; wait briefly to avoid 401/empty menus.
+        // Load programs + batches (same view as admin)
         const authHeaders = await getAuthHeadersWithRetry();
+        const res = await fetch('/api/programs/sidebar', { headers: authHeaders });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Failed to load programs');
 
-        let response = await fetch('/api/batch-leads/batches', { headers: authHeaders });
-        // If the first call was unauthorized due to token timing, retry once after waiting longer
-        if (response.status === 401 || response.status === 403) {
-            const authHeaders2 = await getAuthHeadersWithRetry(2500);
-            response = await fetch('/api/batch-leads/batches', { headers: authHeaders2 });
-        }
-        const data = await response.json();
-        const batches = (data && data.batches) ? data.batches : [];
+        const programs = json.programs || [];
+        const batches = json.batches || [];
 
-        // Sort batches in a friendly way (Batch 2, Batch 10)
-        batches.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+        const byProgram = new Map();
+        batches.forEach(b => {
+            const arr = byProgram.get(b.program_id) || [];
+            arr.push(b);
+            byProgram.set(b.program_id, arr);
+        });
 
-        // Helper to create a batch nav link
-        const createBatchLink = (page, label) => {
+        const defaultSheet = 'Main Leads';
+
+        const createLink = (page, label, onClick) => {
             const a = document.createElement('a');
             a.href = '#';
             a.className = 'nav-subitem';
             a.dataset.page = page;
-
-            a.innerHTML = `
-                <i class="fas fa-layer-group"></i>
-                <span>${label}</span>
-            `;
+            a.innerHTML = `<i class=\"fas fa-folder\"></i><span>${label}</span>`;
             a.addEventListener('click', (e) => {
                 e.preventDefault();
+                if (onClick) onClick();
                 window.location.hash = page;
                 navigateToPage(page);
                 closeMobileMenu();
@@ -279,131 +277,28 @@ async function loadOfficerLeadsBatchesMenu() {
             return a;
         };
 
-        // Build expanded batch -> sheets tree for officers
-        const defaultSheets = ['Main Leads', 'Extra Leads'];
+        // Clear and keep All links
+        const keepLeadsAll = leadsMenu.querySelector('a[data-page="leads-myLeads"]');
+        const keepMgmtAll = mgmtMenu.querySelector('a[data-page="lead-management"]');
+        leadsMenu.innerHTML = '';
+        mgmtMenu.innerHTML = '';
+        if (keepLeadsAll) leadsMenu.appendChild(keepLeadsAll);
+        if (keepMgmtAll) mgmtMenu.appendChild(keepMgmtAll);
 
-        for (const batchName of batches) {
-            const batchEnc = encodeURIComponent(batchName);
+        for (const p of programs) {
+            const bs = byProgram.get(p.id) || [];
+            const current = bs.find(x => x.is_current);
+            if (!current?.batch_name) continue;
 
-            // Keep officer sidebar fast: render default sheets immediately.
-            // (Fetching per-batch sheets causes many network calls and delays after login.)
-            let sheets = [...defaultSheets];
+            const leadsPage = `leads-myLeads-batch-${encodeURIComponent(current.batch_name)}__sheet__${encodeURIComponent(defaultSheet)}`;
+            const mgmtPage = `lead-management-batch-${encodeURIComponent(current.batch_name)}__sheet__${encodeURIComponent(defaultSheet)}`;
 
-            // Parent header (not navigational)
-            const parent = document.createElement('a');
-            parent.href = '#';
-            parent.className = 'nav-subitem';
-            parent.innerHTML = `
-                <i class="fas fa-folder"></i>
-                <span>${batchName}</span>
-                <i class="fas fa-chevron-down" style="margin-left:auto; opacity:0.7;"></i>
-            `;
-
-            const childWrap1 = document.createElement('div');
-            childWrap1.style.marginLeft = '12px';
-            childWrap1.style.display = 'block';
-
-            const childWrap2 = document.createElement('div');
-            childWrap2.style.marginLeft = '12px';
-            childWrap2.style.display = 'block';
-
-            parent.addEventListener('click', (e) => {
-                e.preventDefault();
-                const next = (childWrap1.style.display === 'none') ? 'block' : 'none';
-                childWrap1.style.display = next;
-            });
-
-            // Separate parent nodes so both menus toggle correctly
-            leadsMenu.appendChild(parent);
-
-            const parent2 = document.createElement('a');
-            parent2.href = '#';
-            parent2.className = 'nav-subitem';
-            parent2.innerHTML = parent.innerHTML;
-            parent2.addEventListener('click', (e) => {
-                e.preventDefault();
-                const next = (childWrap2.style.display === 'none') ? 'block' : 'none';
-                childWrap2.style.display = next;
-            });
-            mgmtMenu.appendChild(parent2);
-
-            sheets.forEach(sheetName => {
-                const sheetEnc = encodeURIComponent(sheetName);
-                const page1 = `leads-myLeads-batch-${batchEnc}__sheet__${sheetEnc}`;
-                const page2 = `lead-management-batch-${batchEnc}__sheet__${sheetEnc}`;
-
-                childWrap1.appendChild(createBatchLink(page1, sheetName));
-                childWrap2.appendChild(createBatchLink(page2, sheetName));
-            });
-
-            // + Add sheet (for me only)
-            const addMine1 = document.createElement('a');
-            addMine1.href = '#';
-            addMine1.className = 'nav-subitem';
-            addMine1.style.color = '#1976d2';
-            addMine1.innerHTML = `
-                <i class="fas fa-plus"></i>
-                <span>Add sheet (for me)</span>
-            `;
-            addMine1.addEventListener('click', async (e) => {
-                e.preventDefault();
-                const sheetName = prompt('New sheet name (for you only):');
-                if (!sheetName) return;
-
-                try {
-                    const res = await fetch(`/api/batch-leads/${batchEnc}/my-sheets`, {
-                        method: 'POST',
-                        headers: {
-                            ...authHeaders,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ sheetName })
-                    });
-                    const json = await res.json();
-                    if (!json.success) throw new Error(json.error || 'Failed to create sheet');
-
-                    if (window.showToast) showToast('Sheet created for you', 'success');
-                    await loadOfficerLeadsBatchesMenu();
-                } catch (err) {
-                    console.error(err);
-                    if (window.showToast) showToast(err.message || 'Failed to create sheet', 'error');
-                    else alert(err.message || 'Failed to create sheet');
-                }
-            });
-
-            const addMine2 = addMine1.cloneNode(true);
-            // Rebind handler for cloned node
-            addMine2.addEventListener('click', async (e) => {
-                e.preventDefault();
-                const sheetName = prompt('New sheet name (for you only):');
-                if (!sheetName) return;
-
-                try {
-                    const res = await fetch(`/api/batch-leads/${batchEnc}/my-sheets`, {
-                        method: 'POST',
-                        headers: {
-                            ...authHeaders,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ sheetName })
-                    });
-                    const json = await res.json();
-                    if (!json.success) throw new Error(json.error || 'Failed to create sheet');
-
-                    if (window.showToast) showToast('Sheet created for you', 'success');
-                    await loadOfficerLeadsBatchesMenu();
-                } catch (err) {
-                    console.error(err);
-                    if (window.showToast) showToast(err.message || 'Failed to create sheet', 'error');
-                    else alert(err.message || 'Failed to create sheet');
-                }
-            });
-
-            childWrap1.appendChild(addMine1);
-            childWrap2.appendChild(addMine2);
-
-            leadsMenu.appendChild(childWrap1);
-            mgmtMenu.appendChild(childWrap2);
+            leadsMenu.appendChild(createLink(leadsPage, p.name, () => {
+                window.officerProgramId = p.id;
+            }));
+            mgmtMenu.appendChild(createLink(mgmtPage, p.name, () => {
+                window.officerProgramId = p.id;
+            }));
         }
 
         // If another render started while we were awaiting network calls, don't overwrite/duplicate
@@ -435,7 +330,7 @@ async function loadBatchesMenu() {
         await getAuthHeadersWithRetry();
         // Load programs + current batches
         const authHeaders = await getAuthHeadersWithRetry();
-        const res = await fetch('/api/programs', { headers: authHeaders });
+        const res = await fetch('/api/programs/sidebar', { headers: authHeaders });
         const json = await res.json();
         if (!json.success) throw new Error(json.error || 'Failed to load programs');
 
