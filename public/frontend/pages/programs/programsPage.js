@@ -49,6 +49,19 @@
     return json.batch;
   }
 
+  async function deleteBatch(programId, batchId) {
+    const res = await fetch(`/api/programs/${encodeURIComponent(programId)}/batches/${encodeURIComponent(batchId)}`, {
+      method: 'DELETE',
+      headers: {
+        ...(await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {})),
+        'Content-Type': 'application/json'
+      }
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Failed to delete batch');
+    return json.batch;
+  }
+
   async function setCurrentBatch(programId, batchId) {
     const res = await fetch(`/api/programs/${encodeURIComponent(programId)}/batches/${encodeURIComponent(batchId)}/current`, {
       method: 'PUT',
@@ -97,6 +110,7 @@
                   <th>Current</th>
                   <th>Created</th>
                   <th>Action</th>
+                  <th>Delete</th>
                 </tr>
               </thead>
               <tbody>
@@ -111,6 +125,9 @@
                       <td>${escapeHtml(new Date(b.created_at).toLocaleString())}</td>
                       <td>
                         <button class="btn btn-primary btn-sm" type="button" data-action="set-current" data-program-id="${escapeHtml(p.id)}" data-batch-id="${escapeHtml(b.id)}">Set Current</button>
+                      </td>
+                      <td>
+                        ${b.is_current ? '<span style="color:#98a2b3;">-</span>' : `<button class=\"btn btn-danger btn-sm\" type=\"button\" data-action=\"delete-batch\" data-program-id=\"${escapeHtml(p.id)}\" data-batch-id=\"${escapeHtml(b.id)}\">Delete</button>`}
                       </td>
                     </tr>
                   `;
@@ -148,6 +165,22 @@
         } catch (e) {
           console.error(e);
           if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to set current batch', 'error');
+        }
+      });
+    });
+
+    wrap.querySelectorAll('button[data-action="delete-batch"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const programId = btn.getAttribute('data-program-id');
+        const batchId = btn.getAttribute('data-batch-id');
+        if (!confirm('Delete this batch from the program? (This will not delete Google Sheets or leads.)')) return;
+        try {
+          await deleteBatch(programId, batchId);
+          if (window.UI && UI.showToast) UI.showToast('Batch deleted', 'success');
+          await load();
+        } catch (e) {
+          console.error(e);
+          if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to delete batch', 'error');
         }
       });
     });

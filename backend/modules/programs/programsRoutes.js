@@ -112,6 +112,29 @@ router.post('/:programId/batches', isAdmin, async (req, res) => {
   }
 });
 
+// Admin: delete batch
+router.delete('/:programId/batches/:batchId', isAdmin, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+    const programId = String(req.params.programId || '').trim();
+    const batchId = String(req.params.batchId || '').trim();
+
+    const { data, error } = await sb
+      .from('program_batches')
+      .delete()
+      .eq('id', batchId)
+      .eq('program_id', programId)
+      .select('*')
+      .maybeSingle();
+
+    if (error) throw error;
+
+    res.json({ success: true, batch: data || null });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 // Admin: set current batch
 router.put('/:programId/batches/:batchId/current', isAdmin, async (req, res) => {
   try {
