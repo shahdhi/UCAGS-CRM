@@ -281,6 +281,13 @@ const registrationsAPI = {
       method: 'PUT',
       body: JSON.stringify({ assigned_to: assignedTo })
     });
+  },
+  adminAddPayment: async (id, payment) => {
+    if (!id) throw new Error('Missing registration id');
+    return fetchAPI(`/registrations/admin/${encodeURIComponent(id)}/payments`, {
+      method: 'POST',
+      body: JSON.stringify(payment)
+    });
   }
 };
 

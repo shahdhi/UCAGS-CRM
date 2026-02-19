@@ -159,6 +159,44 @@ router.put('/admin/:id/assign', isAdmin, async (req, res) => {
   }
 });
 
+// Add payment for a registration (admin)
+// POST /api/registrations/admin/:id/payments
+router.post('/admin/:id/payments', isAdmin, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ success: false, error: 'Missing registration id' });
+
+    const paymentPlan = String(req.body?.payment_plan || '').trim();
+    const paymentDate = req.body?.payment_date ? String(req.body.payment_date).trim() : null;
+    const amount = Number(req.body?.amount);
+    const receiptReceived = !!req.body?.receipt_received;
+
+    if (!paymentPlan) return res.status(400).json({ success: false, error: 'Payment plan is required' });
+    if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ success: false, error: 'Amount must be greater than 0' });
+
+    const createdBy = String(req.user?.name || req.user?.email || '').trim() || null;
+
+    const { data, error } = await sb
+      .from('payments')
+      .insert({
+        registration_id: id,
+        payment_plan: paymentPlan,
+        payment_date: paymentDate || null,
+        amount,
+        receipt_received: receiptReceived,
+        created_by: createdBy
+      })
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, payment: data });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 // Delete a registration (admin)
 // DELETE /api/registrations/admin/:id
 router.delete('/admin/:id', isAdmin, async (req, res) => {

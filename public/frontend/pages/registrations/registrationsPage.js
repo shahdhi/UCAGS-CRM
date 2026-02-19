@@ -87,6 +87,43 @@
           <button type="button" class="btn btn-primary" id="registrationAssignedSaveBtn">
             <i class="fas fa-save"></i> Save
           </button>
+
+          <button type="button" class="btn btn-success" id="registrationPaymentToggleBtn">
+            <i class="fas fa-money-bill-wave"></i> Payment received
+          </button>
+        </div>
+
+        <div id="registrationPaymentSection" style="display:none; margin: 6px 0 14px; padding: 12px; border: 1px solid #eaecf0; border-radius: 12px; background: #f9fafb;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+            <div style="font-weight:600; color:#101828;">Payment Details</div>
+            <button type="button" class="btn btn-primary" id="registrationPaymentSaveBtn">
+              <i class="fas fa-save"></i> Save payment
+            </button>
+          </div>
+          <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group" style="margin:0;">
+              <label style="font-size:13px; color:#344054; font-weight:600;">Payment plan</label>
+              <select id="registrationPaymentPlan" class="form-control">
+                <option value="Installment">Installment</option>
+                <option value="Installment with early bird">Installment with early bird</option>
+                <option value="Full payment">Full payment</option>
+                <option value="Full payment with early bird">Full payment with early bird</option>
+                <option value="registration fee only">registration fee only</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label style="font-size:13px; color:#344054; font-weight:600;">Payment date</label>
+              <input id="registrationPaymentDate" type="date" class="form-control" />
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label style="font-size:13px; color:#344054; font-weight:600;">Amount</label>
+              <input id="registrationPaymentAmount" type="number" min="0" step="0.01" class="form-control" placeholder="0.00" />
+            </div>
+            <div class="form-group" style="margin:0; display:flex; align-items:center; gap:10px;">
+              <input id="registrationReceiptReceived" type="checkbox" />
+              <label for="registrationReceiptReceived" style="margin:0; font-size:13px; color:#344054; font-weight:600;">Payment receipt received</label>
+            </div>
+          </div>
         </div>
 
         <div class="lead-details-grid" style="grid-template-columns: 1fr 1fr;">
@@ -101,6 +138,63 @@
 
       const saveBtn = qs('registrationAssignedSaveBtn');
       const sel = qs('registrationAssignedSelect');
+      const payToggleBtn = qs('registrationPaymentToggleBtn');
+      const paySection = qs('registrationPaymentSection');
+      const paySaveBtn = qs('registrationPaymentSaveBtn');
+
+      if (payToggleBtn && paySection) {
+        payToggleBtn.onclick = () => {
+          const open = paySection.style.display !== 'none';
+          paySection.style.display = open ? 'none' : 'block';
+          payToggleBtn.innerHTML = open
+            ? '<i class="fas fa-money-bill-wave"></i> Payment received'
+            : '<i class="fas fa-times"></i> Cancel payment';
+        };
+      }
+
+      if (paySaveBtn) {
+        paySaveBtn.onclick = async () => {
+          const plan = qs('registrationPaymentPlan')?.value;
+          const date = qs('registrationPaymentDate')?.value;
+          const amountStr = qs('registrationPaymentAmount')?.value;
+          const receipt = !!qs('registrationReceiptReceived')?.checked;
+
+          const amount = Number(amountStr);
+          if (!plan) {
+            if (window.UI && UI.showToast) UI.showToast('Please select a payment plan', 'error');
+            return;
+          }
+          if (!Number.isFinite(amount) || amount <= 0) {
+            if (window.UI && UI.showToast) UI.showToast('Please enter a valid amount', 'error');
+            return;
+          }
+
+          try {
+            paySaveBtn.disabled = true;
+            await window.API.registrations.adminAddPayment(selectedRegistrationId, {
+              payment_plan: plan,
+              payment_date: date || null,
+              amount,
+              receipt_received: receipt
+            });
+            if (window.UI && UI.showToast) UI.showToast('Payment saved', 'success');
+
+            // Reset and collapse
+            if (qs('registrationPaymentAmount')) qs('registrationPaymentAmount').value = '';
+            if (qs('registrationReceiptReceived')) qs('registrationReceiptReceived').checked = false;
+            if (qs('registrationPaymentDate')) qs('registrationPaymentDate').value = '';
+            if (paySection) paySection.style.display = 'none';
+            if (payToggleBtn) payToggleBtn.innerHTML = '<i class="fas fa-money-bill-wave"></i> Payment received';
+
+          } catch (e) {
+            console.error(e);
+            if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to save payment', 'error');
+          } finally {
+            paySaveBtn.disabled = false;
+          }
+        };
+      }
+
       if (saveBtn && sel) {
         saveBtn.onclick = async () => {
           try {
