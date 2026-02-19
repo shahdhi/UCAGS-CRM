@@ -1,12 +1,13 @@
 /**
  * Officer-only sheets/tabs service
  *
- * Allows an officer to create and list tabs only inside their own batch spreadsheet.
+ * Officer-only sheets/tabs service (Supabase-only)
+ *
+ * Stores officer-created sheet names in Supabase table `officer_custom_sheets`.
+ * Does NOT create Google Sheets tabs.
  */
 
-const { getOfficerSpreadsheetId } = require('../../core/batches/batchesStore');
-const { getSpreadsheetInfo, createSheet, sheetExists, writeSheet } = require('../../core/sheets/sheetsClient');
-const { OFFICER_HEADERS } = require('./batchSheetsService');
+const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
 
 function colToLetter(col) {
   let temp = col;
@@ -25,61 +26,46 @@ function validateSheetName(name) {
   if (/[\[\]\:\*\?\/\\]/.test(name)) throw Object.assign(new Error('sheetName contains invalid characters'), { status: 400 });
 }
 
-async function listOfficerSheets(batchName, officerName, opts = {}) {
-  const force = Boolean(opts.force);
-  const spreadsheetId = await getOfficerSpreadsheetId(batchName, officerName);
-  if (!spreadsheetId) {
-    const err = new Error('Officer spreadsheet not found for this batch');
-    err.status = 404;
-    throw err;
+async function listOfficerSheets(batchName, officerName) {
+  const sb = getSupabaseAdmin();
+  if (!sb) return [];
+
+  const { data, error } = await sb
+    .from('officer_custom_sheets')
+    .select('sheet_name')
+    .eq('batch_name', batchName)
+    .eq('officer_name', officerName)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    const msg = String(error.message || '').toLowerCase();
+    if (msg.includes('relation') || msg.includes('does not exist')) return [];
+    throw error;
   }
 
-  const info = await getSpreadsheetInfo(spreadsheetId, { force });
-  const titles = (info.sheets || []).map(s => s.properties.title).filter(Boolean);
-  return titles.filter(t => t && t !== 'Sheet1');
-}
-
-async function ensureSheetWithHeaders(spreadsheetId, sheetTitle, headers) {
-  const existing = await sheetExists(spreadsheetId, sheetTitle);
-  if (!existing) {
-    await createSheet(spreadsheetId, sheetTitle);
-  }
-  await writeSheet(spreadsheetId, `${sheetTitle}!A1:${colToLetter(headers.length)}1`, [headers]);
+  return (data || []).map(r => r.sheet_name).filter(Boolean);
 }
 
 async function createOfficerOnlySheet(batchName, officerName, sheetName) {
   validateSheetName(sheetName);
 
-  const spreadsheetId = await getOfficerSpreadsheetId(batchName, officerName);
-  if (!spreadsheetId) {
-    const err = new Error('Officer spreadsheet not found for this batch');
-    err.status = 404;
+  const sb = getSupabaseAdmin();
+  if (!sb) {
+    const err = new Error('Supabase admin not configured');
+    err.status = 500;
     throw err;
   }
 
-  await ensureSheetWithHeaders(spreadsheetId, sheetName, OFFICER_HEADERS);
+  await sb.from('officer_custom_sheets').upsert({
+    batch_name: batchName,
+    officer_name: officerName,
+    sheet_name: sheetName,
+    created_at: new Date().toISOString()
+  }, { onConflict: 'batch_name,officer_name,sheet_name' });
 
-  // Track officer-created sheets in Supabase (so officers can't delete admin-created tabs)
-  try {
-    const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
-    const sb = getSupabaseAdmin();
-    if (sb) {
-      await sb.from('officer_custom_sheets').upsert({
-        batch_name: batchName,
-        officer_name: officerName,
-        sheet_name: sheetName,
-        created_at: new Date().toISOString()
-      }, { onConflict: 'batch_name,officer_name,sheet_name' });
-    }
-  } catch (e) {
-    console.warn('Failed to write officer_custom_sheets (optional):', e.message || e);
-  }
-
-  const sheets = await listOfficerSheets(batchName, officerName, { force: true });
+  const sheets = await listOfficerSheets(batchName, officerName);
   return { success: true, sheets };
 }
-
-const { deleteSheetTab } = require('../../core/sheets/sheetsClient');
 
 const DEFAULT_SHEETS = ['Main Leads', 'Extra Leads'];
 
@@ -91,73 +77,53 @@ async function deleteOfficerOnlySheet(batchName, officerName, sheetName) {
     throw err;
   }
 
-  // Only allow deleting sheets that were created by this officer via /my-sheets
-  try {
-    const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
-    const sb = getSupabaseAdmin();
-    if (sb) {
-      const { data, error } = await sb
-        .from('officer_custom_sheets')
-        .select('sheet_name')
-        .eq('batch_name', batchName)
-        .eq('officer_name', officerName)
-        .eq('sheet_name', sheetName)
-        .maybeSingle();
+  const sb = getSupabaseAdmin();
+  if (!sb) {
+    const err = new Error('Supabase admin not configured');
+    err.status = 500;
+    throw err;
+  }
 
-      if (error) {
-        // If table missing, safest is to disallow deletion
-        const msg = String(error.message || '');
-        if (msg.includes('relation') && msg.includes('does not exist')) {
-          const err = new Error('Officer custom sheet tracking not configured');
-          err.status = 403;
-          throw err;
-        }
-        throw error;
-      }
+  // Only allow deleting sheets that were created by this officer
+  const { data, error } = await sb
+    .from('officer_custom_sheets')
+    .select('sheet_name')
+    .eq('batch_name', batchName)
+    .eq('officer_name', officerName)
+    .eq('sheet_name', sheetName)
+    .maybeSingle();
 
-      if (!data) {
-        const err = new Error('You can only delete sheets that you created');
-        err.status = 403;
-        throw err;
-      }
-    } else {
-      const err = new Error('Supabase admin not configured');
+  if (error) {
+    const msg = String(error.message || '').toLowerCase();
+    if (msg.includes('relation') || msg.includes('does not exist')) {
+      const err = new Error('Officer custom sheet tracking not configured');
       err.status = 403;
       throw err;
     }
-  } catch (e) {
-    if (e.status) throw e;
-    console.warn('officer_custom_sheets check failed:', e.message || e);
+    throw error;
+  }
+  if (!data) {
     const err = new Error('You can only delete sheets that you created');
     err.status = 403;
     throw err;
   }
 
-  const spreadsheetId = await getOfficerSpreadsheetId(batchName, officerName);
-  if (!spreadsheetId) {
-    const err = new Error('Officer spreadsheet not found for this batch');
-    err.status = 404;
-    throw err;
-  }
+  await sb.from('officer_custom_sheets')
+    .delete()
+    .eq('batch_name', batchName)
+    .eq('officer_name', officerName)
+    .eq('sheet_name', sheetName);
 
-  await deleteSheetTab(spreadsheetId, sheetName);
-
-  // Remove tracking row
+  // Optional: delete Supabase leads belonging to this officer sheet
   try {
-    const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
-    const sb = getSupabaseAdmin();
-    if (sb) {
-      await sb.from('officer_custom_sheets')
-        .delete()
-        .eq('batch_name', batchName)
-        .eq('officer_name', officerName)
-        .eq('sheet_name', sheetName);
-    }
-  } catch (e) {
-    console.warn('Failed to delete officer_custom_sheets row:', e.message || e);
-  }
+    await sb.from('crm_leads')
+      .delete()
+      .eq('batch_name', batchName)
+      .eq('sheet_name', sheetName)
+      .eq('assigned_to', officerName);
+  } catch (_) {}
 
-  const sheets = await listOfficerSheets(batchName, officerName, { force: true });
+  const sheets = await listOfficerSheets(batchName, officerName);
   return { success: true, sheets };
 }
 

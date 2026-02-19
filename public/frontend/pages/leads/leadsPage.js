@@ -218,6 +218,112 @@ async function loadLeads() {
       }
     }
 
+    // Sheet tabs (admin + officer)
+    async function renderSheetTabs() {
+      const tabsEl = document.getElementById('leadsSheetTabs');
+      if (!tabsEl) return;
+
+      const batch = isOfficerView ? window.officerBatchFilter : window.adminBatchFilter;
+      if (!batch || batch === 'all') {
+        tabsEl.style.display = 'none';
+        tabsEl.innerHTML = '';
+        return;
+      }
+
+      const currentSheet = (isOfficerView ? window.officerSheetFilter : window.adminSheetFilter) || 'Main Leads';
+
+      // Auth
+      let authHeaders = {};
+      if (window.supabaseClient) {
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      let sheets = ['Main Leads', 'Extra Leads'];
+      try {
+        if (isOfficerView) {
+          const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/my-custom-sheets`, { headers: authHeaders });
+          const json = await res.json();
+          if (json.success && Array.isArray(json.sheets)) {
+            sheets = Array.from(new Set([...sheets, ...json.sheets]));
+          }
+        } else {
+          const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/sheets?force=1`, { headers: authHeaders });
+          const json = await res.json();
+          if (json.success && Array.isArray(json.sheets)) {
+            sheets = Array.from(new Set([...sheets, ...json.sheets]));
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load sheets list', e);
+      }
+
+      // Build tab bar
+      tabsEl.style.display = 'flex';
+      tabsEl.innerHTML = '';
+
+      const makeTab = (name) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-secondary';
+        btn.style.padding = '6px 10px';
+        btn.style.borderRadius = '999px';
+        btn.style.border = (name === currentSheet) ? '1px solid #592c88' : '1px solid #eaecf0';
+        btn.style.background = (name === currentSheet) ? '#f4ebff' : '#fff';
+        btn.style.color = (name === currentSheet) ? '#592c88' : '#344054';
+        btn.textContent = name;
+        btn.addEventListener('click', () => {
+          if (isOfficerView) {
+            window.officerSheetFilter = name;
+          } else {
+            window.adminSheetFilter = name;
+          }
+          const page = isOfficerView
+            ? `leads-myLeads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`
+            : `leads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`;
+          window.location.hash = page;
+          currentPage = 1;
+          loadLeads();
+        });
+        return btn;
+      };
+
+      sheets.forEach(s => tabsEl.appendChild(makeTab(s)));
+
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'btn btn-primary';
+      addBtn.style.padding = '6px 10px';
+      addBtn.textContent = '+ Add sheet';
+      addBtn.addEventListener('click', async () => {
+        if (window.openAddSheetModal) {
+          window.openAddSheetModal({ batchName: batch, scope: isOfficerView ? 'officer' : 'admin' });
+        }
+      });
+
+      tabsEl.appendChild(addBtn);
+    }
+
+    await renderSheetTabs();
+
+    // If a sheet is created via modal, refresh tabs + switch to it
+    if (!window.__leadsSheetCreatedBound) {
+      window.__leadsSheetCreatedBound = true;
+      document.addEventListener('sheet:created', (ev) => {
+        try {
+          const d = ev.detail || {};
+          const activeBatch = isOfficerView ? window.officerBatchFilter : window.adminBatchFilter;
+          if (d.batchName && String(d.batchName) !== String(activeBatch)) return;
+          if (d.sheetName) {
+            if (isOfficerView) window.officerSheetFilter = d.sheetName;
+            else window.adminSheetFilter = d.sheetName;
+          }
+          // reload
+          loadLeads();
+        } catch (_) {}
+      });
+    }
+
     let response;
     if (isOfficerView) {
       // Apply officer batch/sheet filters if set by router

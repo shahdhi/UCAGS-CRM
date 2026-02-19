@@ -208,6 +208,86 @@ async function loadLeadManagement() {
       }
     }
 
+    // Sheet tabs (officer)
+    async function renderManagementSheetTabs() {
+      const tabsEl = document.getElementById('managementSheetTabs');
+      if (!tabsEl) return;
+
+      const batch = window.officerBatchFilter;
+      if (!batch || batch === 'all') {
+        tabsEl.style.display = 'none';
+        tabsEl.innerHTML = '';
+        return;
+      }
+
+      const currentSheet = window.officerSheetFilter || 'Main Leads';
+
+      let authHeaders = {};
+      if (window.supabaseClient) {
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      let sheets = ['Main Leads', 'Extra Leads'];
+      try {
+        const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/my-custom-sheets`, { headers: authHeaders });
+        const json = await res.json();
+        if (json.success && Array.isArray(json.sheets)) {
+          sheets = Array.from(new Set([...sheets, ...json.sheets]));
+        }
+      } catch (e) {
+        console.warn('Failed to load management sheets list', e);
+      }
+
+      tabsEl.style.display = 'flex';
+      tabsEl.innerHTML = '';
+
+      const makeTab = (name) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-secondary';
+        btn.style.padding = '6px 10px';
+        btn.style.borderRadius = '999px';
+        btn.style.border = (name === currentSheet) ? '1px solid #592c88' : '1px solid #eaecf0';
+        btn.style.background = (name === currentSheet) ? '#f4ebff' : '#fff';
+        btn.style.color = (name === currentSheet) ? '#592c88' : '#344054';
+        btn.textContent = name;
+        btn.addEventListener('click', () => {
+          window.officerSheetFilter = name;
+          window.location.hash = `lead-management-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`;
+          initLeadManagementPage();
+        });
+        return btn;
+      };
+
+      sheets.forEach(s => tabsEl.appendChild(makeTab(s)));
+
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'btn btn-primary';
+      addBtn.style.padding = '6px 10px';
+      addBtn.textContent = '+ Add sheet';
+      addBtn.addEventListener('click', () => {
+        if (window.openAddSheetModal) {
+          window.openAddSheetModal({ batchName: batch, scope: 'officer' });
+        }
+      });
+      tabsEl.appendChild(addBtn);
+
+      // refresh on created
+      if (!tabsEl.__createdBound) {
+        tabsEl.__createdBound = true;
+        document.addEventListener('sheet:created', (ev) => {
+          const d = ev.detail || {};
+          if (String(d.batchName) !== String(batch)) return;
+          if (d.sheetName) window.officerSheetFilter = d.sheetName;
+          initLeadManagementPage();
+        });
+      }
+    }
+
+    await renderManagementSheetTabs();
+
     const batchFilter = window.officerBatchFilter;
     const sheet = window.officerSheetFilter || 'Main Leads';
 

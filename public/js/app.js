@@ -2221,6 +2221,92 @@ window.scheduleFollowUp = async function(enquiryId) {
 };
 
 // Show email options
+// Add Sheet modal (used by Leads + Lead Management tab bars)
+window.openAddSheetModal = function ({ batchName, scope }) {
+    const batchEl = document.getElementById('addSheetBatchName');
+    const scopeEl = document.getElementById('addSheetScope');
+    const nameEl = document.getElementById('addSheetName');
+    if (batchEl) batchEl.value = batchName || '';
+    if (scopeEl) scopeEl.value = scope || 'officer';
+    if (nameEl) nameEl.value = '';
+    openModal('addSheetModal');
+};
+
+async function setupAddSheetModalHandler() {
+    const btn = document.getElementById('addSheetSaveBtn');
+    if (!btn || btn.__bound) return;
+    btn.__bound = true;
+
+    btn.addEventListener('click', async () => {
+        const batchName = document.getElementById('addSheetBatchName')?.value;
+        const scope = document.getElementById('addSheetScope')?.value;
+        const sheetName = document.getElementById('addSheetName')?.value?.trim();
+
+        if (!batchName) return;
+        if (!sheetName) {
+            if (window.UI && UI.showToast) UI.showToast('Sheet name is required', 'error');
+            return;
+        }
+
+        // Prevent reserved/default names
+        const reserved = ['main leads', 'extra leads'];
+        const key = sheetName.toLowerCase().replace(/\s+/g, ' ').trim();
+        if (reserved.includes(key)) {
+            if (window.UI && UI.showToast) UI.showToast('This sheet name is reserved. Please choose a different name.', 'error');
+            return;
+        }
+
+        // Basic duplicate check from current tab bar (if present)
+        const tabEls = document.querySelectorAll('#leadsSheetTabs button, #managementSheetTabs button');
+        const existing = Array.from(tabEls)
+            .map(b => (b.textContent || '').toLowerCase().replace(/\s+/g, ' ').trim())
+            .filter(Boolean);
+        if (existing.includes(key)) {
+            if (window.UI && UI.showToast) UI.showToast('A sheet with this name already exists.', 'error');
+            return;
+        }
+
+        try {
+            btn.disabled = true;
+            let authHeaders = { 'Content-Type': 'application/json' };
+            if (window.supabaseClient) {
+                const { data: { session } } = await window.supabaseClient.auth.getSession();
+                if (session && session.access_token) {
+                    authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+                }
+            }
+
+            const url = (scope === 'admin')
+                ? `/api/batch-leads/${encodeURIComponent(batchName)}/sheets`
+                : `/api/batch-leads/${encodeURIComponent(batchName)}/my-sheets`;
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify({ sheetName })
+            });
+            const json = await res.json();
+            if (!json.success) throw new Error(json.error || 'Failed to create sheet');
+
+            closeModal('addSheetModal');
+            if (window.UI && UI.showToast) UI.showToast('Sheet created', 'success');
+
+            // Notify pages to refresh tabs
+            document.dispatchEvent(new CustomEvent('sheet:created', { detail: { batchName, sheetName, scope } }));
+        } catch (e) {
+            console.error(e);
+            if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to create sheet', 'error');
+        } finally {
+            btn.disabled = false;
+        }
+    });
+}
+
+// Ensure handler is bound early
+document.addEventListener('DOMContentLoaded', () => {
+    setupAddSheetModalHandler();
+});
+
 window.showEmailOptions = async function(enquiryId) {
     const choice = prompt('Select email type:\n1. Acknowledgement\n2. Follow-up\n3. Registration Info\n\nEnter number:');
     
