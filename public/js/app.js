@@ -433,250 +433,52 @@ async function loadBatchesMenu() {
     try {
         // Ensure we have a session token before hitting protected endpoints
         await getAuthHeadersWithRetry();
-        const response = await API.leads.getBatches();
-        const batches = response.batches || [];
+        // Load programs + current batches
+        const authHeaders = await getAuthHeadersWithRetry();
+        const res = await fetch('/api/programs', { headers: authHeaders });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Failed to load programs');
+
+        const programs = json.programs || [];
+        const batches = json.batches || [];
+
+        const byProgram = new Map();
+        batches.forEach(b => {
+            const arr = byProgram.get(b.program_id) || [];
+            arr.push(b);
+            byProgram.set(b.program_id, arr);
+        });
 
         const menu = document.getElementById('leadsBatchesMenu');
         if (!menu) return;
-
-        // Clear existing batch items
         menu.innerHTML = '';
 
-        // Helper to create a clickable link
-        const createLink = (page, label, iconClass = 'fas fa-layer-group') => {
+        const createLink = (page, label) => {
             const a = document.createElement('a');
             a.href = '#';
             a.className = 'nav-subitem';
             a.dataset.page = page;
-            a.innerHTML = `
-                <i class="${iconClass}"></i>
-                <span>${label}</span>
-            `;
-            a.addEventListener('click', (e) => {
-                e.preventDefault();
-                window.location.hash = page;
-                navigateToPage(page);
-                closeMobileMenu();
-            });
+            a.innerHTML = `<i class="fas fa-folder"></i><span>${label}</span>`;
             return a;
         };
 
-        // Helper to create a batch group (expand/collapse)
-        const createBatchGroup = async (batchName) => {
-            const batchEnc = encodeURIComponent(batchName);
+        // Show only program names; clicking opens Leads for current batch (Main Leads)
+        for (const p of programs) {
+            const bs = byProgram.get(p.id) || [];
+            const current = bs.find(x => x.is_current);
+            if (!current || !current.batch_name) continue;
 
-            const wrapper = document.createElement('div');
-            wrapper.className = 'nav-batch-group';
-
-            const header = document.createElement('a');
-            header.href = '#';
-            header.className = 'nav-subitem';
-            header.style.cursor = 'pointer';
-            header.innerHTML = `
-                <i class="fas fa-folder"></i>
-                <span>${batchName}</span>
-                <i class="fas fa-chevron-down batch-chevron" style="margin-left:auto; opacity:0.7; transition: transform 0.2s;"></i>
-            `;
-
-            const children = document.createElement('div');
-            children.className = 'nav-batch-children';
-            children.style.marginLeft = '12px';
-            children.style.display = 'block';
-
-            // Toggle function
-            const toggleExpand = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const isExpanded = children.style.display !== 'none';
-                children.style.display = isExpanded ? 'none' : 'block';
-                // Rotate chevron
-                const chevron = header.querySelector('.batch-chevron');
-                if (chevron) {
-                    chevron.style.transform = isExpanded ? 'rotate(-90deg)' : 'rotate(0deg)';
-                }
-            };
-
-            header.addEventListener('click', toggleExpand);
-
-            // Fetch sheets for this batch
-            let sheets = ['Main Leads', 'Extra Leads'];
-            try {
-                let authHeaders = {};
-                if (window.supabaseClient) {
-                    const { data: { session } } = await window.supabaseClient.auth.getSession();
-                    if (session && session.access_token) {
-                        authHeaders['Authorization'] = `Bearer ${session.access_token}`;
-                    }
-                }
-
-                const res = await fetch(`/api/batch-leads/${batchEnc}/sheets?force=1`, { headers: authHeaders });
-                const data = await res.json();
-                if (data.success && Array.isArray(data.sheets) && data.sheets.length) {
-                    sheets = data.sheets;
-                }
-            } catch (e) {
-                console.warn('Failed to load sheets for batch', batchName, e);
-            }
-
-            // Ensure default sheets appear first
-            const defaultOrder = ['Main Leads', 'Extra Leads'];
-            sheets = Array.from(new Set([...defaultOrder, ...sheets]));
-
-            sheets.forEach(sheetName => {
-                const sheetEnc = encodeURIComponent(sheetName);
-                const page = `leads-batch-${batchEnc}__sheet__${sheetEnc}`;
-                children.appendChild(createLink(page, sheetName, 'fas fa-table'));
+            const leadsPage = `leads-batch-${encodeURIComponent(current.batch_name)}__sheet__${encodeURIComponent('Main Leads')}`;
+            const link = createLink(leadsPage, p.name);
+            link.dataset.programId = p.id;
+            link.addEventListener('click', () => {
+                // set context for in-page batch dropdown
+                window.adminProgramId = p.id;
             });
-
-            // + Add sheet (admin only)
-            const add = document.createElement('a');
-            add.href = '#';
-            add.className = 'nav-subitem';
-            add.style.color = '#1976d2';
-            add.innerHTML = `
-                <i class="fas fa-plus"></i>
-                <span>Add sheet</span>
-            `;
-            add.addEventListener('click', async (e) => {
-                e.preventDefault();
-                const sheetName = prompt('New sheet name (e.g., Extra Leads 2):');
-                if (!sheetName) return;
-
-                try {
-                    let authHeaders = { 'Content-Type': 'application/json' };
-                    if (window.supabaseClient) {
-                        const { data: { session } } = await window.supabaseClient.auth.getSession();
-                        if (session && session.access_token) {
-                            authHeaders['Authorization'] = `Bearer ${session.access_token}`;
-                        }
-                    }
-
-                    const res = await fetch(`/api/batch-leads/${batchEnc}/sheets`, {
-                        method: 'POST',
-                        headers: authHeaders,
-                        body: JSON.stringify({ sheetName })
-                    });
-                    const data = await res.json();
-                    if (!data.success) throw new Error(data.error || 'Failed to create sheet');
-
-                    if (window.showToast) showToast('Sheet created successfully', 'success');
-                    await loadBatchesMenu();
-                } catch (err) {
-                    console.error(err);
-                    if (window.showToast) showToast(err.message, 'error');
-                    else alert(err.message);
-                }
-            });
-            children.appendChild(add);
-
-            // Sync button
-            const syncBtn = document.createElement('a');
-            syncBtn.href = '#';
-            syncBtn.className = 'nav-subitem';
-            syncBtn.style.color = '#4caf50';
-            syncBtn.innerHTML = '<i class="fas fa-sync"></i> <span>Sync leads</span>';
-            syncBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                if (!confirm('Sync leads from Google Sheet for batch "' + batchName + '"?')) return;
-                
-                try {
-                    let authHeaders = { 'Content-Type': 'application/json' };
-                    if (window.supabaseClient) {
-                        const { data: { session } } = await window.supabaseClient.auth.getSession();
-                        if (session && session.access_token) {
-                            authHeaders['Authorization'] = 'Bearer ' + session.access_token;
-                        }
-                    }
-                    
-                    const res = await fetch('/api/batches/' + batchEnc + '/sync', {
-                        method: 'POST',
-                        headers: authHeaders,
-                        body: JSON.stringify({})
-                    });
-                    const data = await res.json();
-                    
-                    if (data.success) {
-                        alert('Sync complete!');
-                        if (window.loadLeads) window.loadLeads();
-                    } else {
-                        throw new Error(data.error);
-                    }
-                } catch (err) {
-                    alert('Sync failed: ' + err.message);
-                }
-            });
-            children.appendChild(syncBtn);
-
-            // 🗑️ Delete batch (admin only) - deletes leads + batch record
-            const deleteBtn = document.createElement('a');
-            deleteBtn.href = '#';
-            deleteBtn.className = 'nav-subitem';
-            deleteBtn.style.color = '#f44336';
-            deleteBtn.innerHTML = '<i class="fas fa-trash"></i> <span>Delete batch</span>';
-            deleteBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                if (!confirm('⚠️ WARNING: This will DELETE ALL LEADS and the batch "' + batchName + '" from Supabase.\n\nThis action cannot be undone!\n\nAre you sure?')) return;
-                
-                if (!confirm('Final confirmation: Delete batch "' + batchName + '"?')) return;
-                
-                try {
-                    let authHeaders = { 'Content-Type': 'application/json' };
-                    if (window.supabaseClient) {
-                        const { data: { session } } = await window.supabaseClient.auth.getSession();
-                        if (session && session.access_token) {
-                            authHeaders['Authorization'] = 'Bearer ' + session.access_token;
-                        }
-                    }
-                    
-                    const res = await fetch('/api/batches/' + batchEnc, {
-                        method: 'DELETE',
-                        headers: authHeaders
-                    });
-                    const data = await res.json();
-                    
-                    if (data.success) {
-                        alert('✅ ' + data.message);
-                        // Remove batch from sidebar
-                        const navItem = document.querySelector('.nav-batch-' + batchEnc);
-                        if (navItem) {
-                            const parent = navItem.parentElement;
-                            if (parent.classList.contains('nav-submenu')) {
-                                // Remove submenu if empty
-                                const grandparent = parent.parentElement;
-                                parent.remove();
-                                if (parent.children.length === 0) {
-                                    grandparent.remove();
-                                }
-                            } else {
-                                navItem.remove();
-                            }
-                        }
-                        // Refresh if currently viewing this batch
-                        if (window.currentBatch === batchName) {
-                            window.location.hash = '';
-                            window.loadView('dashboard');
-                        }
-                    } else {
-                        throw new Error(data.error);
-                    }
-                } catch (err) {
-                    alert('Delete failed: ' + err.message);
-                }
-            });
-            children.appendChild(deleteBtn);
-
-            wrapper.appendChild(header);
-            wrapper.appendChild(children);
-            return wrapper;
-        };
-
-        // Add batch groups
-        for (const batchName of batches) {
-            if (renderVersion !== window.__adminBatchesRenderVersion) return;
-            menu.appendChild(await createBatchGroup(batchName));
+            menu.appendChild(link);
         }
 
-        console.log(`✓ Loaded ${batches.length} batches (expanded with sheets)`);
+        console.log(`✓ Loaded ${programs.length} programs (current batch only)`);
     } catch (error) {
         console.error('Error loading batches:', error);
     } finally {

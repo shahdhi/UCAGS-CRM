@@ -63,6 +63,24 @@ function setupLeadsEventListeners() {
     });
   }
 
+  // Program batch selector (admin-only)
+  const programBatchSelect = document.getElementById('leadsProgramBatchSelect');
+  if (programBatchSelect && !programBatchSelect.__bound) {
+    programBatchSelect.__bound = true;
+    programBatchSelect.addEventListener('change', () => {
+      const v = programBatchSelect.value;
+      if (v) {
+        window.adminBatchFilter = v;
+        window.adminSheetFilter = 'Main Leads';
+        // update hash
+        const leadsPage = `leads-batch-${encodeURIComponent(v)}__sheet__${encodeURIComponent('Main Leads')}`;
+        window.location.hash = leadsPage;
+        currentPage = 1;
+        loadLeads();
+      }
+    });
+  }
+
   // Status filter
   const statusFilter = document.getElementById('leadsStatusFilter');
   if (statusFilter) {
@@ -129,6 +147,63 @@ async function loadLeads() {
 
     // Officer view: always use /crm-leads/my (never admin endpoint)
     const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+
+    // Admin: if program context is set, show batch dropdown for that program
+    if (!isOfficerView) {
+      const sel = document.getElementById('leadsProgramBatchSelect');
+      if (sel) {
+        if (window.adminProgramId) {
+          sel.style.display = '';
+          // load once per program
+          const cacheKey = `programBatches:${window.adminProgramId}`;
+          window.__programBatchesCache = window.__programBatchesCache || new Map();
+          if (!window.__programBatchesCache.has(cacheKey)) {
+            try {
+              const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+              const r = await fetch('/api/programs', { headers: authHeaders });
+              const j = await r.json();
+              const batches = (j.batches || []).filter(b => String(b.program_id) === String(window.adminProgramId));
+              // build options
+              const current = batches.find(b => b.is_current);
+              sel.innerHTML = '';
+              batches
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .forEach(b => {
+                  const opt = document.createElement('option');
+                  opt.value = b.batch_name;
+                  opt.textContent = b.batch_name;
+                  sel.appendChild(opt);
+                });
+              // default
+              if (window.adminBatchFilter) sel.value = window.adminBatchFilter;
+              else if (current?.batch_name) sel.value = current.batch_name;
+              window.__programBatchesCache.set(cacheKey, true);
+            } catch (e) {
+              console.warn('Failed to load program batches for dropdown', e);
+            }
+          }
+        } else {
+          // If user refreshed directly on a leads-batch-* route, infer program from batch
+          if (window.adminBatchFilter) {
+            try {
+              const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+              const r = await fetch('/api/programs', { headers: authHeaders });
+              const j = await r.json();
+              const match = (j.batches || []).find(b => String(b.batch_name) === String(window.adminBatchFilter));
+              if (match?.program_id) {
+                window.adminProgramId = match.program_id;
+                // re-run load once program context exists
+                await loadLeads();
+                return;
+              }
+            } catch (e) {
+              console.warn('Failed to infer program from batch', e);
+            }
+          }
+          sel.style.display = 'none';
+        }
+      }
+    }
 
     let response;
     if (isOfficerView) {

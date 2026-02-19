@@ -128,9 +128,26 @@
         const programId = btn.getAttribute('data-program-id');
         const batchName = prompt('New batch name (example: Batch-14):');
         if (!batchName) return;
+        const mainSheetUrl = prompt('Main Google Sheet URL for this batch (required):');
+        if (!mainSheetUrl) return;
+
         try {
+          // 1) Link/provision the batch Google Sheet + sync leads
+          const res = await fetch('/api/batches/create', {
+            method: 'POST',
+            headers: {
+              ...(await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {})),
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ batchName, mainSpreadsheetUrl: mainSheetUrl })
+          });
+          const json = await res.json();
+          if (!json.success) throw new Error(json.error || 'Failed to link Google Sheet');
+
+          // 2) Register the batch under this program (and set as current)
           await addBatch(programId, batchName);
-          if (window.UI && UI.showToast) UI.showToast('Batch added and set as current', 'success');
+
+          if (window.UI && UI.showToast) UI.showToast('Batch created, sheet linked, and set as current', 'success');
           await load();
         } catch (e) {
           console.error(e);
