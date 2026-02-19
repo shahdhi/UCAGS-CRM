@@ -79,16 +79,6 @@
       }
 
       body.innerHTML = `
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom: 12px;">
-          <div style="font-size:13px; color:#667085;">Assigned</div>
-          <select id="registrationAssignedSelect" class="form-control" style="min-width: 220px;">
-            ${officerOptions || `<option value="${escapeHtml(currentAssigned)}" selected>${escapeHtml(currentAssigned || 'Unassigned')}</option>`}
-          </select>
-          <button type="button" class="btn btn-primary" id="registrationAssignedSaveBtn">
-            <i class="fas fa-save"></i> Save
-          </button>
-
-
         <div class="lead-details-grid" style="grid-template-columns: 1fr 1fr;">
           ${Object.entries(details).map(([k, v]) => `
             <div class="lead-detail-item">
@@ -98,7 +88,17 @@
           `).join('')}
         </div>
 
-        <div style="margin-top: 14px;">
+        <div style="margin-top: 14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <div style="font-size:13px; color:#667085;">Assigned</div>
+          <select id="registrationAssignedSelect" class="form-control" style="min-width: 220px;">
+            ${officerOptions || `<option value="${escapeHtml(currentAssigned)}" selected>${escapeHtml(currentAssigned || 'Unassigned')}</option>`}
+          </select>
+          <button type="button" class="btn btn-primary" id="registrationAssignedSaveBtn">
+            <i class="fas fa-save"></i> Save
+          </button>
+        </div>
+
+        <div style="margin-top: 12px;">
           <button type="button" class="btn btn-success" id="registrationPaymentToggleBtn">
             <i class="fas fa-money-bill-wave"></i> Payment received
           </button>
