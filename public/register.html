@@ -611,14 +611,9 @@
             </div>
 
             <div class="field">
-              <label for="course">Course / Program<span class="req">*</span></label>
-              <select id="course" name="course_program" required>
-                <option value="">Select Your Course / Program</option>
-                <option value="Diploma in Psychology">Diploma in Psychology</option>
-                <option value="Diploma in Business & Entrepreneurship">Diploma in Business & Entrepreneurship</option>
-                <option value="Diploma in Event Management">Diploma in Event Management</option>
-                <option value="Diploma in Teaching">Diploma in Teaching</option>
-                <option value="Diploma in Special Need Education & Shadow Teaching">Diploma in Special Need Education & Shadow Teaching</option>
+              <label for="course">Program<span class="req">*</span></label>
+              <select id="course" name="program_id" required>
+                <option value="">Select Program</option>
               </select>
             </div>
           </div>
@@ -769,11 +764,35 @@
       if (!payload.email) return 'Please enter your email address.';
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return 'Please enter a valid email address.';
 
-      if (!payload.course_program) return 'Please select your course / program.';
+      if (!payload.program_id) return 'Please select your program.';
       if (payload.confirm_interest !== 'on') return 'Please confirm your interest to join the selected course/program.';
 
       return null;
     }
+
+    async function loadPrograms() {
+      const select = document.getElementById('course');
+      if (!select) return;
+
+      try {
+        const res = await fetch('/api/programs/public');
+        const json = await res.json();
+        const programs = (json && json.programs) ? json.programs : [];
+
+        // reset options (keep placeholder)
+        select.innerHTML = '<option value="">Select Program</option>';
+        programs.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = p.name;
+          select.appendChild(opt);
+        });
+      } catch (e) {
+        console.warn('Failed to load programs:', e);
+      }
+    }
+
+    loadPrograms();
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();

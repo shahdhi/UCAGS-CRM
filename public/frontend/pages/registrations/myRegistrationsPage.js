@@ -62,12 +62,7 @@
           </button>
 
           <div id="registrationPaymentSection" style="display:none; margin: 10px 0 0; padding: 12px; border: 1px solid #eaecf0; border-radius: 12px; background: #f9fafb;">
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
-              <div style="font-weight:600; color:#101828;">Payment Details</div>
-              <button type="button" class="btn btn-primary" id="registrationPaymentSaveBtn">
-                <i class="fas fa-save"></i> Save payment
-              </button>
-            </div>
+            <div style="font-weight:600; color:#101828; margin-bottom:10px;">Payment Details</div>
             <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
               <div class="form-group" style="margin:0;">
                 <label style="font-size:13px; color:#344054; font-weight:600;">Payment plan</label>
@@ -89,8 +84,14 @@
               </div>
               <div class="form-group" style="margin:0; display:flex; align-items:center; gap:10px;">
                 <input id="registrationReceiptReceived" type="checkbox" />
-                <label for="registrationReceiptReceived" style="margin:0; font-size:13px; color:#344054; font-weight:600;">Payment receipt received</label>
+                <label for="registrationReceiptReceived" style="margin:0; font-size:13px; color:#344054; font-weight:600; display:inline;">Payment receipt received</label>
               </div>
+            </div>
+
+            <div style="margin-top: 12px; display:flex; justify-content:flex-end;">
+              <button type="button" class="btn btn-primary" id="registrationPaymentSaveBtn">
+                <i class="fas fa-save"></i> Save payment
+              </button>
             </div>
           </div>
         </div>
@@ -185,11 +186,11 @@
 
       return `
         <tr data-registration-id="${escapeHtml(r.id)}" style="cursor:pointer;">
-          <td>${escapeHtml(submittedAt)}</td>
           <td>${escapeHtml(r.name)}</td>
           <td>${escapeHtml(r.phone_number)}</td>
           <td>${escapeHtml(email)}</td>
           <td>${paymentCell}</td>
+          <td>${escapeHtml(submittedAt)}</td>
         </tr>
       `;
     }).join('');

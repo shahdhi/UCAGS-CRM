@@ -22,8 +22,38 @@ router.post('/intake', async (req, res) => {
     // Normalize phone numbers (Sri Lanka)
     const canonicalPhone = normalizePhoneToSL(payload.phone_number);
 
-    // Determine assignee (if the number already exists in sheets)
-    const inferredAssignee = await findAssigneeByPhoneAcrossAllSheets(canonicalPhone);
+    // program_id is required (selected from Programs list)
+    const programId = cleanString(payload.program_id);
+    if (!programId) {
+      return res.status(400).json({ success: false, error: 'Program is required' });
+    }
+
+    // Lookup program + its current batch
+    const { data: programRow, error: programErr } = await sb
+      .from('programs')
+      .select('id,name')
+      .eq('id', programId)
+      .maybeSingle();
+    if (programErr) throw programErr;
+    if (!programRow) {
+      return res.status(400).json({ success: false, error: 'Invalid program selected' });
+    }
+
+    const { data: currentBatch, error: batchErr } = await sb
+      .from('program_batches')
+      .select('batch_name')
+      .eq('program_id', programId)
+      .eq('is_current', true)
+      .maybeSingle();
+    if (batchErr) throw batchErr;
+    if (!currentBatch?.batch_name) {
+      return res.status(400).json({ success: false, error: 'No current batch configured for this program' });
+    }
+
+    const registrationBatchName = String(currentBatch.batch_name);
+
+    // Determine assignee (search leads ONLY within current batch)
+    const inferredAssignee = await findAssigneeByPhoneAcrossAllSheets(canonicalPhone, { batchName: registrationBatchName });
 
     // Extract common fields (we also store full payload as JSON)
     const row = {
@@ -36,7 +66,10 @@ router.post('/intake', async (req, res) => {
       wa_number: cleanString(normalizePhoneToSL(payload.wa_number || payload.phone_number) || payload.wa_number),
       email: cleanString(payload.email),
       working_status: cleanString(payload.working_status),
-      course_program: cleanString(payload.course_program),
+      program_id: programRow.id,
+      program_name: cleanString(programRow.name),
+      batch_name: cleanString(registrationBatchName),
+      course_program: cleanString(programRow.name),
       assigned_to: cleanString(payload.assigned_to) || cleanString(inferredAssignee),
       source: 'crm-register-page',
       payload
@@ -114,6 +147,21 @@ async function attachPaymentFlags(sb, registrations) {
   }));
 }
 
+async function getCurrentBatchNames(sb) {
+  const { data, error } = await sb
+    .from('program_batches')
+    .select('batch_name')
+    .eq('is_current', true);
+
+  if (error) {
+    const msg = String(error.message || '').toLowerCase();
+    if (msg.includes('relation') || msg.includes('does not exist')) return [];
+    throw error;
+  }
+
+  return Array.from(new Set((data || []).map(r => r.batch_name).filter(Boolean)));
+}
+
 // Officer list endpoint (assigned to the logged-in officer)
 // GET /api/registrations/my?limit=100
 router.get('/my', isAdminOrOfficer, async (req, res) => {
@@ -125,10 +173,18 @@ router.get('/my', isAdminOrOfficer, async (req, res) => {
     const sb = getSupabaseAdmin();
     const limit = Math.min(parseInt(req.query.limit || '100', 10) || 100, 500);
 
-    const { data, error } = await sb
+    // By default, show only current batches (one per program). Use ?all=1 to disable.
+    const showAll = String(req.query.all || '').trim() === '1';
+    const currentBatches = showAll ? [] : await getCurrentBatchNames(sb);
+
+    let q = sb
       .from('registrations')
       .select('*')
-      .eq('assigned_to', officerName)
+      .eq('assigned_to', officerName);
+
+    if (currentBatches.length) q = q.in('batch_name', currentBatches);
+
+    const { data, error } = await q
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -147,9 +203,17 @@ router.get('/admin', isAdmin, async (req, res) => {
     const sb = getSupabaseAdmin();
     const limit = Math.min(parseInt(req.query.limit || '100', 10) || 100, 500);
 
-    const { data, error } = await sb
+    // By default, show only current batches (one per program). Use ?all=1 to disable.
+    const showAll = String(req.query.all || '').trim() === '1';
+    const currentBatches = showAll ? [] : await getCurrentBatchNames(sb);
+
+    let q = sb
       .from('registrations')
-      .select('*')
+      .select('*');
+
+    if (currentBatches.length) q = q.in('batch_name', currentBatches);
+
+    const { data, error } = await q
       .order('created_at', { ascending: false })
       .limit(limit);
 

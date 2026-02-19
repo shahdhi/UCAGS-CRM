@@ -143,16 +143,17 @@
                         <i class="fas fa-chevron-down toggle-icon"></i>
                     </div>
                     <div class="nav-submenu" id="leadsBatchesMenu">
-                        <a href="#" class="nav-subitem add-batch-btn" id="addNewBatchBtn">
-                            <i class="fas fa-plus-circle"></i>
-                            <span>Add New Batch</span>
-                        </a>
                     </div>
                 </div>
 
                 <a href="#" class="nav-item admin-only" data-page="registrations">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Registrations</span>
+                </a>
+
+                <a href="#" class="nav-item admin-only" data-page="programs">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Programs</span>
                 </a>
 
                 <a href="#" class="nav-item officer-only" data-page="registrations-my">
@@ -782,12 +783,12 @@
                         <table class="data-table" id="registrationsTable">
                             <thead>
                                 <tr>
-                                    <th>Submitted At</th>
                                     <th>Name</th>
                                     <th>Phone</th>
                                     <th>Email</th>
                                     <th>Payment</th>
                                     <th>Assigned</th>
+                                    <th>Submitted At</th>
                                 </tr>
                             </thead>
                             <tbody id="registrationsTableBody">
@@ -826,17 +827,37 @@
                         <table class="data-table" id="registrationsMyTable">
                             <thead>
                                 <tr>
-                                    <th>Submitted At</th>
                                     <th>Name</th>
                                     <th>Phone</th>
                                     <th>Email</th>
                                     <th>Payment</th>
+                                    <th>Submitted At</th>
                                 </tr>
                             </thead>
                             <tbody id="registrationsMyTableBody">
                                 <tr><td colspan="5" class="loading">Loading registrations...</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="programsView" class="content-view admin-only" style="display:none;">
+                <div class="page-header">
+                    <h1><i class="fas fa-layer-group"></i> Programs</h1>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <button id="programsRefreshBtn" class="btn btn-secondary" type="button">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                        <button id="programsAddBtn" class="btn btn-primary" type="button">
+                            <i class="fas fa-plus"></i> Add Program
+                        </button>
+                    </div>
+                </div>
+
+                <div class="dashboard-card">
+                    <div id="programsList" class="recent-list">
+                        <p class="loading">Loading programs...</p>
                     </div>
                 </div>
             </div>
@@ -1339,10 +1360,6 @@
             </div>
 
             <!-- Receipts View (Admin Only) -->
-            <div id="whatsappView" class="content-view" style="display:none;">
-                <!-- WhatsApp Panel injected by /frontend/pages/whatsapp/whatsappPanel.js -->
-            </div>
-
             
             <div id="receiptsView" class="content-view admin-only">
                 <div class="page-header">
@@ -1624,6 +1641,7 @@
     <script src="/frontend/pages/leads/staffLeadManagement.js?v=1"></script>
     <script src="/frontend/pages/registrations/registrationsPage.js?v=1"></script>
     <script src="/frontend/pages/registrations/myRegistrationsPage.js?v=1"></script>
+    <script src="/frontend/pages/programs/programsPage.js?v=1"></script>
     <script src="/frontend/pages/receipts/receiptsPage.js?v=3"></script>
     <script src="/frontend/pages/whatsapp/whatsappInbox.js?v=1"></script>
     <script src="/frontend/pages/whatsapp/waDrawer.js?v=1"></script>

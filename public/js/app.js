@@ -439,8 +439,7 @@ async function loadBatchesMenu() {
         const menu = document.getElementById('leadsBatchesMenu');
         if (!menu) return;
 
-        // Clear existing batch items (keep only Add New Batch button)
-        const addBatchBtn = document.getElementById('addNewBatchBtn');
+        // Clear existing batch items
         menu.innerHTML = '';
 
         // Helper to create a clickable link
@@ -824,17 +823,8 @@ async function handleLogout() {
 
 // Setup navigation
 function setupNavigation() {
-    const navItems = document.querySelectorAll('.nav-item, .nav-subitem:not(#addNewBatchBtn)');
+    const navItems = document.querySelectorAll('.nav-item, .nav-subitem');
     const navSections = document.querySelectorAll('.nav-section');
-    
-    // Handle Add New Batch button separately
-    const addNewBatchBtn = document.getElementById('addNewBatchBtn');
-    if (addNewBatchBtn) {
-        addNewBatchBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            showAddBatchModal();
-        });
-    }
     
     // Handle main nav items and subitems
     navItems.forEach(link => {
@@ -1093,6 +1083,19 @@ function updateDeleteSheetButtons(page) {
 
 // Navigate to a specific page
 async function navigateToPage(page) {
+    // WhatsApp: do not navigate to an internal page; just open WhatsApp Web
+    if (page === 'whatsapp') {
+        if (window.openWhatsAppSidePanel) {
+            window.openWhatsAppSidePanel();
+        } else if (window.WhatsAppPanel?.open) {
+            window.WhatsAppPanel.open();
+        } else {
+            window.open('https://web.whatsapp.com/', '_blank', 'noopener,noreferrer');
+        }
+        // Keep the current view unchanged
+        return;
+    }
+
     const navItems = document.querySelectorAll('.nav-item, .nav-subitem');
     
     // Update active link
@@ -1310,13 +1313,16 @@ async function navigateToPage(page) {
                 await window.initMyRegistrationsPage();
             }
             break;
+        case 'programs':
+            if (window.initProgramsPage) {
+                await window.initProgramsPage();
+            }
+            break;
         case 'receipts':
             loadReceipts();
             break;
         case 'whatsapp':
-            if (window.initWhatsAppPanelPage) {
-                window.initWhatsAppPanelPage();
-            }
+            // handled above (open WhatsApp Web)
             break;
     }
 }
@@ -2102,35 +2108,13 @@ async function createNewBatch(batchName, mainSpreadsheetUrl) {
                 alert(`Batch "${batchName}" created successfully!`);
             }
             
-            // Add to menu
-            const menu = document.getElementById('leadsBatchesMenu');
-            const addBatchBtn = document.getElementById('addNewBatchBtn');
-            
-            const newBatchLink = document.createElement('a');
-            newBatchLink.href = '#';
-            newBatchLink.className = 'nav-subitem';
-            newBatchLink.dataset.page = `leads-${batchName.toLowerCase().replace(/\s+/g, '')}`;
-            newBatchLink.innerHTML = `
-                <i class="fas fa-layer-group"></i>
-                <span>${batchName}</span>
-            `;
-            
-            menu.insertBefore(newBatchLink, addBatchBtn);
-            
-            // Add click listener
-            newBatchLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                if (window.initLeadsPage) {
-                    window.initLeadsPage(batchName);
-                }
-            });
-            
-            // Reload batches menu and navigate
+            // Batch creation is now managed in Programs tab.
+            // If this legacy modal is used, just refresh the batches menu.
             setTimeout(async () => {
                 await loadBatchesMenu();
-                setupNavigation(); // Re-setup navigation with new batch
-                location.hash = `leads-${batchName.toLowerCase().replace(/\s+/g, '')}`;
-                navigateToPage(`leads-${batchName.toLowerCase().replace(/\s+/g, '')}`);
+                setupNavigation();
+                location.hash = 'home';
+                navigateToPage('home');
             }, 500);
         } else {
             throw new Error(data.error || 'Failed to create batch');

@@ -16,7 +16,7 @@ const { normalizePhoneToSL } = require('../batches/duplicatePhoneResolver');
 const TTL_MS = 5 * 60 * 1000;
 let globalCache = new Map(); // canonicalPhone -> { assignee, expiresAt }
 
-async function findAssigneeByPhoneInSupabase(canonicalPhone) {
+async function findAssigneeByPhoneInSupabase(canonicalPhone, { batchName } = {}) {
   const sb = getSupabaseAdmin();
   if (!sb) return '';
 
@@ -25,10 +25,14 @@ async function findAssigneeByPhoneInSupabase(canonicalPhone) {
 
   // Candidate search by suffix (fast), then confirm by canonical normalization.
   // crm_leads is the main synced leads table.
-  const { data, error } = await sb
+  let q = sb
     .from('crm_leads')
-    .select('phone, assigned_to, updated_at, created_at')
-    .ilike('phone', `%${last9}`)
+    .select('phone, assigned_to, updated_at, created_at, batch_name')
+    .ilike('phone', `%${last9}`);
+
+  if (batchName) q = q.eq('batch_name', String(batchName));
+
+  const { data, error } = await q
     .order('updated_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
     .limit(50);
@@ -50,7 +54,7 @@ async function findAssigneeByPhoneInSupabase(canonicalPhone) {
   return '';
 }
 
-async function findAssigneeByPhoneAcrossAllSheets(rawPhone) {
+async function findAssigneeByPhoneAcrossAllSheets(rawPhone, opts = {}) {
   const canonical = normalizePhoneToSL(rawPhone);
   if (!canonical) return '';
 
@@ -59,7 +63,7 @@ async function findAssigneeByPhoneAcrossAllSheets(rawPhone) {
 
   // Supabase is source of truth: check leads DB only
   try {
-    const dbAssignee = await findAssigneeByPhoneInSupabase(canonical);
+    const dbAssignee = await findAssigneeByPhoneInSupabase(canonical, opts);
     if (dbAssignee) {
       globalCache.set(canonical, { assignee: dbAssignee, expiresAt: Date.now() + TTL_MS });
       return dbAssignee;

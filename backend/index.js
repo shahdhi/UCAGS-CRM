@@ -93,6 +93,9 @@ app.use('/api/admissions', require('./modules/admissions/admissionsRoutes'));
 app.use('/api/students', require('./modules/students/studentsRoutes'));
 app.use('/api/analytics', require('./modules/analytics/analyticsRoutes'));
 
+// Programs + program batches
+app.use('/api/programs', require('./modules/programs/programsRoutes'));
+
 // Registrations (public intake + admin listing)
 app.use('/api/registrations', require('./modules/registrations/registrationsRoutes'));
 
