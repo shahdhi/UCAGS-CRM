@@ -294,6 +294,60 @@
     openModal('registrationDetailsModal');
   }
 
+  let selectedProgramId = '';
+  let selectedBatchName = '';
+
+  async function loadProgramsForRegistrations() {
+    const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+    const res = await fetch('/api/programs/sidebar', { headers: authHeaders });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Failed to load programs');
+    return json;
+  }
+
+  async function renderProgramTabs() {
+    const tabs = qs('registrationsProgramTabs');
+    const batchSel = qs('registrationsBatchSelect');
+    if (!tabs || !batchSel) return;
+
+    const { programs, batches } = await loadProgramsForRegistrations();
+    if (!selectedProgramId && programs.length) selectedProgramId = programs[0].id;
+
+    tabs.innerHTML = '';
+    programs.forEach(p => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-secondary';
+      btn.style.padding = '6px 10px';
+      btn.style.borderRadius = '999px';
+      const active = String(p.id) === String(selectedProgramId);
+      btn.style.border = active ? '1px solid #592c88' : '1px solid #eaecf0';
+      btn.style.background = active ? '#f4ebff' : '#fff';
+      btn.style.color = active ? '#592c88' : '#344054';
+      btn.textContent = p.name;
+      btn.onclick = async () => {
+        selectedProgramId = p.id;
+        selectedBatchName = '';
+        await renderProgramTabs();
+        await loadRegistrations();
+      };
+      tabs.appendChild(btn);
+    });
+
+    const bs = (batches || []).filter(b => String(b.program_id) === String(selectedProgramId));
+    const current = bs.find(b => b.is_current);
+    batchSel.innerHTML = '';
+    bs.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b.batch_name;
+      opt.textContent = b.batch_name;
+      batchSel.appendChild(opt);
+    });
+
+    if (!selectedBatchName) selectedBatchName = current?.batch_name || (bs[0]?.batch_name || '');
+    batchSel.value = selectedBatchName;
+  }
+
   async function loadRegistrations() {
     const tbody = qs('registrationsTableBody');
     const limitEl = qs('registrationsLimit');
@@ -303,7 +357,7 @@
       tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading registrations...</td></tr>';
     }
 
-    const res = await window.API.registrations.adminList(limit);
+    const res = await window.API.registrations.adminList(limit, { programId: selectedProgramId, batchName: selectedBatchName });
     const rows = res.registrations || [];
 
     lastRowsById = new Map(rows.map(r => [r.id, r]));
@@ -354,6 +408,15 @@
 
     const refreshBtn = qs('registrationsRefreshBtn');
     const limitEl = qs('registrationsLimit');
+    const batchSel = qs('registrationsBatchSelect');
+
+    if (batchSel && !batchSel.__bound) {
+      batchSel.__bound = true;
+      batchSel.addEventListener('change', () => {
+        selectedBatchName = batchSel.value;
+        loadRegistrations().catch(console.error);
+      });
+    }
 
     if (refreshBtn && !refreshBtn.__bound) {
       refreshBtn.__bound = true;
@@ -368,6 +431,7 @@
       limitEl.addEventListener('change', () => loadRegistrations().catch(console.error));
     }
 
+    await renderProgramTabs();
     await loadRegistrations();
   }
 

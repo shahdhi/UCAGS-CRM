@@ -293,9 +293,11 @@ const paymentsAPI = {
 };
 
 const registrationsAPI = {
-  adminList: async (limit = 200) => {
+  adminList: async (limit = 200, { programId = '', batchName = '' } = {}) => {
     const params = new URLSearchParams();
     params.set('limit', String(limit));
+    if (programId) params.set('programId', String(programId));
+    if (batchName) params.set('batchName', String(batchName));
     return fetchAPI(`/registrations/admin?${params.toString()}`);
   },
   adminDelete: async (id) => {
@@ -304,9 +306,11 @@ const registrationsAPI = {
       method: 'DELETE'
     });
   },
-  myList: async (limit = 200) => {
+  myList: async (limit = 200, { programId = '', batchName = '' } = {}) => {
     const params = new URLSearchParams();
     params.set('limit', String(limit));
+    if (programId) params.set('programId', String(programId));
+    if (batchName) params.set('batchName', String(batchName));
     return fetchAPI(`/registrations/my?${params.toString()}`);
   },
   adminAssign: async (id, assignedTo) => {
