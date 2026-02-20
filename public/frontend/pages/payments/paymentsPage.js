@@ -248,10 +248,35 @@
     });
   }
 
+  function isRequiredFieldsFilled(tr) {
+    const method = tr.querySelector('.pay-method')?.value;
+    const plan = tr.querySelector('.pay-plan')?.value;
+    const amt = Number(tr.querySelector('.pay-amount')?.value);
+    const date = tr.querySelector('.pay-date')?.value;
+    const slip = !!tr.querySelector('.pay-slip')?.checked;
+
+    // Email sent + Whatsapp sent are NOT mandatory
+    return !!(method && plan && Number.isFinite(amt) && amt > 0 && date && slip);
+  }
+
+  function updateConfirmButtonState(tr) {
+    const confirmBtn = tr.querySelector('.pay-confirm');
+    if (!confirmBtn) return;
+
+    // Undo should always be possible
+    const isUndo = confirmBtn.textContent.trim().toLowerCase() === 'undo';
+    if (isUndo) {
+      confirmBtn.disabled = false;
+      return;
+    }
+
+    confirmBtn.disabled = !isRequiredFieldsFilled(tr);
+  }
+
   async function loadPayments() {
     const tbody = qs('paymentsTableBody');
     const limit = parseInt(qs('paymentsLimit')?.value || '200', 10) || 200;
-    if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="loading">Loading payments...</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="12" class="loading">Loading payments...</td></tr>';
 
     // Use summary endpoint (one row per registration)
     const fetchStatus = (selectedStatus === 'due_overdue') ? 'all' : selectedStatus;
@@ -265,7 +290,7 @@
 
     if (!tbody) return;
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="10" class="loading">No payments found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="12" class="loading">No payments found</td></tr>';
       return;
     }
 
@@ -273,11 +298,6 @@
     const displayRows = rows;
 
     tbody.innerHTML = displayRows.map(p => {
-      const plan = p.payment_plan || '';
-      const installmentLabel = (p.installment_group_id && p.installment_no)
-        ? ` #${p.installment_no}`
-        : '';
-
       const status = String(p.computed_status || '').toLowerCase();
       const statusBadge = (() => {
         if (status === 'overdue') return '<span class="badge" style="background:#fef3f2; color:#b42318; border:1px solid #fecdca;">Overdue</span>';
@@ -287,12 +307,17 @@
         return '<span style="color:#98a2b3;">-</span>';
       })();
 
+      const installmentText = p.installment_no
+        ? `${String(status).toLowerCase() === 'due' ? 'Due ' : ''}${String(status).toLowerCase() === 'overdue' ? 'Overdue ' : ''}Installment #${p.installment_no}`.trim()
+        : '';
+
       return `
         <tr data-id="${escapeHtml(p.id)}" data-registration-id="${escapeHtml(p.registration_id || '')}">
           <td>
             <a href="#" class="pay-view" style="color:#175CD3; text-decoration:none; font-weight:600;">${escapeHtml(p.registration_name || '')}</a>
           </td>
-          <td>${statusBadge} ${escapeHtml(p.installment_no ? `Installment #${p.installment_no}` : '')}</td>
+          <td>${statusBadge}</td>
+          <td style="color:#475467; font-weight:600;">${escapeHtml(installmentText || '-')}</td>
           <td><input type="checkbox" class="pay-email" ${p.email_sent ? 'checked' : ''} /></td>
           <td><input type="checkbox" class="pay-wa" ${p.whatsapp_sent ? 'checked' : ''} /></td>
           <td>
@@ -316,7 +341,7 @@
           <td><input type="date" class="pay-date form-control" value="${escapeHtml(p.payment_date || '')}" /></td>
           <td><input type="checkbox" class="pay-slip" ${p.slip_received ? 'checked' : ''} /></td>
           <td style="text-align:center;">
-            <button type="button" class="btn btn-success btn-sm pay-confirm" ${(!p.is_confirmed && confirmDisabled) ? 'disabled' : ''}>
+            <button type="button" class="btn btn-success btn-sm pay-confirm">
               ${p.is_confirmed ? 'Undo' : 'Confirm'}
             </button>
           </td>
@@ -366,9 +391,18 @@
       };
 
       tr.querySelectorAll('input,select').forEach(el => {
-        el.addEventListener('change', debounce);
-        el.addEventListener('input', debounce);
+        el.addEventListener('change', () => {
+          updateConfirmButtonState(tr);
+          debounce();
+        });
+        el.addEventListener('input', () => {
+          updateConfirmButtonState(tr);
+          debounce();
+        });
       });
+
+      // initial state
+      updateConfirmButtonState(tr);
 
       const confirmBtn = tr.querySelector('.pay-confirm');
       if (confirmBtn) {
@@ -379,13 +413,8 @@
 
             // Validate required fields before confirm (Undo allowed anytime)
             if (confirmBtn.textContent.trim().toLowerCase() !== 'undo') {
-              const method = tr.querySelector('.pay-method')?.value;
-              const plan = tr.querySelector('.pay-plan')?.value;
-              const amt = Number(tr.querySelector('.pay-amount')?.value);
-              const date = tr.querySelector('.pay-date')?.value;
-              const slip = !!tr.querySelector('.pay-slip')?.checked;
-              if (!(method && plan && Number.isFinite(amt) && amt > 0 && date && slip)) {
-                throw new Error('Fill method, plan, amount, date and slip received before confirming.');
+              if (!isRequiredFieldsFilled(tr)) {
+                throw new Error('Fill payment method, plan, amount, date and slip received before confirming.');
               }
               await window.API.payments.adminConfirm(id);
               if (window.UI && UI.showToast) UI.showToast('Payment confirmed', 'success');
@@ -399,7 +428,8 @@
             console.error(e);
             if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to update payment status', 'error');
           } finally {
-            confirmBtn.disabled = false;
+            // after confirm/undo, recalc current row state (in case loadPayments() fails)
+            updateConfirmButtonState(tr);
           }
         });
       }

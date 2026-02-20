@@ -897,30 +897,56 @@ body {
     font-style: italic;
 }
 
-/* Payments table: compact layout to avoid horizontal scroll */
+/* Payments table: allow horizontal scroll instead of overlapping columns */
+#paymentsView .table-container {
+    overflow-x: auto;
+}
+
 #paymentsView .data-table {
-    table-layout: fixed;
+    table-layout: auto;
+    min-width: 1200px; /* ensures columns have enough room; container will scroll */
 }
 
 #paymentsView .data-table th,
 #paymentsView .data-table td {
     padding: 6px 8px;
     font-size: 12px;
+    vertical-align: middle;
 }
 
-#paymentsView .data-table th { white-space: nowrap; }
+#paymentsView .data-table th {
+    white-space: nowrap;
+}
 
-#paymentsView .data-table th:nth-child(1), #paymentsView .data-table td:nth-child(1) { width: 16%; }
-#paymentsView .data-table th:nth-child(2), #paymentsView .data-table td:nth-child(2) { width: 10%; }
-#paymentsView .data-table th:nth-child(3), #paymentsView .data-table td:nth-child(3) { width: 6%; text-align:center; }
-#paymentsView .data-table th:nth-child(4), #paymentsView .data-table td:nth-child(4) { width: 6%; text-align:center; }
-#paymentsView .data-table th:nth-child(5), #paymentsView .data-table td:nth-child(5) { width: 11%; }
-#paymentsView .data-table th:nth-child(6), #paymentsView .data-table td:nth-child(6) { width: 14%; }
-#paymentsView .data-table th:nth-child(7), #paymentsView .data-table td:nth-child(7) { width: 9%; }
-#paymentsView .data-table th:nth-child(8), #paymentsView .data-table td:nth-child(8) { width: 10%; }
-#paymentsView .data-table th:nth-child(9), #paymentsView .data-table td:nth-child(9) { width: 6%; text-align:center; }
-#paymentsView .data-table th:nth-child(10), #paymentsView .data-table td:nth-child(10) { width: 8%; text-align:center; }
-#paymentsView .data-table th:nth-child(11), #paymentsView .data-table td:nth-child(11) { width: 8%; }
+#paymentsView .data-table td {
+    white-space: nowrap;
+}
+
+/* Keep first column (Name) a bit wider */
+#paymentsView .data-table th:nth-child(1),
+#paymentsView .data-table td:nth-child(1) {
+    min-width: 220px;
+}
+
+/* Status + Installment */
+#paymentsView .data-table th:nth-child(2),
+#paymentsView .data-table td:nth-child(2) {
+    min-width: 120px;
+}
+#paymentsView .data-table th:nth-child(3),
+#paymentsView .data-table td:nth-child(3) {
+    min-width: 180px;
+}
+
+/* Email/Whatsapp checkbox columns */
+#paymentsView .data-table th:nth-child(4),
+#paymentsView .data-table td:nth-child(4),
+#paymentsView .data-table th:nth-child(5),
+#paymentsView .data-table td:nth-child(5),
+#paymentsView .data-table th:nth-child(10),
+#paymentsView .data-table td:nth-child(10) {
+    text-align: center;
+}
 
 #paymentsView .data-table .form-control {
     padding: 6px 8px;
