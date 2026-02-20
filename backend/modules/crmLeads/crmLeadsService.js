@@ -701,6 +701,140 @@ async function listAdminSheets({ assignedTo, batchName }) {
   return Array.from(set).sort((a, b) => String(a).localeCompare(String(b)));
 }
 
+function normalizeSheetName(name) {
+  const raw = String(name || '').trim().replace(/\s+/g, ' ');
+  if (!raw) return '';
+  const low = raw.toLowerCase();
+  if (low === 'main leads') return 'Main Leads';
+  if (low === 'extra leads') return 'Extra Leads';
+  // Title-case-ish: keep user casing, but collapse spaces
+  return raw;
+}
+
+function validateSheetName(name) {
+  const n = normalizeSheetName(name);
+  if (!n) throw Object.assign(new Error('Sheet name is required'), { status: 400 });
+  if (!/^[a-zA-Z0-9 _-]+$/.test(n)) {
+    throw Object.assign(new Error('Sheet name can only contain letters, numbers, spaces, hyphen (-) and underscore (_)'), { status: 400 });
+  }
+  const key = n.toLowerCase();
+  if (['main leads','extra leads'].includes(key)) {
+    throw Object.assign(new Error('This sheet name is reserved'), { status: 400 });
+  }
+  return n;
+}
+
+async function listSheetsForBatch({ batchName, user }) {
+  const sb = requireSupabase();
+  const b = cleanString(batchName);
+  if (!b) throw Object.assign(new Error('batch is required'), { status: 400 });
+
+  const defaults = ['Main Leads', 'Extra Leads'];
+
+  // existing sheets from leads
+  const { data: leadSheets, error: lErr } = await sb
+    .from('crm_leads')
+    .select('sheet_name')
+    .eq('batch_name', b);
+  if (lErr) throw lErr;
+
+  const set = new Set(defaults);
+  (leadSheets || []).map(r => normalizeSheetName(r.sheet_name)).filter(Boolean).forEach(s => set.add(s));
+
+  // shared sheets (admin-created)
+  try {
+    const { data: shared } = await sb
+      .from('batch_shared_sheets')
+      .select('sheet_name')
+      .eq('batch_name', b);
+    (shared || []).map(r => normalizeSheetName(r.sheet_name)).filter(Boolean).forEach(s => set.add(s));
+  } catch (_) {}
+
+  // officer personal sheets
+  if (String(user?.role || '') !== 'admin') {
+    const officerName = cleanString(user?.name);
+    if (officerName) {
+      try {
+        const { data: mine } = await sb
+          .from('officer_custom_sheets')
+          .select('sheet_name')
+          .eq('batch_name', b)
+          .eq('officer_name', officerName);
+        (mine || []).map(r => normalizeSheetName(r.sheet_name)).filter(Boolean).forEach(s => set.add(s));
+      } catch (_) {}
+    }
+  }
+
+  return Array.from(set).sort((a, c) => String(a).localeCompare(String(c)));
+}
+
+async function deleteSheetForBatch({ batchName, sheetName, scope, user }) {
+  const sb = requireSupabase();
+  const b = cleanString(batchName);
+  const sheet = normalizeSheetName(sheetName);
+  if (!b) throw Object.assign(new Error('batch is required'), { status: 400 });
+  if (!sheet) throw Object.assign(new Error('sheet is required'), { status: 400 });
+
+  // Don't allow deleting defaults
+  const low = sheet.toLowerCase();
+  if (['main leads', 'extra leads'].includes(low)) {
+    throw Object.assign(new Error('Cannot delete default sheets'), { status: 400 });
+  }
+
+  const sc = String(scope || '').toLowerCase();
+
+  if (String(user?.role || '') === 'admin' && sc === 'admin') {
+    await sb.from('batch_shared_sheets')
+      .delete()
+      .eq('batch_name', b)
+      .eq('sheet_name', sheet);
+    return { deleted: true, scope: 'admin', sheetName: sheet };
+  }
+
+  const officerName = cleanString(user?.name);
+  if (!officerName) throw Object.assign(new Error('Missing officer name'), { status: 400 });
+
+  // Only allow deletion if it's the officer's own sheet
+  await sb.from('officer_custom_sheets')
+    .delete()
+    .eq('batch_name', b)
+    .eq('officer_name', officerName)
+    .eq('sheet_name', sheet);
+
+  return { deleted: true, scope: 'officer', sheetName: sheet };
+}
+
+async function createSheetForBatch({ batchName, sheetName, scope, user }) {
+  const sb = requireSupabase();
+  const b = cleanString(batchName);
+  if (!b) throw Object.assign(new Error('batchName is required'), { status: 400 });
+
+  const s = validateSheetName(sheetName);
+  const sc = String(scope || '').toLowerCase();
+
+  if (String(user?.role || '') === 'admin' && sc === 'admin') {
+    await sb.from('batch_shared_sheets').upsert({
+      batch_name: b,
+      sheet_name: s,
+      created_by: cleanString(user?.name) || cleanString(user?.email) || null
+    }, { onConflict: 'batch_name,sheet_name' });
+    return { sheetName: s, scope: 'admin' };
+  }
+
+  // officer scope (or default)
+  const officerName = cleanString(user?.name);
+  if (!officerName) throw Object.assign(new Error('Missing officer name'), { status: 400 });
+
+  await sb.from('officer_custom_sheets').upsert({
+    batch_name: b,
+    officer_name: officerName,
+    sheet_name: s,
+    created_at: new Date().toISOString()
+  }, { onConflict: 'batch_name,officer_name,sheet_name' });
+
+  return { sheetName: s, scope: 'officer' };
+}
+
 module.exports = {
   listMyLeads,
   listAdminLeads,
@@ -715,5 +849,8 @@ module.exports = {
   exportAdminCsv,
   importAdminCsv,
   listAdminBatches,
-  listAdminSheets
+  listAdminSheets,
+  listSheetsForBatch,
+  createSheetForBatch,
+  deleteSheetForBatch
 };

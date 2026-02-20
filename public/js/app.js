@@ -647,30 +647,9 @@ function updateDeleteSheetButtons(page) {
         if (!batch || batch === 'all' || !sheet || isDefault(sheet)) return;
         if (!btnLeads) return;
 
-        // Only show delete if this sheet was created by this officer
-        const cacheKey = `${batch}`;
-        window.__myCustomSheetsCache = window.__myCustomSheetsCache || {};
-        const cached = window.__myCustomSheetsCache[cacheKey];
-
-        const ensureAllowed = async () => {
-            if (cached && cached.expiresAt > Date.now()) return cached.sheets;
-            let authHeaders = {};
-            if (window.supabaseClient) {
-                const { data: { session } } = await window.supabaseClient.auth.getSession();
-                if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
-            }
-            const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/my-custom-sheets`, { headers: authHeaders });
-            const json = await res.json();
-            const sheets = (json && json.success && Array.isArray(json.sheets)) ? json.sheets : [];
-            window.__myCustomSheetsCache[cacheKey] = { sheets, expiresAt: Date.now() + 60000 };
-            return sheets;
-        };
-
-        ensureAllowed().then(list => {
-            if (list.map(s => String(s).toLowerCase()).includes(String(sheet).toLowerCase())) {
-                btnLeads.style.display = '';
-            }
-        });
+        // Supabase-only sheets: allow officer to attempt deleting any non-default sheet.
+        // Backend restricts deletion to officer-owned sheets.
+        btnLeads.style.display = '';
 
         btnLeads.onclick = async () => {
             if (!confirm(`Delete sheet "${sheet}" (only for you)? This cannot be undone.`)) return;
@@ -679,7 +658,7 @@ function updateDeleteSheetButtons(page) {
                 const { data: { session } } = await window.supabaseClient.auth.getSession();
                 if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
             }
-            const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/my-sheets/${encodeURIComponent(sheet)}`, { method: 'DELETE', headers: authHeaders });
+            const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}&sheet=${encodeURIComponent(sheet)}&scope=officer`, { method: 'DELETE', headers: authHeaders });
             const json = await res.json();
             if (!json.success) throw new Error(json.error || 'Failed to delete sheet');
             if (window.showToast) showToast('Sheet deleted', 'success');
@@ -698,29 +677,9 @@ function updateDeleteSheetButtons(page) {
         if (!batch || batch === 'all' || !sheet || isDefault(sheet)) return;
         if (!btnMgmt) return;
 
-        const cacheKey = `${batch}`;
-        window.__myCustomSheetsCache = window.__myCustomSheetsCache || {};
-        const cached = window.__myCustomSheetsCache[cacheKey];
-
-        const ensureAllowed = async () => {
-            if (cached && cached.expiresAt > Date.now()) return cached.sheets;
-            let authHeaders = {};
-            if (window.supabaseClient) {
-                const { data: { session } } = await window.supabaseClient.auth.getSession();
-                if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
-            }
-            const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/my-custom-sheets`, { headers: authHeaders });
-            const json = await res.json();
-            const sheets = (json && json.success && Array.isArray(json.sheets)) ? json.sheets : [];
-            window.__myCustomSheetsCache[cacheKey] = { sheets, expiresAt: Date.now() + 60000 };
-            return sheets;
-        };
-
-        ensureAllowed().then(list => {
-            if (list.map(s => String(s).toLowerCase()).includes(String(sheet).toLowerCase())) {
-                btnMgmt.style.display = '';
-            }
-        });
+        // Supabase-only sheets: allow officer to attempt deleting any non-default sheet.
+        // Backend restricts deletion to officer-owned sheets.
+        btnMgmt.style.display = '';
 
         btnMgmt.onclick = async () => {
             if (!confirm(`Delete sheet "${sheet}" (only for you)? This cannot be undone.`)) return;
@@ -729,7 +688,7 @@ function updateDeleteSheetButtons(page) {
                 const { data: { session } } = await window.supabaseClient.auth.getSession();
                 if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
             }
-            const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/my-sheets/${encodeURIComponent(sheet)}`, { method: 'DELETE', headers: authHeaders });
+            const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}&sheet=${encodeURIComponent(sheet)}&scope=officer`, { method: 'DELETE', headers: authHeaders });
             const json = await res.json();
             if (!json.success) throw new Error(json.error || 'Failed to delete sheet');
             if (window.showToast) showToast('Sheet deleted', 'success');
@@ -755,7 +714,7 @@ function updateDeleteSheetButtons(page) {
                 const { data: { session } } = await window.supabaseClient.auth.getSession();
                 if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
             }
-            const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/sheets/${encodeURIComponent(sheet)}`, { method: 'DELETE', headers: authHeaders });
+            const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}&sheet=${encodeURIComponent(sheet)}&scope=admin`, { method: 'DELETE', headers: authHeaders });
             const json = await res.json();
             if (!json.success) throw new Error(json.error || 'Failed to delete sheet');
             if (window.showToast) showToast('Sheet deleted', 'success');
@@ -2276,14 +2235,10 @@ async function setupAddSheetModalHandler() {
                 }
             }
 
-            const url = (scope === 'admin')
-                ? `/api/batch-leads/${encodeURIComponent(batchName)}/sheets`
-                : `/api/batch-leads/${encodeURIComponent(batchName)}/my-sheets`;
-
-            const res = await fetch(url, {
+            const res = await fetch('/api/crm-leads/meta/sheets', {
                 method: 'POST',
                 headers: authHeaders,
-                body: JSON.stringify({ sheetName })
+                body: JSON.stringify({ batchName, sheetName, scope })
             });
             const json = await res.json();
             if (!json.success) throw new Error(json.error || 'Failed to create sheet');

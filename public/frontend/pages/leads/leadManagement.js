@@ -230,7 +230,7 @@ async function loadLeadManagement() {
 
       let sheets = ['Main Leads', 'Extra Leads'];
       try {
-        const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/my-custom-sheets`, { headers: authHeaders });
+        const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`, { headers: authHeaders });
         const json = await res.json();
         if (json.success && Array.isArray(json.sheets)) {
           sheets = Array.from(new Set([...sheets, ...json.sheets]));

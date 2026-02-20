@@ -158,4 +158,20 @@ router.get('/officers', isAdmin, async (req, res) => {
   }
 });
 
+// Manual sync endpoint (admin)
+// POST /api/batches/:batchName/sync
+router.post('/:batchName/sync', isAdmin, async (req, res) => {
+  try {
+    const batchName = String(req.params.batchName || '').trim();
+    validateBatchName(batchName);
+
+    const syncService = require('./batchSyncService');
+    const result = await syncService.syncBatchToSupabase(batchName);
+    res.json(result);
+  } catch (e) {
+    console.error('Batch sync error:', e);
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 module.exports = router;

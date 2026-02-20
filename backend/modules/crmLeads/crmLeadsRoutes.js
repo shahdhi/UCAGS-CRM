@@ -7,7 +7,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { isAuthenticated, isAdmin } = require('../../../server/middleware/auth');
+const { isAuthenticated, isAdmin, isAdminOrOfficer } = require('../../../server/middleware/auth');
 const svc = require('./crmLeadsService');
 
 // Admin meta: list batches for an officer
@@ -17,6 +17,57 @@ router.get('/admin/meta/batches', isAdmin, async (req, res) => {
     const assignedTo = req.query.assignedTo || req.query.officer;
     const batches = await svc.listAdminBatches({ assignedTo });
     res.json({ success: true, batches });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// Meta: list sheets for a batch (Supabase only)
+// GET /api/crm-leads/meta/sheets?batch=Batch-14
+router.get('/meta/sheets', isAdminOrOfficer, async (req, res) => {
+  try {
+    const batchName = req.query.batch;
+    const sheets = await svc.listSheetsForBatch({
+      batchName,
+      user: req.user
+    });
+    res.json({ success: true, sheets });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// Meta: create sheet (Supabase only)
+// POST /api/crm-leads/meta/sheets { batchName, sheetName, scope }
+router.post('/meta/sheets', isAdminOrOfficer, async (req, res) => {
+  try {
+    const { batchName, sheetName, scope } = req.body || {};
+    const result = await svc.createSheetForBatch({
+      batchName,
+      sheetName,
+      scope,
+      user: req.user
+    });
+    res.status(201).json({ success: true, ...result });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// Meta: delete sheet (Supabase only)
+// DELETE /api/crm-leads/meta/sheets?batch=Batch-14&sheet=MySheet&scope=officer|admin
+router.delete('/meta/sheets', isAdminOrOfficer, async (req, res) => {
+  try {
+    const batchName = req.query.batch;
+    const sheetName = req.query.sheet;
+    const scope = req.query.scope;
+    const result = await svc.deleteSheetForBatch({
+      batchName,
+      sheetName,
+      scope,
+      user: req.user
+    });
+    res.json({ success: true, ...result });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }

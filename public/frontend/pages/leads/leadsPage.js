@@ -242,13 +242,13 @@ async function loadLeads() {
       let sheets = ['Main Leads', 'Extra Leads'];
       try {
         if (isOfficerView) {
-          const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/my-custom-sheets`, { headers: authHeaders });
+          const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`, { headers: authHeaders });
           const json = await res.json();
           if (json.success && Array.isArray(json.sheets)) {
             sheets = Array.from(new Set([...sheets, ...json.sheets]));
           }
         } else {
-          const res = await fetch(`/api/batch-leads/${encodeURIComponent(batch)}/sheets?force=1`, { headers: authHeaders });
+          const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`, { headers: authHeaders });
           const json = await res.json();
           if (json.success && Array.isArray(json.sheets)) {
             sheets = Array.from(new Set([...sheets, ...json.sheets]));
@@ -300,6 +300,39 @@ async function loadLeads() {
           window.openAddSheetModal({ batchName: batch, scope: isOfficerView ? 'officer' : 'admin' });
         }
       });
+
+      // Admin-only: Sync from admin Google Sheet -> Supabase
+      if (!isOfficerView) {
+        const syncBtn = document.createElement('button');
+        syncBtn.type = 'button';
+        syncBtn.className = 'btn btn-secondary';
+        syncBtn.style.padding = '6px 10px';
+        syncBtn.innerHTML = '<i class="fas fa-sync"></i> Sync';
+        syncBtn.addEventListener('click', async () => {
+          if (!confirm(`Sync leads from Google Sheet for batch "${batch}" into Supabase?`)) return;
+          try {
+            syncBtn.disabled = true;
+            const res = await fetch(`/api/batches/${encodeURIComponent(batch)}/sync`, {
+              method: 'POST',
+              headers: {
+                ...authHeaders,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({})
+            });
+            const json = await res.json();
+            if (!json.success) throw new Error(json.error || 'Sync failed');
+            if (window.UI && UI.showToast) UI.showToast('Sync completed', 'success');
+            await loadLeads();
+          } catch (e) {
+            console.error(e);
+            if (window.UI && UI.showToast) UI.showToast(e.message || 'Sync failed', 'error');
+          } finally {
+            syncBtn.disabled = false;
+          }
+        });
+        tabsEl.appendChild(syncBtn);
+      }
 
       tabsEl.appendChild(addBtn);
     }
