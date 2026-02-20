@@ -177,8 +177,10 @@
     if (!json.success) throw new Error(json.error || 'Failed to save setup');
   }
 
-  async function open(batchName) {
+  async function open(batchName, { programId = '', batchId = '' } = {}) {
     qs('paymentSetupBatchName').value = batchName;
+    if (qs('paymentSetupProgramId')) qs('paymentSetupProgramId').value = programId;
+    if (qs('paymentSetupBatchId')) qs('paymentSetupBatchId').value = batchId;
     openModal('batchPaymentSetupModal');
     await load(batchName);
   }
@@ -209,6 +211,44 @@
       addPlanBtn.addEventListener('click', () => {
         state.plans.push({ plan_name: '', installment_count: 1, due_dates: [''] });
         renderPlans();
+      });
+    }
+
+    const deleteBtn = qs('paymentSetupDeleteBatchBtn');
+    if (deleteBtn && !deleteBtn.__bound) {
+      deleteBtn.__bound = true;
+      deleteBtn.addEventListener('click', async () => {
+        const programId = qs('paymentSetupProgramId')?.value;
+        const batchId = qs('paymentSetupBatchId')?.value;
+        const batchName = qs('paymentSetupBatchName')?.value;
+        if (!programId || !batchId) {
+          if (window.UI && UI.showToast) UI.showToast('Missing batch context for delete', 'error');
+          return;
+        }
+        if (!confirm(`Delete batch "${batchName}"? This will delete Supabase leads and unlink Google Sheet mapping.`)) return;
+
+        try {
+          deleteBtn.disabled = true;
+          const authHeaders = {
+            ...(await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {})),
+            'Content-Type': 'application/json'
+          };
+          const res = await fetch(`/api/programs/${encodeURIComponent(programId)}/batches/${encodeURIComponent(batchId)}`, {
+            method: 'DELETE',
+            headers: authHeaders
+          });
+          const json = await res.json();
+          if (!json.success) throw new Error(json.error || 'Failed to delete batch');
+          closeModal('batchPaymentSetupModal');
+          if (window.UI && UI.showToast) UI.showToast('Batch deleted', 'success');
+          // refresh programs page if open
+          if (window.initProgramsPage) window.initProgramsPage();
+        } catch (e) {
+          console.error(e);
+          if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to delete batch', 'error');
+        } finally {
+          deleteBtn.disabled = false;
+        }
       });
     }
 

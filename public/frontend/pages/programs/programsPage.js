@@ -134,7 +134,9 @@
                   }
                   return `
                     <tr>
-                      <td>${escapeHtml(b.batch_name)}</td>
+                      <td>
+                        <a href="#" data-action="edit-payment" data-program-id="${escapeHtml(p.id)}" data-batch-id="${escapeHtml(b.id)}" data-batch-name="${escapeHtml(b.batch_name)}" style="color:#175CD3; text-decoration:none; font-weight:600;">${escapeHtml(b.batch_name)}</a>
+                      </td>
                       <td>${b.is_current ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Yes</span>' : '-'}</td>
                       <td>${escapeHtml(new Date(b.created_at).toLocaleString())}</td>
                       <td>
@@ -180,6 +182,20 @@
         if (bn) bn.value = '';
         if (url) url.value = '';
         openModal('programBatchAddModal');
+      });
+    });
+
+    wrap.querySelectorAll('a[data-action="edit-payment"]').forEach(a => {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const batchName = a.getAttribute('data-batch-name');
+        const programId = a.getAttribute('data-program-id');
+        const batchId = a.getAttribute('data-batch-id');
+        if (window.BatchPaymentSetup && window.BatchPaymentSetup.open) {
+          window.BatchPaymentSetup.open(batchName, { programId, batchId }).catch(console.error);
+        } else if (window.openBatchPaymentSetup) {
+          window.openBatchPaymentSetup(batchName);
+        }
       });
     });
 
