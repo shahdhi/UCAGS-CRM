@@ -291,8 +291,8 @@
         <tr data-id="${escapeHtml(p.id)}" data-registration-id="${escapeHtml(p.registration_id || '')}">
           <td>
             <a href="#" class="pay-view" style="color:#175CD3; text-decoration:none; font-weight:600;">${escapeHtml(p.registration_name || '')}</a>
-            <div style="margin-top:4px;">${statusBadge}</div>
           </td>
+          <td>${statusBadge} ${escapeHtml(p.installment_no ? `Installment #${p.installment_no}` : '')}</td>
           <td><input type="checkbox" class="pay-email" ${p.email_sent ? 'checked' : ''} /></td>
           <td><input type="checkbox" class="pay-wa" ${p.whatsapp_sent ? 'checked' : ''} /></td>
           <td>
@@ -316,7 +316,7 @@
           <td><input type="date" class="pay-date form-control" value="${escapeHtml(p.payment_date || '')}" /></td>
           <td><input type="checkbox" class="pay-slip" ${p.slip_received ? 'checked' : ''} /></td>
           <td style="text-align:center;">
-            <button type="button" class="btn btn-success btn-sm pay-confirm">
+            <button type="button" class="btn btn-success btn-sm pay-confirm" ${(!p.is_confirmed && confirmDisabled) ? 'disabled' : ''}>
               ${p.is_confirmed ? 'Undo' : 'Confirm'}
             </button>
           </td>
@@ -376,13 +376,24 @@
           try {
             confirmBtn.disabled = true;
             await patch();
-            if (confirmBtn.textContent.trim().toLowerCase() === 'undo') {
-              await window.API.payments.adminUnconfirm(id);
-              if (window.UI && UI.showToast) UI.showToast('Payment unconfirmed', 'success');
-            } else {
+
+            // Validate required fields before confirm (Undo allowed anytime)
+            if (confirmBtn.textContent.trim().toLowerCase() !== 'undo') {
+              const method = tr.querySelector('.pay-method')?.value;
+              const plan = tr.querySelector('.pay-plan')?.value;
+              const amt = Number(tr.querySelector('.pay-amount')?.value);
+              const date = tr.querySelector('.pay-date')?.value;
+              const slip = !!tr.querySelector('.pay-slip')?.checked;
+              if (!(method && plan && Number.isFinite(amt) && amt > 0 && date && slip)) {
+                throw new Error('Fill method, plan, amount, date and slip received before confirming.');
+              }
               await window.API.payments.adminConfirm(id);
               if (window.UI && UI.showToast) UI.showToast('Payment confirmed', 'success');
+            } else {
+              await window.API.payments.adminUnconfirm(id);
+              if (window.UI && UI.showToast) UI.showToast('Payment unconfirmed', 'success');
             }
+
             await loadPayments();
           } catch (e) {
             console.error(e);
