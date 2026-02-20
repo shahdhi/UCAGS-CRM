@@ -607,12 +607,22 @@ body {
     transition: none !important;
 }
 
+#attendanceView .dashboard-card,
 #attendanceView .dashboard-card:hover,
-#attendanceView .dashboard-card:active,
-#reportsView .dashboard-card:hover,
-#reportsView .dashboard-card:active {
+#attendanceView .dashboard-card:active {
+    transition: none !important;
     transform: none !important;
     box-shadow: var(--shadow-sm) !important;
+    border-color: var(--separator) !important;
+}
+
+#reportsView .dashboard-card,
+#reportsView .dashboard-card:hover,
+#reportsView .dashboard-card:active {
+    transition: none !important;
+    transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
+    border-color: var(--separator) !important;
 }
 
 /* Attendance view: also stop buttons from moving (global btn-success/btn-warning hover uses translateY) */
@@ -1143,6 +1153,16 @@ body {
 /* Attendance tables: prevent hover from causing horizontal scrollbar/reflow */
 #attendanceView .table-container {
     overflow-x: hidden; /* no horizontal scrollbar on hover */
+    transition: none !important;
+    box-shadow: var(--shadow-sm) !important;
+    border-color: var(--separator) !important;
+}
+
+#attendanceView .table-container:hover,
+#attendanceView .table-container:active {
+    transition: none !important;
+    box-shadow: var(--shadow-sm) !important;
+    border-color: var(--separator) !important;
 }
 
 #attendanceView .data-table {
