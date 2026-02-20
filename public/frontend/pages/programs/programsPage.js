@@ -162,6 +162,7 @@
         if (!confirm('Delete this program? This will delete Supabase leads for all its batches and unlink their Google Sheet mappings.')) return;
         try {
           await deleteProgram(programId);
+          if (window.Cache) window.Cache.invalidatePrefix('programs:');
           if (window.UI && UI.showToast) UI.showToast('Program deleted', 'success');
           await load();
         } catch (e) {
@@ -205,6 +206,7 @@
         const batchId = btn.getAttribute('data-batch-id');
         try {
           await setCurrentBatch(programId, batchId);
+          if (window.Cache) window.Cache.invalidatePrefix('programs:');
           if (window.UI && UI.showToast) UI.showToast('Current batch updated', 'success');
           await load();
         } catch (e) {
@@ -221,6 +223,7 @@
         if (!confirm('Delete this batch? This will delete Supabase leads for this batch and unlink the Google Sheet mapping.')) return;
         try {
           await deleteBatch(programId, batchId);
+          if (window.Cache) window.Cache.invalidatePrefix('programs:');
           if (window.UI && UI.showToast) UI.showToast('Batch deleted', 'success');
           await load();
         } catch (e) {
@@ -238,11 +241,25 @@
     isLoading = true;
 
     const list = qs('programsList');
+    const ttlMs = 10 * 60 * 1000; // 10 minutes
+    const cacheKey = 'programs:all';
+
+    // Fast path: render from cache if fresh and skip fetch
+    if (list && !showSkeleton && window.Cache) {
+      const cached = window.Cache.getFresh(cacheKey, ttlMs);
+      if (cached && cached.programs) {
+        render(cached);
+        isLoading = false;
+        return;
+      }
+    }
+
     // Only show skeleton on first load to avoid flicker (stable like Lead Management)
     if (list && showSkeleton) list.innerHTML = '<p class="loading">Loading programs...</p>';
 
     try {
       const data = await fetchPrograms();
+      if (window.Cache) window.Cache.setWithTs(cacheKey, data);
       render(data);
     } catch (e) {
       console.error(e);
@@ -286,6 +303,7 @@
       if (!json.success) throw new Error(json.error || 'Failed to link Google Sheet');
 
       await addBatch(programId, batchName);
+      if (window.Cache) window.Cache.invalidatePrefix('programs:');
       closeModal('programBatchAddModal');
       if (window.UI && UI.showToast) UI.showToast('Batch created, sheet linked, and set as current', 'success');
       await load();
@@ -334,6 +352,7 @@
         try {
           programSaveBtn.disabled = true;
           await createProgram(name);
+          if (window.Cache) window.Cache.invalidatePrefix('programs:');
           closeModal('programAddModal');
           if (window.UI && UI.showToast) UI.showToast('Program created', 'success');
           await load();

@@ -192,10 +192,20 @@
   }
 
   async function fetchSchedule() {
+    const ttlMs = 2 * 60 * 1000; // 2 minutes
+    const cacheKey = 'reports:dailySchedule';
+
+    if (window.Cache) {
+      const cached = window.Cache.getFresh(cacheKey, ttlMs);
+      if (cached) return cached;
+    }
+
     const headers = await authHeaders();
     const res = await fetch('/api/reports/daily/schedule', { headers });
     const json = await res.json();
     if (!json?.success) throw new Error(json?.error || 'Failed to load schedule');
+
+    if (window.Cache) window.Cache.setWithTs(cacheKey, json.config);
     return json.config;
   }
 
@@ -221,15 +231,30 @@
 
     const json = await res.json();
     if (!json?.success) throw new Error(json?.error || 'Submit failed');
+
+    // Invalidate admin daily cache for today
+    if (window.Cache) window.Cache.invalidatePrefix('reports:daily:');
+
     return json.report;
   }
 
   async function adminLoadReports(date) {
+    const ttlMs = 2 * 60 * 1000; // 2 minutes
+    const cacheKey = `reports:daily:${encodeURIComponent(date)}`;
+
+    if (window.Cache) {
+      const cached = window.Cache.getFresh(cacheKey, ttlMs);
+      if (cached && Array.isArray(cached)) return cached;
+    }
+
     const headers = await authHeaders();
     const res = await fetch(`/api/reports/daily?date=${encodeURIComponent(date)}`, { headers });
     const json = await res.json();
     if (!json?.success) throw new Error(json?.error || 'Failed to load reports');
-    return json.reports || [];
+
+    const rows = json.reports || [];
+    if (window.Cache) window.Cache.setWithTs(cacheKey, rows);
+    return rows;
   }
 
   function formatTimeLabel(hhmm) {
@@ -262,6 +287,9 @@
 
     const json = await res.json();
     if (!json?.success) throw new Error(json?.error || 'Failed to save schedule');
+
+    if (window.Cache) window.Cache.invalidate('reports:dailySchedule');
+
     return json.config;
   }
 
@@ -295,6 +323,7 @@
     $('submitDailyReportBtn').textContent = 'Submit';
 
     // reload current date table
+    if (window.Cache) window.Cache.invalidatePrefix('reports:daily:');
     const date = $('reportsAdminDate')?.value || todayISO();
     const rows = await adminLoadReports(date);
     renderAdminTable(rows);

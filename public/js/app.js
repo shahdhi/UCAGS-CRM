@@ -1237,9 +1237,73 @@ async function loadUsers({ showSkeleton = false } = {}) {
             tbody.innerHTML = '<tr><td colspan="7" class="loading">Loading users...</td></tr>';
         }
         
+        const ttlMs = 10 * 60 * 1000; // 10 minutes
+        const cacheKey = 'users:all';
+
+        // Fast path: use cache when not explicitly showing skeleton
+        if (!showSkeleton && window.Cache) {
+            const cached = window.Cache.getFresh(cacheKey, ttlMs);
+            if (cached && cached.success && cached.users) {
+                const data = cached;
+
+                const users = data.users || [];
+                
+                if (users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">No users found</td></tr>';
+                    return;
+                }
+
+                // Define admin emails that cannot be deleted
+                const protectedAdminEmails = ['admin@ucags.edu.lk', 'mohamedunais2018@gmail.com'];
+
+                tbody.innerHTML = users.map(user => {
+                    const isProtectedAdmin = protectedAdminEmails.includes(user.email.toLowerCase());
+
+                    return `
+                    <tr>
+                        <td>${escapeHtml(user.email)}</td>
+                        <td>${escapeHtml(user.name || '-')}</td>
+                        <td>
+                            <span class="badge badge-${user.role === 'admin' ? 'primary' : 'secondary'}">
+                                ${user.role === 'admin' ? 'Admin' : 'Staff'}
+                            </span>
+                        </td>
+                        <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                        <td>${user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : '-'}</td>
+                        <td>
+                            <span class="badge badge-${user.email_confirmed ? 'success' : 'warning'}">
+                                ${user.email_confirmed ? 'Active' : 'Pending'}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 5px;">
+                                ${!user.email_confirmed ? `
+                                <button class="btn btn-sm btn-success" onclick="confirmUserEmail('${user.id}', '${escapeHtml(user.email)}')" title="Confirm Email">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                ` : ''}
+                                <button class="btn btn-sm btn-warning" onclick="openChangePasswordModal('${user.id}', '${escapeHtml(user.email)}')" title="Change Password">
+                                    <i class="fas fa-key"></i>
+                                </button>
+                                ${!isProtectedAdmin ? `
+                                <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.id}')" title="Delete User">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                    `;
+                }).join('');
+
+                return;
+            }
+        }
+
         // Get all users from API
         const response = await fetch('/api/users');
         const data = await response.json();
+        if (window.Cache && data && data.success) window.Cache.setWithTs(cacheKey, data);
         
         if (!data.success) {
             throw new Error(data.error || 'Failed to load users');
@@ -1335,6 +1399,7 @@ async function deleteUser(userId) {
         } else {
             alert('Staff member deleted successfully!');
         }
+        if (window.Cache) window.Cache.invalidatePrefix('users:');
         loadUsers().catch(console.error);
     } catch (error) {
         console.error('Error deleting user:', error);
@@ -1400,6 +1465,7 @@ async function addNewUser(event) {
         document.getElementById('addUserForm').reset();
         
         // Reload users
+        if (window.Cache) window.Cache.invalidatePrefix('users:');
         loadUsers().catch(console.error);
     } catch (error) {
         console.error('Error adding user:', error);
@@ -1565,6 +1631,7 @@ async function confirmUserEmail(userId, userEmail) {
         } else {
             alert(data.message);
         }
+        if (window.Cache) window.Cache.invalidatePrefix('users:');
         loadUsers().catch(console.error);
     } catch (error) {
         console.error('Error confirming email:', error);

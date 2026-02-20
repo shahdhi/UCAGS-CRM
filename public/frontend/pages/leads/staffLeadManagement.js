@@ -369,7 +369,7 @@
     el.textContent = parts.length ? parts.join('  •  ') : "View any officer's lead lists (Supabase)";
   }
 
-  async function refreshStaffLeadManagement() {
+  async function refreshStaffLeadManagement({ showSkeleton = false } = {}) {
     if (isLoading) return;
 
     const officer = getSelectedOfficer();
@@ -377,15 +377,33 @@
     const sheetSel = $('staffLeadMgmtSheetSelect');
 
     const tbody = $('staffLeadMgmtTableBody');
-    if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="7" class="loading">Loading leads...</td></tr>`;
-    }
 
     if (!officer || !batchSel || !sheetSel || !batchSel.value || !sheetSel.value) {
       staffLeads = [];
       filteredStaffLeads = [];
       renderStaffTable();
       return;
+    }
+
+    const batch = batchSel.value;
+    const sheet = sheetSel.value;
+
+    const ttlMs = 2 * 60 * 1000; // 2 minutes
+    const cacheKey = `leads:staffMgmt:${encodeURIComponent(officer.officerUserId)}:${encodeURIComponent(officer.officerName)}:${encodeURIComponent(batch)}:${encodeURIComponent(sheet)}`;
+
+    // Fast path: use cache
+    if (tbody && !showSkeleton && window.Cache) {
+      const cached = window.Cache.getFresh(cacheKey, ttlMs);
+      if (cached && Array.isArray(cached)) {
+        staffLeads = cached;
+        filteredStaffLeads = [...staffLeads];
+        filterStaffLeads();
+        return;
+      }
+    }
+
+    if (tbody && (showSkeleton || !window.Cache)) {
+      tbody.innerHTML = `<tr><td colspan="7" class="loading">Loading leads...</td></tr>`;
     }
 
     isLoading = true;
@@ -429,6 +447,9 @@
           // ignore
         }
       }));
+
+      // cache hydrated staff leads
+      if (window.Cache) window.Cache.setWithTs(cacheKey, staffLeads);
 
       filteredStaffLeads = [...staffLeads];
       filterStaffLeads();

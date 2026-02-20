@@ -135,6 +135,25 @@ async function loadLeadManagement() {
     console.log('⚠️ Already loading leads, skipping...');
     return;
   }
+
+  const ttlMs = 2 * 60 * 1000; // 2 minutes
+
+  // Cache key depends on officer + batch + sheet
+  const batchFilter = window.officerBatchFilter;
+  const sheet = window.officerSheetFilter || 'Main Leads';
+  const officerKey = window.currentUser?.id || window.currentUser?.email || window.currentUser?.name || 'me';
+  const cacheKey = `leads:management:${encodeURIComponent(officerKey)}:${encodeURIComponent(batchFilter||'all')}:${encodeURIComponent(sheet)}`;
+
+  // Fast path: use cache and skip fetch
+  if (window.Cache) {
+    const cached = window.Cache.getFresh(cacheKey, ttlMs);
+    if (cached && Array.isArray(cached)) {
+      managementLeads = cached;
+      filteredManagementLeads = [...managementLeads];
+      renderManagementTable();
+      return;
+    }
+  }
   
   isLoading = true;
   
@@ -341,6 +360,9 @@ async function loadLeadManagement() {
     console.log('📊 Filtered leads:', filteredManagementLeads);
     
     console.log(`✓ Loaded ${managementLeads.length} leads for management`);
+
+    // cache hydrated leads for faster reloads
+    if (window.Cache) window.Cache.setWithTs(cacheKey, managementLeads);
 
     renderManagementTable();
     
@@ -837,6 +859,9 @@ async function saveLeadManagement(event, leadId) {
         if (json.lead) {
           Object.assign(lead, json.lead);
         }
+
+        // Invalidate leads caches (officer + admin views)
+        if (window.Cache) window.Cache.invalidatePrefix('leads:');
 
         // Ensure status is always in canonical form for table rendering
         lead.status = normalizeLeadStatus(lead.status);
