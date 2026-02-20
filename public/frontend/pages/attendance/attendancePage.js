@@ -304,14 +304,16 @@
       return;
     }
 
-    tbody.innerHTML = records.slice(0, 500).map(r => {
+    const rows = records.slice(0, 500);
+    const trHtmlFn = (r) => {
       const hasLoc = !!(r.locationLat && r.locationLng);
       const mapBtn = hasLoc
         ? `<a class="btn btn-secondary btn-sm" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(r.locationLat)},${encodeURIComponent(r.locationLng)}">View on map</a>`
         : '';
 
+      const key = `${r.date || ''}__${r.staffName || ''}`;
       return `
-        <tr>
+        <tr data-row-key="${escapeHtml(key)}">
           <td>${escapeHtml(r.date)}</td>
           <td>${escapeHtml(r.staffName)}</td>
           <td>${escapeHtml(r.checkIn || '-')}</td>
@@ -319,7 +321,13 @@
           <td>${mapBtn}</td>
         </tr>
       `;
-    }).join('');
+    };
+
+    if (window.DOMPatcher?.patchTableBody) {
+      window.DOMPatcher.patchTableBody(tbody, rows, (x) => `${x.date || ''}__${x.staffName || ''}`, trHtmlFn);
+    } else {
+      tbody.innerHTML = rows.map(trHtmlFn).join('');
+    }
   }
 
   // ---- Officer calendar + leave requests ----
@@ -631,13 +639,13 @@
         return;
       }
 
-      tbody.innerHTML = list.map(r => {
+      const trHtmlFn = (r) => {
         const actions = status === 'pending'
           ? `<button class="btn btn-success btn-sm" data-act="approve" data-id="${escapeHtml(r.id)}">Approve</button>
              <button class="btn btn-danger btn-sm" data-act="reject" data-id="${escapeHtml(r.id)}">Reject</button>`
           : '';
         return `
-          <tr>
+          <tr data-row-key="${escapeHtml(r.id)}">
             <td>${escapeHtml(r.leave_date)}</td>
             <td>${escapeHtml(r.officer_name)}</td>
             <td>${escapeHtml(r.reason || '')}</td>
@@ -645,7 +653,13 @@
             <td style="display:flex; gap:6px; flex-wrap: wrap;">${actions}</td>
           </tr>
         `;
-      }).join('');
+      };
+
+      if (window.DOMPatcher?.patchTableBody) {
+        window.DOMPatcher.patchTableBody(tbody, list, (x) => x.id, trHtmlFn);
+      } else {
+        tbody.innerHTML = list.map(trHtmlFn).join('');
+      }
 
       // bind actions
       tbody.querySelectorAll('button[data-act]').forEach(btn => {

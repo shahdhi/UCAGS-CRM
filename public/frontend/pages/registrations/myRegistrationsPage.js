@@ -312,7 +312,7 @@
         return;
       }
 
-      tbody.innerHTML = rows.map(r => {
+      const trHtmlFn = (r) => {
         const submittedAt = formatDateTimeLocal(r.created_at);
         const email = r.email ?? r.payload?.email ?? '';
         const paid = !!(r.payment_received);
@@ -326,7 +326,7 @@
           : '<span style="color:#98a2b3;">-</span>';
 
         return `
-          <tr data-registration-id="${escapeHtml(r.id)}" style="cursor:pointer;">
+          <tr data-row-key="${escapeHtml(r.id)}" data-registration-id="${escapeHtml(r.id)}" style="cursor:pointer;">
             <td>${escapeHtml(r.name)}</td>
             <td>${escapeHtml(r.phone_number)}</td>
             <td>${escapeHtml(email)}</td>
@@ -335,7 +335,13 @@
             <td>${escapeHtml(submittedAt)}</td>
           </tr>
         `;
-      }).join('');
+      };
+
+      if (window.DOMPatcher?.patchTableBody) {
+        window.DOMPatcher.patchTableBody(tbody, rows, (x) => x.id, trHtmlFn);
+      } else {
+        tbody.innerHTML = rows.map(trHtmlFn).join('');
+      }
     };
 
     // Fast path: render from cache if fresh and skip fetch

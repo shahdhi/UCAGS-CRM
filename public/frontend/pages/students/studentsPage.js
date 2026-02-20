@@ -80,17 +80,23 @@
         return;
       }
 
-      tbody.innerHTML = rows.map(s => {
+      const trHtmlFn = (s) => {
         const key = String(s.id || s.student_id);
         return `
-          <tr data-student-key="${escapeHtml(key)}" style="cursor:pointer;">
+          <tr data-row-key="${escapeHtml(key)}" data-student-key="${escapeHtml(key)}" style="cursor:pointer;">
             <td style="font-weight:700;">${escapeHtml(s.student_id || '')}</td>
             <td>${escapeHtml(s.name || '')}</td>
             <td>${escapeHtml(s.phone_number || '')}</td>
             <td>${escapeHtml(s.email || '')}</td>
           </tr>
         `;
-      }).join('');
+      };
+
+      if (window.DOMPatcher?.patchTableBody) {
+        window.DOMPatcher.patchTableBody(tbody, rows, (x) => x.id || x.student_id, trHtmlFn);
+      } else {
+        tbody.innerHTML = rows.map(trHtmlFn).join('');
+      }
 
       loadedOnce = true;
     } catch (e) {

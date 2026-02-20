@@ -130,32 +130,42 @@
 
     const escape = (s) => String(s ?? '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-    wrap.innerHTML = `
-      <div class="table-container">
-        <table class="data-table">
-          <thead>
-            <tr>${cols.map(c => `<th>${escape(c.label)}</th>`).join('')}</tr>
-          </thead>
-          <tbody>
-            ${reports.map(r => `
-              <tr>
-                <td>${escape(r.officer_name || r.officer_user_id)}</td>
-                <td>${escape(r.slot_key)}</td>
-                <td>${escape(r.fresh_calls_made)}</td>
-                <td>${escape(r.fresh_messages_reached)}</td>
-                <td>${escape(r.interested_leads)}</td>
-                <td>${escape(r.followup_calls)}</td>
-                <td>${escape(r.followup_messages)}</td>
-                <td>${escape(r.followup_scheduled)}</td>
-                <td>${escape(r.closures)}</td>
-                <td style="max-width: 280px; white-space: pre-wrap;">${escape(r.notes || '')}</td>
-                <td><button class="btn btn-secondary" data-edit-report="${r.id}"><i class="fas fa-edit"></i> Edit</button></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
+    const trHtmlFn = (r) => `
+      <tr data-row-key="${escape(String(r.id))}">
+        <td>${escape(r.officer_name || r.officer_user_id)}</td>
+        <td>${escape(r.slot_key)}</td>
+        <td>${escape(r.fresh_calls_made)}</td>
+        <td>${escape(r.fresh_messages_reached)}</td>
+        <td>${escape(r.interested_leads)}</td>
+        <td>${escape(r.followup_calls)}</td>
+        <td>${escape(r.followup_messages)}</td>
+        <td>${escape(r.followup_scheduled)}</td>
+        <td>${escape(r.closures)}</td>
+        <td style="max-width: 280px; white-space: pre-wrap;">${escape(r.notes || '')}</td>
+        <td><button class="btn btn-secondary" data-edit-report="${r.id}"><i class="fas fa-edit"></i> Edit</button></td>
+      </tr>
     `;
+
+    // Create table skeleton once, then patch tbody
+    if (!wrap.querySelector('table')) {
+      wrap.innerHTML = `
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>${cols.map(c => `<th>${escape(c.label)}</th>`).join('')}</tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    const tbody = wrap.querySelector('tbody');
+    if (tbody && window.DOMPatcher?.patchTableBody) {
+      window.DOMPatcher.patchTableBody(tbody, reports, (x) => x.id, trHtmlFn);
+    } else if (tbody) {
+      tbody.innerHTML = reports.map(trHtmlFn).join('');
+    }
 
     wrap.querySelectorAll('[data-edit-report]')?.forEach(btn => {
       btn.addEventListener('click', async () => {

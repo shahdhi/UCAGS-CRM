@@ -323,7 +323,7 @@
     // Summary already returns one row per registration
     const displayRows = rows;
 
-    tbody.innerHTML = displayRows.map(p => {
+    const trHtmlFn = (p) => {
       const status = String(p.computed_status || '').toLowerCase();
       const statusBadge = (() => {
         if (status === 'overdue') return '<span class="badge" style="background:#fef3f2; color:#b42318; border:1px solid #fecdca;">Overdue</span>';
@@ -375,9 +375,116 @@
           <td><input type="text" class="pay-receipt form-control" value="${escapeHtml(p.receipt_no || '')}" style="min-width:120px;" /></td>
         </tr>
       `;
-    }).join('');
+    };
 
-    // bind actions
+    const htmlRows = displayRows.map(trHtmlFn).join('');
+
+    if (window.DOMPatcher?.patchTableBody) {
+      window.DOMPatcher.patchTableBody(tbody, displayRows, (x) => x.registration_id || x.id, (row) => {
+        const tr = trHtmlFn(row);
+        return tr.replace('<tr ', `<tr data-row-key="${escapeHtml(row.registration_id || row.id)}" `);
+      });
+    } else {
+      tbody.innerHTML = htmlRows;
+    }
+
+    // bind actions (delegated once)
+    if (!tbody.__delegated) {
+      tbody.__delegated = true;
+
+      const patchFromTr = async (tr) => {
+        const id = tr.getAttribute('data-id');
+        const body = {
+          email_sent: tr.querySelector('.pay-email')?.checked,
+          whatsapp_sent: tr.querySelector('.pay-wa')?.checked,
+          payment_method: tr.querySelector('.pay-method')?.value,
+          payment_plan: tr.querySelector('.pay-plan')?.value,
+          amount: Number(tr.querySelector('.pay-amount')?.value),
+          payment_date: tr.querySelector('.pay-date')?.value || null,
+          slip_received: tr.querySelector('.pay-slip')?.checked,
+          receipt_no: tr.querySelector('.pay-receipt')?.value
+        };
+        await window.API.payments.adminUpdate(id, body);
+      };
+
+      let t = null;
+      const debouncePatch = (tr) => {
+        if (t) clearTimeout(t);
+        t = setTimeout(() => {
+          patchFromTr(tr).catch(e => {
+            console.error(e);
+            if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to save payment', 'error');
+          });
+        }, 600);
+      };
+
+      tbody.addEventListener('click', (e) => {
+        const view = e.target?.closest?.('.pay-view');
+        if (view) {
+          e.preventDefault();
+          const tr = view.closest('tr[data-id]');
+          const registrationId = tr?.getAttribute('data-registration-id');
+          const registrationName = view.textContent;
+          if (registrationId) openPaymentDetails(registrationId, registrationName).catch(console.error);
+          return;
+        }
+
+        const btn = e.target?.closest?.('.pay-confirm');
+        if (btn) {
+          const tr = btn.closest('tr[data-id]');
+          const id = tr?.getAttribute('data-id');
+          if (!tr || !id) return;
+
+          (async () => {
+            try {
+              btn.disabled = true;
+              await patchFromTr(tr);
+
+              if (btn.textContent.trim().toLowerCase() !== 'undo') {
+                if (!isRequiredFieldsFilled(tr)) {
+                  throw new Error('Fill payment method, plan, amount, date and slip received before confirming.');
+                }
+                await window.API.payments.adminConfirm(id);
+                if (window.UI && UI.showToast) UI.showToast('Payment confirmed', 'success');
+              } else {
+                await window.API.payments.adminUnconfirm(id);
+                if (window.UI && UI.showToast) UI.showToast('Payment unconfirmed', 'success');
+              }
+
+              if (window.Cache) window.Cache.invalidatePrefix('payments:adminSummary');
+              await loadPayments();
+            } catch (err) {
+              console.error(err);
+              if (window.UI && UI.showToast) UI.showToast(err.message || 'Failed to update payment status', 'error');
+            } finally {
+              btn.disabled = false;
+            }
+          })();
+          return;
+        }
+      });
+
+      tbody.addEventListener('change', (e) => {
+        const tr = e.target?.closest?.('tr[data-id]');
+        if (!tr) return;
+        updateConfirmButtonState(tr);
+        debouncePatch(tr);
+      });
+
+      tbody.addEventListener('input', (e) => {
+        const tr = e.target?.closest?.('tr[data-id]');
+        if (!tr) return;
+        updateConfirmButtonState(tr);
+        debouncePatch(tr);
+      });
+    }
+
+    // initial state for confirm buttons
+    tbody.querySelectorAll('tr[data-id]').forEach(tr => updateConfirmButtonState(tr));
+
+    return;
+
+    // legacy per-row binding removed
     tbody.querySelectorAll('tr[data-id]').forEach(tr => {
       const id = tr.getAttribute('data-id');
       const registrationId = tr.getAttribute('data-registration-id');

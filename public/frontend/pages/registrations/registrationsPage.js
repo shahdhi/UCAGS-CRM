@@ -450,7 +450,7 @@
         return;
       }
 
-      tbody.innerHTML = rows.map(r => {
+      const trHtmlFn = (r) => {
         const submittedAt = formatDateTimeLocal(r.created_at);
         const email = r.email ?? r.payload?.email ?? '';
         const assigned = r.assigned_to ?? r.payload?.assigned_to ?? '';
@@ -465,7 +465,7 @@
           : `<button type="button" class="btn btn-primary btn-sm reg-enroll-btn" data-enroll-id="${escapeHtml(r.id)}">Enroll</button>`;
 
         return `
-          <tr class="clickable" data-registration-id="${escapeHtml(r.id)}" style="cursor:pointer;">
+          <tr class="clickable" data-row-key="${escapeHtml(r.id)}" data-registration-id="${escapeHtml(r.id)}" style="cursor:pointer;">
             <td>${escapeHtml(r.name)}</td>
             <td>${escapeHtml(r.phone_number)}</td>
             <td>${escapeHtml(email)}</td>
@@ -475,7 +475,13 @@
             <td>${escapeHtml(submittedAt)}</td>
           </tr>
         `;
-      }).join('');
+      };
+
+      if (window.DOMPatcher?.patchTableBody) {
+        window.DOMPatcher.patchTableBody(tbody, rows, (x) => x.id, trHtmlFn);
+      } else {
+        tbody.innerHTML = rows.map(trHtmlFn).join('');
+      }
     };
 
     // Fast path: render from cache if fresh and skip fetch

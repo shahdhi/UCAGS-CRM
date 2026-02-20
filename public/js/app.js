@@ -1319,11 +1319,10 @@ async function loadUsers({ showSkeleton = false } = {}) {
         // Define admin emails that cannot be deleted
         const protectedAdminEmails = ['admin@ucags.edu.lk', 'mohamedunais2018@gmail.com'];
         
-        tbody.innerHTML = users.map(user => {
+        const trHtmlFn = (user) => {
             const isProtectedAdmin = protectedAdminEmails.includes(user.email.toLowerCase());
-            
             return `
-            <tr>
+            <tr data-row-key="${escapeHtml(user.id)}">
                 <td>${escapeHtml(user.email)}</td>
                 <td>${escapeHtml(user.name || '-')}</td>
                 <td>
@@ -1357,7 +1356,13 @@ async function loadUsers({ showSkeleton = false } = {}) {
                 </td>
             </tr>
             `;
-        }).join('');
+        };
+
+        if (window.DOMPatcher?.patchTableBody) {
+            window.DOMPatcher.patchTableBody(tbody, users, (u) => u.id, trHtmlFn);
+        } else {
+            tbody.innerHTML = users.map(trHtmlFn).join('');
+        }
         
     } catch (error) {
         console.error('Error loading users:', error);
