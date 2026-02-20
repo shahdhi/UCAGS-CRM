@@ -908,8 +908,14 @@ async function navigateToPage(page) {
             }
             break;
         case 'admissions':
-        case 'students':
             showPlaceholderMessage(page);
+            break;
+        case 'students':
+            if (window.initStudentsPage) {
+                window.initStudentsPage();
+            } else {
+                showPlaceholderMessage(page);
+            }
             break;
         case 'calendar':
             loadCalendar();

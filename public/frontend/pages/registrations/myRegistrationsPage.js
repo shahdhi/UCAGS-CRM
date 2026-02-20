@@ -291,7 +291,7 @@
 
     // Only show skeleton on first load to prevent flicker
     if (tbody && showSkeleton) {
-      tbody.innerHTML = '<tr><td colspan="5" class="loading">Loading registrations...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading registrations...</td></tr>';
     }
 
     try {
@@ -301,9 +301,20 @@
 
       if (!tbody) return;
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="5" class="loading">No registrations found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">No registrations found</td></tr>';
         return;
       }
+
+      const isEnrolled = (reg) => {
+        const payload = reg?.payload || {};
+        return !!(
+          reg?.enrolled === true ||
+          reg?.is_enrolled === true ||
+          reg?.enrolled_at ||
+          payload?.enrolled === true ||
+          payload?.enrolled_at
+        );
+      };
 
       tbody.innerHTML = rows.map(r => {
         const submittedAt = formatDateTimeLocal(r.created_at);
@@ -313,12 +324,18 @@
           ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Received</span>'
           : '<span style="color:#98a2b3;">-</span>';
 
+        const enrolled = isEnrolled(r);
+        const enrolledCell = enrolled
+          ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Enrolled</span>'
+          : '<span style="color:#98a2b3;">-</span>';
+
         return `
           <tr data-registration-id="${escapeHtml(r.id)}" style="cursor:pointer;">
             <td>${escapeHtml(r.name)}</td>
             <td>${escapeHtml(r.phone_number)}</td>
             <td>${escapeHtml(email)}</td>
             <td>${paymentCell}</td>
+            <td>${enrolledCell}</td>
             <td>${escapeHtml(submittedAt)}</td>
           </tr>
         `;

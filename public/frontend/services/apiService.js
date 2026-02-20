@@ -344,6 +344,24 @@ const registrationsAPI = {
   listPayments: async (id) => {
     if (!id) throw new Error('Missing registration id');
     return fetchAPI(`/registrations/${encodeURIComponent(id)}/payments`);
+  },
+
+  // Admin: mark registration as enrolled
+  adminEnroll: async (id) => {
+    if (!id) throw new Error('Missing registration id');
+    return fetchAPI(`/registrations/admin/${encodeURIComponent(id)}/enroll`, {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+  }
+};
+
+const studentsAPI = {
+  adminList: async (limit = 200, { search = '' } = {}) => {
+    const params = new URLSearchParams();
+    params.set('limit', String(limit));
+    if (search) params.set('search', String(search));
+    return fetchAPI(`/students/admin?${params.toString()}`);
   }
 };
 
@@ -683,6 +701,7 @@ window.API = {
   enquiries: enquiriesAPI,
   leads: leadsAPI,
   registrations: registrationsAPI,
+  students: studentsAPI,
   payments: paymentsAPI,
   dashboard: dashboardAPI,
   officers: officersAPI,

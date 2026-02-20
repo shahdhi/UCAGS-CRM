@@ -427,7 +427,7 @@
 
     // Only show the loading skeleton on the very first load (prevents flicker)
     if (tbody && showSkeleton) {
-      tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading registrations...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="loading">Loading registrations...</td></tr>';
     }
 
     try {
@@ -439,9 +439,20 @@
       if (!tbody) return;
 
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="loading">No registrations found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="loading">No registrations found</td></tr>';
         return;
       }
+
+      const isEnrolled = (reg) => {
+        const payload = reg?.payload || {};
+        return !!(
+          reg?.enrolled === true ||
+          reg?.is_enrolled === true ||
+          reg?.enrolled_at ||
+          payload?.enrolled === true ||
+          payload?.enrolled_at
+        );
+      };
 
       tbody.innerHTML = rows.map(r => {
         const submittedAt = formatDateTimeLocal(r.created_at);
@@ -452,12 +463,18 @@
           ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Received</span>'
           : '<span style="color:#98a2b3;">-</span>';
 
+        const enrolled = isEnrolled(r);
+        const enrolledCell = enrolled
+          ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Enrolled</span>'
+          : `<button type="button" class="btn btn-primary btn-sm reg-enroll-btn" data-enroll-id="${escapeHtml(r.id)}">Enroll</button>`;
+
         return `
           <tr class="clickable" data-registration-id="${escapeHtml(r.id)}" style="cursor:pointer;">
             <td>${escapeHtml(r.name)}</td>
             <td>${escapeHtml(r.phone_number)}</td>
             <td>${escapeHtml(email)}</td>
             <td>${paymentCell}</td>
+            <td>${enrolledCell}</td>
             <td>${escapeHtml(assigned)}</td>
             <td>${escapeHtml(submittedAt)}</td>
           </tr>
@@ -466,7 +483,7 @@
     } catch (e) {
       console.error(e);
       if (tbody && showSkeleton) {
-        tbody.innerHTML = `<tr><td colspan="6" class="loading">${escapeHtml(e.message || 'Failed to load registrations')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="loading">${escapeHtml(e.message || 'Failed to load registrations')}</td></tr>`;
       }
       throw e;
     } finally {
@@ -489,6 +506,35 @@
     if (tbody && !tbody.__delegated) {
       tbody.__delegated = true;
       tbody.addEventListener('click', (e) => {
+        // Enroll button click
+        const enrollBtn = e.target?.closest?.('.reg-enroll-btn');
+        if (enrollBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const id = enrollBtn.getAttribute('data-enroll-id');
+          if (!id) return;
+
+          (async () => {
+            try {
+              const ok = confirm('Enroll this registration and create a student record?');
+              if (!ok) return;
+
+              enrollBtn.disabled = true;
+              const result = await window.API.registrations.adminEnroll(id);
+              const sid = result?.student?.student_id || result?.registration?.student_id || result?.registration?.payload?.student_id;
+              if (window.UI && UI.showToast) UI.showToast(sid ? `Enrolled: ${sid}` : 'Enrolled', 'success');
+              await loadRegistrations();
+            } catch (err) {
+              console.error(err);
+              if (window.UI && UI.showToast) UI.showToast(err.message || 'Failed to enroll', 'error');
+            } finally {
+              enrollBtn.disabled = false;
+            }
+          })();
+
+          return;
+        }
+
         const tr = e.target?.closest?.('tr[data-registration-id]');
         if (!tr) return;
         const id = tr.getAttribute('data-registration-id');
