@@ -295,6 +295,12 @@ const paymentsAPI = {
       body: JSON.stringify({})
     });
   },
+  adminUnconfirm: async (id) => {
+    return fetchAPI(`/payments/admin/${encodeURIComponent(id)}/unconfirm`, {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+  },
   adminListForRegistration: async (registrationId) => {
     return fetchAPI(`/payments/admin/registration/${encodeURIComponent(registrationId)}`);
   }

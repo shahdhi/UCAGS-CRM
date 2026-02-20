@@ -224,4 +224,30 @@ router.post('/admin/:id/confirm', isAdmin, async (req, res) => {
   }
 });
 
+// Admin undo confirm
+// POST /api/payments/admin/:id/unconfirm
+router.post('/admin/:id/unconfirm', isAdmin, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ success: false, error: 'Missing payment id' });
+
+    const { data, error } = await sb
+      .from('payments')
+      .update({
+        is_confirmed: false,
+        confirmed_at: null,
+        confirmed_by: null
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, payment: data });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 module.exports = router;

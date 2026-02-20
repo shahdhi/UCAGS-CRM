@@ -279,7 +279,6 @@
           <td>
             <a href="#" class="pay-view" style="color:#175CD3; text-decoration:none; font-weight:600;">${escapeHtml(p.registration_name || '')}</a>
             <div style="margin-top:4px;">${statusBadge}</div>
-            <div style="font-size:12px; color:#667085; margin-top:4px;">Window: ${escapeHtml(p.window_start_date || '')} → ${escapeHtml(p.window_end_date || '')}</div>
           </td>
           <td><input type="checkbox" class="pay-email" ${p.email_sent ? 'checked' : ''} /></td>
           <td><input type="checkbox" class="pay-wa" ${p.whatsapp_sent ? 'checked' : ''} /></td>
@@ -304,7 +303,9 @@
           <td><input type="date" class="pay-date form-control" value="${escapeHtml(p.payment_date || '')}" style="width:160px;" /></td>
           <td><input type="checkbox" class="pay-slip" ${p.slip_received ? 'checked' : ''} /></td>
           <td style="text-align:center;">
-            <input type="checkbox" class="pay-received" ${p.is_confirmed ? 'checked' : ''} ${p.is_confirmed ? 'disabled' : ''} />
+            <button type="button" class="btn btn-success btn-sm pay-confirm">
+              ${p.is_confirmed ? 'Undo' : 'Confirm'}
+            </button>
           </td>
           <td><input type="text" class="pay-receipt form-control" value="${escapeHtml(p.receipt_no || '')}" style="min-width:120px;" /></td>
         </tr>
@@ -356,27 +357,25 @@
         el.addEventListener('input', debounce);
       });
 
-      const receivedCb = tr.querySelector('.pay-received');
-      if (receivedCb) {
-        receivedCb.addEventListener('change', async () => {
-          if (!receivedCb.checked) {
-            // do not support un-confirm
-            receivedCb.checked = false;
-            return;
-          }
+      const confirmBtn = tr.querySelector('.pay-confirm');
+      if (confirmBtn) {
+        confirmBtn.addEventListener('click', async () => {
           try {
-            receivedCb.disabled = true;
-            // Save any pending edits first
+            confirmBtn.disabled = true;
             await patch();
-            await window.API.payments.adminConfirm(id);
-            if (window.UI && UI.showToast) UI.showToast('Payment confirmed', 'success');
+            if (confirmBtn.textContent.trim().toLowerCase() === 'undo') {
+              await window.API.payments.adminUnconfirm(id);
+              if (window.UI && UI.showToast) UI.showToast('Payment unconfirmed', 'success');
+            } else {
+              await window.API.payments.adminConfirm(id);
+              if (window.UI && UI.showToast) UI.showToast('Payment confirmed', 'success');
+            }
             await loadPayments();
           } catch (e) {
             console.error(e);
-            receivedCb.checked = false;
-            if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to confirm payment', 'error');
+            if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to update payment status', 'error');
           } finally {
-            receivedCb.disabled = false;
+            confirmBtn.disabled = false;
           }
         });
       }
