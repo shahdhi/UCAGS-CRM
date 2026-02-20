@@ -113,16 +113,16 @@
       }
 
       el.innerHTML = `
-        <div class="table-container" style="width:100%; margin-top:8px;">
-          <table class="data-table">
+        <div class="table-container" style="width:100%; margin-top:8px; overflow-x:hidden;">
+          <table class="data-table" style="min-width:unset; table-layout:auto;">
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Amount</th>
-                <th>Method</th>
-                <th>Plan</th>
-                <th>Receipt</th>
-                <th>Status</th>
+                <th style="padding:6px 8px; font-size:12px;">Date</th>
+                <th style="padding:6px 8px; font-size:12px;">Amount</th>
+                <th style="padding:6px 8px; font-size:12px;">Method</th>
+                <th style="padding:6px 8px; font-size:12px;">Plan</th>
+                <th style="padding:6px 8px; font-size:12px;">Receipt</th>
+                <th style="padding:6px 8px; font-size:12px;">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -132,12 +132,12 @@
                   : '<span class="badge" style="background:#fffaeb; color:#b54708; border:1px solid #fedf89;">Pending</span>';
                 return `
                   <tr>
-                    <td>${escapeHtml(p.payment_date || '')}</td>
-                    <td>${escapeHtml(p.amount ?? '')}</td>
-                    <td>${escapeHtml(p.payment_method || '')}</td>
-                    <td>${escapeHtml(p.payment_plan || '')}</td>
-                    <td>${escapeHtml(p.receipt_no || '')}</td>
-                    <td>${status}</td>
+                    <td style="padding:6px 8px; font-size:12px; white-space:nowrap;">${escapeHtml(p.payment_date || '')}</td>
+                    <td style="padding:6px 8px; font-size:12px; white-space:nowrap;">${escapeHtml(p.amount ?? '')}</td>
+                    <td style="padding:6px 8px; font-size:12px;">${escapeHtml(p.payment_method || '')}</td>
+                    <td style="padding:6px 8px; font-size:12px;">${escapeHtml(p.payment_plan || '')}</td>
+                    <td style="padding:6px 8px; font-size:12px; white-space:nowrap;">${escapeHtml(p.receipt_no || '')}</td>
+                    <td style="padding:6px 8px; font-size:12px; white-space:nowrap;">${status}</td>
                   </tr>
                 `;
               }).join('')}
