@@ -897,6 +897,42 @@ body {
     font-style: italic;
 }
 
+/* Payments table: compact layout to avoid horizontal scroll */
+#paymentsView .data-table {
+    table-layout: fixed;
+}
+
+#paymentsView .data-table th,
+#paymentsView .data-table td {
+    padding: 6px 8px;
+    font-size: 12px;
+}
+
+#paymentsView .data-table th { white-space: nowrap; }
+
+#paymentsView .data-table th:nth-child(1), #paymentsView .data-table td:nth-child(1) { width: 18%; }
+#paymentsView .data-table th:nth-child(2), #paymentsView .data-table td:nth-child(2) { width: 7%; text-align:center; }
+#paymentsView .data-table th:nth-child(3), #paymentsView .data-table td:nth-child(3) { width: 7%; text-align:center; }
+#paymentsView .data-table th:nth-child(4), #paymentsView .data-table td:nth-child(4) { width: 12%; }
+#paymentsView .data-table th:nth-child(5), #paymentsView .data-table td:nth-child(5) { width: 15%; }
+#paymentsView .data-table th:nth-child(6), #paymentsView .data-table td:nth-child(6) { width: 9%; }
+#paymentsView .data-table th:nth-child(7), #paymentsView .data-table td:nth-child(7) { width: 10%; }
+#paymentsView .data-table th:nth-child(8), #paymentsView .data-table td:nth-child(8) { width: 6%; text-align:center; }
+#paymentsView .data-table th:nth-child(9), #paymentsView .data-table td:nth-child(9) { width: 8%; text-align:center; }
+#paymentsView .data-table th:nth-child(10), #paymentsView .data-table td:nth-child(10) { width: 8%; }
+
+#paymentsView .data-table .form-control {
+    padding: 6px 8px;
+    height: 32px;
+    font-size: 12px;
+}
+
+#paymentsView .data-table .btn.btn-sm {
+    padding: 6px 10px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
 /* Status Badges */
 .status-badge {
     padding: 4px 10px;

@@ -312,8 +312,8 @@
               ].map(m => `<option value="${escapeHtml(m)}" ${m=== (p.payment_plan||'') ? 'selected' : ''}>${escapeHtml(m||'Select')}</option>`).join('')}
             </select>
           </td>
-          <td><input type="number" class="pay-amount form-control" value="${escapeHtml(p.amount ?? '')}" style="width:120px;" /></td>
-          <td><input type="date" class="pay-date form-control" value="${escapeHtml(p.payment_date || '')}" style="width:160px;" /></td>
+          <td><input type="number" class="pay-amount form-control" value="${escapeHtml(p.amount ?? '')}" /></td>
+          <td><input type="date" class="pay-date form-control" value="${escapeHtml(p.payment_date || '')}" /></td>
           <td><input type="checkbox" class="pay-slip" ${p.slip_received ? 'checked' : ''} /></td>
           <td style="text-align:center;">
             <button type="button" class="btn btn-success btn-sm pay-confirm">
