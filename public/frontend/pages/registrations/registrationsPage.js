@@ -51,6 +51,8 @@
 
     const details = {
       'Submitted At': formatDateTimeLocal(reg?.created_at),
+      'Program': reg?.program_name ?? reg?.payload?.program_name ?? reg?.course_program ?? reg?.payload?.course_program ?? '',
+      'Batch': reg?.batch_name ?? reg?.payload?.batch_name ?? '',
       'Name': get('name'),
       'Phone': get('phone_number'),
       'Email': get('email'),
@@ -253,6 +255,18 @@
       };
     }
 
+    // Reset payment dropdowns (avoid showing previous batch values)
+    const methodSel0 = qs('registrationPaymentMethod');
+    const planSel0 = qs('registrationPaymentPlan');
+    if (methodSel0) {
+      methodSel0.innerHTML = '<option value="">Select</option>';
+      methodSel0.disabled = true;
+    }
+    if (planSel0) {
+      planSel0.innerHTML = '<option value="">Select</option>';
+      planSel0.disabled = true;
+    }
+
     // Load batch-specific payment setup into dropdowns
     try {
       const batchName = reg?.batch_name || reg?.payload?.batch_name;
@@ -265,9 +279,11 @@
           const planSel = qs('registrationPaymentPlan');
           if (methodSel) {
             methodSel.innerHTML = '<option value="">Select</option>' + (j.methods || []).map(m => `<option value="${escapeHtml(m.method_name)}">${escapeHtml(m.method_name)}</option>`).join('');
+            methodSel.disabled = false;
           }
           if (planSel) {
             planSel.innerHTML = '<option value="">Select</option>' + (j.plans || []).map(p => `<option value="${escapeHtml(p.plan_name)}">${escapeHtml(p.plan_name)}</option>`).join('');
+            planSel.disabled = false;
           }
         }
       }
