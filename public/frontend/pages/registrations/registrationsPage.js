@@ -269,6 +269,8 @@
         try {
           delBtn.disabled = true;
           await window.API.registrations.adminDelete(selectedRegistrationId);
+          if (window.Cache) window.Cache.invalidatePrefix('registrations:adminList');
+          if (window.Cache) window.Cache.invalidatePrefix('payments:');
           if (window.UI && UI.showToast) UI.showToast('Registration deleted', 'success');
           closeModal('registrationDetailsModal');
           await loadRegistrations();
@@ -425,34 +427,28 @@
     const limitEl = qs('registrationsLimit');
     const limit = Math.min(parseInt(limitEl?.value || '100', 10) || 100, 500);
 
-    // Only show the loading skeleton on the very first load (prevents flicker)
-    if (tbody && showSkeleton) {
-      tbody.innerHTML = '<tr><td colspan="7" class="loading">Loading registrations...</td></tr>';
-    }
+    const ttlMs = 2 * 60 * 1000; // 2 minutes
+    const cacheKey = `registrations:adminList:limit=${limit}:program=${encodeURIComponent(selectedProgramId||'')}:batch=${encodeURIComponent(selectedBatchName||'')}`;
 
-    try {
-      const res = await window.API.registrations.adminList(limit, { programId: selectedProgramId, batchName: selectedBatchName });
-      const rows = res.registrations || [];
+    const isEnrolled = (reg) => {
+      const payload = reg?.payload || {};
+      return !!(
+        reg?.enrolled === true ||
+        reg?.is_enrolled === true ||
+        reg?.enrolled_at ||
+        payload?.enrolled === true ||
+        payload?.enrolled_at
+      );
+    };
 
-      lastRowsById = new Map(rows.map(r => [String(r.id), r]));
+    const renderRows = (rows) => {
+      lastRowsById = new Map((rows || []).map(r => [String(r.id), r]));
 
       if (!tbody) return;
-
       if (!rows.length) {
         tbody.innerHTML = '<tr><td colspan="7" class="loading">No registrations found</td></tr>';
         return;
       }
-
-      const isEnrolled = (reg) => {
-        const payload = reg?.payload || {};
-        return !!(
-          reg?.enrolled === true ||
-          reg?.is_enrolled === true ||
-          reg?.enrolled_at ||
-          payload?.enrolled === true ||
-          payload?.enrolled_at
-        );
-      };
 
       tbody.innerHTML = rows.map(r => {
         const submittedAt = formatDateTimeLocal(r.created_at);
@@ -480,6 +476,28 @@
           </tr>
         `;
       }).join('');
+    };
+
+    // Fast path: render from cache if fresh and skip fetch
+    if (tbody && !showSkeleton && window.Cache) {
+      const cached = window.Cache.getFresh(cacheKey, ttlMs);
+      if (cached && cached.registrations) {
+        renderRows(cached.registrations || []);
+        isLoading = false;
+        return;
+      }
+    }
+
+    // Only show the loading skeleton on the very first load (prevents flicker)
+    if (tbody && showSkeleton) {
+      tbody.innerHTML = '<tr><td colspan="7" class="loading">Loading registrations...</td></tr>';
+    }
+
+    try {
+      const res = await window.API.registrations.adminList(limit, { programId: selectedProgramId, batchName: selectedBatchName });
+      if (window.Cache) window.Cache.setWithTs(cacheKey, res);
+      const rows = res.registrations || [];
+      renderRows(rows);
     } catch (e) {
       console.error(e);
       if (tbody && showSkeleton) {
@@ -521,6 +539,9 @@
 
               enrollBtn.disabled = true;
               const result = await window.API.registrations.adminEnroll(id);
+              if (window.Cache) window.Cache.invalidatePrefix('registrations:adminList');
+              if (window.Cache) window.Cache.invalidatePrefix('students:adminList');
+              if (window.Cache) window.Cache.invalidatePrefix('payments:');
               const sid = result?.student?.student_id || result?.registration?.student_id || result?.registration?.payload?.student_id;
               if (window.UI && UI.showToast) UI.showToast(sid ? `Enrolled: ${sid}` : 'Enrolled', 'success');
               await loadRegistrations();

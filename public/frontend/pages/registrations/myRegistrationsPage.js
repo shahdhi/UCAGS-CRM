@@ -289,32 +289,28 @@
     const limitEl = qs('registrationsMyLimit');
     const limit = Math.min(parseInt(limitEl?.value || '100', 10) || 100, 500);
 
-    // Only show skeleton on first load to prevent flicker
-    if (tbody && showSkeleton) {
-      tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading registrations...</td></tr>';
-    }
+    const ttlMs = 2 * 60 * 1000; // 2 minutes
+    const cacheKey = `registrations:myList:limit=${limit}:program=${encodeURIComponent(selectedProgramId||'')}:batch=${encodeURIComponent(selectedBatchName||'')}`;
 
-    try {
-      const res = await window.API.registrations.myList(limit, { programId: selectedProgramId, batchName: selectedBatchName });
-      const rows = res.registrations || [];
-      lastRowsById = new Map(rows.map(r => [String(r.id), r]));
+    const isEnrolled = (reg) => {
+      const payload = reg?.payload || {};
+      return !!(
+        reg?.enrolled === true ||
+        reg?.is_enrolled === true ||
+        reg?.enrolled_at ||
+        payload?.enrolled === true ||
+        payload?.enrolled_at
+      );
+    };
+
+    const renderRows = (rows) => {
+      lastRowsById = new Map((rows || []).map(r => [String(r.id), r]));
 
       if (!tbody) return;
       if (!rows.length) {
         tbody.innerHTML = '<tr><td colspan="6" class="loading">No registrations found</td></tr>';
         return;
       }
-
-      const isEnrolled = (reg) => {
-        const payload = reg?.payload || {};
-        return !!(
-          reg?.enrolled === true ||
-          reg?.is_enrolled === true ||
-          reg?.enrolled_at ||
-          payload?.enrolled === true ||
-          payload?.enrolled_at
-        );
-      };
 
       tbody.innerHTML = rows.map(r => {
         const submittedAt = formatDateTimeLocal(r.created_at);
@@ -340,10 +336,32 @@
           </tr>
         `;
       }).join('');
+    };
+
+    // Fast path: render from cache if fresh and skip fetch
+    if (tbody && !showSkeleton && window.Cache) {
+      const cached = window.Cache.getFresh(cacheKey, ttlMs);
+      if (cached && cached.registrations) {
+        renderRows(cached.registrations || []);
+        isLoading = false;
+        return;
+      }
+    }
+
+    // Only show skeleton on first load to prevent flicker
+    if (tbody && showSkeleton) {
+      tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading registrations...</td></tr>';
+    }
+
+    try {
+      const res = await window.API.registrations.myList(limit, { programId: selectedProgramId, batchName: selectedBatchName });
+      if (window.Cache) window.Cache.setWithTs(cacheKey, res);
+      const rows = res.registrations || [];
+      renderRows(rows);
     } catch (e) {
       console.error(e);
       if (tbody && showSkeleton) {
-        tbody.innerHTML = `<tr><td colspan="5" class="loading">${escapeHtml(e.message || 'Failed to load registrations')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="loading">${escapeHtml(e.message || 'Failed to load registrations')}</td></tr>`;
       }
       throw e;
     } finally {

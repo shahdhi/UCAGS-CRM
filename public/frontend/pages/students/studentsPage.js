@@ -27,6 +27,38 @@
     const limit = Math.min(parseInt(limitEl?.value || '200', 10) || 200, 500);
     const search = String(searchEl?.value || '').trim();
 
+    const ttlMs = 2 * 60 * 1000; // 2 minutes
+    const cacheKey = `students:adminList:limit=${limit}:search=${encodeURIComponent(search)}`;
+
+    // Fast path: render from cache if fresh and not explicitly showing skeleton
+    if (tbody && !showSkeleton && window.Cache) {
+      const cached = window.Cache.getFresh(cacheKey, ttlMs);
+      if (cached && cached.students) {
+        // Render cached immediately and skip fetch
+        const rows = cached.students || [];
+        lastRowsById = new Map((rows || []).map(s => [String(s.id || s.student_id), s]));
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td colspan="4" class="loading">No students found</td></tr>';
+        } else {
+          tbody.innerHTML = rows.map(s => {
+            const key = String(s.id || s.student_id);
+            return `
+              <tr data-student-key="${escapeHtml(key)}" style="cursor:pointer;">
+                <td style="font-weight:700;">${escapeHtml(s.student_id || '')}</td>
+                <td>${escapeHtml(s.name || '')}</td>
+                <td>${escapeHtml(s.phone_number || '')}</td>
+                <td>${escapeHtml(s.email || '')}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        loadedOnce = true;
+        isLoading = false;
+        return;
+      }
+    }
+
     if (tbody && showSkeleton) {
       tbody.innerHTML = '<tr><td colspan="4" class="loading">Loading students...</td></tr>';
     }
@@ -37,6 +69,7 @@
       if (search) params.set('search', search);
 
       const j = await window.API.students.adminList(limit, { search });
+      if (window.Cache) window.Cache.setWithTs(cacheKey, j);
       const rows = j.students || [];
 
       lastRowsById = new Map((rows || []).map(s => [String(s.id || s.student_id), s]));
@@ -234,6 +267,7 @@
 
           deleteBtn.disabled = true;
           await window.API.students.adminDelete(selectedStudent.id);
+          if (window.Cache) window.Cache.invalidatePrefix('students:adminList');
           if (window.UI && UI.showToast) UI.showToast('Enrollment deleted', 'success');
           closeModal('studentDetailsModal');
           await loadStudents();

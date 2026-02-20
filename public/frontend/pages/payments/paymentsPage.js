@@ -143,6 +143,7 @@
             await window.API.payments.adminConfirm(id);
             if (window.UI && UI.showToast) UI.showToast('Payment confirmed', 'success');
             // refresh modal and main table
+            if (window.Cache) window.Cache.invalidatePrefix('payments:adminSummary');
             await loadPayments();
             await openPaymentDetails(registrationId, registrationName);
           } catch (e) {
@@ -273,14 +274,35 @@
     confirmBtn.disabled = !isRequiredFieldsFilled(tr);
   }
 
-  async function loadPayments() {
+  async function loadPayments({ showSkeleton = false } = {}) {
     const tbody = qs('paymentsTableBody');
     const limit = parseInt(qs('paymentsLimit')?.value || '200', 10) || 200;
-    if (tbody) tbody.innerHTML = '<tr><td colspan="13" class="loading">Loading payments...</td></tr>';
+
+    const ttlMs = 2 * 60 * 1000; // 2 minutes
+    const fetchStatus = (selectedStatus === 'due_overdue') ? 'all' : selectedStatus;
+    const cacheKey = `payments:adminSummary:limit=${limit}:program=${encodeURIComponent(selectedProgramId||'')}:batch=${encodeURIComponent(selectedBatchName||'')}:status=${encodeURIComponent(fetchStatus)}`;
+
+    // Fast path: render from cache if fresh and skip fetch
+    if (tbody && !showSkeleton && window.Cache) {
+      const cached = window.Cache.getFresh(cacheKey, ttlMs);
+      if (cached && cached.payments) {
+        let rows = cached.payments || [];
+        window.__paymentsLastSummary = rows;
+        if (selectedStatus === 'due_overdue') {
+          rows = rows.filter(r => ['due', 'overdue'].includes(String(r.computed_status)));
+        }
+        renderPaymentsRows(rows, tbody);
+        return;
+      }
+    }
+
+    if (tbody && (showSkeleton || !window.__paymentsLastSummary)) {
+      tbody.innerHTML = '<tr><td colspan="13" class="loading">Loading payments...</td></tr>';
+    }
 
     // Use summary endpoint (one row per registration)
-    const fetchStatus = (selectedStatus === 'due_overdue') ? 'all' : selectedStatus;
     const res = await window.API.payments.adminSummary(limit, { programId: selectedProgramId, batchName: selectedBatchName, status: fetchStatus });
+    if (window.Cache) window.Cache.setWithTs(cacheKey, res);
     let rows = res.payments || [];
     window.__paymentsLastSummary = rows;
 
@@ -288,6 +310,10 @@
       rows = rows.filter(r => ['due', 'overdue'].includes(String(r.computed_status)));
     }
 
+    renderPaymentsRows(rows, tbody);
+  }
+
+  function renderPaymentsRows(rows, tbody) {
     if (!tbody) return;
     if (!rows.length) {
       tbody.innerHTML = '<tr><td colspan="13" class="loading">No payments found</td></tr>';
@@ -424,6 +450,7 @@
               if (window.UI && UI.showToast) UI.showToast('Payment unconfirmed', 'success');
             }
 
+            if (window.Cache) window.Cache.invalidatePrefix('payments:adminSummary');
             await loadPayments();
           } catch (e) {
             console.error(e);
@@ -463,7 +490,7 @@
 
     renderStatusTabs();
     await renderProgramTabs();
-    await loadPayments();
+    await loadPayments({ showSkeleton: true });
   }
 
   window.initPaymentsPage = initPaymentsPage;
