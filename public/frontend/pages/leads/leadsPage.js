@@ -29,8 +29,20 @@ async function initLeadsPage(modeOrBatch) {
   window.__selectedLeadIds.clear();
   updateSelectionUI();
 
-  // Load leads data
-  await loadLeads();
+  // Load leads data (avoid double load on rapid view changes)
+  const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+  const batch = isOfficerView ? window.officerBatchFilter : window.adminBatchFilter;
+  const sheet = (isOfficerView ? window.officerSheetFilter : window.adminSheetFilter) || 'Main Leads';
+  const key = `${isOfficerView ? 'officer' : 'admin'}|${batch || 'all'}|${sheet}`;
+  const now = Date.now();
+
+  if (window.__leadsLastKey === key && window.__leadsLastLoadedAt && (now - window.__leadsLastLoadedAt) < 4000) {
+    // skip reload
+  } else {
+    await loadLeads();
+    window.__leadsLastKey = key;
+    window.__leadsLastLoadedAt = now;
+  }
 
   // Start auto-refresh (every 30 seconds) once
   if (!window.__leadsAutoRefreshStarted) {
