@@ -326,6 +326,10 @@ const registrationsAPI = {
       method: 'POST',
       body: JSON.stringify(payment)
     });
+  },
+  listPayments: async (id) => {
+    if (!id) throw new Error('Missing registration id');
+    return fetchAPI(`/registrations/${encodeURIComponent(id)}/payments`);
   }
 };
 

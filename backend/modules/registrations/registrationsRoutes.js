@@ -372,6 +372,27 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
   }
 });
 
+// Get payments for a registration (admin/officer)
+// GET /api/registrations/:id/payments
+router.get('/:id/payments', isAdminOrOfficer, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ success: false, error: 'Missing registration id' });
+
+    const { data, error } = await sb
+      .from('payments')
+      .select('*')
+      .eq('registration_id', id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json({ success: true, payments: data || [] });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 // Delete a registration (admin)
 // DELETE /api/registrations/admin/:id
 router.delete('/admin/:id', isAdmin, async (req, res) => {

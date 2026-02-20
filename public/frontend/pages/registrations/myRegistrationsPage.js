@@ -198,6 +198,25 @@
           }
         }
       }
+
+      // Load latest saved payment and prefill
+      if (reg?.id && window.API?.registrations?.listPayments) {
+        const payRes = await window.API.registrations.listPayments(reg.id);
+        const p = (payRes.payments || [])[0];
+        if (p) {
+          if (qs('registrationPaymentMethod')) qs('registrationPaymentMethod').value = p.payment_method || '';
+          if (qs('registrationPaymentPlan')) qs('registrationPaymentPlan').value = p.payment_plan || '';
+          if (qs('registrationPaymentDate')) qs('registrationPaymentDate').value = p.payment_date || '';
+          if (qs('registrationPaymentAmount')) qs('registrationPaymentAmount').value = String(p.amount ?? '');
+          if (qs('registrationReceiptReceived')) qs('registrationReceiptReceived').checked = !!(p.slip_received || p.receipt_received);
+
+          // Auto-open payment section
+          const paySection = qs('registrationPaymentSection');
+          const payToggleBtn = qs('registrationPaymentToggleBtn');
+          if (paySection) paySection.style.display = 'block';
+          if (payToggleBtn) payToggleBtn.innerHTML = '<i class="fas fa-times"></i> Cancel payment';
+        }
+      }
     } catch (e) {
       console.warn('Failed to load payment setup for batch', e);
     }
