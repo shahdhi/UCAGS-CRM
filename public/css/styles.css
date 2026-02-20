@@ -619,7 +619,52 @@ body {
 #attendanceView .btn:hover,
 #attendanceView .btn:active {
     transform: none !important;
+}
+
+/* Attendance: disable button hover ripple/expanding circle (can look like movement) */
+#attendanceView .btn::before {
+    display: none !important;
+}
+
+/* Attendance: keep shadows stable (no change between normal and hover) */
+#attendanceView .btn-success:hover,
+#attendanceView .btn-success:active {
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3) !important;
+}
+#attendanceView .btn-warning:hover,
+#attendanceView .btn-warning:active {
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.3) !important;
+}
+#attendanceView .btn-danger:hover,
+#attendanceView .btn-danger:active {
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3) !important;
+}
+#attendanceView .btn-secondary:hover,
+#attendanceView .btn-secondary:active,
+#attendanceView .btn-primary:hover,
+#attendanceView .btn-primary:active {
     box-shadow: none !important;
+}
+
+/* Reports view: keep UI stable (no hover lift on cards/buttons) */
+#reportsView .btn:hover,
+#reportsView .btn:active {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+#reportsView .dashboard-card,
+#reportsView .dashboard-card:hover,
+#reportsView .dashboard-card:active {
+    transition: none !important;
+    transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+/* Reports tables: avoid GPU flicker + hover scrollbars */
+#reportsView .data-table tbody tr {
+    transform: none !important;
+    backface-visibility: visible !important;
 }
 
 /* Remove trailing empty space at bottom of Attendance cards (after tables) */
@@ -1108,7 +1153,7 @@ body {
 #attendanceView .table-container .btn:hover,
 #attendanceView .table-container .btn:active {
     transform: none !important;
-    box-shadow: none !important;
+    /* keep whatever default box-shadow is (avoid visible jump) */
 }
 
 /* Location column "View on map" button smaller */

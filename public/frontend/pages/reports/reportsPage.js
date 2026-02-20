@@ -6,6 +6,10 @@
  */
 
 (function () {
+  // Prevent multiple intervals / concurrent init when navigating views
+  let officerHintIntervalId = null;
+  let isInitReports = false;
+
   async function authHeaders() {
     const headers = {};
     if (window.supabaseClient) {
@@ -390,7 +394,8 @@
     };
 
     // Recompute every 30 seconds to auto-disable after grace
-    setInterval(updateHintAndDisable, 30000);
+    if (officerHintIntervalId) clearInterval(officerHintIntervalId);
+    officerHintIntervalId = setInterval(updateHintAndDisable, 30000);
   }
 
   async function initAdmin(schedule) {
@@ -398,14 +403,23 @@
     if (!sec) return;
     sec.style.display = 'block';
 
+    const wrap = $('reportsAdminTableWrap');
+    if (wrap && !wrap.__loadedOnce) {
+      wrap.__loadedOnce = true;
+      wrap.innerHTML = '<div class="content-placeholder" style="padding: 20px;"><p>Select a date and click Load.</p></div>';
+    }
+
     const dateInput = $('reportsAdminDate');
     if (dateInput && !dateInput.value) dateInput.value = todayISO();
 
     $('reportsAdminLoadBtn').onclick = async () => {
+      const wrap = $('reportsAdminTableWrap');
+      if (wrap) wrap.innerHTML = '<div class="content-placeholder" style="padding: 20px;"><p class="loading">Loading...</p></div>';
       try {
         const rows = await adminLoadReports(dateInput.value);
         renderAdminTable(rows);
       } catch (e) {
+        if (wrap) wrap.innerHTML = `<div class="content-placeholder" style="padding: 20px;"><p style="color:#ef4444;">${String(e.message || e)}</p></div>`;
         if (window.showToast) showToast(e.message, 'error');
       }
     };
@@ -477,6 +491,8 @@
   }
 
   window.initReportsPage = async function initReportsPage(currentUser) {
+    if (isInitReports) return;
+    isInitReports = true;
     try {
       const schedule = await fetchSchedule();
 
@@ -504,6 +520,8 @@
     } catch (e) {
       console.error('initReportsPage error:', e);
       if (window.showToast) showToast(e.message, 'error');
+    } finally {
+      isInitReports = false;
     }
   };
 })();
