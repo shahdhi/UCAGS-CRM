@@ -56,20 +56,32 @@
               const plan = (p.payment_plan || '') + (p.installment_no ? ` #${p.installment_no}` : '');
               return `
                 <tr data-id="${escapeHtml(p.id)}">
-                  <td>${escapeHtml(plan)}</td>
+                  <td>
+                    <select class="pay-plan form-control" style="min-width:220px;">
+                      ${[
+                        '',
+                        'Installment',
+                        'Installment with early bird',
+                        'Full payment',
+                        'Full payment with early bird',
+                        'registration fee only'
+                      ].map(m => `<option value="${escapeHtml(m)}" ${m=== (p.payment_plan||'') ? 'selected' : ''}>${escapeHtml(m||'Select')}</option>`).join('')}
+                    </select>
+                    <div style="font-size:12px; color:#667085; margin-top:4px;">${escapeHtml(p.installment_no ? `Installment #${p.installment_no}` : '')}</div>
+                  </td>
                   <td><input type="number" class="form-control pay-amount" value="${escapeHtml(p.amount ?? '')}" style="width:120px;" /></td>
                   <td><input type="date" class="form-control pay-date" value="${escapeHtml(p.payment_date || '')}" style="width:160px;" /></td>
                   <td><input type="checkbox" class="pay-slip" ${p.slip_received ? 'checked' : ''} /></td>
                   <td><input type="checkbox" class="pay-email" ${p.email_sent ? 'checked' : ''} /></td>
                   <td><input type="checkbox" class="pay-wa" ${p.whatsapp_sent ? 'checked' : ''} /></td>
                   <td>
-                    <select class="pay-method form-control" style="min-width:130px;">
-                      ${['', 'Cash', 'Bank Deposit', 'Online Transfer', 'Card'].map(m => `<option value="${escapeHtml(m)}" ${m=== (p.payment_method||'') ? 'selected' : ''}>${escapeHtml(m||'Select')}</option>`).join('')}
+                    <select class="pay-method form-control" style="min-width:160px;">
+                      ${['', 'Online Transfer', 'Bank Deposit'].map(m => `<option value="${escapeHtml(m)}" ${m=== (p.payment_method||'') ? 'selected' : ''}>${escapeHtml(m||'Select')}</option>`).join('')}
                     </select>
                   </td>
                   <td><input type="text" class="form-control pay-receipt" value="${escapeHtml(p.receipt_no || '')}" style="min-width:120px;" /></td>
-                  <td>
-                    <button type="button" class="btn btn-success btn-sm pay-confirm" ${p.is_confirmed ? 'disabled' : ''}>Confirm</button>
+                  <td style="text-align:center;">
+                    <input type="checkbox" class="pay-received" ${p.is_confirmed ? 'checked' : ''} ${p.is_confirmed ? 'disabled' : ''} />
                   </td>
                 </tr>
               `;
@@ -87,6 +99,7 @@
           email_sent: tr.querySelector('.pay-email')?.checked,
           whatsapp_sent: tr.querySelector('.pay-wa')?.checked,
           payment_method: tr.querySelector('.pay-method')?.value,
+          payment_plan: tr.querySelector('.pay-plan')?.value,
           amount: Number(tr.querySelector('.pay-amount')?.value),
           payment_date: tr.querySelector('.pay-date')?.value || null,
           slip_received: tr.querySelector('.pay-slip')?.checked,
@@ -106,11 +119,15 @@
         el.addEventListener('input', debounce);
       });
 
-      const confirmBtn = tr.querySelector('.pay-confirm');
-      if (confirmBtn) {
-        confirmBtn.addEventListener('click', async () => {
+      const receivedCb = tr.querySelector('.pay-received');
+      if (receivedCb) {
+        receivedCb.addEventListener('change', async () => {
           try {
-            confirmBtn.disabled = true;
+            if (!receivedCb.checked) {
+              receivedCb.checked = false;
+              return;
+            }
+            receivedCb.disabled = true;
             await window.API.payments.adminConfirm(id);
             if (window.UI && UI.showToast) UI.showToast('Payment confirmed', 'success');
             // refresh modal and main table
@@ -118,9 +135,10 @@
             await openPaymentDetails(registrationId, registrationName);
           } catch (e) {
             console.error(e);
+            receivedCb.checked = false;
             if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to confirm', 'error');
           } finally {
-            confirmBtn.disabled = false;
+            receivedCb.disabled = false;
           }
         });
       }
@@ -169,18 +187,27 @@
           <td><input type="checkbox" class="pay-email" ${p.email_sent ? 'checked' : ''} /></td>
           <td><input type="checkbox" class="pay-wa" ${p.whatsapp_sent ? 'checked' : ''} /></td>
           <td>
-            <select class="pay-method form-control" style="min-width:130px;">
-              ${['', 'Cash', 'Bank Deposit', 'Online Transfer', 'Card'].map(m => `<option value="${escapeHtml(m)}" ${m=== (p.payment_method||'') ? 'selected' : ''}>${escapeHtml(m||'Select')}</option>`).join('')}
+            <select class="pay-method form-control" style="min-width:160px;">
+              ${['', 'Online Transfer', 'Bank Deposit'].map(m => `<option value="${escapeHtml(m)}" ${m=== (p.payment_method||'') ? 'selected' : ''}>${escapeHtml(m||'Select')}</option>`).join('')}
             </select>
           </td>
-          <td>${escapeHtml(plan + installmentLabel)}</td>
+          <td>
+            <select class="pay-plan form-control" style="min-width:220px;">
+              ${[
+                '',
+                'Installment',
+                'Installment with early bird',
+                'Full payment',
+                'Full payment with early bird',
+                'registration fee only'
+              ].map(m => `<option value="${escapeHtml(m)}" ${m=== (p.payment_plan||'') ? 'selected' : ''}>${escapeHtml(m||'Select')}</option>`).join('')}
+            </select>
+          </td>
           <td><input type="number" class="pay-amount form-control" value="${escapeHtml(p.amount ?? '')}" style="width:120px;" /></td>
           <td><input type="date" class="pay-date form-control" value="${escapeHtml(p.payment_date || '')}" style="width:160px;" /></td>
           <td><input type="checkbox" class="pay-slip" ${p.slip_received ? 'checked' : ''} /></td>
-          <td>
-            <button type="button" class="btn btn-success btn-sm pay-confirm" ${p.is_confirmed ? 'disabled' : ''}>
-              Confirm
-            </button>
+          <td style="text-align:center;">
+            <input type="checkbox" class="pay-received" ${p.is_confirmed ? 'checked' : ''} ${p.is_confirmed ? 'disabled' : ''} />
           </td>
           <td><input type="text" class="pay-receipt form-control" value="${escapeHtml(p.receipt_no || '')}" style="min-width:120px;" /></td>
         </tr>
@@ -206,6 +233,7 @@
           email_sent: tr.querySelector('.pay-email')?.checked,
           whatsapp_sent: tr.querySelector('.pay-wa')?.checked,
           payment_method: tr.querySelector('.pay-method')?.value,
+          payment_plan: tr.querySelector('.pay-plan')?.value,
           amount: Number(tr.querySelector('.pay-amount')?.value),
           payment_date: tr.querySelector('.pay-date')?.value || null,
           slip_received: tr.querySelector('.pay-slip')?.checked,
@@ -231,19 +259,23 @@
         el.addEventListener('input', debounce);
       });
 
-      const confirmBtn = tr.querySelector('.pay-confirm');
-      if (confirmBtn) {
-        confirmBtn.addEventListener('click', async () => {
+      const receivedCb = tr.querySelector('.pay-received');
+      if (receivedCb) {
+        receivedCb.addEventListener('change', async () => {
+          if (!receivedCb.checked) {
+            // do not support un-confirm
+            receivedCb.checked = false;
+            return;
+          }
           try {
-            confirmBtn.disabled = true;
+            receivedCb.disabled = true;
             await window.API.payments.adminConfirm(id);
             if (window.UI && UI.showToast) UI.showToast('Payment confirmed', 'success');
             await loadPayments();
           } catch (e) {
             console.error(e);
+            receivedCb.checked = false;
             if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to confirm payment', 'error');
-          } finally {
-            confirmBtn.disabled = false;
           }
         });
       }
