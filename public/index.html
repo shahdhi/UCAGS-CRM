@@ -151,14 +151,19 @@
                     <span>Registrations</span>
                 </a>
 
-                <a href="#" class="nav-item admin-only" data-page="programs">
-                    <i class="fas fa-layer-group"></i>
-                    <span>Programs</span>
-                </a>
-
                 <a href="#" class="nav-item admin-only" data-page="payments">
                     <i class="fas fa-money-check-dollar"></i>
                     <span>Payments</span>
+                </a>
+
+                <a href="#" class="nav-item admin-only" data-page="students">
+                    <i class="fas fa-user-graduate"></i>
+                    <span>Students</span>
+                </a>
+
+                <a href="#" class="nav-item admin-only" data-page="programs">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Programs</span>
                 </a>
 
                 <a href="#" class="nav-item officer-only" data-page="registrations-my">
@@ -170,11 +175,6 @@
                     <i class="fas fa-graduation-cap"></i>
                     <span>Admissions</span>
                     <span class="badge badge-secondary">Soon</span>
-                </a>
-
-                <a href="#" class="nav-item admin-only" data-page="students">
-                    <i class="fas fa-user-graduate"></i>
-                    <span>Students</span>
                 </a>
 
                 <a href="#" class="nav-item" data-page="whatsapp">
@@ -423,13 +423,10 @@
                                 <th>Name</th>
                                 <th>Phone</th>
                                 <th>Email</th>
-                                <th>Program</th>
-                                <th>Batch</th>
-                                <th>Enrolled At</th>
                             </tr>
                         </thead>
                         <tbody id="studentsTableBody">
-                            <tr><td colspan="7" class="loading">Loading students...</td></tr>
+                            <tr><td colspan="4" class="loading">Loading students...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1710,6 +1707,21 @@
                     </button>
                     <button type="button" class="btn btn-secondary" onclick="closeModal('registrationDetailsModal')">Close</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="studentDetailsModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2><i class="fas fa-user-graduate"></i> Student Details</h2>
+                <button class="modal-close" onclick="closeModal('studentDetailsModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="studentDetailsModalBody"></div>
+            <div class="modal-actions" style="display:flex; justify-content:flex-end; gap:10px; align-items:center; flex-wrap:wrap;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('studentDetailsModal')">Close</button>
             </div>
         </div>
     </div>

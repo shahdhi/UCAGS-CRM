@@ -67,7 +67,7 @@ alter table public.students
 -- 3) Strictly ordered student number sequence
 create sequence if not exists public.student_number_seq
   as bigint
-  start with 1
+  start with 1662
   increment by 1
   minvalue 1;
 
@@ -82,7 +82,7 @@ begin
   -- Only generate if not provided
   if new.student_id is null or length(trim(new.student_id)) = 0 then
     n := nextval('public.student_number_seq');
-    new.student_id := 'UCAGS' || lpad(n::text, 4, '0');
+    new.student_id := 'UCAGS/' || n::text;
   end if;
   return new;
 end;
