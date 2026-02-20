@@ -436,10 +436,20 @@ body {
 
 /* Disable dashboard-card hover movement/animation for specific cards */
 .dashboard-card.no-anim {
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    transition: none !important;
 }
 .dashboard-card.no-anim:hover {
     transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+/* Extra safety: Registrations view should never animate/move its card */
+#registrationsView .dashboard-card {
+    transition: none !important;
+}
+#registrationsView .dashboard-card:hover {
+    transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
 }
 
 /* Ensure only active view is visible */

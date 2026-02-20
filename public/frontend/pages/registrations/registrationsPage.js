@@ -71,18 +71,8 @@
 
     if (body) {
       const currentAssigned = reg?.assigned_to ?? reg?.payload?.assigned_to ?? '';
-      let officerOptions = '';
-      try {
-        const officers = await ensureOfficersLoaded();
-        officerOptions = [''].concat(officers).map(name => {
-          const label = name || 'Unassigned';
-          const selected = String(name) === String(currentAssigned) ? 'selected' : '';
-          return `<option value="${escapeHtml(name)}" ${selected}>${escapeHtml(label)}</option>`;
-        }).join('');
-      } catch (e) {
-        console.warn('Failed to load officers for assignment dropdown:', e);
-      }
 
+      // Render modal content immediately (fast UI), then hydrate dropdowns async
       body.innerHTML = `
         <div class="lead-details-grid" style="grid-template-columns: 1fr 1fr;">
           ${Object.entries(details).map(([k, v]) => `
@@ -95,12 +85,13 @@
 
         <div style="margin-top: 14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <div style="font-size:13px; color:#667085;">Assigned</div>
-          <select id="registrationAssignedSelect" class="form-control" style="min-width: 220px;">
-            ${officerOptions || `<option value="${escapeHtml(currentAssigned)}" selected>${escapeHtml(currentAssigned || 'Unassigned')}</option>`}
+          <select id="registrationAssignedSelect" class="form-control" style="min-width: 220px;" disabled>
+            <option value="${escapeHtml(currentAssigned)}" selected>${escapeHtml(currentAssigned || 'Unassigned')}</option>
           </select>
-          <button type="button" class="btn btn-primary" id="registrationAssignedSaveBtn">
+          <button type="button" class="btn btn-primary" id="registrationAssignedSaveBtn" disabled>
             <i class="fas fa-save"></i> Save
           </button>
+          <span id="registrationAssignedLoading" style="font-size:12px; color:#98a2b3;">Loading officers...</span>
         </div>
 
         <div style="margin-top: 12px;">
@@ -113,14 +104,14 @@
             <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
               <div class="form-group" style="margin:0;">
                 <label style="font-size:13px; color:#344054; font-weight:600;">Payment method</label>
-                <select id="registrationPaymentMethod" class="form-control">
-                  <option value="">Select</option>
+                <select id="registrationPaymentMethod" class="form-control" disabled>
+                  <option value="">Loading...</option>
                 </select>
               </div>
               <div class="form-group" style="margin:0;">
                 <label style="font-size:13px; color:#344054; font-weight:600;">Payment plan</label>
-                <select id="registrationPaymentPlan" class="form-control">
-                  <option value="">Select</option>
+                <select id="registrationPaymentPlan" class="form-control" disabled>
+                  <option value="">Loading...</option>
                 </select>
               </div>
               <div class="form-group" style="margin:0;">
@@ -145,6 +136,38 @@
           </div>
         </div>
       `;
+
+      // Open modal immediately
+      openModal('registrationDetailsModal');
+
+      // Hydrate officers dropdown async
+      (async () => {
+        try {
+          const officers = await ensureOfficersLoaded();
+          // If user clicked another row before this finished, abort
+          if (String(selectedRegistrationId) !== String(reg?.id)) return;
+
+          const selEl = qs('registrationAssignedSelect');
+          const saveBtn = qs('registrationAssignedSaveBtn');
+          const loadingEl = qs('registrationAssignedLoading');
+          if (!selEl) return;
+
+          const opts = [''].concat(officers).map(name => {
+            const label = name || 'Unassigned';
+            const selected = String(name) === String(currentAssigned) ? 'selected' : '';
+            return `<option value="${escapeHtml(name)}" ${selected}>${escapeHtml(label)}</option>`;
+          }).join('');
+
+          selEl.innerHTML = opts;
+          selEl.disabled = false;
+          if (saveBtn) saveBtn.disabled = false;
+          if (loadingEl) loadingEl.remove();
+        } catch (e) {
+          console.warn('Failed to load officers for assignment dropdown:', e);
+          const loadingEl = qs('registrationAssignedLoading');
+          if (loadingEl) loadingEl.textContent = 'Failed to load officers';
+        }
+      })();
 
       const saveBtn = qs('registrationAssignedSaveBtn');
       const sel = qs('registrationAssignedSelect');
@@ -277,9 +300,10 @@
         const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
         const r = await fetch(`/api/payment-setup/batches/${encodeURIComponent(batchName)}`, { headers: authHeaders });
         const j = await r.json();
+        const methodSel = qs('registrationPaymentMethod');
+        const planSel = qs('registrationPaymentPlan');
+
         if (j.success) {
-          const methodSel = qs('registrationPaymentMethod');
-          const planSel = qs('registrationPaymentPlan');
           if (methodSel) {
             methodSel.innerHTML = '<option value="">Select</option>' + (j.methods || []).map(m => `<option value="${escapeHtml(m.method_name)}">${escapeHtml(m.method_name)}</option>`).join('');
             methodSel.disabled = false;
@@ -288,6 +312,28 @@
             planSel.innerHTML = '<option value="">Select</option>' + (j.plans || []).map(p => `<option value="${escapeHtml(p.plan_name)}">${escapeHtml(p.plan_name)}</option>`).join('');
             planSel.disabled = false;
           }
+        } else {
+          // Fall back to manual entry (do not block UI)
+          if (methodSel) {
+            methodSel.innerHTML = '<option value="">Select</option>';
+            methodSel.disabled = false;
+          }
+          if (planSel) {
+            planSel.innerHTML = '<option value="">Select</option>';
+            planSel.disabled = false;
+          }
+        }
+      } else {
+        // No batch: still allow manual selection
+        const methodSel = qs('registrationPaymentMethod');
+        const planSel = qs('registrationPaymentPlan');
+        if (methodSel) {
+          methodSel.innerHTML = '<option value="">Select</option>';
+          methodSel.disabled = false;
+        }
+        if (planSel) {
+          planSel.innerHTML = '<option value="">Select</option>';
+          planSel.disabled = false;
         }
       }
 
@@ -313,7 +359,7 @@
       console.warn('Failed to load payment setup for batch', e);
     }
 
-    openModal('registrationDetailsModal');
+    // Modal already opened earlier (fast open)
   }
 
   let selectedProgramId = '';
