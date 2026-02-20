@@ -23,7 +23,8 @@ function validateName(label, value) {
 }
 
 // GET /api/payment-setup/batches/:batchName
-router.get('/batches/:batchName', isAdmin, async (req, res) => {
+// Officers can read to populate dropdowns
+router.get('/batches/:batchName', require('../../../server/middleware/auth').isAdminOrOfficer, async (req, res) => {
   try {
     const sb = getSupabaseAdmin();
     const batchName = validateName('Batch name', req.params.batchName);
