@@ -1027,6 +1027,38 @@ body {
     box-shadow: var(--shadow-sm) !important;
 }
 
+/* Programs view: buttons a bit smaller (avoid oversized UI) */
+#programsView .btn {
+    padding: 8px 12px;
+    font-size: 13px;
+}
+#programsView .btn.btn-sm {
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
+/* Batch Payment Setup modal (Payment plans editing): smaller buttons + stable cards */
+#batchPaymentSetupModal .btn {
+    padding: 8px 12px;
+    font-size: 13px;
+}
+#batchPaymentSetupModal .btn.btn-sm {
+    padding: 6px 10px;
+    font-size: 12px;
+}
+#batchPaymentSetupModal .dashboard-card,
+#batchPaymentSetupModal .dashboard-card:hover,
+#batchPaymentSetupModal .dashboard-card:active {
+    transition: none !important;
+    transform: none !important;
+}
+
+/* Payment method chips/wrap buttons inside modal */
+#batchPaymentSetupModal #paymentMethodsWrap .btn {
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
 /* Programs view: prevent any hover background shifts in list/table rows */
 #programsView .data-table tbody tr:hover {
     background: inherit !important;
