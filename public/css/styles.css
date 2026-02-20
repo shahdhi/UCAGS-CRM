@@ -918,6 +918,20 @@ body {
     backface-visibility: visible !important;
 }
 
+/* My Registrations (officer): avoid any perceived movement/flicker */
+#registrations-myView .dashboard-card,
+#registrations-myView .dashboard-card:hover,
+#registrations-myView .dashboard-card:active {
+    transition: none !important;
+    transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+#registrations-myView .data-table tbody tr {
+    transform: none !important;
+    backface-visibility: visible !important;
+}
+
 .data-table tbody tr:hover {
     background: var(--bg-hover);
 }
@@ -998,6 +1012,24 @@ body {
     padding: 6px 10px;
     font-size: 12px;
     white-space: nowrap;
+}
+
+/* Programs view: keep card stable (no hover transitions) */
+#programsView .dashboard-card {
+    transition: none !important;
+    transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+#programsView .dashboard-card:hover,
+#programsView .dashboard-card:active {
+    transition: none !important;
+    transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+/* Programs view: prevent any hover background shifts in list/table rows */
+#programsView .data-table tbody tr:hover {
+    background: inherit !important;
 }
 
 /* Status Badges */

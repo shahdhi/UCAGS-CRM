@@ -27,6 +27,9 @@
 
   let lastRowsById = new Map();
 
+  // Prevent concurrent loads (stable like Lead Management)
+  let isLoading = false;
+
   async function openDetailsModal(reg) {
     // Reuse the existing modal, but hide delete/actions for officers
     const delBtn = qs('registrationDeleteBtn');
@@ -278,51 +281,57 @@
     batchSel.value = selectedBatchName;
   }
 
-  async function loadMyRegistrations() {
+  async function loadMyRegistrations({ showSkeleton = false } = {}) {
+    if (isLoading) return;
+    isLoading = true;
+
     const tbody = qs('registrationsMyTableBody');
     const limitEl = qs('registrationsMyLimit');
     const limit = Math.min(parseInt(limitEl?.value || '100', 10) || 100, 500);
 
-    if (tbody) {
+    // Only show skeleton on first load to prevent flicker
+    if (tbody && showSkeleton) {
       tbody.innerHTML = '<tr><td colspan="5" class="loading">Loading registrations...</td></tr>';
     }
 
-    const res = await window.API.registrations.myList(limit, { programId: selectedProgramId, batchName: selectedBatchName });
-    const rows = res.registrations || [];
-    lastRowsById = new Map(rows.map(r => [r.id, r]));
+    try {
+      const res = await window.API.registrations.myList(limit, { programId: selectedProgramId, batchName: selectedBatchName });
+      const rows = res.registrations || [];
+      lastRowsById = new Map(rows.map(r => [String(r.id), r]));
 
-    if (!tbody) return;
-    if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="loading">No registrations found</td></tr>';
-      return;
+      if (!tbody) return;
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="loading">No registrations found</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = rows.map(r => {
+        const submittedAt = formatDateTimeLocal(r.created_at);
+        const email = r.email ?? r.payload?.email ?? '';
+        const paid = !!(r.payment_received);
+        const paymentCell = paid
+          ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Received</span>'
+          : '<span style="color:#98a2b3;">-</span>';
+
+        return `
+          <tr data-registration-id="${escapeHtml(r.id)}" style="cursor:pointer;">
+            <td>${escapeHtml(r.name)}</td>
+            <td>${escapeHtml(r.phone_number)}</td>
+            <td>${escapeHtml(email)}</td>
+            <td>${paymentCell}</td>
+            <td>${escapeHtml(submittedAt)}</td>
+          </tr>
+        `;
+      }).join('');
+    } catch (e) {
+      console.error(e);
+      if (tbody && showSkeleton) {
+        tbody.innerHTML = `<tr><td colspan="5" class="loading">${escapeHtml(e.message || 'Failed to load registrations')}</td></tr>`;
+      }
+      throw e;
+    } finally {
+      isLoading = false;
     }
-
-    tbody.innerHTML = rows.map(r => {
-      const submittedAt = formatDateTimeLocal(r.created_at);
-      const email = r.email ?? r.payload?.email ?? '';
-      const paid = !!(r.payment_received);
-      const paymentCell = paid
-        ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Received</span>'
-        : '<span style="color:#98a2b3;">-</span>';
-
-      return `
-        <tr data-registration-id="${escapeHtml(r.id)}" style="cursor:pointer;">
-          <td>${escapeHtml(r.name)}</td>
-          <td>${escapeHtml(r.phone_number)}</td>
-          <td>${escapeHtml(email)}</td>
-          <td>${paymentCell}</td>
-          <td>${escapeHtml(submittedAt)}</td>
-        </tr>
-      `;
-    }).join('');
-
-    tbody.querySelectorAll('tr[data-registration-id]').forEach(tr => {
-      tr.addEventListener('click', () => {
-        const id = tr.getAttribute('data-registration-id');
-        const reg = lastRowsById.get(id);
-        if (reg) openDetailsModal(reg).catch(console.error);
-      });
-    });
   }
 
   async function initMyRegistrationsPage() {
@@ -331,6 +340,19 @@
     const refreshBtn = qs('registrationsMyRefreshBtn');
     const limitEl = qs('registrationsMyLimit');
     const batchSel = qs('registrationsMyBatchSelect');
+    const tbody = qs('registrationsMyTableBody');
+
+    // One-time: row click -> details (event delegation)
+    if (tbody && !tbody.__delegated) {
+      tbody.__delegated = true;
+      tbody.addEventListener('click', (e) => {
+        const tr = e.target?.closest?.('tr[data-registration-id]');
+        if (!tr) return;
+        const id = tr.getAttribute('data-registration-id');
+        const reg = lastRowsById.get(String(id));
+        if (reg) openDetailsModal(reg).catch(console.error);
+      });
+    }
 
     if (batchSel && !batchSel.__bound) {
       batchSel.__bound = true;
@@ -354,7 +376,7 @@
     }
 
     await renderProgramTabs();
-    await loadMyRegistrations();
+    await loadMyRegistrations({ showSkeleton: true });
   }
 
   window.initMyRegistrationsPage = initMyRegistrationsPage;

@@ -231,11 +231,28 @@
     });
   }
 
-  async function load() {
+  let isLoading = false;
+
+  async function load({ showSkeleton = false } = {}) {
+    if (isLoading) return;
+    isLoading = true;
+
     const list = qs('programsList');
-    if (list) list.innerHTML = '<p class="loading">Loading programs...</p>';
-    const data = await fetchPrograms();
-    render(data);
+    // Only show skeleton on first load to avoid flicker (stable like Lead Management)
+    if (list && showSkeleton) list.innerHTML = '<p class="loading">Loading programs...</p>';
+
+    try {
+      const data = await fetchPrograms();
+      render(data);
+    } catch (e) {
+      console.error(e);
+      if (list && showSkeleton) {
+        list.innerHTML = `<p class="loading">${escapeHtml(e.message || 'Failed to load programs')}</p>`;
+      }
+      throw e;
+    } finally {
+      isLoading = false;
+    }
   }
 
   async function handleCreateBatch() {
@@ -335,7 +352,7 @@
       batchSaveBtn.addEventListener('click', () => handleCreateBatch());
     }
 
-    await load();
+    await load({ showSkeleton: true });
   }
 
   window.initProgramsPage = initProgramsPage;
