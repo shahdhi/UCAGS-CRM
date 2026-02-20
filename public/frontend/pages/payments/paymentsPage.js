@@ -34,8 +34,20 @@
       return;
     }
 
+    // Use current summary row (if available) to show due window
+    let windowHtml = '';
+    if (window.__paymentsLastSummary && Array.isArray(window.__paymentsLastSummary)) {
+      const cur = window.__paymentsLastSummary.find(x => String(x.registration_id) === String(registrationId));
+      if (cur && (cur.window_start_date || cur.window_end_date)) {
+        windowHtml = `<div style=\"font-size:12px; color:#667085; margin-top:6px;\">Window: ${escapeHtml(cur.window_start_date || '')} → ${escapeHtml(cur.window_end_date || '')}</div>`;
+      }
+    }
+
     body.innerHTML = `
-      <div style="margin-bottom:10px; color:#475467;">${escapeHtml(registrationName || '')}</div>
+      <div style="margin-bottom:10px; color:#475467;">
+        <div style="font-weight:700; color:#101828;">${escapeHtml(registrationName || '')}</div>
+        ${windowHtml}
+      </div>
       <div style="overflow-x:auto; width:100%;">
         <table class="data-table">
           <thead>
@@ -245,6 +257,7 @@
     const fetchStatus = (selectedStatus === 'due_overdue') ? 'all' : selectedStatus;
     const res = await window.API.payments.adminSummary(limit, { programId: selectedProgramId, batchName: selectedBatchName, status: fetchStatus });
     let rows = res.payments || [];
+    window.__paymentsLastSummary = rows;
 
     if (selectedStatus === 'due_overdue') {
       rows = rows.filter(r => ['due', 'overdue'].includes(String(r.computed_status)));
