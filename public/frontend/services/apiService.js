@@ -362,6 +362,13 @@ const studentsAPI = {
     params.set('limit', String(limit));
     if (search) params.set('search', String(search));
     return fetchAPI(`/students/admin?${params.toString()}`);
+  },
+
+  adminDelete: async (id) => {
+    if (!id) throw new Error('Missing student id');
+    return fetchAPI(`/students/admin/${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    });
   }
 };
 

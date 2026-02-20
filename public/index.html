@@ -1720,8 +1720,14 @@
                 </button>
             </div>
             <div class="modal-body" id="studentDetailsModalBody"></div>
-            <div class="modal-actions" style="display:flex; justify-content:flex-end; gap:10px; align-items:center; flex-wrap:wrap;">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('studentDetailsModal')">Close</button>
+            <div class="modal-actions" style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
+                <div style="color:#667085; font-size: 13px;">Deleting enrollment will remove the student and revert the registration to not enrolled.</div>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="btn btn-danger" id="studentDeleteEnrollmentBtn">
+                        <i class="fas fa-trash"></i> Delete enrollment
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('studentDetailsModal')">Close</button>
+                </div>
             </div>
         </div>
     </div>

@@ -63,14 +63,17 @@
     } catch (e) {
       console.error(e);
       if (tbody && showSkeleton) {
-        tbody.innerHTML = `<tr><td colspan="7" class="loading">${escapeHtml(e.message || 'Failed to load')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="loading">${escapeHtml(e.message || 'Failed to load')}</td></tr>`;
       }
     } finally {
       isLoading = false;
     }
   }
 
+  let selectedStudent = null;
+
   function renderStudentDetails(student) {
+    selectedStudent = student;
     const body = qs('studentDetailsModalBody');
     if (!body) return;
 
@@ -92,39 +95,29 @@
       'Source': get('source'),
       'Program': get('program_name') || get('course_program') || student?.program_name,
       'Batch': get('batch_name') || student?.batch_name,
-      'Registration ID': student?.registration_id,
-      'Enrolled At': payload?.enrolled_at || '',
-      'Created At': student?.created_at ? new Date(student.created_at).toLocaleString() : '',
-      'Updated At': student?.updated_at ? new Date(student.updated_at).toLocaleString() : ''
+      'Created At': student?.created_at ? new Date(student.created_at).toLocaleString() : ''
     };
 
-    // Show payload keys (but avoid duplicating base fields)
-    const skip = new Set(['name', 'phone_number', 'email', 'program_name', 'course_program', 'batch_name', 'student_id', 'enrolled', 'enrolled_at']);
-    const payloadEntries = Object.entries(payload || {})
-      .filter(([k, v]) => !skip.has(k) && v !== null && v !== undefined && String(v).trim() !== '')
-      .sort(([a], [b]) => a.localeCompare(b));
+    // Clean details view (no duplicated "Additional Details" section)
+    const entries = Object.entries(base)
+      .filter(([k, v]) => v !== null && v !== undefined && String(v).trim() !== '');
 
     body.innerHTML = `
-      <div class="lead-details-grid" style="grid-template-columns: 1fr 1fr;">
-        ${Object.entries(base).map(([k, v]) => `
-          <div class="lead-detail-item">
-            <div class="lead-detail-label">${escapeHtml(k)}</div>
-            <div class="lead-detail-value">${escapeHtml(v || '')}</div>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom: 10px;">
+        <div>
+          <div style="font-size:12px; color:#667085; font-weight:600;">Student Profile</div>
+          <div style="font-size:18px; font-weight:800; color:#101828; margin-top:2px;">${escapeHtml(student?.student_id || '')} — ${escapeHtml(get('name') || '')}</div>
+        </div>
+      </div>
+
+      <div class="lead-details-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+        ${entries.map(([k, v]) => `
+          <div class="lead-detail-item" style="background:#f9fafb; border:1px solid #eaecf0; border-radius:12px; padding:10px;">
+            <div class="lead-detail-label" style="font-size:12px; color:#667085; font-weight:700;">${escapeHtml(k)}</div>
+            <div class="lead-detail-value" style="font-size:14px; color:#101828; font-weight:700; margin-top:4px;">${escapeHtml(v || '')}</div>
           </div>
         `).join('')}
       </div>
-
-      ${payloadEntries.length ? `
-        <div style="margin-top:14px; font-weight:700; color:#101828;">Additional Details</div>
-        <div class="lead-details-grid" style="grid-template-columns: 1fr 1fr; margin-top: 8px;">
-          ${payloadEntries.map(([k, v]) => `
-            <div class="lead-detail-item">
-              <div class="lead-detail-label">${escapeHtml(k)}</div>
-              <div class="lead-detail-value">${escapeHtml(typeof v === 'object' ? JSON.stringify(v) : v)}</div>
-            </div>
-          `).join('')}
-        </div>
-      ` : ''}
     `;
   }
 
@@ -148,6 +141,29 @@
 
         renderStudentDetails(student);
         openModal('studentDetailsModal');
+      });
+    }
+
+    const deleteBtn = qs('studentDeleteEnrollmentBtn');
+    if (deleteBtn && !deleteBtn.__bound) {
+      deleteBtn.__bound = true;
+      deleteBtn.addEventListener('click', async () => {
+        try {
+          if (!selectedStudent?.id) return;
+          const ok = confirm(`Delete enrollment for ${selectedStudent.student_id || ''}? This will also revert the linked registration.`);
+          if (!ok) return;
+
+          deleteBtn.disabled = true;
+          await window.API.students.adminDelete(selectedStudent.id);
+          if (window.UI && UI.showToast) UI.showToast('Enrollment deleted', 'success');
+          closeModal('studentDetailsModal');
+          await loadStudents();
+        } catch (e) {
+          console.error(e);
+          if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to delete enrollment', 'error');
+        } finally {
+          deleteBtn.disabled = false;
+        }
       });
     }
 
