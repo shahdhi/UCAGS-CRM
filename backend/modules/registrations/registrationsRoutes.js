@@ -266,21 +266,48 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
 
     const createdBy = String(req.user?.name || req.user?.email || '').trim() || null;
 
+    // Snapshot registration name for easier admin payments listing
+    const { data: regRow } = await sb
+      .from('registrations')
+      .select('name')
+      .eq('id', id)
+      .maybeSingle();
+
+    const registrationName = cleanString(regRow?.name);
+
+    // If installment plan, create 4 installment rows in a group
+    const isInstallment = paymentPlan.toLowerCase().includes('installment');
+    const groupId = isInstallment ? require('crypto').randomUUID() : null;
+
+    const rows = isInstallment
+      ? [1, 2, 3, 4].map((n) => ({
+          registration_id: id,
+          registration_name: registrationName,
+          installment_group_id: groupId,
+          installment_no: n,
+          payment_plan: paymentPlan,
+          payment_date: n === 1 ? (paymentDate || null) : null,
+          amount: n === 1 ? amount : 0,
+          receipt_received: n === 1 ? receiptReceived : false,
+          created_by: createdBy
+        }))
+      : [{
+          registration_id: id,
+          registration_name: registrationName,
+          payment_plan: paymentPlan,
+          payment_date: paymentDate || null,
+          amount,
+          receipt_received: receiptReceived,
+          created_by: createdBy
+        }];
+
     const { data, error } = await sb
       .from('payments')
-      .insert({
-        registration_id: id,
-        payment_plan: paymentPlan,
-        payment_date: paymentDate || null,
-        amount,
-        receipt_received: receiptReceived,
-        created_by: createdBy
-      })
-      .select('*')
-      .single();
+      .insert(rows)
+      .select('*');
 
     if (error) throw error;
-    res.json({ success: true, payment: data });
+    res.json({ success: true, payments: data || [] });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }

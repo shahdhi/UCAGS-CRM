@@ -95,6 +95,7 @@ app.use('/api/analytics', require('./modules/analytics/analyticsRoutes'));
 
 // Programs + program batches
 app.use('/api/programs', require('./modules/programs/programsRoutes'));
+app.use('/api/payments', require('./modules/payments/paymentsRoutes'));
 
 // Registrations (public intake + admin listing)
 app.use('/api/registrations', require('./modules/registrations/registrationsRoutes'));

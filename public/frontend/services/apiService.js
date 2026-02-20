@@ -267,6 +267,29 @@ const leadsAPI = {
 /**
  * Registrations API (admin)
  */
+const paymentsAPI = {
+  adminList: async (limit = 200) => {
+    const params = new URLSearchParams();
+    params.set('limit', String(limit));
+    return fetchAPI(`/payments/admin?${params.toString()}`);
+  },
+  adminUpdate: async (id, patch) => {
+    return fetchAPI(`/payments/admin/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(patch)
+    });
+  },
+  adminConfirm: async (id) => {
+    return fetchAPI(`/payments/admin/${encodeURIComponent(id)}/confirm`, {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+  },
+  adminListForRegistration: async (registrationId) => {
+    return fetchAPI(`/payments/admin/registration/${encodeURIComponent(registrationId)}`);
+  }
+};
+
 const registrationsAPI = {
   adminList: async (limit = 200) => {
     const params = new URLSearchParams();
@@ -636,6 +659,7 @@ window.API = {
   enquiries: enquiriesAPI,
   leads: leadsAPI,
   registrations: registrationsAPI,
+  payments: paymentsAPI,
   dashboard: dashboardAPI,
   officers: officersAPI,
   email: emailAPI,

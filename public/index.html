@@ -156,6 +156,11 @@
                     <span>Programs</span>
                 </a>
 
+                <a href="#" class="nav-item admin-only" data-page="payments">
+                    <i class="fas fa-money-check-dollar"></i>
+                    <span>Payments</span>
+                </a>
+
                 <a href="#" class="nav-item officer-only" data-page="registrations-my">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Registrations</span>
@@ -868,6 +873,54 @@
                 </div>
             </div>
 
+            <div id="paymentsView" class="content-view admin-only" style="display:none;">
+                <div class="page-header">
+                    <h1><i class="fas fa-money-check-dollar"></i> Payments</h1>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <button id="paymentsRefreshBtn" class="btn btn-secondary" type="button">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div class="dashboard-card">
+                    <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom: 10px;">
+                        <div style="color:#667085; font-size: 13px;">Payments captured from registrations</div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <label for="paymentsLimit" style="font-size:13px; color:#667085;">Show</label>
+                            <select id="paymentsLimit" class="form-control" style="width:120px;">
+                                <option value="100">100</option>
+                                <option value="200" selected>200</option>
+                                <option value="500">500</option>
+                                <option value="1000">1000</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="overflow-x:auto; width:100%;">
+                        <table class="data-table" id="paymentsTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email sent</th>
+                                    <th>Whatsapp sent</th>
+                                    <th>Payment Method</th>
+                                    <th>Payment Plan</th>
+                                    <th>Payment Amount</th>
+                                    <th>Payment Date</th>
+                                    <th>Slip Received</th>
+                                    <th>Payment Received</th>
+                                    <th>Receipt No</th>
+                                </tr>
+                            </thead>
+                            <tbody id="paymentsTableBody">
+                                <tr><td colspan="10" class="loading">Loading payments...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <div id="enquiriesView" class="content-view">
                 <div class="page-header">
                     <h1>Enquiries</h1>
@@ -1541,6 +1594,19 @@
         </div>
     </div>
 
+    <div id="paymentDetailsModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2><i class="fas fa-money-check-dollar"></i> Payment Details</h2>
+                <button class="modal-close" onclick="closeModal('paymentDetailsModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="paymentDetailsModalBody"></div>
+            <div class="modal-actions" style="margin-top: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('paymentDetailsModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
     <div id="registrationDetailsModal" class="modal">
         <div class="modal-content large">
             <div class="modal-header">
@@ -1716,6 +1782,7 @@
     <script src="/frontend/pages/registrations/registrationsPage.js?v=1"></script>
     <script src="/frontend/pages/registrations/myRegistrationsPage.js?v=1"></script>
     <script src="/frontend/pages/programs/programsPage.js?v=1"></script>
+    <script src="/frontend/pages/payments/paymentsPage.js?v=1"></script>
     <script src="/frontend/pages/receipts/receiptsPage.js?v=3"></script>
     <script src="/frontend/pages/whatsapp/whatsappInbox.js?v=1"></script>
     <script src="/frontend/pages/whatsapp/waDrawer.js?v=1"></script>

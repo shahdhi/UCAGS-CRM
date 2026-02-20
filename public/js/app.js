@@ -966,6 +966,11 @@ async function navigateToPage(page) {
                 await window.initProgramsPage();
             }
             break;
+        case 'payments':
+            if (window.initPaymentsPage) {
+                await window.initPaymentsPage();
+            }
+            break;
         case 'receipts':
             loadReceipts();
             break;
