@@ -256,6 +256,11 @@
       closeModal('programBatchAddModal');
       if (window.UI && UI.showToast) UI.showToast('Batch created, sheet linked, and set as current', 'success');
       await load();
+
+      // Open payment setup for this new batch
+      if (window.openBatchPaymentSetup) {
+        window.openBatchPaymentSetup(batchName);
+      }
     } catch (e) {
       console.error(e);
       if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to add batch', 'error');

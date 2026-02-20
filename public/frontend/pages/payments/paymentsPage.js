@@ -145,12 +145,68 @@
     });
   }
 
+  let selectedProgramId = '';
+  let selectedBatchName = '';
+
+  async function loadProgramsForPayments() {
+    const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+    const res = await fetch('/api/programs/sidebar', { headers: authHeaders });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Failed to load programs');
+    return json;
+  }
+
+  async function renderProgramTabs() {
+    const tabs = qs('paymentsProgramTabs');
+    const batchSel = qs('paymentsBatchSelect');
+    if (!tabs || !batchSel) return;
+
+    const { programs, batches } = await loadProgramsForPayments();
+
+    // default program = first
+    if (!selectedProgramId && programs.length) selectedProgramId = programs[0].id;
+
+    tabs.innerHTML = '';
+    programs.forEach(p => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-secondary';
+      btn.style.padding = '6px 10px';
+      btn.style.borderRadius = '999px';
+      const active = String(p.id) === String(selectedProgramId);
+      btn.style.border = active ? '1px solid #592c88' : '1px solid #eaecf0';
+      btn.style.background = active ? '#f4ebff' : '#fff';
+      btn.style.color = active ? '#592c88' : '#344054';
+      btn.textContent = p.name;
+      btn.onclick = async () => {
+        selectedProgramId = p.id;
+        await renderProgramTabs();
+        await loadPayments();
+      };
+      tabs.appendChild(btn);
+    });
+
+    // batches for selected program
+    const bs = (batches || []).filter(b => String(b.program_id) === String(selectedProgramId));
+    const current = bs.find(b => b.is_current);
+    batchSel.innerHTML = '';
+    bs.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b.batch_name;
+      opt.textContent = b.batch_name;
+      batchSel.appendChild(opt);
+    });
+
+    if (!selectedBatchName) selectedBatchName = current?.batch_name || (bs[0]?.batch_name || '');
+    batchSel.value = selectedBatchName;
+  }
+
   async function loadPayments() {
     const tbody = qs('paymentsTableBody');
     const limit = parseInt(qs('paymentsLimit')?.value || '200', 10) || 200;
     if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="loading">Loading payments...</td></tr>';
 
-    const res = await window.API.payments.adminList(limit);
+    const res = await window.API.payments.adminList(limit, { programId: selectedProgramId, batchName: selectedBatchName });
     const rows = res.payments || [];
 
     if (!tbody) return;
@@ -161,6 +217,20 @@
 
     // Show only the latest payment row per registration (by created_at), click to see all
     const latestByReg = new Map();
+    rows.forEach(p => {
+      const key = p.registration_id;
+      if (!key) return;
+      if (latestByReg.has(key)) return;
+
+      // Skip placeholder installment rows (amount=0 and no date)
+      const amt = Number(p.amount);
+      const isPlaceholder = (!p.payment_date) && (!Number.isFinite(amt) || amt <= 0);
+      if (isPlaceholder) return;
+
+      latestByReg.set(key, p);
+    });
+
+    // If some registrations only had placeholders (rare), fall back to first row
     rows.forEach(p => {
       const key = p.registration_id;
       if (!key) return;
@@ -269,6 +339,8 @@
           }
           try {
             receivedCb.disabled = true;
+            // Save any pending edits first
+            await patch();
             await window.API.payments.adminConfirm(id);
             if (window.UI && UI.showToast) UI.showToast('Payment confirmed', 'success');
             await loadPayments();
@@ -276,6 +348,8 @@
             console.error(e);
             receivedCb.checked = false;
             if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to confirm payment', 'error');
+          } finally {
+            receivedCb.disabled = false;
           }
         });
       }
@@ -287,6 +361,15 @@
 
     const refreshBtn = qs('paymentsRefreshBtn');
     const limitEl = qs('paymentsLimit');
+    const batchSel = qs('paymentsBatchSelect');
+
+    if (batchSel && !batchSel.__bound) {
+      batchSel.__bound = true;
+      batchSel.addEventListener('change', () => {
+        selectedBatchName = batchSel.value;
+        loadPayments().catch(console.error);
+      });
+    }
 
     if (refreshBtn && !refreshBtn.__bound) {
       refreshBtn.__bound = true;
@@ -297,6 +380,7 @@
       limitEl.addEventListener('change', () => loadPayments().catch(console.error));
     }
 
+    await renderProgramTabs();
     await loadPayments();
   }
 

@@ -268,9 +268,11 @@ const leadsAPI = {
  * Registrations API (admin)
  */
 const paymentsAPI = {
-  adminList: async (limit = 200) => {
+  adminList: async (limit = 200, { programId = '', batchName = '' } = {}) => {
     const params = new URLSearchParams();
     params.set('limit', String(limit));
+    if (programId) params.set('programId', String(programId));
+    if (batchName) params.set('batchName', String(batchName));
     return fetchAPI(`/payments/admin?${params.toString()}`);
   },
   adminUpdate: async (id, patch) => {

@@ -107,13 +107,15 @@
             <div style="font-weight:600; color:#101828; margin-bottom:10px;">Payment Details</div>
             <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
               <div class="form-group" style="margin:0;">
+                <label style="font-size:13px; color:#344054; font-weight:600;">Payment method</label>
+                <select id="registrationPaymentMethod" class="form-control">
+                  <option value="">Select</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0;">
                 <label style="font-size:13px; color:#344054; font-weight:600;">Payment plan</label>
                 <select id="registrationPaymentPlan" class="form-control">
-                  <option value="Installment">Installment</option>
-                  <option value="Installment with early bird">Installment with early bird</option>
-                  <option value="Full payment">Full payment</option>
-                  <option value="Full payment with early bird">Full payment with early bird</option>
-                  <option value="registration fee only">registration fee only</option>
+                  <option value="">Select</option>
                 </select>
               </div>
               <div class="form-group" style="margin:0;">
@@ -157,12 +159,17 @@
 
       if (paySaveBtn) {
         paySaveBtn.onclick = async () => {
+          const method = qs('registrationPaymentMethod')?.value;
           const plan = qs('registrationPaymentPlan')?.value;
           const date = qs('registrationPaymentDate')?.value;
           const amountStr = qs('registrationPaymentAmount')?.value;
           const receipt = !!qs('registrationReceiptReceived')?.checked;
 
           const amount = Number(amountStr);
+          if (!method) {
+            if (window.UI && UI.showToast) UI.showToast('Please select a payment method', 'error');
+            return;
+          }
           if (!plan) {
             if (window.UI && UI.showToast) UI.showToast('Please select a payment plan', 'error');
             return;
@@ -174,19 +181,27 @@
 
           try {
             paySaveBtn.disabled = true;
-            await window.API.registrations.addPayment(selectedRegistrationId, {
+            const result = await window.API.registrations.addPayment(selectedRegistrationId, {
+              payment_method: method,
               payment_plan: plan,
               payment_date: date || null,
               amount,
+              slip_received: receipt,
               receipt_received: receipt
             });
             if (window.UI && UI.showToast) UI.showToast('Payment saved', 'success');
 
-            // Reset and collapse
-            if (qs('registrationPaymentAmount')) qs('registrationPaymentAmount').value = '';
-            if (qs('registrationReceiptReceived')) qs('registrationReceiptReceived').checked = false;
-            if (qs('registrationPaymentDate')) qs('registrationPaymentDate').value = '';
-            if (paySection) paySection.style.display = 'none';
+            // Fill fields with saved values (use the first row)
+            const saved = (result && result.payments && result.payments[0]) ? result.payments[0] : null;
+            if (saved) {
+              if (qs('registrationPaymentMethod')) qs('registrationPaymentMethod').value = saved.payment_method || method;
+              if (qs('registrationPaymentPlan')) qs('registrationPaymentPlan').value = saved.payment_plan || plan;
+              if (qs('registrationPaymentDate')) qs('registrationPaymentDate').value = saved.payment_date || (date || '');
+              if (qs('registrationPaymentAmount')) qs('registrationPaymentAmount').value = String(saved.amount ?? amount);
+              if (qs('registrationReceiptReceived')) qs('registrationReceiptReceived').checked = !!(saved.slip_received || saved.receipt_received);
+            }
+
+            // Keep the form visible for further edits
             if (payToggleBtn) payToggleBtn.innerHTML = '<i class="fas fa-money-bill-wave"></i> Payment received';
 
           } catch (e) {
@@ -236,6 +251,28 @@
           delBtn.disabled = false;
         }
       };
+    }
+
+    // Load batch-specific payment setup into dropdowns
+    try {
+      const batchName = reg?.batch_name || reg?.payload?.batch_name;
+      if (batchName) {
+        const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+        const r = await fetch(`/api/payment-setup/batches/${encodeURIComponent(batchName)}`, { headers: authHeaders });
+        const j = await r.json();
+        if (j.success) {
+          const methodSel = qs('registrationPaymentMethod');
+          const planSel = qs('registrationPaymentPlan');
+          if (methodSel) {
+            methodSel.innerHTML = '<option value="">Select</option>' + (j.methods || []).map(m => `<option value="${escapeHtml(m.method_name)}">${escapeHtml(m.method_name)}</option>`).join('');
+          }
+          if (planSel) {
+            planSel.innerHTML = '<option value="">Select</option>' + (j.plans || []).map(p => `<option value="${escapeHtml(p.plan_name)}">${escapeHtml(p.plan_name)}</option>`).join('');
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load payment setup for batch', e);
     }
 
     openModal('registrationDetailsModal');

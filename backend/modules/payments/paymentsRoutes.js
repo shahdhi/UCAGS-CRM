@@ -38,10 +38,14 @@ router.get('/admin', isAdmin, async (req, res) => {
   try {
     const sb = getSupabaseAdmin();
     const limit = Math.min(parseInt(req.query.limit || '200', 10) || 200, 1000);
+    const programId = req.query.programId ? String(req.query.programId).trim() : '';
+    const batchName = req.query.batchName ? String(req.query.batchName).trim() : '';
 
-    const { data, error } = await sb
-      .from('payments')
-      .select('*')
+    let q = sb.from('payments').select('*');
+    if (programId) q = q.eq('program_id', programId);
+    if (batchName) q = q.eq('batch_name', batchName);
+
+    const { data, error } = await q
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -66,7 +70,10 @@ router.put('/admin/:id', isAdmin, async (req, res) => {
     if ('payment_method' in req.body) patch.payment_method = cleanString(req.body.payment_method);
     if ('payment_plan' in req.body) patch.payment_plan = cleanString(req.body.payment_plan);
     if ('payment_date' in req.body) patch.payment_date = req.body.payment_date ? String(req.body.payment_date).trim() : null;
-    if ('amount' in req.body) patch.amount = Number(req.body.amount);
+    if ('amount' in req.body) {
+      const n = Number(req.body.amount);
+      if (Number.isFinite(n)) patch.amount = n;
+    }
     if ('slip_received' in req.body) patch.slip_received = !!req.body.slip_received;
     if ('receipt_no' in req.body) patch.receipt_no = cleanString(req.body.receipt_no);
 

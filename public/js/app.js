@@ -2190,6 +2190,16 @@ window.scheduleFollowUp = async function(enquiryId) {
 
 // Show email options
 // Add Sheet modal (used by Leads + Lead Management tab bars)
+window.openBatchPaymentSetup = function (batchName) {
+    const b = document.getElementById('paymentSetupBatchName');
+    if (b) b.value = batchName || '';
+    if (window.BatchPaymentSetup && window.BatchPaymentSetup.open) {
+        window.BatchPaymentSetup.open(batchName);
+    } else {
+        openModal('batchPaymentSetupModal');
+    }
+};
+
 window.openAddSheetModal = function ({ batchName, scope }) {
     const batchEl = document.getElementById('addSheetBatchName');
     const scopeEl = document.getElementById('addSheetScope');

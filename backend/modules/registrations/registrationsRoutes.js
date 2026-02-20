@@ -256,9 +256,11 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
     const id = String(req.params.id || '').trim();
     if (!id) return res.status(400).json({ success: false, error: 'Missing registration id' });
 
+    const paymentMethod = String(req.body?.payment_method || '').trim();
     const paymentPlan = String(req.body?.payment_plan || '').trim();
     const paymentDate = req.body?.payment_date ? String(req.body.payment_date).trim() : null;
     const amount = Number(req.body?.amount);
+    const slipReceived = !!(req.body?.slip_received || req.body?.receipt_received);
     const receiptReceived = !!req.body?.receipt_received;
 
     if (!paymentPlan) return res.status(400).json({ success: false, error: 'Payment plan is required' });
@@ -266,37 +268,86 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
 
     const createdBy = String(req.user?.name || req.user?.email || '').trim() || null;
 
-    // Snapshot registration name for easier admin payments listing
-    const { data: regRow } = await sb
+    // Snapshot registration info for payments
+    const { data: regRow, error: regErr } = await sb
       .from('registrations')
-      .select('name')
+      .select('name,batch_name,program_id,program_name')
       .eq('id', id)
       .maybeSingle();
+    if (regErr) throw regErr;
 
     const registrationName = cleanString(regRow?.name);
+    const batchName = cleanString(regRow?.batch_name);
+    const programId = regRow?.program_id || null;
+    const programName = cleanString(regRow?.program_name);
 
-    // If installment plan, create 4 installment rows in a group
-    const isInstallment = paymentPlan.toLowerCase().includes('installment');
+    // Load plan config (batch-specific)
+    let installmentCount = 1;
+    let planId = null;
+    let dueDates = [];
+
+    if (batchName) {
+      const { data: planRow } = await sb
+        .from('batch_payment_plans')
+        .select('id,installment_count')
+        .eq('batch_name', batchName)
+        .eq('plan_name', paymentPlan)
+        .maybeSingle();
+
+      if (planRow) {
+        planId = planRow.id;
+        installmentCount = Math.max(Number(planRow.installment_count || 1), 1);
+
+        if (installmentCount > 1) {
+          const { data: instRows } = await sb
+            .from('batch_payment_installments')
+            .select('installment_no,due_date')
+            .eq('plan_id', planId)
+            .order('installment_no', { ascending: true });
+          dueDates = (instRows || []).map(r => r.due_date);
+        }
+      }
+    }
+
+    const isInstallment = installmentCount > 1;
     const groupId = isInstallment ? require('crypto').randomUUID() : null;
 
     const rows = isInstallment
-      ? [1, 2, 3, 4].map((n) => ({
-          registration_id: id,
-          registration_name: registrationName,
-          installment_group_id: groupId,
-          installment_no: n,
-          payment_plan: paymentPlan,
-          payment_date: n === 1 ? (paymentDate || null) : null,
-          amount: n === 1 ? amount : 0,
-          receipt_received: n === 1 ? receiptReceived : false,
-          created_by: createdBy
-        }))
+      ? Array.from({ length: installmentCount }).map((_, idx) => {
+          const n = idx + 1;
+          const due = dueDates[idx] || null;
+          return {
+            registration_id: id,
+            registration_name: registrationName,
+            batch_name: batchName,
+            program_id: programId,
+            program_name: programName,
+            payment_plan_id: planId,
+            installment_group_id: groupId,
+            installment_no: n,
+            installment_due_date: due,
+            payment_method: paymentMethod || null,
+            payment_plan: paymentPlan,
+            payment_date: n === 1 ? (paymentDate || null) : null,
+            amount: n === 1 ? amount : 0,
+            slip_received: n === 1 ? slipReceived : false,
+            receipt_received: n === 1 ? receiptReceived : false,
+            created_by: createdBy
+          };
+        })
       : [{
           registration_id: id,
           registration_name: registrationName,
+          batch_name: batchName,
+          program_id: programId,
+          program_name: programName,
+          payment_plan_id: planId,
+          installment_due_date: dueDates[0] || null,
+          payment_method: paymentMethod || null,
           payment_plan: paymentPlan,
           payment_date: paymentDate || null,
           amount,
+          slip_received: slipReceived,
           receipt_received: receiptReceived,
           created_by: createdBy
         }];
