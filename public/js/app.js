@@ -51,6 +51,10 @@ async function initializeApp() {
     SupabaseAuth.onAuthStateChange((event, session) => {
         console.log('Auth state changed:', event);
         if (event === 'SIGNED_IN' && session) {
+            // Avoid double-initializing the dashboard on first load (INITIAL_SESSION -> SIGNED_IN)
+            if (currentUser && currentUser.id === session.user.id) {
+                return;
+            }
             // Determine role
             let role = session.user.user_metadata?.role || 'user';
             

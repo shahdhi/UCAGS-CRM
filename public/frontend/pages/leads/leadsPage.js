@@ -18,8 +18,11 @@ async function initLeadsPage(modeOrBatch) {
   // Remember current mode/batch (used by loadLeads)
   window.leadsModeOrBatch = modeOrBatch;
 
-  // Setup event listeners
-  setupLeadsEventListeners();
+  // Setup event listeners (bind once)
+  if (!window.__leadsListenersBound) {
+    window.__leadsListenersBound = true;
+    setupLeadsEventListeners();
+  }
 
   // Reset selection UI on entry
   ensureSelectionState();
@@ -29,8 +32,11 @@ async function initLeadsPage(modeOrBatch) {
   // Load leads data
   await loadLeads();
 
-  // Start auto-refresh (every 30 seconds)
-  startAutoRefresh();
+  // Start auto-refresh (every 30 seconds) once
+  if (!window.__leadsAutoRefreshStarted) {
+    window.__leadsAutoRefreshStarted = true;
+    startAutoRefresh();
+  }
 }
 
 /**
