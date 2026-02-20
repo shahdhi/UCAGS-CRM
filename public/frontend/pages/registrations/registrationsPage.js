@@ -31,6 +31,9 @@
 
   let cachedOfficers = null;
 
+  // Prevent concurrent loads (Lead Management style)
+  let isLoading = false;
+
   async function ensureOfficersLoaded() {
     if (cachedOfficers) return cachedOfficers;
     const res = await window.API.users.officers();
@@ -367,56 +370,62 @@
     batchSel.value = selectedBatchName;
   }
 
-  async function loadRegistrations() {
+  async function loadRegistrations({ showSkeleton = false } = {}) {
+    // Prevent multiple simultaneous loads (Lead Management style)
+    if (isLoading) return;
+    isLoading = true;
+
     const tbody = qs('registrationsTableBody');
     const limitEl = qs('registrationsLimit');
     const limit = Math.min(parseInt(limitEl?.value || '100', 10) || 100, 500);
 
-    if (tbody) {
+    // Only show the loading skeleton on the very first load (prevents flicker)
+    if (tbody && showSkeleton) {
       tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading registrations...</td></tr>';
     }
 
-    const res = await window.API.registrations.adminList(limit, { programId: selectedProgramId, batchName: selectedBatchName });
-    const rows = res.registrations || [];
+    try {
+      const res = await window.API.registrations.adminList(limit, { programId: selectedProgramId, batchName: selectedBatchName });
+      const rows = res.registrations || [];
 
-    lastRowsById = new Map(rows.map(r => [r.id, r]));
+      lastRowsById = new Map(rows.map(r => [String(r.id), r]));
 
-    if (!tbody) return;
+      if (!tbody) return;
 
-    if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="loading">No registrations found</td></tr>';
-      return;
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">No registrations found</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = rows.map(r => {
+        const submittedAt = formatDateTimeLocal(r.created_at);
+        const email = r.email ?? r.payload?.email ?? '';
+        const assigned = r.assigned_to ?? r.payload?.assigned_to ?? '';
+        const paid = !!(r.payment_received);
+        const paymentCell = paid
+          ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Received</span>'
+          : '<span style="color:#98a2b3;">-</span>';
+
+        return `
+          <tr class="clickable" data-registration-id="${escapeHtml(r.id)}" style="cursor:pointer;">
+            <td>${escapeHtml(r.name)}</td>
+            <td>${escapeHtml(r.phone_number)}</td>
+            <td>${escapeHtml(email)}</td>
+            <td>${paymentCell}</td>
+            <td>${escapeHtml(assigned)}</td>
+            <td>${escapeHtml(submittedAt)}</td>
+          </tr>
+        `;
+      }).join('');
+    } catch (e) {
+      console.error(e);
+      if (tbody && showSkeleton) {
+        tbody.innerHTML = `<tr><td colspan="6" class="loading">${escapeHtml(e.message || 'Failed to load registrations')}</td></tr>`;
+      }
+      throw e;
+    } finally {
+      isLoading = false;
     }
-
-    tbody.innerHTML = rows.map(r => {
-      const submittedAt = formatDateTimeLocal(r.created_at);
-      const email = r.email ?? r.payload?.email ?? '';
-      const assigned = r.assigned_to ?? r.payload?.assigned_to ?? '';
-      const paid = !!(r.payment_received);
-      const paymentCell = paid
-        ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Received</span>'
-        : '<span style="color:#98a2b3;">-</span>';
-
-      return `
-        <tr class="clickable" data-registration-id="${escapeHtml(r.id)}" style="cursor:pointer;">
-          <td>${escapeHtml(r.name)}</td>
-          <td>${escapeHtml(r.phone_number)}</td>
-          <td>${escapeHtml(email)}</td>
-          <td>${paymentCell}</td>
-          <td>${escapeHtml(assigned)}</td>
-          <td>${escapeHtml(submittedAt)}</td>
-        </tr>
-      `;
-    }).join('');
-
-    // row click -> details
-    tbody.querySelectorAll('tr[data-registration-id]').forEach(tr => {
-      tr.addEventListener('click', () => {
-        const id = tr.getAttribute('data-registration-id');
-        const reg = lastRowsById.get(id);
-        if (reg) openDetailsModal(reg).catch(console.error);
-      });
-    });
   }
 
   async function initRegistrationsPage() {
@@ -428,6 +437,19 @@
     const refreshBtn = qs('registrationsRefreshBtn');
     const limitEl = qs('registrationsLimit');
     const batchSel = qs('registrationsBatchSelect');
+    const tbody = qs('registrationsTableBody');
+
+    // One-time: row click -> details (event delegation, avoids re-binding each render)
+    if (tbody && !tbody.__delegated) {
+      tbody.__delegated = true;
+      tbody.addEventListener('click', (e) => {
+        const tr = e.target?.closest?.('tr[data-registration-id]');
+        if (!tr) return;
+        const id = tr.getAttribute('data-registration-id');
+        const reg = lastRowsById.get(String(id));
+        if (reg) openDetailsModal(reg).catch(console.error);
+      });
+    }
 
     if (batchSel && !batchSel.__bound) {
       batchSel.__bound = true;
@@ -451,7 +473,7 @@
     }
 
     await renderProgramTabs();
-    await loadRegistrations();
+    await loadRegistrations({ showSkeleton: true });
   }
 
   window.initRegistrationsPage = initRegistrationsPage;
