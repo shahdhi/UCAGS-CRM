@@ -604,12 +604,22 @@ body {
 /* Disable "floating" hover movement in Attendance + Reports pages */
 #attendanceView .dashboard-card,
 #reportsView .dashboard-card {
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    transition: none !important;
 }
 
 #attendanceView .dashboard-card:hover,
-#reportsView .dashboard-card:hover {
+#attendanceView .dashboard-card:active,
+#reportsView .dashboard-card:hover,
+#reportsView .dashboard-card:active {
     transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+/* Attendance view: also stop buttons from moving (global btn-success/btn-warning hover uses translateY) */
+#attendanceView .btn:hover,
+#attendanceView .btn:active {
+    transform: none !important;
+    box-shadow: none !important;
 }
 
 /* Remove trailing empty space at bottom of Attendance cards (after tables) */
@@ -694,6 +704,8 @@ body {
 /* Prevent hover from causing page reflow/scrollbars in attendance calendar */
 #attendanceCalendarGrid .followup-calendar-cell:hover {
     background: inherit;
+    transform: none !important;
+    box-shadow: none !important;
 }
 
 .followup-calendar-cell.muted {
@@ -1074,6 +1086,13 @@ body {
     padding: 6px 10px;
     font-size: 12px;
     line-height: 1;
+}
+
+/* Staff Management header button should not be full width */
+#usersView #addUserBtn {
+    width: auto !important;
+    padding: 8px 12px;
+    font-size: 13px;
 }
 
 /* Attendance tables: prevent hover from causing horizontal scrollbar/reflow */
