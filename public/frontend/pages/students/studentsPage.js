@@ -72,53 +72,132 @@
 
   let selectedStudent = null;
 
+  function renderSection(title, rowsHtml) {
+    return `
+      <div style="margin-top:14px;">
+        <div style="font-size:13px; font-weight:800; color:#101828; margin-bottom:8px;">${escapeHtml(title)}</div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px 16px;">
+          ${rowsHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderKeyValueRows(entries) {
+    return entries.map(([k, v]) => `
+      <div style="display:flex; gap:6px; align-items:baseline; min-width:0; padding:6px 0; border-bottom:1px solid #f2f4f7;">
+        <div style="color:#667085; font-size:13px; font-weight:600; white-space:nowrap;">${escapeHtml(k)}:</div>
+        <div style="color:#101828; font-size:13px; font-weight:400; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(v || '')}</div>
+      </div>
+    `).join('');
+  }
+
+  async function loadStudentPaymentsInto(registrationId) {
+    const el = qs('studentPaymentDetails');
+    if (!el) return;
+
+    if (!registrationId) {
+      el.innerHTML = '<div style="color:#98a2b3; font-size:13px;">No registration linked.</div>';
+      return;
+    }
+
+    el.innerHTML = '<div class="loading">Loading payment details...</div>';
+
+    try {
+      const res = await window.API.payments.adminListForRegistration(registrationId);
+      const payments = res.payments || [];
+
+      if (!payments.length) {
+        el.innerHTML = '<div style="color:#98a2b3; font-size:13px;">No payments found.</div>';
+        return;
+      }
+
+      el.innerHTML = `
+        <div class="table-container" style="width:100%; margin-top:8px;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Plan</th>
+                <th>Receipt</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${payments.map(p => {
+                const status = p.is_confirmed
+                  ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Confirmed</span>'
+                  : '<span class="badge" style="background:#fffaeb; color:#b54708; border:1px solid #fedf89;">Pending</span>';
+                return `
+                  <tr>
+                    <td>${escapeHtml(p.payment_date || '')}</td>
+                    <td>${escapeHtml(p.amount ?? '')}</td>
+                    <td>${escapeHtml(p.payment_method || '')}</td>
+                    <td>${escapeHtml(p.payment_plan || '')}</td>
+                    <td>${escapeHtml(p.receipt_no || '')}</td>
+                    <td>${status}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    } catch (e) {
+      console.error(e);
+      el.innerHTML = `<div style="color:#ef4444; font-size:13px;">${escapeHtml(e.message || 'Failed to load payments')}</div>`;
+    }
+  }
+
   function renderStudentDetails(student) {
     selectedStudent = student;
     const body = qs('studentDetailsModalBody');
     if (!body) return;
 
     const payload = student?.payload && typeof student.payload === 'object' ? student.payload : {};
-
     const get = (key) => student?.[key] ?? payload?.[key] ?? '';
 
-    const base = {
-      'Student ID': student?.student_id,
-      'Name': get('name'),
-      'Phone': get('phone_number'),
-      'Email': get('email'),
-      'Gender': get('gender'),
-      'Date of Birth': get('date_of_birth'),
-      'Address': get('address'),
-      'Country': get('country'),
-      'WhatsApp': get('wa_number'),
-      'Working Status': get('working_status'),
-      'Source': get('source'),
-      'Program': get('program_name') || get('course_program') || student?.program_name,
-      'Batch': get('batch_name') || student?.batch_name,
-      'Created At': student?.created_at ? new Date(student.created_at).toLocaleString() : ''
-    };
+    const personal = [
+      ['Student ID', student?.student_id],
+      ['Name', get('name')],
+      ['Phone', get('phone_number')],
+      ['Email', get('email')],
+      ['WhatsApp', get('wa_number')],
+      ['Gender', get('gender')],
+      ['Date of Birth', get('date_of_birth')],
+      ['Address', get('address')],
+      ['Country', get('country')],
+      ['Working Status', get('working_status')],
+      ['Source', get('source')]
+    ].filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== '');
 
-    // Clean details view (no duplicated "Additional Details" section)
-    const entries = Object.entries(base)
-      .filter(([k, v]) => v !== null && v !== undefined && String(v).trim() !== '');
+    const programs = [
+      ['Program', get('program_name') || get('course_program') || student?.program_name],
+      ['Batch', get('batch_name') || student?.batch_name],
+      ['Created At', student?.created_at ? new Date(student.created_at).toLocaleString() : '']
+    ].filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== '');
+
+    const registrationId = student?.registration_id || payload?.registration_id || '';
 
     body.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom: 10px;">
-        <div>
-          <div style="font-size:12px; color:#667085; font-weight:600;">Student Profile</div>
-          <div style="font-size:18px; font-weight:800; color:#101828; margin-top:2px;">${escapeHtml(student?.student_id || '')} — ${escapeHtml(get('name') || '')}</div>
-        </div>
+      <div style="margin-bottom: 6px;">
+        <div style="font-size:12px; color:#667085;">Student</div>
+        <div style="font-size:16px; font-weight:700; color:#101828; margin-top:2px;">${escapeHtml(student?.student_id || '')} — ${escapeHtml(get('name') || '')}</div>
       </div>
 
-      <div class="lead-details-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
-        ${entries.map(([k, v]) => `
-          <div class="lead-detail-item" style="background:#f9fafb; border:1px solid #eaecf0; border-radius:12px; padding:10px;">
-            <div class="lead-detail-label" style="font-size:12px; color:#667085; font-weight:700;">${escapeHtml(k)}</div>
-            <div class="lead-detail-value" style="font-size:14px; color:#101828; font-weight:700; margin-top:4px;">${escapeHtml(v || '')}</div>
-          </div>
-        `).join('')}
+      ${renderSection('Personal Details', renderKeyValueRows(personal))}
+      ${renderSection('Enrolled Programs', renderKeyValueRows(programs))}
+
+      <div style="margin-top:14px;">
+        <div style="font-size:13px; font-weight:800; color:#101828; margin-bottom:8px;">Payment Details</div>
+        <div id="studentPaymentDetails"></div>
       </div>
     `;
+
+    // Load payments async (after modal opens)
+    loadStudentPaymentsInto(registrationId);
   }
 
   async function initStudentsPage() {

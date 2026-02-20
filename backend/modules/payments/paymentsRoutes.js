@@ -155,7 +155,32 @@ router.get('/admin', isAdmin, async (req, res) => {
       .limit(limit);
 
     if (error) throw error;
-    res.json({ success: true, payments: data || [] });
+
+    const rows = data || [];
+
+    // Attach student_id from registrations (if available)
+    const regIds = Array.from(new Set(rows.map(r => r.registration_id).filter(Boolean)));
+    let regById = new Map();
+    if (regIds.length) {
+      const { data: regs, error: rErr } = await sb
+        .from('registrations')
+        .select('id, student_id, payload')
+        .in('id', regIds);
+      if (!rErr) {
+        regById = new Map((regs || []).map(r => {
+          const payload = r?.payload && typeof r.payload === 'object' ? r.payload : {};
+          const sid = r?.student_id || payload?.student_id || null;
+          return [String(r.id), sid];
+        }));
+      }
+    }
+
+    const enriched = rows.map(p => ({
+      ...p,
+      student_id: regById.get(String(p.registration_id)) || null
+    }));
+
+    res.json({ success: true, payments: enriched });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }

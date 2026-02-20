@@ -1025,7 +1025,7 @@ body {
 
 #paymentsView .data-table {
     table-layout: auto;
-    min-width: 1200px; /* ensures columns have enough room; container will scroll */
+    min-width: 1320px; /* ensures columns have enough room; container will scroll */
 }
 
 #paymentsView .data-table th,
@@ -1049,23 +1049,29 @@ body {
     min-width: 220px;
 }
 
-/* Status + Installment */
+/* Student ID */
 #paymentsView .data-table th:nth-child(2),
 #paymentsView .data-table td:nth-child(2) {
     min-width: 120px;
 }
+
+/* Status + Installment */
 #paymentsView .data-table th:nth-child(3),
 #paymentsView .data-table td:nth-child(3) {
+    min-width: 120px;
+}
+#paymentsView .data-table th:nth-child(4),
+#paymentsView .data-table td:nth-child(4) {
     min-width: 180px;
 }
 
 /* Email/Whatsapp checkbox columns */
-#paymentsView .data-table th:nth-child(4),
-#paymentsView .data-table td:nth-child(4),
 #paymentsView .data-table th:nth-child(5),
 #paymentsView .data-table td:nth-child(5),
-#paymentsView .data-table th:nth-child(10),
-#paymentsView .data-table td:nth-child(10) {
+#paymentsView .data-table th:nth-child(6),
+#paymentsView .data-table td:nth-child(6),
+#paymentsView .data-table th:nth-child(11),
+#paymentsView .data-table td:nth-child(11) {
     text-align: center;
 }
 
@@ -1148,6 +1154,13 @@ body {
     width: auto !important;
     padding: 8px 12px;
     font-size: 13px;
+}
+
+/* Registrations: make Enroll button a bit smaller */
+#registrationsView .reg-enroll-btn {
+    padding: 5px 9px !important;
+    font-size: 12px !important;
+    line-height: 1.1;
 }
 
 /* Attendance tables: prevent hover from causing horizontal scrollbar/reflow */
