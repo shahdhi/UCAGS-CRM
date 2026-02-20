@@ -10,6 +10,111 @@ function cleanString(v) {
   return s ? s : null;
 }
 
+function startOfDayISO(d = new Date()) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x.toISOString().slice(0, 10);
+}
+
+function cmpDateStr(a, b) {
+  // YYYY-MM-DD lexical compare
+  return String(a || '').localeCompare(String(b || ''));
+}
+
+function computeStatus(today, startDate, endDate, isConfirmed) {
+  if (isConfirmed) return 'completed';
+  if (!startDate || !endDate) return 'due';
+  if (cmpDateStr(today, startDate) < 0) return 'upcoming';
+  if (cmpDateStr(today, endDate) > 0) return 'overdue';
+  return 'due';
+}
+
+// Admin payments summary (one row per registration: current installment)
+// GET /api/payments/admin/summary?programId=...&batchName=...&status=due|overdue|upcoming|completed|all&limit=200
+router.get('/admin/summary', isAdmin, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+    const limit = Math.min(parseInt(req.query.limit || '200', 10) || 200, 1000);
+    const programId = req.query.programId ? String(req.query.programId).trim() : '';
+    const batchName = req.query.batchName ? String(req.query.batchName).trim() : '';
+    const statusFilter = String(req.query.status || 'all').toLowerCase();
+    const today = startOfDayISO(new Date());
+
+    let q = sb.from('payments').select('*');
+    if (programId) q = q.eq('program_id', programId);
+    if (batchName) q = q.eq('batch_name', batchName);
+
+    // Pull enough rows to compute current installment per registration
+    const { data: payments, error } = await q
+      .order('created_at', { ascending: false })
+      .limit(5000);
+    if (error) throw error;
+
+    const byReg = new Map();
+    for (const p of (payments || [])) {
+      if (!p.registration_id) continue;
+      const arr = byReg.get(p.registration_id) || [];
+      arr.push(p);
+      byReg.set(p.registration_id, arr);
+    }
+
+    const regIds = Array.from(byReg.keys());
+    let regCreatedMap = new Map();
+    if (regIds.length) {
+      const { data: regs, error: rErr } = await sb
+        .from('registrations')
+        .select('id,created_at')
+        .in('id', regIds);
+      if (rErr) throw rErr;
+      regCreatedMap = new Map((regs || []).map(r => [r.id, (r.created_at || '').slice(0, 10)]));
+    }
+
+    const summary = [];
+    for (const [registrationId, rows] of byReg.entries()) {
+      // sort by installment_no asc, then created_at asc
+      const sorted = [...rows].sort((a, b) => {
+        const ia = Number(a.installment_no || 0);
+        const ib = Number(b.installment_no || 0);
+        if (ia !== ib) return ia - ib;
+        return String(a.created_at || '').localeCompare(String(b.created_at || ''));
+      });
+
+      // find current unpaid installment (or first row if none)
+      let current = sorted.find(r => !r.is_confirmed) || sorted[0];
+      if (!current) continue;
+
+      const n = Number(current.installment_no || 1);
+      const endDate = current.installment_due_date || current.payment_date || null;
+      const startDate = (n <= 1)
+        ? (regCreatedMap.get(registrationId) || null)
+        : (sorted.find(r => Number(r.installment_no) === (n - 1))?.installment_due_date || null);
+
+      const computedStatus = computeStatus(today, startDate, endDate, !!current.is_confirmed);
+      if (statusFilter !== 'all' && computedStatus !== statusFilter) continue;
+
+      summary.push({
+        ...current,
+        window_start_date: startDate,
+        window_end_date: endDate,
+        computed_status: computedStatus
+      });
+    }
+
+    // Sort: overdue first, then due, then upcoming, then completed, by end date
+    const order = { overdue: 0, due: 1, upcoming: 2, completed: 3 };
+    summary.sort((a, b) => {
+      const oa = order[a.computed_status] ?? 99;
+      const ob = order[b.computed_status] ?? 99;
+      if (oa !== ob) return oa - ob;
+      return String(a.window_end_date || '').localeCompare(String(b.window_end_date || ''));
+    });
+
+    res.json({ success: true, today, payments: summary.slice(0, limit) });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 // Admin list payments
 // GET /api/payments/admin?limit=200
 

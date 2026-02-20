@@ -147,6 +147,7 @@
 
   let selectedProgramId = '';
   let selectedBatchName = '';
+  let selectedStatus = 'due_overdue';
 
   async function loadProgramsForPayments() {
     const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
@@ -201,13 +202,53 @@
     batchSel.value = selectedBatchName;
   }
 
+  function renderStatusTabs() {
+    const wrap = qs('paymentsStatusTabs');
+    if (!wrap) return;
+
+    const tabs = [
+      { key: 'due_overdue', label: 'Due + Overdue' },
+      { key: 'due', label: 'Due' },
+      { key: 'overdue', label: 'Overdue' },
+      { key: 'upcoming', label: 'Upcoming' },
+      { key: 'completed', label: 'Completed' },
+      { key: 'all', label: 'All' }
+    ];
+
+    wrap.innerHTML = '';
+    tabs.forEach(t => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-secondary';
+      btn.style.padding = '6px 10px';
+      btn.style.borderRadius = '999px';
+      const active = t.key === selectedStatus;
+      btn.style.border = active ? '1px solid #592c88' : '1px solid #eaecf0';
+      btn.style.background = active ? '#f4ebff' : '#fff';
+      btn.style.color = active ? '#592c88' : '#344054';
+      btn.textContent = t.label;
+      btn.onclick = () => {
+        selectedStatus = t.key;
+        renderStatusTabs();
+        loadPayments().catch(console.error);
+      };
+      wrap.appendChild(btn);
+    });
+  }
+
   async function loadPayments() {
     const tbody = qs('paymentsTableBody');
     const limit = parseInt(qs('paymentsLimit')?.value || '200', 10) || 200;
     if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="loading">Loading payments...</td></tr>';
 
-    const res = await window.API.payments.adminList(limit, { programId: selectedProgramId, batchName: selectedBatchName });
-    const rows = res.payments || [];
+    // Use summary endpoint (one row per registration)
+    const fetchStatus = (selectedStatus === 'due_overdue') ? 'all' : selectedStatus;
+    const res = await window.API.payments.adminSummary(limit, { programId: selectedProgramId, batchName: selectedBatchName, status: fetchStatus });
+    let rows = res.payments || [];
+
+    if (selectedStatus === 'due_overdue') {
+      rows = rows.filter(r => ['due', 'overdue'].includes(String(r.computed_status)));
+    }
 
     if (!tbody) return;
     if (!rows.length) {
@@ -215,29 +256,8 @@
       return;
     }
 
-    // Show only the latest payment row per registration (by created_at), click to see all
-    const latestByReg = new Map();
-    rows.forEach(p => {
-      const key = p.registration_id;
-      if (!key) return;
-      if (latestByReg.has(key)) return;
-
-      // Skip placeholder installment rows (amount=0 and no date)
-      const amt = Number(p.amount);
-      const isPlaceholder = (!p.payment_date) && (!Number.isFinite(amt) || amt <= 0);
-      if (isPlaceholder) return;
-
-      latestByReg.set(key, p);
-    });
-
-    // If some registrations only had placeholders (rare), fall back to first row
-    rows.forEach(p => {
-      const key = p.registration_id;
-      if (!key) return;
-      if (!latestByReg.has(key)) latestByReg.set(key, p);
-    });
-
-    const displayRows = Array.from(latestByReg.values());
+    // Summary already returns one row per registration
+    const displayRows = rows;
 
     tbody.innerHTML = displayRows.map(p => {
       const plan = p.payment_plan || '';
@@ -245,14 +265,21 @@
         ? ` #${p.installment_no}`
         : '';
 
-      const received = p.is_confirmed
-        ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Received</span>'
-        : '<span style="color:#98a2b3;">-</span>';
+      const status = String(p.computed_status || '').toLowerCase();
+      const statusBadge = (() => {
+        if (status === 'overdue') return '<span class="badge" style="background:#fef3f2; color:#b42318; border:1px solid #fecdca;">Overdue</span>';
+        if (status === 'due') return '<span class="badge" style="background:#fffaeb; color:#b54708; border:1px solid #fedf89;">Due</span>';
+        if (status === 'upcoming') return '<span class="badge" style="background:#eff8ff; color:#175cd3; border:1px solid #b2ddff;">Upcoming</span>';
+        if (status === 'completed') return '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Completed</span>';
+        return '<span style="color:#98a2b3;">-</span>';
+      })();
 
       return `
         <tr data-id="${escapeHtml(p.id)}" data-registration-id="${escapeHtml(p.registration_id || '')}">
           <td>
             <a href="#" class="pay-view" style="color:#175CD3; text-decoration:none; font-weight:600;">${escapeHtml(p.registration_name || '')}</a>
+            <div style="margin-top:4px;">${statusBadge}</div>
+            <div style="font-size:12px; color:#667085; margin-top:4px;">Window: ${escapeHtml(p.window_start_date || '')} → ${escapeHtml(p.window_end_date || '')}</div>
           </td>
           <td><input type="checkbox" class="pay-email" ${p.email_sent ? 'checked' : ''} /></td>
           <td><input type="checkbox" class="pay-wa" ${p.whatsapp_sent ? 'checked' : ''} /></td>
@@ -380,6 +407,7 @@
       limitEl.addEventListener('change', () => loadPayments().catch(console.error));
     }
 
+    renderStatusTabs();
     await renderProgramTabs();
     await loadPayments();
   }

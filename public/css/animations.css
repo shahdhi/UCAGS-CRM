@@ -18,9 +18,10 @@
     animation: float 6s ease-in-out infinite;
 }
 
-/* Avoid layout/scrollbar shifts when interacting with calendar grids */
+/* Avoid layout/scrollbar shifts when interacting with specific views */
 #attendanceOfficerSection.dashboard-card,
 #calendarView .dashboard-card,
+#paymentsView .dashboard-card,
 #calendarGrid,
 #attendanceCalendarGrid {
     animation: none !important;
