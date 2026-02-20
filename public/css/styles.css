@@ -446,10 +446,21 @@ body {
 /* Extra safety: Registrations view should never animate/move its card */
 #registrationsView .dashboard-card {
     transition: none !important;
-}
-#registrationsView .dashboard-card:hover {
     transform: none !important;
     box-shadow: var(--shadow-sm) !important;
+    border-color: var(--separator) !important;
+}
+#registrationsView .dashboard-card:hover {
+    transition: none !important;
+    transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
+    border-color: var(--separator) !important;
+}
+#registrationsView .dashboard-card:active {
+    transition: none !important;
+    transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
+    border-color: var(--separator) !important;
 }
 
 /* Ensure only active view is visible */
@@ -899,6 +910,12 @@ body {
     border-bottom: 1px solid var(--separator);
     transform: translateZ(0); /* Force GPU acceleration */
     backface-visibility: hidden; /* Reduce repaint flickering */
+}
+
+/* Registrations table: avoid any perceived movement/flicker */
+#registrationsView .data-table tbody tr {
+    transform: none !important;
+    backface-visibility: visible !important;
 }
 
 .data-table tbody tr:hover {
