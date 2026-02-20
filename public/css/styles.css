@@ -1064,6 +1064,47 @@ body {
     background: inherit !important;
 }
 
+/* Staff Management: stable table + smaller action buttons */
+#usersView .data-table tbody tr {
+    transform: none !important;
+    backface-visibility: visible !important;
+}
+
+#usersView .data-table td .btn.btn-sm {
+    padding: 6px 10px;
+    font-size: 12px;
+    line-height: 1;
+}
+
+/* Attendance tables: prevent hover from causing horizontal scrollbar/reflow */
+#attendanceView .table-container {
+    overflow-x: hidden; /* no horizontal scrollbar on hover */
+}
+
+#attendanceView .data-table {
+    width: 100%;
+}
+
+/* Buttons inside attendance tables should not move / cast big shadows on hover */
+#attendanceView .table-container .btn:hover,
+#attendanceView .table-container .btn:active {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Location column "View on map" button smaller */
+#attendanceView .table-container a.btn.btn-secondary.btn-sm {
+    padding: 5px 9px;
+    font-size: 12px;
+    line-height: 1.1;
+}
+
+/* Slightly smaller approve/reject buttons in attendance leave requests */
+#attendanceView .table-container button.btn.btn-sm {
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
 /* Status Badges */
 .status-badge {
     padding: 4px 10px;

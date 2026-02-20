@@ -915,7 +915,7 @@ async function navigateToPage(page) {
             loadCalendar();
             break;
         case 'users':
-            loadUsers();
+            loadUsers({ showSkeleton: !usersLoadedOnce }).catch(console.error);
             break;
         case 'officers':
             loadOfficers();
@@ -1211,7 +1211,10 @@ function loadReceipts() {
 }
 
 // Load users (admin only)
-async function loadUsers() {
+let isLoadingUsers = false;
+let usersLoadedOnce = false;
+
+async function loadUsers({ showSkeleton = false } = {}) {
     if (currentUser.role !== 'admin') {
         alert('Access denied. Admin only.');
         return;
@@ -1219,9 +1222,14 @@ async function loadUsers() {
     
     const tbody = document.getElementById('usersTableBody');
     if (!tbody) return;
-    
+
+    if (isLoadingUsers) return;
+    isLoadingUsers = true;
+
     try {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading">Loading users...</td></tr>';
+        if (showSkeleton) {
+            tbody.innerHTML = '<tr><td colspan="7" class="loading">Loading users...</td></tr>';
+        }
         
         // Get all users from API
         const response = await fetch('/api/users');
@@ -1283,9 +1291,14 @@ async function loadUsers() {
         
     } catch (error) {
         console.error('Error loading users:', error);
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 40px; color: red;">
-            Error: ${error.message}
-        </td></tr>`;
+        if (showSkeleton) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 40px; color: red;">
+                Error: ${error.message}
+            </td></tr>`;
+        }
+    } finally {
+        usersLoadedOnce = true;
+        isLoadingUsers = false;
     }
 }
 
@@ -1316,7 +1329,7 @@ async function deleteUser(userId) {
         } else {
             alert('Staff member deleted successfully!');
         }
-        loadUsers();
+        loadUsers().catch(console.error);
     } catch (error) {
         console.error('Error deleting user:', error);
         if (window.UI && window.UI.showToast) {
@@ -1381,7 +1394,7 @@ async function addNewUser(event) {
         document.getElementById('addUserForm').reset();
         
         // Reload users
-        loadUsers();
+        loadUsers().catch(console.error);
     } catch (error) {
         console.error('Error adding user:', error);
         if (window.UI && window.UI.showToast) {
@@ -1546,7 +1559,7 @@ async function confirmUserEmail(userId, userEmail) {
         } else {
             alert(data.message);
         }
-        loadUsers();
+        loadUsers().catch(console.error);
     } catch (error) {
         console.error('Error confirming email:', error);
         if (window.UI && window.UI.showToast) {
