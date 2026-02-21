@@ -312,7 +312,7 @@
     }
 
     if (tbody && (showSkeleton || !window.__paymentsLastSummary)) {
-      tbody.innerHTML = '<tr><td colspan="5" class="loading">Loading payments...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="13" class="loading">Loading payments...</td></tr>';
     }
 
     // Use summary endpoint (one row per registration)
@@ -331,7 +331,7 @@
   function renderPaymentsRows(rows, tbody) {
     if (!tbody) return;
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="loading">No payments found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="13" class="loading">No payments found</td></tr>';
       return;
     }
 
@@ -352,19 +352,42 @@
         ? `${String(status).toLowerCase() === 'due' ? 'Due ' : ''}${String(status).toLowerCase() === 'overdue' ? 'Overdue ' : ''}Installment #${p.installment_no}`.trim()
         : '';
 
-      const receivedBadge = p.is_confirmed
-        ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Received</span>'
-        : '<span style="color:#98a2b3;">-</span>';
-
       return `
-        <tr data-id="${escapeHtml(p.id)}" data-registration-id="${escapeHtml(p.registration_id || '')}" style="cursor:pointer;">
+        <tr data-id="${escapeHtml(p.id)}" data-registration-id="${escapeHtml(p.registration_id || '')}">
           <td>
             <a href="#" class="pay-view" style="color:#175CD3; text-decoration:none; font-weight:600;">${escapeHtml(p.registration_name || '')}</a>
           </td>
+          <td style="font-weight:700; color:#101828;">${escapeHtml(p.student_id || '-')}</td>
           <td>${statusBadge}</td>
           <td style="color:#475467; font-weight:600;">${escapeHtml(installmentText || '-')}</td>
-          <td>${receivedBadge}</td>
-          <td>${escapeHtml(p.receipt_no || '')}</td>
+          <td><input type="checkbox" class="pay-email" ${p.email_sent ? 'checked' : ''} /></td>
+          <td><input type="checkbox" class="pay-wa" ${p.whatsapp_sent ? 'checked' : ''} /></td>
+          <td>
+            <select class="pay-method form-control" style="min-width:160px;">
+              ${['', 'Online Transfer', 'Bank Deposit'].map(m => `<option value="${escapeHtml(m)}" ${m=== (p.payment_method||'') ? 'selected' : ''}>${escapeHtml(m||'Select')}</option>`).join('')}
+            </select>
+          </td>
+          <td>
+            <select class="pay-plan form-control" style="min-width:220px;">
+              ${[
+                '',
+                'Installment',
+                'Installment with early bird',
+                'Full payment',
+                'Full payment with early bird',
+                'registration fee only'
+              ].map(m => `<option value="${escapeHtml(m)}" ${m=== (p.payment_plan||'') ? 'selected' : ''}>${escapeHtml(m||'Select')}</option>`).join('')}
+            </select>
+          </td>
+          <td><input type="number" class="pay-amount form-control" value="${escapeHtml(p.amount ?? '')}" /></td>
+          <td><input type="date" class="pay-date form-control" value="${escapeHtml(p.payment_date || '')}" /></td>
+          <td><input type="checkbox" class="pay-slip" ${p.slip_received ? 'checked' : ''} /></td>
+          <td style="text-align:center;">
+            <button type="button" class="btn btn-success btn-sm pay-confirm">
+              ${p.is_confirmed ? 'Undo' : 'Confirm'}
+            </button>
+          </td>
+          <td><input type="text" class="pay-receipt form-control" value="${escapeHtml(p.receipt_no || '')}" style="min-width:120px;" /></td>
         </tr>
       `;
     };
@@ -384,23 +407,95 @@
     if (!tbody.__delegated) {
       tbody.__delegated = true;
 
-      // no inline editing in the table anymore; everything is in the details modal
+      const patchFromTr = async (tr) => {
+        const id = tr.getAttribute('data-id');
+        const body = {
+          email_sent: tr.querySelector('.pay-email')?.checked,
+          whatsapp_sent: tr.querySelector('.pay-wa')?.checked,
+          payment_method: tr.querySelector('.pay-method')?.value,
+          payment_plan: tr.querySelector('.pay-plan')?.value,
+          amount: Number(tr.querySelector('.pay-amount')?.value),
+          payment_date: tr.querySelector('.pay-date')?.value || null,
+          slip_received: tr.querySelector('.pay-slip')?.checked,
+          receipt_no: tr.querySelector('.pay-receipt')?.value
+        };
+        await window.API.payments.adminUpdate(id, body);
+      };
+
+      let t = null;
+      const debouncePatch = (tr) => {
+        if (t) clearTimeout(t);
+        t = setTimeout(() => {
+          patchFromTr(tr).catch(e => {
+            console.error(e);
+            if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to save payment', 'error');
+          });
+        }, 600);
+      };
 
       tbody.addEventListener('click', (e) => {
+        const view = e.target?.closest?.('.pay-view');
+        if (view) {
+          e.preventDefault();
+          const tr = view.closest('tr[data-id]');
+          const registrationId = tr?.getAttribute('data-registration-id');
+          const registrationName = view.textContent;
+          if (registrationId) openPaymentDetails(registrationId, registrationName).catch(console.error);
+          return;
+        }
+
+        const btn = e.target?.closest?.('.pay-confirm');
+        if (btn) {
+          const tr = btn.closest('tr[data-id]');
+          const id = tr?.getAttribute('data-id');
+          if (!tr || !id) return;
+
+          (async () => {
+            try {
+              btn.disabled = true;
+              await patchFromTr(tr);
+
+              if (btn.textContent.trim().toLowerCase() !== 'undo') {
+                if (!isRequiredFieldsFilled(tr)) {
+                  throw new Error('Fill payment method, plan, amount, date and slip received before confirming.');
+                }
+                await window.API.payments.adminConfirm(id);
+                if (window.UI && UI.showToast) UI.showToast('Payment confirmed', 'success');
+              } else {
+                await window.API.payments.adminUnconfirm(id);
+                if (window.UI && UI.showToast) UI.showToast('Payment unconfirmed', 'success');
+              }
+
+              if (window.Cache) window.Cache.invalidatePrefix('payments:adminSummary');
+              await loadPayments();
+            } catch (err) {
+              console.error(err);
+              if (window.UI && UI.showToast) UI.showToast(err.message || 'Failed to update payment status', 'error');
+            } finally {
+              btn.disabled = false;
+            }
+          })();
+          return;
+        }
+      });
+
+      tbody.addEventListener('change', (e) => {
         const tr = e.target?.closest?.('tr[data-id]');
         if (!tr) return;
+        updateConfirmButtonState(tr);
+        debouncePatch(tr);
+      });
 
-        // allow clicking the name link, but treat it same as row click
-        const view = e.target?.closest?.('.pay-view');
-        if (view) e.preventDefault();
-
-        const registrationId = tr.getAttribute('data-registration-id');
-        const registrationName = tr.querySelector('.pay-view')?.textContent || '';
-        if (registrationId) openPaymentDetails(registrationId, registrationName).catch(console.error);
+      tbody.addEventListener('input', (e) => {
+        const tr = e.target?.closest?.('tr[data-id]');
+        if (!tr) return;
+        updateConfirmButtonState(tr);
+        debouncePatch(tr);
       });
     }
 
-    // no inline confirm buttons anymore
+    // initial state for confirm buttons
+    tbody.querySelectorAll('tr[data-id]').forEach(tr => updateConfirmButtonState(tr));
 
     return;
 

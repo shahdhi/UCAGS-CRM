@@ -1025,7 +1025,29 @@ body {
 
 #paymentsView .data-table {
     table-layout: auto;
-    min-width: 1320px; /* ensures columns have enough room; container will scroll */
+    min-width: 1320px; /* wide table with many columns */
+}
+
+/* Freeze first column (Name) in payments table */
+#paymentsView .data-table th:first-child,
+#paymentsView .data-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 12;
+    background: #fff;
+}
+
+#paymentsView .data-table td:first-child {
+    z-index: 11;
+}
+
+#paymentsView .data-table th:first-child {
+    background: var(--bg-secondary);
+}
+
+#paymentsView .data-table th:first-child,
+#paymentsView .data-table td:first-child {
+    box-shadow: 1px 0 0 var(--separator);
 }
 
 #paymentsView .data-table th,
@@ -1041,6 +1063,12 @@ body {
 
 #paymentsView .data-table td {
     white-space: nowrap;
+}
+
+/* Keep first column (Name) a bit wider */
+#paymentsView .data-table th:nth-child(1),
+#paymentsView .data-table td:nth-child(1) {
+    min-width: 220px;
 }
 
 /* Keep first column (Name) a bit wider */
