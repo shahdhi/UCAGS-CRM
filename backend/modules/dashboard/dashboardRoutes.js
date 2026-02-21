@@ -33,14 +33,20 @@ async function getCurrentBatchNames(sb) {
 router.get('/stats', isAuthenticated, async (req, res) => {
   try {
     const user = req.user || req.session?.user;
-    let enquiries;
+    let enquiries = [];
 
-    if (user?.role === 'admin') {
-      enquiries = await sheetsService.getAllEnquiries();
-    } else if ((user?.role === 'officer' || user?.role === 'user') && user?.sheetId) {
-      enquiries = await sheetsService.getOfficerEnquiries(user.sheetId);
-    } else {
-      return res.status(403).json({ error: 'Access denied' });
+    try {
+      if (user?.role === 'admin') {
+        enquiries = await sheetsService.getAllEnquiries();
+      } else if ((user?.role === 'officer' || user?.role === 'user') && user?.sheetId) {
+        enquiries = await sheetsService.getOfficerEnquiries(user.sheetId);
+      } else {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    } catch (e) {
+      // Fail-soft: allow dashboard to load even if Sheets is unavailable/misconfigured
+      console.warn('Dashboard stats: failed to load enquiries from Sheets:', e.message || e);
+      enquiries = [];
     }
 
     const stats = {
@@ -79,7 +85,13 @@ router.get('/stats', isAuthenticated, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
-    res.status(500).json({ error: 'Failed to fetch dashboard statistics' });
+
+    // Fail-soft for UI: return zeros instead of 500 so Home can still render.
+    return res.json({
+      stats: { total: 0, new: 0, contacted: 0, followUp: 0, registered: 0, closed: 0 },
+      officerStats: null,
+      warning: 'Failed to fetch dashboard statistics'
+    });
   }
 });
 

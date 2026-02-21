@@ -382,6 +382,17 @@ const dashboardAPI = {
   },
 
   /**
+   * Admin analytics for Home page
+   */
+  getAnalytics: async ({ from = '', to = '' } = {}) => {
+    const params = new URLSearchParams();
+    if (from) params.set('from', String(from));
+    if (to) params.set('to', String(to));
+    const qs = params.toString();
+    return fetchAPI(`/dashboard/analytics${qs ? `?${qs}` : ''}`);
+  },
+
+  /**
    * Get recent enquiries
    * @param {number} limit - Number of recent items
    */
