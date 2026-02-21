@@ -220,6 +220,7 @@
   let selectedProgramId = '';
   let selectedBatchName = '';
   let selectedStatus = 'due_overdue';
+  let selectedInstallmentFilter = '';
 
   async function loadProgramsForPayments() {
     const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
@@ -339,7 +340,7 @@
 
     const ttlMs = 2 * 60 * 1000; // 2 minutes
     const fetchStatus = (selectedStatus === 'due_overdue') ? 'all' : selectedStatus;
-    const cacheKey = `payments:adminSummary:limit=${limit}:program=${encodeURIComponent(selectedProgramId||'')}:batch=${encodeURIComponent(selectedBatchName||'')}:status=${encodeURIComponent(fetchStatus)}`;
+    const cacheKey = `payments:adminSummary:limit=${limit}:program=${encodeURIComponent(selectedProgramId||'')}:batch=${encodeURIComponent(selectedBatchName||'')}:status=${encodeURIComponent(fetchStatus)}:type=${encodeURIComponent(selectedInstallmentFilter||'')}`;
 
     // Fast path: render from cache if fresh and skip fetch
     if (tbody && !showSkeleton && window.Cache) {
@@ -350,6 +351,7 @@
         if (selectedStatus === 'due_overdue') {
           rows = rows.filter(r => ['due', 'overdue'].includes(String(r.computed_status)));
         }
+        rows = applyInstallmentFilter(rows);
         renderPaymentsRows(rows, tbody);
         return;
       }
@@ -369,7 +371,25 @@
       rows = rows.filter(r => ['due', 'overdue'].includes(String(r.computed_status)));
     }
 
+    rows = applyInstallmentFilter(rows);
+
     renderPaymentsRows(rows, tbody);
+  }
+
+  function applyInstallmentFilter(rows) {
+    const f = String(selectedInstallmentFilter || '').trim();
+    if (!f) return rows;
+
+    if (f.startsWith('installment_')) {
+      const n = parseInt(f.split('_')[1], 10);
+      return rows.filter(r => Number(r.installment_no) === n);
+    }
+
+    if (f === 'full_payment') {
+      return rows.filter(r => String(r.payment_plan || '').toLowerCase().includes('full payment'));
+    }
+
+    return rows;
   }
 
   function renderPaymentsRows(rows, tbody) {
@@ -683,11 +703,20 @@
     const refreshBtn = qs('paymentsRefreshBtn');
     const limitEl = qs('paymentsLimit');
     const batchSel = qs('paymentsBatchSelect');
+    const typeSel = qs('paymentsInstallmentFilter');
 
     if (batchSel && !batchSel.__bound) {
       batchSel.__bound = true;
       batchSel.addEventListener('change', () => {
         selectedBatchName = batchSel.value;
+        loadPayments().catch(console.error);
+      });
+    }
+
+    if (typeSel && !typeSel.__bound) {
+      typeSel.__bound = true;
+      typeSel.addEventListener('change', () => {
+        selectedInstallmentFilter = typeSel.value;
         loadPayments().catch(console.error);
       });
     }

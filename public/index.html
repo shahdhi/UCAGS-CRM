@@ -932,6 +932,16 @@
                         <div style="display:flex; gap:8px; align-items:center;">
                             <label for="paymentsBatchSelect" style="font-size:13px; color:#667085;">Batch</label>
                             <select id="paymentsBatchSelect" class="form-control" style="width:160px;"></select>
+
+                            <label for="paymentsInstallmentFilter" style="font-size:13px; color:#667085;">Type</label>
+                            <select id="paymentsInstallmentFilter" class="form-control" style="width:190px;">
+                                <option value="">All</option>
+                                <option value="installment_1">1st Installment</option>
+                                <option value="installment_2">2nd Installment</option>
+                                <option value="installment_3">3rd Installment</option>
+                                <option value="full_payment">Full payment</option>
+                            </select>
+
                             <label for="paymentsLimit" style="font-size:13px; color:#667085;">Show</label>
                             <select id="paymentsLimit" class="form-control" style="width:120px;">
                                 <option value="100">100</option>
