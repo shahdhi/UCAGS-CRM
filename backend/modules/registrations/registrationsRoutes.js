@@ -518,18 +518,38 @@ router.post('/admin/:id/enroll', isAdmin, async (req, res) => {
 
 // Delete a registration (admin)
 // DELETE /api/registrations/admin/:id
+// Note: payments.registration_id is not enforced by a DB FK by default (see scripts/supabase_payments.sql),
+// so we must manually delete related payments to avoid orphan rows.
 router.delete('/admin/:id', isAdmin, async (req, res) => {
   try {
     const sb = getSupabaseAdmin();
     const id = String(req.params.id || '').trim();
     if (!id) return res.status(400).json({ success: false, error: 'Missing id' });
 
-    const { error } = await sb
+    // Ensure the registration exists first (prevents accidentally deleting payments for a wrong id)
+    const { data: reg, error: regErr } = await sb
+      .from('registrations')
+      .select('id')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (regErr) throw regErr;
+    if (!reg) return res.status(404).json({ success: false, error: 'Registration not found' });
+
+    // 1) Delete related payments
+    const { error: payErr } = await sb
+      .from('payments')
+      .delete()
+      .eq('registration_id', id);
+    if (payErr) throw payErr;
+
+    // 2) Delete the registration
+    const { error: delErr } = await sb
       .from('registrations')
       .delete()
       .eq('id', id);
 
-    if (error) throw error;
+    if (delErr) throw delErr;
     res.json({ success: true });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
