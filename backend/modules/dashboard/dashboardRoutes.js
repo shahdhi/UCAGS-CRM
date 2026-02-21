@@ -184,9 +184,13 @@ async function getConfirmedPaymentsRegistrationIds(sb, { from = null, to = null 
  * GET /api/dashboard/analytics?from=YYYY-MM-DD&to=YYYY-MM-DD
  * Admin analytics for Home page
  */
-router.get('/analytics', isAdmin, async (req, res) => {
+router.get('/analytics', isAuthenticated, async (req, res) => {
   try {
     const sb = getSupabaseAdmin();
+
+    const user = req.user || req.session?.user || {};
+    const isAdminUser = user?.role === 'admin';
+    const officerName = String(user?.name || '').trim();
 
     const from = parseISODateOnly(req.query.from) || null;
     const to = parseISODateOnly(req.query.to) || null;
@@ -199,71 +203,116 @@ router.get('/analytics', isAdmin, async (req, res) => {
     const fromEff = from ? startOfDay(from) : fromDefault;
     const toEff = to ? endOfDay(to) : toDefault;
 
-    // Follow-ups due / overdue from followups table (if exists)
+    // Follow-ups due
+    // Admin: best-effort using legacy followups table if available
+    // Officer: use crm_lead_followups (officer-owned) if available
     let followUpsDue = 0;
     let followUpsOverdue = 0;
-    try {
-      const { data, error } = await sb
-        .from('followups')
-        .select('id, follow_up_date, status')
-        .gte('follow_up_date', toISODate(fromEff))
-        .lte('follow_up_date', toISODate(toEff))
-        .limit(20000);
-      if (error) throw error;
 
-      const todayStr = toISODate(new Date());
-      const todayMs0 = startOfDay(new Date()).getTime();
-      const todayMs1 = endOfDay(new Date()).getTime();
+    if (!isAdminUser && user?.id) {
+      try {
+        const todayMs0 = startOfDay(new Date()).getTime();
+        const todayMs1 = endOfDay(new Date()).getTime();
 
-      (data || []).forEach(f => {
-        const dt = new Date(f.follow_up_date).getTime();
-        const done = String(f.status || '').toLowerCase().includes('done') || String(f.status || '').toLowerCase().includes('completed');
-        if (done) return;
-        if (Number.isFinite(dt) && dt >= todayMs0 && dt <= todayMs1) followUpsDue++;
-        if (Number.isFinite(dt) && dt < todayMs0) followUpsOverdue++;
-      });
+        const { data, error } = await sb
+          .from('crm_lead_followups')
+          .select('id, scheduled_at, actual_at')
+          .eq('officer_user_id', user.id)
+          .limit(20000);
+        if (error) throw error;
 
-      // If query window doesn't include overdue range, we still computed overdue globally from returned window,
-      // which might be undercount; try a second query just for overdue if possible.
-      const { data: oData } = await sb
-        .from('followups')
-        .select('id, follow_up_date, status')
-        .lt('follow_up_date', todayStr)
-        .limit(20000);
-      (oData || []).forEach(f => {
-        const done = String(f.status || '').toLowerCase().includes('done') || String(f.status || '').toLowerCase().includes('completed');
-        if (!done) followUpsOverdue++;
-      });
-    } catch (e) {
-      // followups table not available; keep zeros
+        (data || []).forEach(f => {
+          if (f.actual_at) return; // completed
+          const dt = new Date(f.scheduled_at || 0).getTime();
+          if (!Number.isFinite(dt)) return;
+          if (dt >= todayMs0 && dt <= todayMs1) followUpsDue++;
+          if (dt < todayMs0) followUpsOverdue++;
+        });
+      } catch (e) {
+        // ignore
+      }
+    } else {
+      try {
+        const { data, error } = await sb
+          .from('followups')
+          .select('id, follow_up_date, status')
+          .gte('follow_up_date', toISODate(fromEff))
+          .lte('follow_up_date', toISODate(toEff))
+          .limit(20000);
+        if (error) throw error;
+
+        const todayStr = toISODate(new Date());
+        const todayMs0 = startOfDay(new Date()).getTime();
+        const todayMs1 = endOfDay(new Date()).getTime();
+
+        (data || []).forEach(f => {
+          const dt = new Date(f.follow_up_date).getTime();
+          const done = String(f.status || '').toLowerCase().includes('done') || String(f.status || '').toLowerCase().includes('completed');
+          if (done) return;
+          if (Number.isFinite(dt) && dt >= todayMs0 && dt <= todayMs1) followUpsDue++;
+          if (Number.isFinite(dt) && dt < todayMs0) followUpsOverdue++;
+        });
+
+        const { data: oData } = await sb
+          .from('followups')
+          .select('id, follow_up_date, status')
+          .lt('follow_up_date', todayStr)
+          .limit(20000);
+        (oData || []).forEach(f => {
+          const done = String(f.status || '').toLowerCase().includes('done') || String(f.status || '').toLowerCase().includes('completed');
+          if (!done) followUpsOverdue++;
+        });
+      } catch (e) {
+        // ignore
+      }
     }
 
     // Registrations received within range (created_at)
+    // Currently used only for Action Center (admin). Officers don't need it.
     let registrationsReceived = 0;
     let missingAssignedTo = 0;
-    try {
-      let q = sb
-        .from('registrations')
-        .select('id, assigned_to, payload, created_at, batch_name')
-        .gte('created_at', fromEff.toISOString())
-        .lte('created_at', toEff.toISOString())
-        .limit(20000);
-      if (currentBatches.length) q = q.in('batch_name', currentBatches);
-      const { data, error } = await q;
-      if (error) throw error;
-      registrationsReceived = (data || []).length;
-      (data || []).forEach(r => {
-        const payload = r?.payload && typeof r.payload === 'object' ? r.payload : {};
-        const a = r?.assigned_to || payload?.assigned_to || payload?.assignedTo;
-        if (!a) missingAssignedTo++;
-      });
-    } catch (e) {
-      // ignore
+    if (isAdminUser) {
+      try {
+        let q = sb
+          .from('registrations')
+          .select('id, assigned_to, payload, created_at, batch_name')
+          .gte('created_at', fromEff.toISOString())
+          .lte('created_at', toEff.toISOString())
+          .limit(20000);
+        if (currentBatches.length) q = q.in('batch_name', currentBatches);
+        const { data, error } = await q;
+        if (error) throw error;
+        registrationsReceived = (data || []).length;
+        (data || []).forEach(r => {
+          const payload = r?.payload && typeof r.payload === 'object' ? r.payload : {};
+          const a = r?.assigned_to || payload?.assigned_to || payload?.assignedTo;
+          if (!a) missingAssignedTo++;
+        });
+      } catch (e) {
+        // ignore
+      }
     }
 
-    // Confirmed payments within range
+    // Enrollments (confirmed payments) within range
     const confirmedRegIds = await getConfirmedPaymentsRegistrationIds(sb, { from: fromEff, to: toEff });
-    const confirmedPayments = confirmedRegIds.length;
+    let confirmedPayments = confirmedRegIds.length;
+
+    // Officers should see only their own enrollments
+    if (!isAdminUser && officerName && confirmedRegIds.length) {
+      try {
+        let q = sb
+          .from('registrations')
+          .select('id', { count: 'exact', head: true })
+          .in('id', confirmedRegIds)
+          .eq('assigned_to', officerName);
+        if (currentBatches.length) q = q.in('batch_name', currentBatches);
+        const { count, error } = await q;
+        if (error) throw error;
+        confirmedPayments = Number(count || 0);
+      } catch (e) {
+        confirmedPayments = 0;
+      }
+    }
 
     // Conversion rate: confirmed payments out of TOTAL leads (Main Leads + Extra Leads + etc.)
     // Source of truth: Supabase crm_leads table (contains sheet_name = Main Leads / Extra Leads ...)
@@ -275,6 +324,7 @@ router.get('/analytics', isAdmin, async (req, res) => {
         .gte('created_at', fromEff.toISOString())
         .lte('created_at', toEff.toISOString());
       if (currentBatches.length) q = q.in('batch_name', currentBatches);
+      if (!isAdminUser && officerName) q = q.eq('assigned_to', officerName);
       const { count, error } = await q;
       if (error) throw error;
       leadsCount = Number(count || 0);
@@ -285,34 +335,31 @@ router.get('/analytics', isAdmin, async (req, res) => {
 
     const conversionRate = leadsCount > 0 ? (confirmedPayments / leadsCount) : 0;
 
-    // Funnel: New -> Contacted -> Follow-up -> Registered -> Confirmed Payment
-    let funnel = null;
+    // Status (previously Funnel): New -> Contacted -> Follow-up -> Registered -> Enrollments
+    // Officers should see only their own statuses.
+    let funnel = { new: 0, contacted: 0, followUp: 0, registered: 0, confirmedPayments };
     try {
-      const enquiries = await sheetsService.getAllEnquiries();
-      const fromMs = fromEff.getTime();
-      const toMs = toEff.getTime();
-      const inWindow = (enquiries || []).filter(e => {
-        const t = new Date(e.createdDate || 0).getTime();
-        if (!Number.isFinite(t)) return true;
-        return t >= fromMs && t <= toMs;
-      });
+      let q = sb
+        .from('crm_leads')
+        .select('status')
+        .gte('created_at', fromEff.toISOString())
+        .lte('created_at', toEff.toISOString())
+        .limit(20000);
+      if (currentBatches.length) q = q.in('batch_name', currentBatches);
+      if (!isAdminUser && officerName) q = q.eq('assigned_to', officerName);
 
-      const byStatus = (s) => inWindow.filter(e => String(e.status || '') === s).length;
-      funnel = {
-        new: byStatus('New'),
-        contacted: byStatus('Contacted'),
-        followUp: byStatus('Follow-up'),
-        registered: byStatus('Registered'),
-        confirmedPayments
-      };
+      const { data, error } = await q;
+      if (error) throw error;
+
+      for (const r of (data || [])) {
+        const s = String(r.status || '').toLowerCase();
+        if (s === 'new') funnel.new++;
+        else if (s === 'contacted') funnel.contacted++;
+        else if (s === 'follow-up' || s === 'followup') funnel.followUp++;
+        else if (s === 'registered') funnel.registered++;
+      }
     } catch (e) {
-      funnel = {
-        new: 0,
-        contacted: 0,
-        followUp: 0,
-        registered: 0,
-        confirmedPayments
-      };
+      // keep defaults
     }
 
     // Time series: confirmed payments per day (last 30 days window)
@@ -357,6 +404,24 @@ router.get('/analytics', isAdmin, async (req, res) => {
             .limit(20000);
           if (error) throw error;
           payRows = data || [];
+        }
+
+        // Officers should see only their own enrollments in the time series
+        if (!isAdminUser && officerName && payRows.length) {
+          try {
+            let rq = sb
+              .from('registrations')
+              .select('id')
+              .eq('assigned_to', officerName)
+              .limit(20000);
+            if (currentBatches.length) rq = rq.in('batch_name', currentBatches);
+            const { data: rData, error: rErr } = await rq;
+            if (rErr) throw rErr;
+            const allowed = new Set((rData || []).map(x => x.id));
+            payRows = payRows.filter(p => allowed.has(p.registration_id));
+          } catch (e) {
+            payRows = [];
+          }
         }
 
         // Count distinct registration_id per day (so multiple installments don't double count)
@@ -447,32 +512,34 @@ router.get('/analytics', isAdmin, async (req, res) => {
       .filter(r => String(r.officer || '').toLowerCase() !== 'admin')
       .sort((a, b) => b.count - a.count || b.conversionRate - a.conversionRate || a.officer.localeCompare(b.officer));
 
-    // Action center: payments pending confirmation
+    // Action center: payments pending confirmation (admin only)
     let paymentsPendingConfirmation = 0;
-    try {
-      let { data, error } = await sb
-        .from('payments')
-        .select('id')
-        .eq('is_confirmed', false)
-        .limit(20000);
-      if (error) throw error;
-      paymentsPendingConfirmation = (data || []).length;
-    } catch (e1) {
-      const msg = String(e1.message || '').toLowerCase();
-      const missingCol = (msg.includes('column') && msg.includes('is_confirmed') && msg.includes('does not exist')) ||
-        (msg.includes('schema cache') && msg.includes('is_confirmed') && msg.includes('could not find'));
-      if (!missingCol) {
-        // ignore
-      } else {
-        // fallback: treat receipt_received=false as pending
-        try {
-          const { data } = await sb
-            .from('payments')
-            .select('id')
-            .eq('receipt_received', false)
-            .limit(20000);
-          paymentsPendingConfirmation = (data || []).length;
-        } catch (e2) {}
+    if (isAdminUser) {
+      try {
+        let { data, error } = await sb
+          .from('payments')
+          .select('id')
+          .eq('is_confirmed', false)
+          .limit(20000);
+        if (error) throw error;
+        paymentsPendingConfirmation = (data || []).length;
+      } catch (e1) {
+        const msg = String(e1.message || '').toLowerCase();
+        const missingCol = (msg.includes('column') && msg.includes('is_confirmed') && msg.includes('does not exist')) ||
+          (msg.includes('schema cache') && msg.includes('is_confirmed') && msg.includes('could not find'));
+        if (!missingCol) {
+          // ignore
+        } else {
+          // fallback: treat receipt_received=false as pending
+          try {
+            const { data } = await sb
+              .from('payments')
+              .select('id')
+              .eq('receipt_received', false)
+              .limit(20000);
+            paymentsPendingConfirmation = (data || []).length;
+          } catch (e2) {}
+        }
       }
     }
 
@@ -493,11 +560,11 @@ router.get('/analytics', isAdmin, async (req, res) => {
       leaderboard: {
         enrollmentsCurrentBatch: leaderboard
       },
-      actionCenter: {
+      actionCenter: isAdminUser ? {
         overdueFollowUps: followUpsOverdue,
         paymentsPendingConfirmation,
         registrationsMissingAssignedTo: missingAssignedTo
-      }
+      } : null
     });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });

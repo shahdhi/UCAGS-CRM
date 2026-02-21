@@ -1973,8 +1973,7 @@ async function loadDashboard() {
             // ignore badge failures
         }
 
-        if (!currentUser || currentUser.role !== 'admin') {
-            // For non-admins, keep old behavior minimal (no analytics endpoint)
+        if (!currentUser) {
             return;
         }
 
@@ -2116,9 +2115,9 @@ async function loadDashboard() {
         }
 
         // Action center
-        const ac = analytics.actionCenter || {};
+        const ac = analytics.actionCenter || null;
         const acEl = document.getElementById('homeActionCenter');
-        if (acEl) {
+        if (acEl && currentUser.role === 'admin' && ac) {
             const overdue = Number(ac.overdueFollowUps || 0);
             const pendingPay = Number(ac.paymentsPendingConfirmation || 0);
             const missingAssign = Number(ac.registrationsMissingAssignedTo || 0);
