@@ -617,7 +617,17 @@ body {
     border-color: var(--separator) !important;
 }
 
-#homeView .stat-card:hover,
+#homeView .stat-card {
+    cursor: default !important;
+    transition: none !important;
+}
+
+#homeView .stat-card:hover {
+    transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
+    border-color: var(--separator) !important;
+}
+
 #homeView .officer-stat:hover {
     transform: none !important;
 }
