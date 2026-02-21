@@ -147,12 +147,18 @@ async function showDashboard() {
     UI.show('dashboardPage');
     
     // Update user displays
-    document.getElementById('userDisplay').textContent = currentUser.name;
-    document.getElementById('sidebarUserName').textContent = currentUser.name;
-    document.getElementById('welcomeUserName').textContent = currentUser.name;
+    const userDisplayEl = document.getElementById('userDisplay');
+    if (userDisplayEl) userDisplayEl.textContent = currentUser.name;
+
+    const sidebarUserNameEl = document.getElementById('sidebarUserName');
+    if (sidebarUserNameEl) sidebarUserNameEl.textContent = currentUser.name;
+
+    const welcomeUserNameEl = document.getElementById('welcomeUserName');
+    if (welcomeUserNameEl) welcomeUserNameEl.textContent = currentUser.name;
     
     const userRole = currentUser.role === 'admin' ? 'Administrator' : 'Academic Advisor';
-    document.getElementById('sidebarUserRole').textContent = userRole;
+    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+    if (sidebarUserRoleEl) sidebarUserRoleEl.textContent = userRole;
     
     // Show/hide admin features
     if (currentUser.role === 'admin') {
