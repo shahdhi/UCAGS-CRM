@@ -592,7 +592,8 @@
     }
 
     await renderProgramTabs();
-    await loadRegistrations({ showSkeleton: true });
+    const hasRows = !!qs('registrationsTableBody')?.querySelector('tr[data-row-key]');
+    await loadRegistrations({ showSkeleton: !hasRows });
   }
 
   window.initRegistrationsPage = initRegistrationsPage;

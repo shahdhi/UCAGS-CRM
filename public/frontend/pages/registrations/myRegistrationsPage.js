@@ -417,7 +417,8 @@
     }
 
     await renderProgramTabs();
-    await loadMyRegistrations({ showSkeleton: true });
+    const hasRows = !!qs('registrationsMyTableBody')?.querySelector('tr[data-row-key]');
+    await loadMyRegistrations({ showSkeleton: !hasRows });
   }
 
   window.initMyRegistrationsPage = initMyRegistrationsPage;

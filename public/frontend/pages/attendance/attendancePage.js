@@ -752,7 +752,8 @@
 
       const adminLeave = document.getElementById('attendanceAdminLeaveSection');
       if (adminLeave) adminLeave.classList.remove('hidden');
-      await loadAdminLeaveRequests();
+      const hasLeaveRows = !!document.getElementById('attendanceAdminLeaveTableBody')?.querySelector('tr[data-row-key]');
+      await loadAdminLeaveRequests({ showSkeleton: !hasLeaveRows });
     } else {
       // Ensure My Today card is visible for officers (in case a previous admin session hid it)
       const myCard = document.getElementById('attendanceMyTodayCard');
@@ -765,8 +766,10 @@
       const adminLeave = document.getElementById('attendanceAdminLeaveSection');
       if (adminLeave) adminLeave.classList.add('hidden');
 
-      await loadMyCalendar();
-      await loadMyLeaveRequests();
+      const hasCal = !!document.getElementById('attendanceCalendarGrid')?.querySelector('.followup-calendar-cell');
+      await loadMyCalendar({ showSkeleton: !hasCal });
+      const hasMyLeaveRows = !!document.getElementById('attendanceMyLeaveTableBody')?.querySelector('tr');
+      await loadMyLeaveRequests({ showSkeleton: !hasMyLeaveRows });
     }
 
     // Load admin table only if visible
@@ -779,7 +782,8 @@
         const pad2 = (n) => String(n).padStart(2, '0');
         dateInput.value = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
       }
-      await loadAdminRecords();
+      const hasAdminRows = !!document.getElementById('attendanceAdminTableBody')?.querySelector('tr[data-row-key]');
+      await loadAdminRecords({ showSkeleton: !hasAdminRows });
     }
   };
 })();

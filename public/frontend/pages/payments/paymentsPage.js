@@ -597,7 +597,8 @@
 
     renderStatusTabs();
     await renderProgramTabs();
-    await loadPayments({ showSkeleton: true });
+    const hasRows = !!qs('paymentsTableBody')?.querySelector('tr[data-row-key]');
+    await loadPayments({ showSkeleton: !hasRows });
   }
 
   window.initPaymentsPage = initPaymentsPage;

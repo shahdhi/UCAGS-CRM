@@ -304,7 +304,8 @@
       });
     }
 
-    await loadStudents({ showSkeleton: !loadedOnce });
+    const hasRows = !!qs('studentsTableBody')?.querySelector('tr[data-row-key]');
+    await loadStudents({ showSkeleton: !hasRows });
   }
 
   window.initStudentsPage = initStudentsPage;

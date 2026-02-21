@@ -920,9 +920,12 @@ async function navigateToPage(page) {
         case 'calendar':
             loadCalendar();
             break;
-        case 'users':
-            loadUsers({ showSkeleton: !usersLoadedOnce }).catch(console.error);
+        case 'users': {
+            const tbody = document.getElementById('usersTableBody');
+            const hasRows = !!tbody?.querySelector('tr[data-row-key]');
+            loadUsers({ showSkeleton: !hasRows }).catch(console.error);
             break;
+        }
         case 'officers':
             loadOfficers();
             break;
