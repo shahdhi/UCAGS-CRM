@@ -275,12 +275,13 @@ const paymentsAPI = {
     if (batchName) params.set('batchName', String(batchName));
     return fetchAPI(`/payments/admin?${params.toString()}`);
   },
-  adminSummary: async (limit = 200, { programId = '', batchName = '', status = 'all' } = {}) => {
+  adminSummary: async (limit = 200, { programId = '', batchName = '', status = 'all', type = '' } = {}) => {
     const params = new URLSearchParams();
     params.set('limit', String(limit));
     if (programId) params.set('programId', String(programId));
     if (batchName) params.set('batchName', String(batchName));
     if (status) params.set('status', String(status));
+    if (type) params.set('type', String(type));
     return fetchAPI(`/payments/admin/summary?${params.toString()}`);
   },
   adminUpdate: async (id, patch) => {

@@ -416,7 +416,12 @@
     }
 
     // Use summary endpoint (one row per registration)
-    const res = await window.API.payments.adminSummary(limit, { programId: selectedProgramId, batchName: selectedBatchName, status: fetchStatus });
+    const res = await window.API.payments.adminSummary(limit, {
+      programId: selectedProgramId,
+      batchName: selectedBatchName,
+      status: fetchStatus,
+      type: selectedInstallmentFilter
+    });
     if (window.Cache) window.Cache.setWithTs(cacheKey, res);
     let rows = res.payments || [];
     window.__paymentsLastSummary = rows;
@@ -432,18 +437,8 @@
   }
 
   function applyInstallmentFilter(rows) {
-    const f = String(selectedInstallmentFilter || '').trim();
-    if (!f) return rows;
-
-    if (f.startsWith('installment_')) {
-      const n = parseInt(f.split('_')[1], 10);
-      return rows.filter(r => Number(r.installment_no) === n);
-    }
-
-    if (f === 'full_payment') {
-      return rows.filter(r => String(r.payment_plan || '').toLowerCase().includes('full payment'));
-    }
-
+    // Installment/type filtering is handled server-side via /payments/admin/summary?type=...
+    // Keep this as a no-op for compatibility.
     return rows;
   }
 

@@ -29,8 +29,10 @@ function computeStatus(today, startDate, endDate, isConfirmed) {
   return 'due';
 }
 
-// Admin payments summary (one row per registration: current installment)
-// GET /api/payments/admin/summary?programId=...&batchName=...&status=due|overdue|upcoming|completed|all&limit=200
+// Admin payments summary (one row per registration)
+// Default: current unpaid installment
+// Optional: type filter can force returning a specific installment row per registration
+// GET /api/payments/admin/summary?programId=...&batchName=...&status=due|overdue|upcoming|completed|all&limit=200&type=installment_1|installment_2|installment_3|installment_4|full_payment
 router.get('/admin/summary', isAdmin, async (req, res) => {
   try {
     const sb = getSupabaseAdmin();
@@ -38,6 +40,7 @@ router.get('/admin/summary', isAdmin, async (req, res) => {
     const programId = req.query.programId ? String(req.query.programId).trim() : '';
     const batchName = req.query.batchName ? String(req.query.batchName).trim() : '';
     const statusFilter = String(req.query.status || 'all').toLowerCase();
+    const typeFilter = String(req.query.type || '').trim();
     const today = startOfDayISO(new Date());
 
     let q = sb.from('payments').select('*');
@@ -79,8 +82,25 @@ router.get('/admin/summary', isAdmin, async (req, res) => {
         return String(a.created_at || '').localeCompare(String(b.created_at || ''));
       });
 
-      // find current unpaid installment (or first row if none)
-      let current = sorted.find(r => !r.is_confirmed) || sorted[0];
+      // Choose which payment row to represent this registration
+      // Default: current unpaid installment (or first row if none)
+      // If typeFilter is set, pick that installment row even if already confirmed,
+      // so filtering "1st installment" shows all leads' 1st installment.
+      let current = null;
+
+      if (typeFilter && typeFilter.startsWith('installment_')) {
+        const nWanted = parseInt(typeFilter.split('_')[1], 10);
+        if (Number.isFinite(nWanted)) {
+          current = sorted.find(r => Number(r.installment_no) === nWanted) || null;
+        }
+      } else if (typeFilter && typeFilter === 'full_payment') {
+        current = sorted.find(r => String(r.payment_plan || '').toLowerCase().includes('full payment')) || null;
+      }
+
+      if (!current) {
+        current = sorted.find(r => !r.is_confirmed) || sorted[0];
+      }
+
       if (!current) continue;
 
       const n = Number(current.installment_no || 1);
