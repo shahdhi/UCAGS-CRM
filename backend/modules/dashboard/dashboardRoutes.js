@@ -265,20 +265,22 @@ router.get('/analytics', isAdmin, async (req, res) => {
     const confirmedRegIds = await getConfirmedPaymentsRegistrationIds(sb, { from: fromEff, to: toEff });
     const confirmedPayments = confirmedRegIds.length;
 
-    // Conversion rate: leads (enquiries in sheets) -> confirmed payments
+    // Conversion rate: confirmed payments out of TOTAL leads (Main Leads + Extra Leads + etc.)
+    // Source of truth: Supabase crm_leads table (contains sheet_name = Main Leads / Extra Leads ...)
     let leadsCount = 0;
     try {
-      const enquiries = await sheetsService.getAllEnquiries();
-      // Filter by createdDate within window if possible
-      const fromMs = fromEff.getTime();
-      const toMs = toEff.getTime();
-      leadsCount = (enquiries || []).filter(e => {
-        const t = new Date(e.createdDate || 0).getTime();
-        if (!Number.isFinite(t)) return true; // if no date, include
-        return t >= fromMs && t <= toMs;
-      }).length;
+      let q = sb
+        .from('crm_leads')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', fromEff.toISOString())
+        .lte('created_at', toEff.toISOString());
+      if (currentBatches.length) q = q.in('batch_name', currentBatches);
+      const { count, error } = await q;
+      if (error) throw error;
+      leadsCount = Number(count || 0);
     } catch (e) {
-      // If sheets quota etc, leave 0
+      console.warn('Analytics: failed to count crm_leads for conversion rate:', e.message || e);
+      leadsCount = 0;
     }
 
     const conversionRate = leadsCount > 0 ? (confirmedPayments / leadsCount) : 0;
@@ -375,32 +377,47 @@ router.get('/analytics', isAdmin, async (req, res) => {
       seriesDays.push(...days.map(day => ({ day, count: counts.get(day) || 0 })));
     }
 
-    // Ranking (This week): confirmed payments per officer
-    const weekStart = startOfDay(new Date());
-    weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7)); // Monday
-    const weekEnd = endOfDay(new Date());
+    // Leaderboard: enrollments (confirmed payments) per officer for ENTIRE current batch
+    // Always include all officers, even if 0.
+    const officerNames = [];
+    try {
+      const { data: uData, error: uErr } = await sb.auth.admin.listUsers({ page: 1, perPage: 2000 });
+      if (uErr) throw uErr;
+      (uData?.users || []).forEach(u => {
+        const role = u.user_metadata?.role || 'officer';
+        const isOfficer = role === 'officer' || role === 'admission_officer';
+        if (!isOfficer) return;
+        const name = u.user_metadata?.name || u.email?.split('@')?.[0] || '';
+        if (name) officerNames.push(String(name));
+      });
+    } catch (e) {
+      // If auth admin not available, just fall back to officers discovered from data
+    }
 
-    const weekConfirmedIds = await getConfirmedPaymentsRegistrationIds(sb, { from: weekStart, to: weekEnd });
-    let leaderboard = [];
-    if (weekConfirmedIds.length) {
+    const map = new Map();
+    for (const n of officerNames) map.set(n, 0);
+
+    const batchConfirmedIds = await getConfirmedPaymentsRegistrationIds(sb);
+    if (batchConfirmedIds.length) {
       let q = sb
         .from('registrations')
         .select('id, assigned_to, payload, batch_name')
-        .in('id', weekConfirmedIds)
+        .in('id', batchConfirmedIds)
         .limit(20000);
       if (currentBatches.length) q = q.in('batch_name', currentBatches);
       const { data, error } = await q;
       if (!error) {
-        const map = new Map();
         for (const r of (data || [])) {
           const payload = r?.payload && typeof r.payload === 'object' ? r.payload : {};
           const officer = String(r?.assigned_to || payload?.assigned_to || payload?.assignedTo || 'Unassigned').trim() || 'Unassigned';
           map.set(officer, (map.get(officer) || 0) + 1);
         }
-        leaderboard = Array.from(map.entries()).map(([officer, count]) => ({ officer, count }))
-          .sort((a, b) => b.count - a.count || a.officer.localeCompare(b.officer));
       }
     }
+
+    const leaderboard = Array.from(map.entries())
+      .map(([officer, count]) => ({ officer, count }))
+      .sort((a, b) => b.count - a.count || a.officer.localeCompare(b.officer));
 
     // Action center: payments pending confirmation
     let paymentsPendingConfirmation = 0;
@@ -446,7 +463,7 @@ router.get('/analytics', isAdmin, async (req, res) => {
         confirmedPaymentsPerDay: seriesDays
       },
       leaderboard: {
-        confirmedPaymentsThisWeek: leaderboard
+        enrollmentsCurrentBatch: leaderboard
       },
       actionCenter: {
         overdueFollowUps: followUpsOverdue,

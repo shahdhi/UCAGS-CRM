@@ -2004,11 +2004,10 @@ async function loadDashboard() {
         // KPI strip
         const k = analytics.kpis || {};
         const elDue = document.getElementById('kpiFollowUpsDue');
-        const elRegR = document.getElementById('kpiRegistrationsReceived');
+        const elRegR = null;
         const elCP = document.getElementById('kpiConfirmedPayments');
         const elCR = document.getElementById('kpiConversionRate');
         if (elDue) elDue.textContent = String(k.followUpsDue ?? 0);
-        if (elRegR) elRegR.textContent = String(k.registrationsReceived ?? 0);
         if (elCP) elCP.textContent = String(k.confirmedPayments ?? 0);
         if (elCR) elCR.textContent = fmtPct(k.conversionRate);
 
@@ -2051,7 +2050,7 @@ async function loadDashboard() {
                 data: {
                     labels,
                     datasets: [{
-                        label: 'Confirmed payments',
+                        label: 'Enrollments',
                         data: values,
                         tension: 0.35,
                         borderColor: '#16a34a',
@@ -2072,7 +2071,7 @@ async function loadDashboard() {
         }
 
         // Leaderboard
-        const lb = analytics.leaderboard?.confirmedPaymentsThisWeek || [];
+        const lb = analytics.leaderboard?.enrollmentsCurrentBatch || [];
         const lbEl = document.getElementById('homeLeaderboard');
         if (lbEl) {
             const medal = (idx) => {
@@ -2088,10 +2087,10 @@ async function loadDashboard() {
                     const name = String(r.officer || 'Unassigned');
                     const count = Number(r.count || 0);
                     return `
-                      <div class="officer-stat">
-                        <div class="officer-name" style="display:flex; gap:10px; align-items:center;">
-                          <span>${medal(i)}</span>
-                          <span>${name}</span>
+                      <div class="officer-stat leaderboard-row">
+                        <div class="officer-name">
+                          <span class="leaderboard-rank">${medal(i)}</span>
+                          <span class="leaderboard-name" title="${name}">${name}</span>
                         </div>
                         <div class="officer-count">${count}</div>
                       </div>

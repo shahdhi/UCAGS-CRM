@@ -1594,6 +1594,49 @@ body {
     justify-content: center;
 }
 
+/* Leaderboard rows (override officer-stat card styling for compact alignment) */
+#homeLeaderboard .leaderboard-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: left;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+}
+
+#homeLeaderboard .leaderboard-row:hover {
+    background: #f1f5f9;
+    transform: none;
+}
+
+#homeLeaderboard .leaderboard-row .officer-name {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    min-width: 0;
+}
+
+#homeLeaderboard .leaderboard-rank {
+    width: 22px;
+    display: inline-flex;
+    justify-content: center;
+}
+
+#homeLeaderboard .leaderboard-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 260px;
+}
+
+#homeLeaderboard .leaderboard-row .officer-count {
+    font-weight: 800;
+    color: #111827;
+}
+
 /* Toast Notifications */
 #toastContainer {
     position: fixed;

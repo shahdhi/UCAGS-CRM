@@ -310,17 +310,10 @@
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon purple"><i class="fas fa-file-signature"></i></div>
-                        <div class="stat-details">
-                            <h3 id="kpiRegistrationsReceived">0</h3>
-                            <p>Registrations Received</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
                         <div class="stat-icon green"><i class="fas fa-badge-check"></i></div>
                         <div class="stat-details">
                             <h3 id="kpiConfirmedPayments">0</h3>
-                            <p>Confirmed Payments</p>
+                            <p>Enrollments</p>
                         </div>
                     </div>
                     <div class="stat-card">
@@ -339,10 +332,10 @@
                         <canvas id="homeFunnelChart" height="150"></canvas>
                     </div>
 
-                    <!-- Action Center -->
-                    <div class="dashboard-card">
-                        <h3>Action Center</h3>
-                        <div id="homeActionCenter" class="recent-list">
+                    <!-- Leaderboard -->
+                    <div class="dashboard-card admin-only">
+                        <h3>Leaderboard (Enrollments)</h3>
+                        <div id="homeLeaderboard" class="officer-stats">
                             <p class="loading">Loading...</p>
                         </div>
                     </div>
@@ -351,14 +344,14 @@
                 <div class="dashboard-grid" style="grid-template-columns: 1.2fr 0.8fr;">
                     <!-- Time Series -->
                     <div class="dashboard-card">
-                        <h3>Confirmed Payments per Day</h3>
+                        <h3>Enrollments per Day</h3>
                         <canvas id="homeConfirmedLineChart" height="120"></canvas>
                     </div>
 
-                    <!-- Ranking Board -->
-                    <div class="dashboard-card admin-only">
-                        <h3>Leaderboard (Confirmed Payments - This Week)</h3>
-                        <div id="homeLeaderboard" class="officer-stats">
+                    <!-- Action Center -->
+                    <div class="dashboard-card">
+                        <h3>Action Center</h3>
+                        <div id="homeActionCenter" class="recent-list">
                             <p class="loading">Loading...</p>
                         </div>
                     </div>
