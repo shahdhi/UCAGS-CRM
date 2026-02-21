@@ -367,6 +367,11 @@ router.get('/payment/:paymentId', isAdmin, async (req, res) => {
 
     doc.end();
   } catch (e) {
+    // If streaming already started, don't write JSON into the PDF stream (it corrupts the file)
+    if (res.headersSent) {
+      try { res.end(); } catch (_) {}
+      return;
+    }
     res.status(e.status || 500).json({ success: false, error: e.message });
   }
 });

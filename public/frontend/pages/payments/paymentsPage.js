@@ -146,11 +146,19 @@
           (async () => {
             try {
               const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
-              const resp = await fetch(`/api/receipts/payment/${encodeURIComponent(pid)}`, { headers: authHeaders });
+              const resp = await fetch(`/api/receipts/payment/${encodeURIComponent(pid)}`, {
+                headers: authHeaders,
+                credentials: 'include'
+              });
               if (!resp.ok) {
                 const j = await resp.json().catch(() => null);
                 throw new Error(j?.error || 'Failed to download receipt');
               }
+              const ct = resp.headers.get('content-type') || '';
+              if (!ct.toLowerCase().includes('application/pdf')) {
+                throw new Error('Download failed (server did not return a PDF).');
+              }
+
               const blob = await resp.blob();
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
@@ -485,11 +493,19 @@
           (async () => {
             try {
               const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
-              const resp = await fetch(`/api/receipts/payment/${encodeURIComponent(pid)}`, { headers: authHeaders });
+              const resp = await fetch(`/api/receipts/payment/${encodeURIComponent(pid)}`, {
+                headers: authHeaders,
+                credentials: 'include'
+              });
               if (!resp.ok) {
                 const j = await resp.json().catch(() => null);
                 throw new Error(j?.error || 'Failed to download receipt');
               }
+              const ct = resp.headers.get('content-type') || '';
+              if (!ct.toLowerCase().includes('application/pdf')) {
+                throw new Error('Download failed (server did not return a PDF).');
+              }
+
               const blob = await resp.blob();
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
