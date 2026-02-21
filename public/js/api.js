@@ -93,6 +93,14 @@ const API = {
             return API.request('/dashboard/follow-ups');
         },
 
+        async getAnalytics({ from = '', to = '' } = {}) {
+            const params = new URLSearchParams();
+            if (from) params.set('from', from);
+            if (to) params.set('to', to);
+            const qs = params.toString();
+            return API.request(`/dashboard/analytics${qs ? `?${qs}` : ''}`);
+        },
+
         // Admin-only: enrollments per officer for current batch
         async getEnrollmentRankings() {
             return API.request('/dashboard/enrollment-rankings');

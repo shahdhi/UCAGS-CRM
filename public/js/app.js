@@ -1929,82 +1929,228 @@ function setupEventListeners() {
     });
 }
 
-// Load dashboard data
+// Load dashboard data (Admin Analytics Home)
+let __homeFunnelChart = null;
+let __homeConfirmedLineChart = null;
+
+function fmtPct(x) {
+    const n = Number(x || 0);
+    if (!Number.isFinite(n)) return '0%';
+    return `${(n * 100).toFixed(1)}%`;
+}
+
+function isoDate(d) {
+    return new Date(d).toISOString().slice(0, 10);
+}
+
+function setDefaultHomeRange() {
+    const to = new Date();
+    const from = new Date(Date.now() - 29 * 24 * 3600 * 1000);
+    const fromEl = document.getElementById('homeFromDate');
+    const toEl = document.getElementById('homeToDate');
+    if (fromEl && !fromEl.value) fromEl.value = isoDate(from);
+    if (toEl && !toEl.value) toEl.value = isoDate(to);
+}
+
 async function loadDashboard() {
     try {
-        // Load stats
-        const statsResponse = await API.dashboard.getStats();
-        const elTotal = document.getElementById('statTotal');
-        const elNew = document.getElementById('statNew');
-        const elFU = document.getElementById('statFollowUp');
-        const elReg = document.getElementById('statRegistered');
-        if (elTotal) elTotal.textContent = statsResponse.stats.total;
-        if (elNew) elNew.textContent = statsResponse.stats.new;
-        if (elFU) elFU.textContent = statsResponse.stats.followUp;
-        if (elReg) elReg.textContent = statsResponse.stats.registered;
-        
-        // Update badge
-        const badgeEl = document.getElementById('newEnquiriesCount');
-        if (badgeEl) badgeEl.textContent = statsResponse.stats.new;
-        
-        // Load recent enquiries
-        const recentResponse = await API.dashboard.getRecent(5);
-        if (typeof UI?.renderRecentEnquiries === 'function') {
-            UI.renderRecentEnquiries(recentResponse.enquiries);
-        }
-        
-        // Load upcoming follow-ups
-        const followUpsResponse = await API.dashboard.getFollowUps();
-        if (typeof UI?.renderUpcomingFollowUps === 'function') {
-            UI.renderUpcomingFollowUps(followUpsResponse.upcoming.slice(0, 5));
-        }
-        
-        // Load officer performance (admin only)
-        if (currentUser.role === 'admin' && statsResponse.officerStats && typeof UI?.renderOfficerPerformance === 'function') {
-            UI.renderOfficerPerformance(statsResponse.officerStats);
+        // Always keep the "new enquiries" badge working
+        try {
+            const statsResponse = await API.dashboard.getStats();
+            const badgeEl = document.getElementById('newEnquiriesCount');
+            if (badgeEl) badgeEl.textContent = statsResponse.stats?.new || 0;
+        } catch (e) {
+            // ignore badge failures
         }
 
-        // Enrollment rankings board (admin only)
-        if (currentUser.role === 'admin') {
-            const board = document.getElementById('enrollmentRankingsBoard');
-            if (board) {
-                try {
-                    const rRes = await API.dashboard.getEnrollmentRankings();
-                    const rows = (rRes && rRes.rankings) ? rRes.rankings : [];
-                    const batchNames = (rRes && rRes.batchNames) ? rRes.batchNames : [];
+        if (!currentUser || currentUser.role !== 'admin') {
+            // For non-admins, keep old behavior minimal (no analytics endpoint)
+            return;
+        }
 
-                    const medal = (idx) => {
-                        if (idx === 0) return '<i class="fas fa-medal" style="color:#d4af37;"></i>'; // gold
-                        if (idx === 1) return '<i class="fas fa-medal" style="color:#c0c0c0;"></i>'; // silver
-                        if (idx === 2) return '<i class="fas fa-medal" style="color:#cd7f32;"></i>'; // bronze
-                        return `<span style="display:inline-block; width:18px; text-align:right; color:#667085; font-weight:700;">${idx + 1}</span>`;
-                    };
+        setDefaultHomeRange();
 
-                    if (!batchNames.length) {
-                        board.innerHTML = '<p class="loading">No current batch configured.</p>';
-                    } else if (!rows.length) {
-                        board.innerHTML = '<p class="loading">No enrollments found for current batch.</p>';
-                    } else {
-                        board.innerHTML = rows.map((r, i) => {
-                            const name = String(r.officer || 'Unassigned');
-                            const count = Number(r.count || 0);
-                            return `
-                              <div class="officer-stat">
-                                <div class="officer-name" style="display:flex; gap:10px; align-items:center;">
-                                  <span>${medal(i)}</span>
-                                  <span>${name}</span>
-                                </div>
-                                <div class="officer-count">${count}</div>
-                              </div>
-                            `;
-                        }).join('');
-                    }
-                } catch (e) {
-                    console.error('Failed to load enrollment rankings:', e);
-                    board.innerHTML = '<p class="loading">Failed to load rankings.</p>';
+        const from = document.getElementById('homeFromDate')?.value || '';
+        const to = document.getElementById('homeToDate')?.value || '';
+
+        // Bind buttons once
+        const applyBtn = document.getElementById('homeApplyRangeBtn');
+        if (applyBtn && !applyBtn.__bound) {
+            applyBtn.__bound = true;
+            applyBtn.addEventListener('click', () => loadDashboard().catch(console.error));
+        }
+        const last30Btn = document.getElementById('homeThisMonthBtn');
+        if (last30Btn && !last30Btn.__bound) {
+            last30Btn.__bound = true;
+            last30Btn.addEventListener('click', () => {
+                const toD = new Date();
+                const fromD = new Date(Date.now() - 29 * 24 * 3600 * 1000);
+                const fromEl = document.getElementById('homeFromDate');
+                const toEl = document.getElementById('homeToDate');
+                if (fromEl) fromEl.value = isoDate(fromD);
+                if (toEl) toEl.value = isoDate(toD);
+                loadDashboard().catch(console.error);
+            });
+        }
+
+        const analytics = await API.dashboard.getAnalytics({ from, to });
+
+        // KPI strip
+        const k = analytics.kpis || {};
+        const elDue = document.getElementById('kpiFollowUpsDue');
+        const elRegR = document.getElementById('kpiRegistrationsReceived');
+        const elCP = document.getElementById('kpiConfirmedPayments');
+        const elCR = document.getElementById('kpiConversionRate');
+        if (elDue) elDue.textContent = String(k.followUpsDue ?? 0);
+        if (elRegR) elRegR.textContent = String(k.registrationsReceived ?? 0);
+        if (elCP) elCP.textContent = String(k.confirmedPayments ?? 0);
+        if (elCR) elCR.textContent = fmtPct(k.conversionRate);
+
+        // Funnel chart
+        const f = analytics.funnel || { new: 0, contacted: 0, followUp: 0, registered: 0, confirmedPayments: 0 };
+        const funnelCanvas = document.getElementById('homeFunnelChart');
+        if (funnelCanvas && window.Chart) {
+            const labels = ['New', 'Contacted', 'Follow-up', 'Registered', 'Confirmed'];
+            const values = [f.new, f.contacted, f.followUp, f.registered, f.confirmedPayments];
+            if (__homeFunnelChart) __homeFunnelChart.destroy();
+            __homeFunnelChart = new Chart(funnelCanvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Count',
+                        data: values,
+                        backgroundColor: ['#e0f2fe', '#d1fae5', '#fef3c7', '#ede9fe', '#dcfce7'],
+                        borderColor: ['#0284c7', '#059669', '#d97706', '#7c3aed', '#16a34a'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
                 }
+            });
+        }
+
+        // Line chart (confirmed payments/day)
+        const s = analytics.series?.confirmedPaymentsPerDay || [];
+        const lineCanvas = document.getElementById('homeConfirmedLineChart');
+        if (lineCanvas && window.Chart) {
+            const labels = s.map(x => x.day);
+            const values = s.map(x => x.count);
+            if (__homeConfirmedLineChart) __homeConfirmedLineChart.destroy();
+            __homeConfirmedLineChart = new Chart(lineCanvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Confirmed payments',
+                        data: values,
+                        tension: 0.35,
+                        borderColor: '#16a34a',
+                        backgroundColor: 'rgba(22, 163, 74, 0.12)',
+                        fill: true,
+                        pointRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { precision: 0 } },
+                        x: { ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } }
+                    }
+                }
+            });
+        }
+
+        // Leaderboard
+        const lb = analytics.leaderboard?.confirmedPaymentsThisWeek || [];
+        const lbEl = document.getElementById('homeLeaderboard');
+        if (lbEl) {
+            const medal = (idx) => {
+                if (idx === 0) return '<i class="fas fa-medal" style="color:#d4af37;"></i>'; // gold
+                if (idx === 1) return '<i class="fas fa-medal" style="color:#c0c0c0;"></i>'; // silver
+                if (idx === 2) return '<i class="fas fa-medal" style="color:#cd7f32;"></i>'; // bronze
+                return `<span style="display:inline-block; width:18px; text-align:right; color:#667085; font-weight:700;">${idx + 1}</span>`;
+            };
+            if (!lb.length) {
+                lbEl.innerHTML = '<p class="loading">No confirmed payments yet this week.</p>';
+            } else {
+                lbEl.innerHTML = lb.map((r, i) => {
+                    const name = String(r.officer || 'Unassigned');
+                    const count = Number(r.count || 0);
+                    return `
+                      <div class="officer-stat">
+                        <div class="officer-name" style="display:flex; gap:10px; align-items:center;">
+                          <span>${medal(i)}</span>
+                          <span>${name}</span>
+                        </div>
+                        <div class="officer-count">${count}</div>
+                      </div>
+                    `;
+                }).join('');
             }
         }
+
+        // Action center
+        const ac = analytics.actionCenter || {};
+        const acEl = document.getElementById('homeActionCenter');
+        if (acEl) {
+            const overdue = Number(ac.overdueFollowUps || 0);
+            const pendingPay = Number(ac.paymentsPendingConfirmation || 0);
+            const missingAssign = Number(ac.registrationsMissingAssignedTo || 0);
+
+            acEl.innerHTML = `
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                  <div><strong>Overdue follow-ups</strong><div style="color:#667085; font-size:12px;">Needs attention</div></div>
+                  <div style="display:flex; gap:10px; align-items:center;">
+                    <span class="badge" style="background:#fff1f2; color:#9f1239; border:1px solid #fecdd3;">${overdue}</span>
+                    <button class="btn btn-secondary" type="button" id="acViewFollowUpsBtn">View</button>
+                  </div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                  <div><strong>Payments pending confirmation</strong><div style="color:#667085; font-size:12px;">Confirm receipts</div></div>
+                  <div style="display:flex; gap:10px; align-items:center;">
+                    <span class="badge" style="background:#fffbeb; color:#92400e; border:1px solid #fde68a;">${pendingPay}</span>
+                    <button class="btn btn-secondary" type="button" id="acViewPaymentsBtn">View</button>
+                  </div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                  <div><strong>Registrations missing assignment</strong><div style="color:#667085; font-size:12px;">Assign an officer</div></div>
+                  <div style="display:flex; gap:10px; align-items:center;">
+                    <span class="badge" style="background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe;">${missingAssign}</span>
+                    <button class="btn btn-secondary" type="button" id="acViewRegistrationsBtn">View</button>
+                  </div>
+                </div>
+              </div>
+            `;
+
+            const fuBtn = document.getElementById('acViewFollowUpsBtn');
+            if (fuBtn && !fuBtn.__bound) {
+                fuBtn.__bound = true;
+                fuBtn.addEventListener('click', () => {
+                    window.location.hash = 'calendar';
+                });
+            }
+            const payBtn = document.getElementById('acViewPaymentsBtn');
+            if (payBtn && !payBtn.__bound) {
+                payBtn.__bound = true;
+                payBtn.addEventListener('click', () => {
+                    window.location.hash = 'payments';
+                });
+            }
+            const regBtn = document.getElementById('acViewRegistrationsBtn');
+            if (regBtn && !regBtn.__bound) {
+                regBtn.__bound = true;
+                regBtn.addEventListener('click', () => {
+                    window.location.hash = 'registrations-admin';
+                });
+            }
+        }
+
     } catch (error) {
         console.error('Error loading dashboard:', error);
         UI.showToast('Failed to load dashboard data', 'error');

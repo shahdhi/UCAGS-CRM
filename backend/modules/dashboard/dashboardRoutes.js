@@ -83,6 +83,370 @@ router.get('/stats', isAuthenticated, async (req, res) => {
   }
 });
 
+function parseISODateOnly(s) {
+  if (!s) return null;
+  const d = new Date(String(s));
+  return Number.isFinite(d.getTime()) ? d : null;
+}
+
+function startOfDay(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function endOfDay(d) {
+  const x = new Date(d);
+  x.setHours(23, 59, 59, 999);
+  return x;
+}
+
+function toISODate(d) {
+  return new Date(d).toISOString().slice(0, 10);
+}
+
+async function getConfirmedPaymentsRegistrationIds(sb, { from = null, to = null } = {}) {
+  // Returns distinct registration_ids with confirmed payments; optional date range
+  // NOTE: We filter by payment_date if present else created_at.
+  const baseSelect = 'registration_id, payment_date, created_at';
+
+  try {
+    let q = sb
+      .from('payments')
+      .select(baseSelect)
+      .eq('is_confirmed', true)
+      .not('registration_id', 'is', null)
+      .limit(20000);
+
+    const { data, error } = await q;
+    if (error) throw error;
+
+    let rows = data || [];
+    if (from || to) {
+      const fromMs = from ? startOfDay(from).getTime() : null;
+      const toMs = to ? endOfDay(to).getTime() : null;
+      rows = rows.filter(r => {
+        const t = new Date(r.payment_date || r.created_at || 0).getTime();
+        if (!Number.isFinite(t)) return false;
+        if (fromMs != null && t < fromMs) return false;
+        if (toMs != null && t > toMs) return false;
+        return true;
+      });
+    }
+
+    return Array.from(new Set(rows.map(r => r.registration_id).filter(Boolean)));
+  } catch (e1) {
+    const msg = String(e1.message || '').toLowerCase();
+    const missingCol = (msg.includes('column') && msg.includes('is_confirmed') && msg.includes('does not exist')) ||
+      (msg.includes('schema cache') && msg.includes('is_confirmed') && msg.includes('could not find'));
+    if (!missingCol) throw e1;
+
+    let q = sb
+      .from('payments')
+      .select(baseSelect)
+      .eq('receipt_received', true)
+      .not('registration_id', 'is', null)
+      .limit(20000);
+
+    const { data, error } = await q;
+    if (error) throw error;
+
+    let rows = data || [];
+    if (from || to) {
+      const fromMs = from ? startOfDay(from).getTime() : null;
+      const toMs = to ? endOfDay(to).getTime() : null;
+      rows = rows.filter(r => {
+        const t = new Date(r.payment_date || r.created_at || 0).getTime();
+        if (!Number.isFinite(t)) return false;
+        if (fromMs != null && t < fromMs) return false;
+        if (toMs != null && t > toMs) return false;
+        return true;
+      });
+    }
+
+    return Array.from(new Set(rows.map(r => r.registration_id).filter(Boolean)));
+  }
+}
+
+/**
+ * GET /api/dashboard/analytics?from=YYYY-MM-DD&to=YYYY-MM-DD
+ * Admin analytics for Home page
+ */
+router.get('/analytics', isAdmin, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+
+    const from = parseISODateOnly(req.query.from) || null;
+    const to = parseISODateOnly(req.query.to) || null;
+
+    const currentBatches = await getCurrentBatchNames(sb);
+
+    // Default window: last 30 days
+    const toDefault = endOfDay(new Date());
+    const fromDefault = startOfDay(new Date(Date.now() - 29 * 24 * 3600 * 1000));
+    const fromEff = from ? startOfDay(from) : fromDefault;
+    const toEff = to ? endOfDay(to) : toDefault;
+
+    // Follow-ups due / overdue from followups table (if exists)
+    let followUpsDue = 0;
+    let followUpsOverdue = 0;
+    try {
+      const { data, error } = await sb
+        .from('followups')
+        .select('id, follow_up_date, status')
+        .gte('follow_up_date', toISODate(fromEff))
+        .lte('follow_up_date', toISODate(toEff))
+        .limit(20000);
+      if (error) throw error;
+
+      const todayStr = toISODate(new Date());
+      const todayMs0 = startOfDay(new Date()).getTime();
+      const todayMs1 = endOfDay(new Date()).getTime();
+
+      (data || []).forEach(f => {
+        const dt = new Date(f.follow_up_date).getTime();
+        const done = String(f.status || '').toLowerCase().includes('done') || String(f.status || '').toLowerCase().includes('completed');
+        if (done) return;
+        if (Number.isFinite(dt) && dt >= todayMs0 && dt <= todayMs1) followUpsDue++;
+        if (Number.isFinite(dt) && dt < todayMs0) followUpsOverdue++;
+      });
+
+      // If query window doesn't include overdue range, we still computed overdue globally from returned window,
+      // which might be undercount; try a second query just for overdue if possible.
+      const { data: oData } = await sb
+        .from('followups')
+        .select('id, follow_up_date, status')
+        .lt('follow_up_date', todayStr)
+        .limit(20000);
+      (oData || []).forEach(f => {
+        const done = String(f.status || '').toLowerCase().includes('done') || String(f.status || '').toLowerCase().includes('completed');
+        if (!done) followUpsOverdue++;
+      });
+    } catch (e) {
+      // followups table not available; keep zeros
+    }
+
+    // Registrations received within range (created_at)
+    let registrationsReceived = 0;
+    let missingAssignedTo = 0;
+    try {
+      let q = sb
+        .from('registrations')
+        .select('id, assigned_to, payload, created_at, batch_name')
+        .gte('created_at', fromEff.toISOString())
+        .lte('created_at', toEff.toISOString())
+        .limit(20000);
+      if (currentBatches.length) q = q.in('batch_name', currentBatches);
+      const { data, error } = await q;
+      if (error) throw error;
+      registrationsReceived = (data || []).length;
+      (data || []).forEach(r => {
+        const payload = r?.payload && typeof r.payload === 'object' ? r.payload : {};
+        const a = r?.assigned_to || payload?.assigned_to || payload?.assignedTo;
+        if (!a) missingAssignedTo++;
+      });
+    } catch (e) {
+      // ignore
+    }
+
+    // Confirmed payments within range
+    const confirmedRegIds = await getConfirmedPaymentsRegistrationIds(sb, { from: fromEff, to: toEff });
+    const confirmedPayments = confirmedRegIds.length;
+
+    // Conversion rate: leads (enquiries in sheets) -> confirmed payments
+    let leadsCount = 0;
+    try {
+      const enquiries = await sheetsService.getAllEnquiries();
+      // Filter by createdDate within window if possible
+      const fromMs = fromEff.getTime();
+      const toMs = toEff.getTime();
+      leadsCount = (enquiries || []).filter(e => {
+        const t = new Date(e.createdDate || 0).getTime();
+        if (!Number.isFinite(t)) return true; // if no date, include
+        return t >= fromMs && t <= toMs;
+      }).length;
+    } catch (e) {
+      // If sheets quota etc, leave 0
+    }
+
+    const conversionRate = leadsCount > 0 ? (confirmedPayments / leadsCount) : 0;
+
+    // Funnel: New -> Contacted -> Follow-up -> Registered -> Confirmed Payment
+    let funnel = null;
+    try {
+      const enquiries = await sheetsService.getAllEnquiries();
+      const fromMs = fromEff.getTime();
+      const toMs = toEff.getTime();
+      const inWindow = (enquiries || []).filter(e => {
+        const t = new Date(e.createdDate || 0).getTime();
+        if (!Number.isFinite(t)) return true;
+        return t >= fromMs && t <= toMs;
+      });
+
+      const byStatus = (s) => inWindow.filter(e => String(e.status || '') === s).length;
+      funnel = {
+        new: byStatus('New'),
+        contacted: byStatus('Contacted'),
+        followUp: byStatus('Follow-up'),
+        registered: byStatus('Registered'),
+        confirmedPayments
+      };
+    } catch (e) {
+      funnel = {
+        new: 0,
+        contacted: 0,
+        followUp: 0,
+        registered: 0,
+        confirmedPayments
+      };
+    }
+
+    // Time series: confirmed payments per day (last 30 days window)
+    // We'll compute by scanning payments rows within range.
+    const seriesDays = [];
+    {
+      const days = [];
+      const d0 = startOfDay(fromEff);
+      const d1 = startOfDay(toEff);
+      for (let d = new Date(d0); d <= d1; d = new Date(d.getTime() + 24 * 3600 * 1000)) {
+        days.push(toISODate(d));
+      }
+      const counts = new Map(days.map(x => [x, 0]));
+
+      // Load confirmed payments rows for time series (need dates)
+      try {
+        let payRows = [];
+        try {
+          const { data, error } = await sb
+            .from('payments')
+            .select('registration_id, payment_date, created_at')
+            .eq('is_confirmed', true)
+            .not('registration_id', 'is', null)
+            .gte('created_at', fromEff.toISOString())
+            .lte('created_at', toEff.toISOString())
+            .limit(20000);
+          if (error) throw error;
+          payRows = data || [];
+        } catch (e1) {
+          const msg = String(e1.message || '').toLowerCase();
+          const missingCol = (msg.includes('column') && msg.includes('is_confirmed') && msg.includes('does not exist')) ||
+            (msg.includes('schema cache') && msg.includes('is_confirmed') && msg.includes('could not find'));
+          if (!missingCol) throw e1;
+
+          const { data, error } = await sb
+            .from('payments')
+            .select('registration_id, payment_date, created_at')
+            .eq('receipt_received', true)
+            .not('registration_id', 'is', null)
+            .gte('created_at', fromEff.toISOString())
+            .lte('created_at', toEff.toISOString())
+            .limit(20000);
+          if (error) throw error;
+          payRows = data || [];
+        }
+
+        // Count distinct registration_id per day (so multiple installments don't double count)
+        const seenByDay = new Map();
+        for (const r of payRows) {
+          const day = toISODate(new Date(r.payment_date || r.created_at));
+          if (!counts.has(day)) continue;
+          if (!seenByDay.has(day)) seenByDay.set(day, new Set());
+          seenByDay.get(day).add(r.registration_id);
+        }
+        for (const [day, set] of seenByDay.entries()) {
+          counts.set(day, set.size);
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      seriesDays.push(...days.map(day => ({ day, count: counts.get(day) || 0 })));
+    }
+
+    // Ranking (This week): confirmed payments per officer
+    const weekStart = startOfDay(new Date());
+    weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7)); // Monday
+    const weekEnd = endOfDay(new Date());
+
+    const weekConfirmedIds = await getConfirmedPaymentsRegistrationIds(sb, { from: weekStart, to: weekEnd });
+    let leaderboard = [];
+    if (weekConfirmedIds.length) {
+      let q = sb
+        .from('registrations')
+        .select('id, assigned_to, payload, batch_name')
+        .in('id', weekConfirmedIds)
+        .limit(20000);
+      if (currentBatches.length) q = q.in('batch_name', currentBatches);
+      const { data, error } = await q;
+      if (!error) {
+        const map = new Map();
+        for (const r of (data || [])) {
+          const payload = r?.payload && typeof r.payload === 'object' ? r.payload : {};
+          const officer = String(r?.assigned_to || payload?.assigned_to || payload?.assignedTo || 'Unassigned').trim() || 'Unassigned';
+          map.set(officer, (map.get(officer) || 0) + 1);
+        }
+        leaderboard = Array.from(map.entries()).map(([officer, count]) => ({ officer, count }))
+          .sort((a, b) => b.count - a.count || a.officer.localeCompare(b.officer));
+      }
+    }
+
+    // Action center: payments pending confirmation
+    let paymentsPendingConfirmation = 0;
+    try {
+      let { data, error } = await sb
+        .from('payments')
+        .select('id')
+        .eq('is_confirmed', false)
+        .limit(20000);
+      if (error) throw error;
+      paymentsPendingConfirmation = (data || []).length;
+    } catch (e1) {
+      const msg = String(e1.message || '').toLowerCase();
+      const missingCol = (msg.includes('column') && msg.includes('is_confirmed') && msg.includes('does not exist')) ||
+        (msg.includes('schema cache') && msg.includes('is_confirmed') && msg.includes('could not find'));
+      if (!missingCol) {
+        // ignore
+      } else {
+        // fallback: treat receipt_received=false as pending
+        try {
+          const { data } = await sb
+            .from('payments')
+            .select('id')
+            .eq('receipt_received', false)
+            .limit(20000);
+          paymentsPendingConfirmation = (data || []).length;
+        } catch (e2) {}
+      }
+    }
+
+    res.json({
+      success: true,
+      range: { from: toISODate(fromEff), to: toISODate(toEff) },
+      currentBatches,
+      kpis: {
+        followUpsDue,
+        registrationsReceived,
+        confirmedPayments,
+        conversionRate
+      },
+      funnel,
+      series: {
+        confirmedPaymentsPerDay: seriesDays
+      },
+      leaderboard: {
+        confirmedPaymentsThisWeek: leaderboard
+      },
+      actionCenter: {
+        overdueFollowUps: followUpsOverdue,
+        paymentsPendingConfirmation,
+        registrationsMissingAssignedTo: missingAssignedTo
+      }
+    });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 /**
  * GET /api/dashboard/enrollment-rankings
  * Admin-only: rank officers by number of enrollments for current batch(es)
