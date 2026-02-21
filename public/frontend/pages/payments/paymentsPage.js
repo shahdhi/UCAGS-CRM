@@ -91,7 +91,12 @@
                       ${['', 'Online Transfer', 'Bank Deposit'].map(m => `<option value="${escapeHtml(m)}" ${m=== (p.payment_method||'') ? 'selected' : ''}>${escapeHtml(m||'Select')}</option>`).join('')}
                     </select>
                   </td>
-                  <td><input type="text" class="form-control pay-receipt" value="${escapeHtml(p.receipt_no || '')}" style="min-width:120px;" /></td>
+                  <td>
+                    ${p.receipt_no
+                      ? `<a href="#" class="pay-receipt-link-modal" style="color:#175CD3; text-decoration:none; font-weight:700;" data-payment-id="${escapeHtml(p.id)}">${escapeHtml(p.receipt_no)}</a>`
+                      : `<input type="text" class="form-control pay-receipt" value="" style="min-width:120px;" />`
+                    }
+                  </td>
                   <td style="text-align:center;">
                     <button type="button" class="btn btn-success btn-sm pay-confirm-modal">
                       ${p.is_confirmed ? 'Undo' : 'Confirm'}
@@ -133,6 +138,36 @@
         el.addEventListener('input', debounce);
       });
 
+      const receiptLink = tr.querySelector('.pay-receipt-link-modal');
+      if (receiptLink) {
+        receiptLink.addEventListener('click', (e) => {
+          e.preventDefault();
+          const pid = receiptLink.getAttribute('data-payment-id') || id;
+          (async () => {
+            try {
+              const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+              const resp = await fetch(`/api/receipts/payment/${encodeURIComponent(pid)}`, { headers: authHeaders });
+              if (!resp.ok) {
+                const j = await resp.json().catch(() => null);
+                throw new Error(j?.error || 'Failed to download receipt');
+              }
+              const blob = await resp.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `receipt-${receiptLink.textContent.trim()}.pdf`;
+              document.body.appendChild(a);
+              a.click();
+              URL.revokeObjectURL(url);
+              a.remove();
+            } catch (err) {
+              console.error(err);
+              if (window.UI && UI.showToast) UI.showToast(err.message || 'Failed to download receipt', 'error');
+            }
+          })();
+        });
+      }
+
       const confirmBtn = tr.querySelector('.pay-confirm-modal');
       if (confirmBtn) {
         confirmBtn.addEventListener('click', async () => {
@@ -151,8 +186,9 @@
                 throw new Error('Fill payment method, plan, amount, date and slip received before confirming.');
               }
 
-              await window.API.payments.adminConfirm(id);
-              if (window.UI && UI.showToast) UI.showToast('Payment confirmed', 'success');
+              const r = await window.API.payments.adminConfirm(id);
+              const rn = r?.payment?.receipt_no || r?.receipt_no;
+              if (window.UI && UI.showToast) UI.showToast(rn ? `Payment confirmed (${rn})` : 'Payment confirmed', 'success');
             } else {
               await window.API.payments.adminUnconfirm(id);
               if (window.UI && UI.showToast) UI.showToast('Payment unconfirmed', 'success');
