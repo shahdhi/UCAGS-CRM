@@ -607,6 +607,28 @@ body {
     transition: none !important;
 }
 
+/* Home (Analytics): keep UI stable like Attendance/Leads */
+#homeView .dashboard-card,
+#homeView .dashboard-card:hover,
+#homeView .dashboard-card:active {
+    transition: none !important;
+    transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
+    border-color: var(--separator) !important;
+}
+
+#homeView .stat-card:hover,
+#homeView .officer-stat:hover {
+    transform: none !important;
+}
+
+/* Prevent layout jumping while charts load */
+#homeView #homeFunnelChart,
+#homeView #homeConfirmedLineChart {
+    width: 100%;
+    min-height: 140px;
+}
+
 #attendanceView .dashboard-card,
 #attendanceView .dashboard-card:hover,
 #attendanceView .dashboard-card:active {

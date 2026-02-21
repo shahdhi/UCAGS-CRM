@@ -387,6 +387,7 @@ router.get('/analytics', isAdmin, async (req, res) => {
         const role = u.user_metadata?.role || 'officer';
         const isOfficer = role === 'officer' || role === 'admission_officer';
         if (!isOfficer) return;
+        if (role === 'admin') return;
         const name = u.user_metadata?.name || u.email?.split('@')?.[0] || '';
         if (name) officerNames.push(String(name));
       });
@@ -417,6 +418,7 @@ router.get('/analytics', isAdmin, async (req, res) => {
 
     const leaderboard = Array.from(map.entries())
       .map(([officer, count]) => ({ officer, count }))
+      .filter(r => String(r.officer || '').toLowerCase() !== 'admin')
       .sort((a, b) => b.count - a.count || a.officer.localeCompare(b.officer));
 
     // Action center: payments pending confirmation

@@ -1999,6 +1999,12 @@ async function loadDashboard() {
             });
         }
 
+        // Stable loading placeholders (avoid layout jumps)
+        const acLoadingEl = document.getElementById('homeActionCenter');
+        const lbLoadingEl = document.getElementById('homeLeaderboard');
+        if (acLoadingEl) acLoadingEl.innerHTML = '<p class="loading">Loading...</p>';
+        if (lbLoadingEl) lbLoadingEl.innerHTML = '<p class="loading">Loading...</p>';
+
         const analytics = await API.dashboard.getAnalytics({ from, to });
 
         // KPI strip
