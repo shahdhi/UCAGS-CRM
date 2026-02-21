@@ -91,10 +91,14 @@ function showLogin() {
     window.location.hash = '';
     
     // Clear user info
-    document.getElementById('userDisplay').textContent = '';
-    document.getElementById('sidebarUserName').textContent = '';
-    document.getElementById('welcomeUserName').textContent = '';
-    document.getElementById('sidebarUserRole').textContent = '';
+    const userDisplayEl = document.getElementById('userDisplay');
+    if (userDisplayEl) userDisplayEl.textContent = '';
+    const sidebarUserNameEl = document.getElementById('sidebarUserName');
+    if (sidebarUserNameEl) sidebarUserNameEl.textContent = '';
+    const welcomeUserNameEl = document.getElementById('welcomeUserName');
+    if (welcomeUserNameEl) welcomeUserNameEl.textContent = '';
+    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+    if (sidebarUserRoleEl) sidebarUserRoleEl.textContent = '';
     
     // Reset forms
     const loginForm = document.getElementById('loginForm');

@@ -617,18 +617,22 @@ body {
     border-color: var(--separator) !important;
 }
 
-#homeView .stat-card {
+#homeView .stats-grid .stat-card {
     cursor: default !important;
     transition: none !important;
     min-height: 88px;
+    box-shadow: var(--shadow-sm) !important;
+    border-color: var(--separator) !important;
 }
 
-#homeView .stat-card:hover,
-#homeView .stat-card:active,
-#homeView .stat-card:focus {
+#homeView .stats-grid .stat-card:hover,
+#homeView .stats-grid .stat-card:active,
+#homeView .stats-grid .stat-card:focus,
+#homeView .stats-grid .stat-card:focus-within {
     transform: none !important;
     box-shadow: var(--shadow-sm) !important;
     border-color: var(--separator) !important;
+    outline: none !important;
 }
 
 #homeView .officer-stat:hover {
