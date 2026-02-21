@@ -59,7 +59,8 @@ function renderReceiptPdf(doc, {
 
   if (fs.existsSync(logoPngPath)) {
     try {
-      doc.image(logoPngPath, doc.page.width - 135, 10, { fit: [120, 55] });
+      // Bigger logo
+      doc.image(logoPngPath, doc.page.width - 155, 6, { fit: [140, 62] });
     } catch (err) {
       // ignore
     }
@@ -145,8 +146,9 @@ function renderReceiptPdf(doc, {
   if (fs.existsSync(sealPngPath)) {
     try {
       const sealSize = 80;
-      const sealX = (doc.page.width / 2) - (sealSize / 2) + 30;
-      doc.image(sealPngPath, sealX, yPos, { width: sealSize, height: sealSize });
+      // Move seal a bit to the right and down
+      const sealX = (doc.page.width / 2) - (sealSize / 2) + 45;
+      doc.image(sealPngPath, sealX, yPos + 8, { width: sealSize, height: sealSize });
       yPos += sealSize + 10;
     } catch (err) {
       // ignore
