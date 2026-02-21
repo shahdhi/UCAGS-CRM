@@ -204,6 +204,7 @@
       ['Phone', get('phone_number')],
       ['Email', get('email')],
       ['WhatsApp', get('wa_number')],
+      ['Assigned To', student?.assigned_to || payload?.assigned_to || payload?.assignedTo],
       ['Gender', get('gender')],
       ['Date of Birth', get('date_of_birth')],
       ['Address', get('address')],

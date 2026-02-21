@@ -497,7 +497,10 @@ router.post('/admin/:id/enroll', isAdmin, async (req, res) => {
             student = s2;
           } catch (e1) {
             const msg = String(e1.message || '').toLowerCase();
-            const missingCol = msg.includes('column') && msg.includes('assigned_to') && msg.includes('does not exist');
+            const missingCol = (
+              (msg.includes('column') && msg.includes('assigned_to') && msg.includes('does not exist')) ||
+              (msg.includes('schema cache') && msg.includes('assigned_to') && msg.includes('could not find'))
+            );
             if (!missingCol) throw e1;
 
             // Fallback: update payload only
@@ -555,7 +558,10 @@ router.post('/admin/:id/enroll', isAdmin, async (req, res) => {
       }
 
       // Backward compatibility: older deployments might not have students.assigned_to
-      const missingCol = msg.includes('column') && msg.includes('assigned_to') && msg.includes('does not exist');
+      const missingCol = (
+        (msg.includes('column') && msg.includes('assigned_to') && msg.includes('does not exist')) ||
+        (msg.includes('schema cache') && msg.includes('assigned_to') && msg.includes('could not find'))
+      );
       if (missingCol) {
         const { data, error } = await sb
           .from('students')

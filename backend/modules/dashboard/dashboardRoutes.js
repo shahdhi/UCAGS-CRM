@@ -70,28 +70,56 @@ router.get('/enrollment-rankings', isAdmin, async (req, res) => {
       return res.json({ success: true, batchNames: [], rankings: [] });
     }
 
-    // Query registrations in current batches; include assigned_to + enrolled fields.
-    // Some deployments store enrollment status in payload only, so we select payload as well.
-    const { data, error } = await sb
-      .from('registrations')
-      .select('id, assigned_to, batch_name, enrolled, enrolled_at, payload')
-      .in('batch_name', currentBatches)
-      .limit(5000);
+    // Count "enrollments" based on confirmed payments:
+    // If a payment is confirmed (is_confirmed=true) for a registration in the current batch,
+    // count it as 1 for that registration's assigned officer.
 
-    if (error) throw error;
+    // 1) Get confirmed payments registration_ids
+    let payRows = [];
+    try {
+      const { data, error: payErr } = await sb
+        .from('payments')
+        .select('registration_id')
+        .eq('is_confirmed', true)
+        .not('registration_id', 'is', null)
+        .limit(10000);
+      if (payErr) throw payErr;
+      payRows = data || [];
+    } catch (e1) {
+      const msg = String(e1.message || '').toLowerCase();
+      const missingCol = (msg.includes('column') && msg.includes('is_confirmed') && msg.includes('does not exist')) ||
+        (msg.includes('schema cache') && msg.includes('is_confirmed') && msg.includes('could not find'));
+      if (!missingCol) throw e1;
+
+      // Backward compatibility: older payments schema used receipt_received boolean
+      const { data, error: payErr } = await sb
+        .from('payments')
+        .select('registration_id')
+        .eq('receipt_received', true)
+        .not('registration_id', 'is', null)
+        .limit(10000);
+      if (payErr) throw payErr;
+      payRows = data || [];
+    }
+
+    const paidRegIds = Array.from(new Set((payRows || []).map(r => r.registration_id).filter(Boolean)));
+    if (!paidRegIds.length) {
+      return res.json({ success: true, batchNames: currentBatches, rankings: [] });
+    }
+
+    // 2) Load registrations for those ids, restricted to current batches
+    const { data: regs, error: regErr } = await sb
+      .from('registrations')
+      .select('id, assigned_to, batch_name, payload')
+      .in('id', paidRegIds)
+      .in('batch_name', currentBatches)
+      .limit(10000);
+    if (regErr) throw regErr;
 
     const map = new Map(); // officerName -> count
 
-    for (const r of (data || [])) {
+    for (const r of (regs || [])) {
       const payload = r?.payload && typeof r.payload === 'object' ? r.payload : {};
-      const isEnrolled = !!(
-        r?.enrolled === true ||
-        r?.enrolled_at ||
-        payload?.enrolled === true ||
-        payload?.enrolled_at
-      );
-      if (!isEnrolled) continue;
-
       const officer = String(r?.assigned_to || payload?.assigned_to || payload?.assignedTo || 'Unassigned').trim() || 'Unassigned';
       map.set(officer, (map.get(officer) || 0) + 1);
     }
