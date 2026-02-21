@@ -51,7 +51,9 @@ function renderReceiptPdf(doc, {
     .font('Helvetica-Bold')
     .text('RECEIPT', 30, 18);
 
-  const rootDir = path.join(__dirname, '../../../..');
+  // Resolve assets from project root
+  // __dirname = <root>/backend/modules/receipts
+  const rootDir = path.join(__dirname, '../../..');
   const logoPngPath = path.join(rootDir, 'logo.png');
   const sealPngPath = path.join(rootDir, 'seal.png');
 
