@@ -31,19 +31,33 @@ function showToast(message, type = 'info') {
   }, 4000);
 }
 
-function initReceiptsPage() {
+async function initReceiptsPage() {
   console.log('Initializing Receipts Page...');
   
   // Set default date to today
   document.getElementById('receiptDate').valueAsDate = new Date();
+
+  // Auto-load next receipt number
+  try {
+    const token = await getAuthToken();
+    const resp = await fetch('/api/receipts/next-number', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const json = await resp.json();
+    if (json.success && json.receiptNumber) {
+      document.getElementById('receiptNumber').value = json.receiptNumber;
+    }
+  } catch (e) {
+    console.warn('Failed to load next receipt number', e);
+  }
   
   // Add event listeners
   document.getElementById('addPaymentBtn').addEventListener('click', addPaymentRow);
   document.getElementById('generateReceiptBtn').addEventListener('click', generateReceipt);
   document.getElementById('clearFormBtn').addEventListener('click', clearReceiptForm);
 }
-
-// Removed auto-generation - users will type receipt number manually
 
 function addPaymentRow() {
   const container = document.getElementById('paymentsContainer');
@@ -222,6 +236,17 @@ async function generateReceipt() {
     // Ask if user wants to create another receipt
     if (confirm('Receipt generated successfully! Would you like to create another receipt?')) {
       clearReceiptForm();
+      // reload next receipt number
+      try {
+        const token2 = await getAuthToken();
+        const resp2 = await fetch('/api/receipts/next-number', {
+          headers: { 'Authorization': `Bearer ${token2}` }
+        });
+        const json2 = await resp2.json();
+        if (json2.success && json2.receiptNumber) {
+          document.getElementById('receiptNumber').value = json2.receiptNumber;
+        }
+      } catch (_) {}
     }
     
   } catch (error) {

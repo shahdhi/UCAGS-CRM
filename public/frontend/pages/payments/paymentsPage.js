@@ -184,6 +184,7 @@
             await patch();
 
             const isUndo = confirmBtn.textContent.trim().toLowerCase() === 'undo';
+            let r = null;
             if (!isUndo) {
               const method = tr.querySelector('.pay-method')?.value;
               const plan = tr.querySelector('.pay-plan')?.value;
@@ -194,7 +195,7 @@
                 throw new Error('Fill payment method, plan, amount, date and slip received before confirming.');
               }
 
-              const r = await window.API.payments.adminConfirm(id);
+              r = await window.API.payments.adminConfirm(id);
               const rn = r?.payment?.receipt_no || r?.receipt_no;
               if (window.UI && UI.showToast) UI.showToast(rn ? `Payment confirmed (${rn})` : 'Payment confirmed', 'success');
             } else {
@@ -202,10 +203,59 @@
               if (window.UI && UI.showToast) UI.showToast('Payment unconfirmed', 'success');
             }
 
-            // refresh modal and main table
+            // refresh main table silently, but don't reload modal
             if (window.Cache) window.Cache.invalidatePrefix('payments:adminSummary');
             await loadPayments();
-            await openPaymentDetails(registrationId, registrationName);
+
+            // Update modal row UI in-place
+            confirmBtn.textContent = isUndo ? 'Confirm' : 'Undo';
+
+            // If receipt was created, replace input with link
+            const receiptNo = (!isUndo) ? (r?.payment?.receipt_no || r?.receipt_no) : null;
+            if (receiptNo) {
+              const receiptCell = tr.querySelector('td:nth-child(8)');
+              if (receiptCell) {
+                receiptCell.innerHTML = `<a href="#" class="pay-receipt-link-modal" style="color:#175CD3; text-decoration:none; font-weight:700;" data-payment-id="${escapeHtml(id)}">${escapeHtml(receiptNo)}</a>`;
+
+                // bind click for the newly inserted link
+                const newLink = receiptCell.querySelector('.pay-receipt-link-modal');
+                if (newLink) {
+                  newLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const pid2 = newLink.getAttribute('data-payment-id') || id;
+                    (async () => {
+                      try {
+                        const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+                        const resp = await fetch(`/api/receipts/payment/${encodeURIComponent(pid2)}`, {
+                          headers: authHeaders,
+                          credentials: 'include'
+                        });
+                        if (!resp.ok) {
+                          const j = await resp.json().catch(() => null);
+                          throw new Error(j?.error || 'Failed to download receipt');
+                        }
+                        const ct = resp.headers.get('content-type') || '';
+                        if (!ct.toLowerCase().includes('application/pdf')) {
+                          throw new Error('Download failed (server did not return a PDF).');
+                        }
+                        const blob = await resp.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `receipt-${newLink.textContent.trim()}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        a.remove();
+                      } catch (err) {
+                        console.error(err);
+                        if (window.UI && UI.showToast) UI.showToast(err.message || 'Failed to download receipt', 'error');
+                      }
+                    })();
+                  });
+                }
+              }
+            }
           } catch (e) {
             console.error(e);
             if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to update', 'error');

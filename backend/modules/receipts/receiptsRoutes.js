@@ -262,19 +262,53 @@ router.post('/generate', isAdmin, async (req, res) => {
   }
 });
 
-// Get next receipt number
-router.get('/next-number', isAdmin, (req, res) => {
+// Get next receipt number (preview)
+// NOTE: This does not reserve the number in DB; it returns max(receipt_no)+1.
+router.get('/next-number', isAdmin, async (req, res) => {
   try {
-    const receiptNumber = generateReceiptNumber();
-    res.json({
-      success: true,
-      receiptNumber
-    });
+    const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
+    const sb = getSupabaseAdmin();
+
+    // Prefer receipts table if available
+    let maxNo = null;
+    try {
+      const { data, error } = await sb
+        .from('receipts')
+        .select('receipt_no')
+        .ilike('receipt_no', 'UC%')
+        .order('receipt_no', { ascending: false })
+        .limit(1);
+      if (!error) {
+        const last = (data || [])[0]?.receipt_no || '';
+        const m = String(last).match(/UC(\d+)/i);
+        if (m) maxNo = parseInt(m[1], 10);
+      }
+    } catch (e) {
+      // receipts table may not exist
+    }
+
+    // Fallback: payments table receipt_no
+    if (maxNo === null) {
+      const { data, error } = await sb
+        .from('payments')
+        .select('receipt_no')
+        .not('receipt_no', 'is', null)
+        .ilike('receipt_no', 'UC%')
+        .order('receipt_no', { ascending: false })
+        .limit(1);
+      if (!error) {
+        const last = (data || [])[0]?.receipt_no || '';
+        const m = String(last).match(/UC(\d+)/i);
+        if (m) maxNo = parseInt(m[1], 10);
+      }
+    }
+
+    const next = (Number.isFinite(maxNo) ? maxNo + 1 : 1);
+    const receiptNumber = `UC${String(next).padStart(4, '0')}`;
+
+    res.json({ success: true, receiptNumber });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -336,11 +370,37 @@ router.get('/payment/:paymentId', isAdmin, async (req, res) => {
     const enrolledProgram = registration?.program_name || payload.program_name || payload.course_program || payment.program_name || '';
     const paymentPlan = payment.payment_plan || '';
 
+    const ordinal = (n) => {
+      const num = Number(n);
+      if (!Number.isFinite(num)) return '';
+      const j = num % 10;
+      const k = num % 100;
+      if (j === 1 && k !== 11) return `${num}st`;
+      if (j === 2 && k !== 12) return `${num}nd`;
+      if (j === 3 && k !== 13) return `${num}rd`;
+      return `${num}th`;
+    };
+
+    const planLower = String(payment.payment_plan || '').toLowerCase();
+    const isFull = planLower.includes('full payment');
+    const isRegFee = planLower.includes('registration fee');
+
+    let desc = 'Payment';
+    if (isRegFee) {
+      desc = 'Registration Fee';
+    } else if (isFull) {
+      desc = 'Full Payment';
+    } else if (payment.installment_no) {
+      desc = `${ordinal(payment.installment_no)} Installment`;
+    }
+
+    const paidBy = payment.payment_method || '-';
+
     const payments = [
       {
         date: payment.payment_date || finalReceiptDate,
-        description: payment.payment_plan ? `Payment (${payment.payment_plan})` : 'Payment',
-        paidBy: payment.confirmed_by || 'Student',
+        description: desc,
+        paidBy,
         amount: Number(payment.amount || 0)
       }
     ];
