@@ -91,6 +91,11 @@ const API = {
 
         async getFollowUps() {
             return API.request('/dashboard/follow-ups');
+        },
+
+        // Admin-only: enrollments per officer for current batch
+        async getEnrollmentRankings() {
+            return API.request('/dashboard/enrollment-rankings');
         }
     },
 

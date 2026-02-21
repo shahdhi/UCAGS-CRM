@@ -1963,6 +1963,48 @@ async function loadDashboard() {
         if (currentUser.role === 'admin' && statsResponse.officerStats && typeof UI?.renderOfficerPerformance === 'function') {
             UI.renderOfficerPerformance(statsResponse.officerStats);
         }
+
+        // Enrollment rankings board (admin only)
+        if (currentUser.role === 'admin') {
+            const board = document.getElementById('enrollmentRankingsBoard');
+            if (board) {
+                try {
+                    const rRes = await API.dashboard.getEnrollmentRankings();
+                    const rows = (rRes && rRes.rankings) ? rRes.rankings : [];
+                    const batchNames = (rRes && rRes.batchNames) ? rRes.batchNames : [];
+
+                    const medal = (idx) => {
+                        if (idx === 0) return '<i class="fas fa-medal" style="color:#d4af37;"></i>'; // gold
+                        if (idx === 1) return '<i class="fas fa-medal" style="color:#c0c0c0;"></i>'; // silver
+                        if (idx === 2) return '<i class="fas fa-medal" style="color:#cd7f32;"></i>'; // bronze
+                        return `<span style="display:inline-block; width:18px; text-align:right; color:#667085; font-weight:700;">${idx + 1}</span>`;
+                    };
+
+                    if (!batchNames.length) {
+                        board.innerHTML = '<p class="loading">No current batch configured.</p>';
+                    } else if (!rows.length) {
+                        board.innerHTML = '<p class="loading">No enrollments found for current batch.</p>';
+                    } else {
+                        board.innerHTML = rows.map((r, i) => {
+                            const name = String(r.officer || 'Unassigned');
+                            const count = Number(r.count || 0);
+                            return `
+                              <div class="officer-stat">
+                                <div class="officer-name" style="display:flex; gap:10px; align-items:center;">
+                                  <span>${medal(i)}</span>
+                                  <span>${name}</span>
+                                </div>
+                                <div class="officer-count">${count}</div>
+                              </div>
+                            `;
+                        }).join('');
+                    }
+                } catch (e) {
+                    console.error('Failed to load enrollment rankings:', e);
+                    board.innerHTML = '<p class="loading">Failed to load rankings.</p>';
+                }
+            }
+        }
     } catch (error) {
         console.error('Error loading dashboard:', error);
         UI.showToast('Failed to load dashboard data', 'error');
