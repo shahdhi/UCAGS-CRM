@@ -111,8 +111,7 @@ app.use('/api/notifications', require('./modules/notifications/notificationsRout
 app.use('/api/attendance', require('./modules/attendance/attendanceRoutes'));
 
 // Receipt generation (Admin only)
-// Use renamed module to force complete reload (bypass Node cache)
-app.use('/api/receipts', require('./modules/receipts/receiptsRoutes_v10'));
+app.use('/api/receipts', require('./modules/receipts/receiptsRoutes'));
 
 // WhatsApp (disabled): previously used Meta Cloud API routes.
 // Replaced with simple WhatsApp Web popup panel in the frontend.
