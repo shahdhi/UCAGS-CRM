@@ -2092,13 +2092,19 @@ async function loadDashboard() {
                 lbEl.innerHTML = lb.map((r, i) => {
                     const name = String(r.officer || 'Unassigned');
                     const count = Number(r.count || 0);
+                    const cr = Number(r.conversionRate || 0);
+                    const leadsAssigned = Number(r.leadsAssigned || 0);
+                    const crText = `${(cr * 100).toFixed(1)}%`;
                     return `
                       <div class="officer-stat leaderboard-row">
                         <div class="officer-name">
                           <span class="leaderboard-rank">${medal(i)}</span>
                           <span class="leaderboard-name" title="${name}">${name}</span>
                         </div>
-                        <div class="officer-count">${count}</div>
+                        <div class="leaderboard-metrics" title="Leads assigned: ${leadsAssigned}">
+                          <div class="officer-count">${count}</div>
+                          <div class="leaderboard-cr">${crText}</div>
+                        </div>
                       </div>
                     `;
                 }).join('');

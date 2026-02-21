@@ -395,8 +395,9 @@ router.get('/analytics', isAdmin, async (req, res) => {
       // If auth admin not available, just fall back to officers discovered from data
     }
 
-    const map = new Map();
-    for (const n of officerNames) map.set(n, 0);
+    // enrollments map: officer -> confirmed-payment registrations count
+    const enrollmentsMap = new Map();
+    for (const n of officerNames) enrollmentsMap.set(n, 0);
 
     const batchConfirmedIds = await getConfirmedPaymentsRegistrationIds(sb);
     if (batchConfirmedIds.length) {
@@ -411,15 +412,40 @@ router.get('/analytics', isAdmin, async (req, res) => {
         for (const r of (data || [])) {
           const payload = r?.payload && typeof r.payload === 'object' ? r.payload : {};
           const officer = String(r?.assigned_to || payload?.assigned_to || payload?.assignedTo || 'Unassigned').trim() || 'Unassigned';
-          map.set(officer, (map.get(officer) || 0) + 1);
+          enrollmentsMap.set(officer, (enrollmentsMap.get(officer) || 0) + 1);
         }
       }
     }
 
-    const leaderboard = Array.from(map.entries())
-      .map(([officer, count]) => ({ officer, count }))
+    // leads map: officer -> leads assigned count (current batch)
+    const leadsMap = new Map();
+    for (const n of officerNames) leadsMap.set(n, 0);
+    try {
+      let q = sb
+        .from('crm_leads')
+        .select('assigned_to, batch_name')
+        .limit(20000);
+      if (currentBatches.length) q = q.in('batch_name', currentBatches);
+      const { data, error } = await q;
+      if (error) throw error;
+
+      for (const r of (data || [])) {
+        const officer = String(r?.assigned_to || 'Unassigned').trim() || 'Unassigned';
+        leadsMap.set(officer, (leadsMap.get(officer) || 0) + 1);
+      }
+    } catch (e) {
+      // ignore; conversion will be 0 if leads unknown
+    }
+
+    const leaderboard = Array.from(new Set([...enrollmentsMap.keys(), ...leadsMap.keys()]))
+      .map((officer) => {
+        const count = enrollmentsMap.get(officer) || 0;
+        const leadsAssigned = leadsMap.get(officer) || 0;
+        const conversionRate = leadsAssigned > 0 ? (count / leadsAssigned) : 0;
+        return { officer, count, leadsAssigned, conversionRate };
+      })
       .filter(r => String(r.officer || '').toLowerCase() !== 'admin')
-      .sort((a, b) => b.count - a.count || a.officer.localeCompare(b.officer));
+      .sort((a, b) => b.count - a.count || b.conversionRate - a.conversionRate || a.officer.localeCompare(b.officer));
 
     // Action center: payments pending confirmation
     let paymentsPendingConfirmation = 0;

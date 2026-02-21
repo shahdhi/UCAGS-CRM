@@ -620,9 +620,12 @@ body {
 #homeView .stat-card {
     cursor: default !important;
     transition: none !important;
+    min-height: 88px;
 }
 
-#homeView .stat-card:hover {
+#homeView .stat-card:hover,
+#homeView .stat-card:active,
+#homeView .stat-card:focus {
     transform: none !important;
     box-shadow: var(--shadow-sm) !important;
     border-color: var(--separator) !important;
@@ -1664,9 +1667,23 @@ body {
     max-width: 260px;
 }
 
+#homeLeaderboard .leaderboard-metrics {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    line-height: 1.05;
+}
+
 #homeLeaderboard .leaderboard-row .officer-count {
     font-weight: 800;
     color: #111827;
+}
+
+#homeLeaderboard .leaderboard-cr {
+    margin-top: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #16a34a;
 }
 
 /* Toast Notifications */
