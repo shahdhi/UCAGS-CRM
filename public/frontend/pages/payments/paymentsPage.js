@@ -387,7 +387,12 @@
               ${p.is_confirmed ? 'Undo' : 'Confirm'}
             </button>
           </td>
-          <td><input type="text" class="pay-receipt form-control" value="${escapeHtml(p.receipt_no || '')}" style="min-width:120px;" /></td>
+          <td>
+            ${p.receipt_no
+              ? `<a href="#" class="pay-receipt-link" data-payment-id="${escapeHtml(p.id)}" style="color:#175CD3; text-decoration:none; font-weight:700;">${escapeHtml(p.receipt_no)}</a>`
+              : `<input type="text" class="pay-receipt form-control" value="" style="min-width:120px;" />`
+            }
+          </td>
         </tr>
       `;
     };
@@ -434,6 +439,39 @@
       };
 
       tbody.addEventListener('click', (e) => {
+        const receiptLink = e.target?.closest?.('.pay-receipt-link');
+        if (receiptLink) {
+          e.preventDefault();
+          e.stopPropagation();
+          const pid = receiptLink.getAttribute('data-payment-id');
+          if (!pid) return;
+
+          (async () => {
+            try {
+              const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+              const resp = await fetch(`/api/receipts/payment/${encodeURIComponent(pid)}`, { headers: authHeaders });
+              if (!resp.ok) {
+                const j = await resp.json().catch(() => null);
+                throw new Error(j?.error || 'Failed to download receipt');
+              }
+              const blob = await resp.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `receipt-${receiptLink.textContent.trim()}.pdf`;
+              document.body.appendChild(a);
+              a.click();
+              URL.revokeObjectURL(url);
+              a.remove();
+            } catch (err) {
+              console.error(err);
+              if (window.UI && UI.showToast) UI.showToast(err.message || 'Failed to download receipt', 'error');
+            }
+          })();
+
+          return;
+        }
+
         const view = e.target?.closest?.('.pay-view');
         if (view) {
           e.preventDefault();
@@ -459,8 +497,9 @@
                 if (!isRequiredFieldsFilled(tr)) {
                   throw new Error('Fill payment method, plan, amount, date and slip received before confirming.');
                 }
-                await window.API.payments.adminConfirm(id);
-                if (window.UI && UI.showToast) UI.showToast('Payment confirmed', 'success');
+                const r = await window.API.payments.adminConfirm(id);
+                const rn = r?.payment?.receipt_no || r?.receipt_no;
+                if (window.UI && UI.showToast) UI.showToast(rn ? `Payment confirmed (${rn})` : 'Payment confirmed', 'success');
               } else {
                 await window.API.payments.adminUnconfirm(id);
                 if (window.UI && UI.showToast) UI.showToast('Payment unconfirmed', 'success');
