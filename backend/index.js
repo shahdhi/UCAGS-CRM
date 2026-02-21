@@ -59,7 +59,6 @@ console.log('📡 Loading API routes...');
 // Import old server routes for backward compatibility
 const authRoutes = require('../server/routes/auth');
 const enquiryRoutes = require('../server/routes/enquiry');
-const dashboardRoutesOld = require('../server/routes/dashboard');
 const officerRoutes = require('../server/routes/officer');
 const emailRoutes = require('../server/routes/email');
 const calendarRoutes = require('../server/routes/calendar');

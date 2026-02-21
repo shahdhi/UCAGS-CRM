@@ -28,7 +28,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 // Import routes
 const authRoutes = require('./routes/auth');
 const enquiryRoutes = require('./routes/enquiry');
-const dashboardRoutes = require('./routes/dashboard');
+// Dashboard routes migrated to backend/modules/dashboard/dashboardRoutes.js
 const officerRoutes = require('./routes/officer');
 const emailRoutes = require('./routes/email');
 const calendarRoutes = require('./routes/calendar');
@@ -38,7 +38,7 @@ const leadsRoutes = require('./routes/leads');
 // Use routes
 app.use('/api/auth', authRoutes);
 app.use('/api/enquiries', enquiryRoutes);
-app.use('/api/dashboard', dashboardRoutes);
+// app.use('/api/dashboard', dashboardRoutes); // migrated
 app.use('/api/officers', officerRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/calendar', calendarRoutes);
