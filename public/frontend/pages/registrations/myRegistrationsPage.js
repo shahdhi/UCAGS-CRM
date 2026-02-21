@@ -156,6 +156,15 @@
             if (paySection) paySection.style.display = 'none';
             if (payToggleBtn) payToggleBtn.innerHTML = '<i class="fas fa-money-bill-wave"></i> Payment received';
 
+            // Ensure list updates immediately (badge should flip to "Received")
+            if (window.Cache) window.Cache.invalidatePrefix('registrations:myList');
+            if (window.Cache) window.Cache.invalidatePrefix('payments:');
+
+            // Update in-memory row and re-fetch list bypassing cache
+            const cur = lastRowsById.get(String(reg?.id)) || {};
+            lastRowsById.set(String(reg?.id), { ...cur, payment_received: true });
+            await loadMyRegistrations({ force: true });
+
           } catch (e) {
             console.error(e);
             if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to save payment', 'error');
@@ -281,7 +290,7 @@
     batchSel.value = selectedBatchName;
   }
 
-  async function loadMyRegistrations({ showSkeleton = false } = {}) {
+  async function loadMyRegistrations({ showSkeleton = false, force = false } = {}) {
     if (isLoading) return;
     isLoading = true;
 
@@ -344,8 +353,8 @@
       }
     };
 
-    // Fast path: render from cache if fresh and skip fetch
-    if (tbody && !showSkeleton && window.Cache) {
+    // Fast path: render from cache if fresh and skip fetch (unless forced)
+    if (!force && tbody && !showSkeleton && window.Cache) {
       const cached = window.Cache.getFresh(cacheKey, ttlMs);
       if (cached && cached.registrations) {
         renderRows(cached.registrations || []);
@@ -405,7 +414,8 @@
 
     if (refreshBtn && !refreshBtn.__bound) {
       refreshBtn.__bound = true;
-      refreshBtn.addEventListener('click', () => loadMyRegistrations().catch(err => {
+      // Refresh should bypass local cache so indicators update immediately
+      refreshBtn.addEventListener('click', () => loadMyRegistrations({ force: true }).catch(err => {
         console.error(err);
         if (window.UI && UI.showToast) UI.showToast(err.message || 'Failed to load registrations', 'error');
       }));

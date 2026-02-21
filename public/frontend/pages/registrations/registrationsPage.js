@@ -229,6 +229,17 @@
               if (qs('registrationReceiptReceived')) qs('registrationReceiptReceived').checked = !!(saved.slip_received || saved.receipt_received);
             }
 
+            // Ensure list updates immediately (badge should flip to "Received")
+            if (window.Cache) window.Cache.invalidatePrefix('registrations:adminList');
+            if (window.Cache) window.Cache.invalidatePrefix('payments:');
+
+            // Update the local in-memory row so the current modal's underlying object is in sync
+            const cur = lastRowsById.get(String(selectedRegistrationId)) || {};
+            lastRowsById.set(String(selectedRegistrationId), { ...cur, payment_received: true });
+
+            // Re-fetch and re-render list, bypassing cache
+            await loadRegistrations({ force: true });
+
             // Keep the form visible for further edits
             if (payToggleBtn) payToggleBtn.innerHTML = '<i class="fas fa-money-bill-wave"></i> Payment received';
 
@@ -418,7 +429,7 @@
     batchSel.value = selectedBatchName;
   }
 
-  async function loadRegistrations({ showSkeleton = false } = {}) {
+  async function loadRegistrations({ showSkeleton = false, force = false } = {}) {
     // Prevent multiple simultaneous loads (Lead Management style)
     if (isLoading) return;
     isLoading = true;
@@ -484,8 +495,8 @@
       }
     };
 
-    // Fast path: render from cache if fresh and skip fetch
-    if (tbody && !showSkeleton && window.Cache) {
+    // Fast path: render from cache if fresh and skip fetch (unless forced)
+    if (!force && tbody && !showSkeleton && window.Cache) {
       const cached = window.Cache.getFresh(cacheKey, ttlMs);
       if (cached && cached.registrations) {
         renderRows(cached.registrations || []);
@@ -580,7 +591,8 @@
 
     if (refreshBtn && !refreshBtn.__bound) {
       refreshBtn.__bound = true;
-      refreshBtn.addEventListener('click', () => loadRegistrations().catch(err => {
+      // Refresh should bypass local cache so indicators update immediately
+      refreshBtn.addEventListener('click', () => loadRegistrations({ force: true }).catch(err => {
         console.error(err);
         if (window.UI && UI.showToast) UI.showToast(err.message || 'Failed to load registrations', 'error');
       }));

@@ -269,7 +269,8 @@
 
   let selectedProgramId = '';
   let selectedBatchName = '';
-  let selectedStatus = 'due_overdue';
+  // Default view should be "All" (per requirement)
+  let selectedStatus = 'all';
   let selectedInstallmentFilter = '';
 
   async function loadProgramsForPayments() {
@@ -398,9 +399,12 @@
       if (cached && cached.payments) {
         let rows = cached.payments || [];
         window.__paymentsLastSummary = rows;
-        if (selectedStatus === 'due_overdue') {
+
+        // If an installment/type filter is selected, include confirmed/completed rows too.
+        if (selectedStatus === 'due_overdue' && !selectedInstallmentFilter) {
           rows = rows.filter(r => ['due', 'overdue'].includes(String(r.computed_status)));
         }
+
         rows = applyInstallmentFilter(rows);
         renderPaymentsRows(rows, tbody);
         return;
@@ -417,7 +421,8 @@
     let rows = res.payments || [];
     window.__paymentsLastSummary = rows;
 
-    if (selectedStatus === 'due_overdue') {
+    // If an installment/type filter is selected, include confirmed/completed rows too.
+    if (selectedStatus === 'due_overdue' && !selectedInstallmentFilter) {
       rows = rows.filter(r => ['due', 'overdue'].includes(String(r.computed_status)));
     }
 
@@ -767,6 +772,14 @@
       typeSel.__bound = true;
       typeSel.addEventListener('change', () => {
         selectedInstallmentFilter = typeSel.value;
+
+        // Requirement: when filtering by installment, also show confirmed/paid payments.
+        // The easiest UX is to switch status to "All" automatically.
+        if (selectedInstallmentFilter) {
+          selectedStatus = 'all';
+          renderStatusTabs();
+        }
+
         loadPayments().catch(console.error);
       });
     }
