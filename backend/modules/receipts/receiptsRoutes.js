@@ -60,7 +60,7 @@ function renderReceiptPdf(doc, {
   if (fs.existsSync(logoPngPath)) {
     try {
       // Bigger logo aligned with the RECEIPT title line
-      doc.image(logoPngPath, doc.page.width - 178, 8, { fit: [155, 70] });
+      doc.image(logoPngPath, doc.page.width - 178, 2, { fit: [155, 70] });
     } catch (err) {
       // ignore
     }
@@ -145,10 +145,10 @@ function renderReceiptPdf(doc, {
   yPos += 25;
   if (fs.existsSync(sealPngPath)) {
     try {
-      const sealSize = 95;
-      // Bigger seal, moved a bit to the right and down
-      const sealX = (doc.page.width / 2) - (sealSize / 2) + 60;
-      doc.image(sealPngPath, sealX, yPos + 12, { width: sealSize, height: sealSize });
+      const sealSize = 105;
+      // Bigger seal, moved more to the right and slightly down
+      const sealX = (doc.page.width / 2) - (sealSize / 2) + 85;
+      doc.image(sealPngPath, sealX, yPos + 14, { width: sealSize, height: sealSize });
       yPos += sealSize + 10;
     } catch (err) {
       // ignore
