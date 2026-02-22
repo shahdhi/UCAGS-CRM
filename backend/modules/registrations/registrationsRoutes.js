@@ -317,56 +317,60 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
       }
     }
 
-    const isInstallment = installmentCount > 1;
-    const groupId = isInstallment ? require('crypto').randomUUID() : null;
+    // IMPORTANT: Registrations page "Payment received" should only record the FIRST payment.
+    // Do NOT generate all installments here (that causes duplicates each time user saves).
 
-    const rows = isInstallment
-      ? Array.from({ length: installmentCount }).map((_, idx) => {
-          const n = idx + 1;
-          const due = dueDates[idx] || null;
-          return {
-            registration_id: id,
-            registration_name: registrationName,
-            batch_name: batchName,
-            program_id: programId,
-            program_name: programName,
-            payment_plan_id: planId,
-            installment_group_id: groupId,
-            installment_no: n,
-            installment_due_date: due,
-            payment_method: paymentMethod || null,
-            payment_plan: paymentPlan,
-            payment_date: n === 1 ? (paymentDate || null) : null,
-            amount: n === 1 ? amount : 0,
-            slip_received: n === 1 ? slipReceived : false,
-            receipt_received: n === 1 ? receiptReceived : false,
-            created_by: createdBy
-          };
-        })
-      : [{
-          registration_id: id,
-          registration_name: registrationName,
-          batch_name: batchName,
-          program_id: programId,
-          program_name: programName,
-          payment_plan_id: planId,
-          installment_due_date: dueDates[0] || null,
-          payment_method: paymentMethod || null,
-          payment_plan: paymentPlan,
-          payment_date: paymentDate || null,
-          amount,
-          slip_received: slipReceived,
-          receipt_received: receiptReceived,
-          created_by: createdBy
-        }];
-
-    const { data, error } = await sb
+    // If a first-payment row already exists for this registration, update it (idempotent).
+    const { data: existingRows, error: exErr } = await sb
       .from('payments')
-      .insert(rows)
-      .select('*');
+      .select('*')
+      .eq('registration_id', id)
+      .order('created_at', { ascending: true })
+      .limit(50);
+    if (exErr) throw exErr;
 
-    if (error) throw error;
-    res.json({ success: true, payments: data || [] });
+    const existingFirst = (existingRows || []).find(r => Number(r.installment_no || 1) === 1) || (existingRows || [])[0] || null;
+
+    const firstRow = {
+      registration_id: id,
+      registration_name: registrationName,
+      batch_name: batchName,
+      program_id: programId,
+      program_name: programName,
+      payment_plan_id: planId,
+      installment_group_id: null,
+      installment_no: 1,
+      installment_due_date: dueDates[0] || null,
+      payment_method: paymentMethod || null,
+      payment_plan: paymentPlan,
+      payment_date: paymentDate || null,
+      amount,
+      slip_received: slipReceived,
+      receipt_received: receiptReceived,
+      created_by: createdBy
+    };
+
+    let saved = null;
+    if (existingFirst?.id) {
+      const { data, error } = await sb
+        .from('payments')
+        .update(firstRow)
+        .eq('id', existingFirst.id)
+        .select('*')
+        .single();
+      if (error) throw error;
+      saved = data;
+    } else {
+      const { data, error } = await sb
+        .from('payments')
+        .insert(firstRow)
+        .select('*')
+        .single();
+      if (error) throw error;
+      saved = data;
+    }
+
+    res.json({ success: true, payments: saved ? [saved] : [] });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }

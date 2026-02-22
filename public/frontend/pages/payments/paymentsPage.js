@@ -26,7 +26,29 @@
     openModal('paymentDetailsModal');
 
     const res = await window.API.payments.adminListForRegistration(registrationId);
-    const rows = res.payments || [];
+    const rawRows = res.payments || [];
+
+    // De-duplicate rows by plan+installment_no (keep latest), to avoid showing duplicates
+    // caused by older registration payment flow that generated installments repeatedly.
+    const byKey = new Map();
+    for (const p of rawRows) {
+      const key = `${p.payment_plan_id || p.payment_plan || ''}:${Number(p.installment_no || 0)}`;
+      const cur = byKey.get(key);
+      if (!cur) {
+        byKey.set(key, p);
+      } else {
+        const t0 = new Date(cur.created_at || 0).getTime();
+        const t1 = new Date(p.created_at || 0).getTime();
+        if (t1 >= t0) byKey.set(key, p);
+      }
+    }
+
+    const rows = Array.from(byKey.values()).sort((a, b) => {
+      const ia = Number(a.installment_no || 0);
+      const ib = Number(b.installment_no || 0);
+      if (ia !== ib) return ia - ib;
+      return String(a.created_at || '').localeCompare(String(b.created_at || ''));
+    });
 
     if (!body) return;
     if (!rows.length) {
