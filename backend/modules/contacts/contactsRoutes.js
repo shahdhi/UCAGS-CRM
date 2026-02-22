@@ -50,8 +50,9 @@ router.post('/from-lead/:leadId', isAuthenticated, async (req, res) => {
     const leadId = clean(req.params.leadId);
     if (!leadId) return res.status(400).json({ success: false, error: 'Missing lead id' });
 
-    const programName = clean(req.body?.programName);
-    const batchName = clean(req.body?.batchName);
+    // Backend is source-of-truth for course + batch to avoid relying on sidebar state.
+    const programName = '';
+    const batchName = '';
 
     const { data: lead, error: lErr } = await sb
       .from('crm_leads')
@@ -72,8 +73,11 @@ router.post('/from-lead/:leadId', isAuthenticated, async (req, res) => {
     const phone = clean(lead?.phone_number || lead?.phone || lead?.payload?.phone_number || lead?.payload?.phone || '');
     const email = clean(lead?.email || lead?.payload?.email || '');
 
-    const progShort = programShort(programName || lead?.program_name || lead?.program || lead?.intake_json?.course || '');
-    const batchNo = batchNumber(batchName || lead?.batch_name || '');
+    const leadCourse = clean(lead?.intake_json?.course || lead?.course || lead?.program_name || lead?.program || '');
+    const leadBatch = clean(lead?.batch_name || '');
+
+    const progShort = programShort(leadCourse);
+    const batchNo = batchNumber(leadBatch);
     const officerLetter = officerFirstLetter(user?.name);
 
     const displayName = `${officerLetter}/${progShort}/B${batchNo} ${name || 'Unknown'}`.trim();
@@ -85,9 +89,9 @@ router.post('/from-lead/:leadId', isAuthenticated, async (req, res) => {
       name: name || null,
       phone_number: phone || null,
       email: email || null,
-      program_name: programName || lead?.program_name || null,
+      program_name: leadCourse || null,
       program_short: progShort,
-      batch_name: batchName || lead?.batch_name || null,
+      batch_name: leadBatch || null,
       batch_no: batchNo,
       assigned_to: clean(lead?.assigned_to) || null,
       assigned_user_id: user?.id || null,
