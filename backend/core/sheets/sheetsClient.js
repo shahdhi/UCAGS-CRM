@@ -333,6 +333,9 @@ async function createSheet(spreadsheetId, sheetTitle) {
       }
     });
 
+    // Important: metadata is cached; clear so subsequent sync sees the new tab immediately.
+    clearSpreadsheetInfoCache(spreadsheetId);
+
     return response.data.replies[0].addSheet.properties;
   } catch (error) {
     console.error('Error creating sheet:', error.message);

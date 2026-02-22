@@ -677,9 +677,13 @@ function updateDeleteSheetButtons(page) {
             if (!json.success) throw new Error(json.error || 'Failed to delete sheet');
             if (window.showToast) showToast('Sheet deleted', 'success');
             await loadOfficerLeadsBatchesMenu();
-            // Go back to main leads
-            window.location.hash = 'leads-myLeads';
-            navigateToPage('leads-myLeads');
+
+            // Fall back to Main Leads within same batch
+            const fallbackSheet = 'Main Leads';
+            window.officerSheetFilter = fallbackSheet;
+            const page2 = `leads-myLeads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(fallbackSheet)}`;
+            window.location.hash = page2;
+            navigateToPage(page2);
         };
         return;
     }
@@ -707,8 +711,13 @@ function updateDeleteSheetButtons(page) {
             if (!json.success) throw new Error(json.error || 'Failed to delete sheet');
             if (window.showToast) showToast('Sheet deleted', 'success');
             await loadOfficerLeadsBatchesMenu();
-            window.location.hash = 'lead-management';
-            navigateToPage('lead-management');
+
+            // Fall back to Main Leads within same batch
+            const fallbackSheet = 'Main Leads';
+            window.officerSheetFilter = fallbackSheet;
+            const page2 = `lead-management-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(fallbackSheet)}`;
+            window.location.hash = page2;
+            navigateToPage(page2);
         };
         return;
     }
@@ -732,9 +741,13 @@ function updateDeleteSheetButtons(page) {
             const json = await res.json();
             if (!json.success) throw new Error(json.error || 'Failed to delete sheet');
             if (window.showToast) showToast('Sheet deleted', 'success');
-            await loadBatchesMenu();
-            window.location.hash = 'home';
-            navigateToPage('home');
+
+            // Fall back to Main Leads within the same batch (stay in Leads view)
+            const fallbackSheet = 'Main Leads';
+            window.adminSheetFilter = fallbackSheet;
+            const page2 = `leads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(fallbackSheet)}`;
+            window.location.hash = page2;
+            navigateToPage(page2);
         };
     }
 }

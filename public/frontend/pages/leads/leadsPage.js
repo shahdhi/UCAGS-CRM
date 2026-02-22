@@ -10,6 +10,46 @@ let totalPages = 1;
 let sortColumn = ''; // empty = use backend default order
 let sortDirection = 'asc';
 
+function crmConfirm({ title = 'Confirm', message = '', confirmText = 'OK', cancelText = 'Cancel' } = {}) {
+  return new Promise((resolve) => {
+    const modalId = 'crmConfirmModal';
+    document.getElementById(modalId)?.remove();
+
+    const html = `
+      <div class="modal-overlay" id="${modalId}" style="z-index: 10000;" onclick="document.getElementById('${modalId}')?.remove(); document.body.style.overflow='';">
+        <div class="modal-dialog" style="max-width:520px;" onclick="event.stopPropagation()">
+          <div class="modal-header">
+            <h2 style="margin:0; font-size:18px;"><i class="fas fa-sync"></i> ${escapeHtml(title)}</h2>
+            <button class="modal-close" onclick="document.getElementById('${modalId}')?.remove(); document.body.style.overflow='';">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div style="color:#475467; font-size:13px; line-height:1.4;">${escapeHtml(message)}</div>
+          </div>
+          <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="${modalId}_cancel">${escapeHtml(cancelText)}</button>
+            <button type="button" class="btn btn-primary btn-sm" id="${modalId}_ok"><i class="fas fa-sync"></i> ${escapeHtml(confirmText)}</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', html);
+    document.body.style.overflow = 'hidden';
+
+    const close = (val) => {
+      document.getElementById(modalId)?.remove();
+      document.body.style.overflow = '';
+      resolve(val);
+    };
+
+    document.getElementById(`${modalId}_cancel`)?.addEventListener('click', () => close(false));
+    document.getElementById(`${modalId}_ok`)?.addEventListener('click', () => close(true));
+  });
+}
+
+
 /**
  * Initialize leads page
  * @param {string} modeOrBatch - For officers this is usually 'myLeads'. For admins it can be a batch name.
@@ -330,7 +370,13 @@ async function loadLeads() {
         syncBtn.className = 'btn btn-secondary btn-sm';
         syncBtn.innerHTML = '<i class="fas fa-sync"></i> Sync';
         syncBtn.addEventListener('click', async () => {
-          if (!confirm(`Sync leads from Google Sheet for batch "${batch}" into Supabase?`)) return;
+          const ok = await crmConfirm({
+            title: 'Sync Leads',
+            message: `Sync leads from Google Sheet for batch "${batch}"?`,
+            confirmText: 'Sync',
+            cancelText: 'Cancel'
+          });
+          if (!ok) return;
           try {
             syncBtn.disabled = true;
             const res = await fetch(`/api/batches/${encodeURIComponent(batch)}/sync`, {
