@@ -248,6 +248,16 @@ body {
     height: 300px;
 }
 
+/* Remove hover ripple/glow on Login + Logout buttons */
+#loginPage .btn::before,
+#loginPage .btn:hover::before,
+#logoutBtn::before,
+#logoutBtn:hover::before {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
 .btn:active {
     transform: scale(0.98);
 }
@@ -264,6 +274,12 @@ body {
     background: var(--primary-purple-dark);
     transform: translateY(-1px);
     box-shadow: var(--shadow-md);
+}
+
+#loginPage .btn-primary:hover,
+#logoutBtn.btn-secondary:hover {
+    transform: none !important;
+    box-shadow: none !important;
 }
 
 .btn-secondary {
