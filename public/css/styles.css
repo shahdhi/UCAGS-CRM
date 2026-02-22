@@ -1420,9 +1420,25 @@ body {
     width: 90%;
     max-width: 600px;
     max-height: 90vh;
-    overflow-y: auto;
+
+    /* Keep header/footer inside viewport; only body scrolls */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
     animation: modalSlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-content .modal-body {
+    overflow: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.modal-content .modal-header,
+.modal-content .modal-actions {
+    flex: 0 0 auto;
 }
 
 @keyframes modalSlideUp {

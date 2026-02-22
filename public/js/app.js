@@ -1029,19 +1029,11 @@ function openContactModal(contact) {
               </div>
               <div class="form-group">
                 <label>Program</label>
-                <input id="c_program" class="form-control" value="${escape(contact.program_name || '')}" />
-              </div>
-              <div class="form-group">
-                <label>Program Short</label>
-                <input id="c_program_short" class="form-control" value="${escape(contact.program_short || '')}" />
+                <input id="c_program" class="form-control" value="${escape(contact.program_name || contact.program_short || '')}" />
               </div>
               <div class="form-group">
                 <label>Batch</label>
                 <input id="c_batch" class="form-control" value="${escape(contact.batch_name || '')}" />
-              </div>
-              <div class="form-group">
-                <label>Batch No</label>
-                <input id="c_batch_no" class="form-control" value="${escape(contact.batch_no || '')}" />
               </div>
             </div>
           </div>
@@ -1071,9 +1063,7 @@ function openContactModal(contact) {
                 phone_number: document.getElementById('c_phone')?.value,
                 email: document.getElementById('c_email')?.value,
                 program_name: document.getElementById('c_program')?.value,
-                program_short: document.getElementById('c_program_short')?.value,
-                batch_name: document.getElementById('c_batch')?.value,
-                batch_no: document.getElementById('c_batch_no')?.value
+                batch_name: document.getElementById('c_batch')?.value
             });
             UI.showToast('Contact saved', 'success');
             document.getElementById('contactDetailsModal')?.remove();
@@ -1127,10 +1117,6 @@ async function loadContacts() {
             <td style="font-weight:700;">${escape(c.display_name || c.name || '')}</td>
             <td>${escape(c.phone_number || '')}</td>
             <td>${escape(c.email || '')}</td>
-            <td>${escape(c.program_short || c.program_name || '')}</td>
-            <td>${escape(c.batch_name || '')}</td>
-            <td>${escape(c.assigned_to || '')}</td>
-            <td>${escape((c.updated_at || '').slice(0, 10))}</td>
           </tr>
         `;
 
@@ -1138,7 +1124,7 @@ async function loadContacts() {
             if (window.DOMPatcher && DOMPatcher.patchTableBody) {
                 DOMPatcher.patchTableBody(tbody, rows, (x) => x.id, trHtml);
             } else {
-                tbody.innerHTML = rows.map(trHtml).join('') || '<tr><td colspan="7" class="loading">No contacts found.</td></tr>';
+                tbody.innerHTML = rows.map(trHtml).join('') || '<tr><td colspan="3" class="loading">No contacts found.</td></tr>';
             }
 
             // Row click -> details modal (bind once)

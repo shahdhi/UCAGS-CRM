@@ -625,7 +625,7 @@ function viewLeadDetails(leadId) {
 
           
           <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap;">
-            <button class="btn btn-secondary" onclick="saveLeadContact('${String(lead.id).replace(/'/g, "\\'")}')" style="padding: 12px 24px;">
+            <button class="btn btn-secondary" id="saveContactBtn" onclick="saveLeadContact('${String(lead.id).replace(/'/g, "\\'")}')" style="padding: 12px 24px;">
               <i class="fas fa-address-book"></i> Save Contact
             </button>
             <button class="btn btn-primary" onclick="editLeadDetails('${String(lead.id).replace(/'/g, "\\'")}')" style="padding: 12px 24px;">
@@ -663,7 +663,7 @@ async function saveLeadContact(leadId) {
 
     const programName = String(lead.course || lead.intake_json?.course || '').trim();
 
-    const btn = document.querySelector('#leadDetailsModal button[onclick^="saveLeadContact"]');
+    const btn = document.getElementById('saveContactBtn');
     if (btn) {
       btn.disabled = true;
       btn.dataset._oldHtml = btn.innerHTML;
@@ -671,12 +671,15 @@ async function saveLeadContact(leadId) {
     }
 
     await API.contacts.saveFromLead(leadId, { programName, batchName });
-    showToast('Saved to Contacts', 'success');
+
+    if (window.UI && UI.showToast) UI.showToast('Contact saved', 'success');
+    else showToast('Contact saved', 'success');
   } catch (e) {
     console.error(e);
-    showToast(e.message || 'Failed to save contact', 'error');
+    if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to save contact', 'error');
+    else showToast(e.message || 'Failed to save contact', 'error');
   } finally {
-    const btn = document.querySelector('#leadDetailsModal button[onclick^="saveLeadContact"]');
+    const btn = document.getElementById('saveContactBtn');
     if (btn) {
       btn.disabled = false;
       if (btn.dataset._oldHtml) btn.innerHTML = btn.dataset._oldHtml;

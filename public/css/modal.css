@@ -29,10 +29,13 @@
     border-radius: 12px;
     max-width: 700px;
     width: 90%;
+
+    /* Keep header/footer inside viewport; only body scrolls */
     max-height: 85vh;
-    overflow-y: auto;
-    scroll-behavior: smooth;
-    scrollbar-gutter: stable;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
     animation: slideUp 0.3s ease-out;
 }
@@ -57,6 +60,7 @@
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border-radius: 12px 12px 0 0;
+    flex: 0 0 auto;
 }
 
 .modal-header h2 {
@@ -90,6 +94,9 @@
 
 .modal-body {
     padding: 20px;
+    overflow: auto;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 .lead-details-grid {
@@ -173,6 +180,7 @@
     display: flex;
     justify-content: flex-end;
     gap: 12px;
+    flex: 0 0 auto;
 }
 
 .modal-footer .btn {
