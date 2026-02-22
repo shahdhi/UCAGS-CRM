@@ -530,6 +530,45 @@ body {
     background-clip: text;
 }
 
+/* Contacts toolbar: compact header actions */
+#contactsView .contacts-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+#contactsView .google-contacts-toolbar {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    padding: 4px 6px;
+    border: 1px solid var(--separator);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+}
+
+#contactsView .google-contacts-status {
+    font-size: 12px;
+    color: #666;
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Add a generic btn-sm (used elsewhere but not globally defined) */
+.btn.btn-sm {
+    padding: 6px 10px;
+    font-size: 12px;
+    line-height: 1.1;
+}
+
+#contactsView #contactsRefreshBtn.btn.btn-sm {
+    padding: 6px 10px;
+}
+
 /* Stats Grid */
 .stats-grid {
     display: grid;

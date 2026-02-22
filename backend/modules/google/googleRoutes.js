@@ -346,7 +346,8 @@ router.post('/contacts/sync', isAuthenticated, async (req, res) => {
     const results = [];
     for (const contact of (contacts || [])) {
       try {
-        const name = clean(contact?.name || contact?.display_name || '');
+        // Prefer the CRM formatted contact name
+        const name = clean(contact?.display_name || contact?.name || '');
         const phone = clean(contact?.phone_number || '');
         const email = clean(contact?.email || '');
 
@@ -433,7 +434,8 @@ router.post('/contacts/sync/:contactId', isAuthenticated, async (req, res) => {
 
     const people = await getAuthedPeopleClientForUser(req);
 
-    const name = clean(contact?.name || contact?.display_name || '');
+    // Prefer the CRM formatted contact name
+    const name = clean(contact?.display_name || contact?.name || '');
     const phone = clean(contact?.phone_number || '');
     const email = clean(contact?.email || '');
 
