@@ -941,6 +941,7 @@ async function navigateToPage(page) {
             break;
         case 'contacts':
             loadContacts(page);
+            initGoogleContactsUI().catch(console.error);
             break;
         case 'gmail':
             loadGmail();
@@ -995,6 +996,85 @@ async function navigateToPage(page) {
     }
 }
 
+async function initGoogleContactsUI() {
+    try {
+        if (!window.API || !API.google) return;
+        const statusEl = document.getElementById('googleContactsStatus');
+        const connectBtn = document.getElementById('googleContactsConnectBtn');
+        const disconnectBtn = document.getElementById('googleContactsDisconnectBtn');
+        const syncAllBtn = document.getElementById('googleContactsSyncAllBtn');
+
+        if (connectBtn && !connectBtn.__bound) {
+            connectBtn.__bound = true;
+            connectBtn.addEventListener('click', () => {
+                // Use full page redirect (OAuth)
+                window.location.href = API.google.connectUrl('/#contacts');
+            });
+        }
+
+        if (syncAllBtn && !syncAllBtn.__bound) {
+            syncAllBtn.__bound = true;
+            syncAllBtn.addEventListener('click', async () => {
+                const ok = confirm('Sync your contacts to Google Contacts now?');
+                if (!ok) return;
+                syncAllBtn.disabled = true;
+                const old = syncAllBtn.innerHTML;
+                syncAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+                try {
+                    // Sync currently loaded list if available (faster + matches UI filter)
+                    const rows = Array.isArray(window.__contactsLastRows) ? window.__contactsLastRows : null;
+                    const ids = rows ? rows.map(r => r.id).filter(Boolean) : null;
+                    const r = await API.google.syncContacts(ids && ids.length ? ids : null);
+                    UI.showToast(`Google sync done: ${r.ok}/${r.total} ok`, 'success');
+                    await loadContacts();
+                } catch (e) {
+                    console.error(e);
+                    UI.showToast(e.message || 'Failed to sync contacts', 'error');
+                } finally {
+                    syncAllBtn.disabled = false;
+                    syncAllBtn.innerHTML = old;
+                }
+            });
+        }
+
+        if (disconnectBtn && !disconnectBtn.__bound) {
+            disconnectBtn.__bound = true;
+            disconnectBtn.addEventListener('click', async () => {
+                const ok = confirm('Disconnect Google Contacts?');
+                if (!ok) return;
+                disconnectBtn.disabled = true;
+                try {
+                    await API.google.disconnect();
+                    UI.showToast('Disconnected Google', 'success');
+                    await initGoogleContactsUI();
+                } catch (e) {
+                    UI.showToast(e.message || 'Failed to disconnect', 'error');
+                } finally {
+                    disconnectBtn.disabled = false;
+                }
+            });
+        }
+
+        if (statusEl) statusEl.textContent = 'Checking Google connection...';
+        const st = await API.google.status();
+        const connected = !!st?.connected;
+
+        if (statusEl) {
+            statusEl.textContent = connected
+                ? `Google: Connected${st.googleEmail ? ` (${st.googleEmail})` : ''}`
+                : 'Google: Not connected';
+        }
+
+        if (connectBtn) connectBtn.style.display = connected ? 'none' : '';
+        if (disconnectBtn) disconnectBtn.style.display = connected ? '' : 'none';
+        if (syncAllBtn) syncAllBtn.style.display = connected ? '' : 'none';
+    } catch (e) {
+        console.error('Failed to init Google UI:', e);
+        const statusEl = document.getElementById('googleContactsStatus');
+        if (statusEl) statusEl.textContent = 'Google: Error';
+    }
+}
+
 // Load contacts
 function openContactModal(contact) {
     const escape = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1037,8 +1117,11 @@ function openContactModal(contact) {
               </div>
             </div>
           </div>
-          <div class="modal-footer" style="display:flex; justify-content:space-between;">
-            <button class="btn btn-danger" id="c_delete"><i class="fas fa-trash"></i> Delete</button>
+          <div class="modal-footer" style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button class="btn btn-secondary" id="c_sync_google"><i class="fab fa-google"></i> Sync to Google</button>
+              <button class="btn btn-danger" id="c_delete"><i class="fas fa-trash"></i> Delete</button>
+            </div>
             <div style="display:flex; gap:10px;">
               <button class="btn btn-secondary" onclick="document.getElementById('contactDetailsModal')?.remove(); document.body.style.overflow='';">Close</button>
               <button class="btn btn-primary" id="c_save"><i class="fas fa-save"></i> Save</button>
@@ -1050,6 +1133,34 @@ function openContactModal(contact) {
 
     document.body.insertAdjacentHTML('beforeend', html);
     document.body.style.overflow = 'hidden';
+
+    document.getElementById('c_sync_google')?.addEventListener('click', async () => {
+        const btn = document.getElementById('c_sync_google');
+        const old = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+        try {
+            if (!window.API || !API.google) throw new Error('Google API not available');
+            const st = await API.google.status();
+            if (!st?.connected) {
+                const ok = confirm('Google Contacts is not connected. Connect now?');
+                if (ok) {
+                    window.location.href = API.google.connectUrl('/#contacts');
+                    return;
+                }
+                throw new Error('Google not connected');
+            }
+
+            const r = await API.google.syncContact(contact.id);
+            UI.showToast(r.created ? 'Saved to Google Contacts' : 'Updated in Google Contacts', 'success');
+        } catch (e) {
+            console.error(e);
+            UI.showToast(e.message || 'Failed to sync to Google', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = old;
+        }
+    });
 
     document.getElementById('c_save')?.addEventListener('click', async () => {
         const btn = document.getElementById('c_save');

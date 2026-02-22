@@ -106,6 +106,9 @@ app.use('/api/reports', require('./modules/reports/reportsRoutes'));
 // Contacts (CRM-only)
 app.use('/api/contacts', require('./modules/contacts/contactsRoutes'));
 
+// Google OAuth + Contacts sync
+app.use('/api/google', require('./modules/google/googleRoutes'));
+
 // Notifications
 app.use('/api/notifications', require('./modules/notifications/notificationsRoutes'));
 

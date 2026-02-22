@@ -8,6 +8,50 @@ function clean(s) {
   return String(s || '').trim();
 }
 
+let _officerUserCache = null;
+let _officerUserCacheAt = 0;
+
+async function listSupabaseUsersCached(maxAgeMs = 60_000) {
+  const now = Date.now();
+  if (_officerUserCache && (now - _officerUserCacheAt) < maxAgeMs) return _officerUserCache;
+
+  const sb = getSupabaseAdmin();
+  if (!sb) return null;
+
+  const { data: { users } = {}, error } = await sb.auth.admin.listUsers();
+  if (error) throw error;
+
+  _officerUserCache = users || [];
+  _officerUserCacheAt = now;
+  return _officerUserCache;
+}
+
+async function resolveOfficerUserIdByName(officerName) {
+  const name = clean(officerName);
+  if (!name) return null;
+
+  const users = await listSupabaseUsersCached();
+  if (!users) return null;
+
+  const nLow = name.toLowerCase();
+
+  // 1) Exact match on metadata name
+  let match = users.find(u => clean(u?.user_metadata?.name).toLowerCase() === nLow);
+
+  // 2) Exact match on email prefix
+  if (!match) match = users.find(u => clean(u?.email).split('@')[0].toLowerCase() === nLow);
+
+  // 3) Loose match: contains (handles cases like "Mr. John" vs "John")
+  if (!match) {
+    match = users.find(u => {
+      const metaName = clean(u?.user_metadata?.name).toLowerCase();
+      return metaName && (metaName.includes(nLow) || nLow.includes(metaName));
+    });
+  }
+
+  return match?.id || null;
+}
+
 function programShort(programName) {
   const raw = clean(programName);
   if (!raw) return 'P';
@@ -91,7 +135,18 @@ router.post('/from-lead/:leadId', isAuthenticated, async (req, res) => {
 
     const progShort = programShort(leadCourse);
     const batchNo = batchNumber(leadBatch);
-    const officerLetter = officerFirstLetter(user?.name);
+
+    const assignedOfficerName = clean(lead?.assigned_to) || clean(user?.name);
+
+    // Resolve officer user id from assigned officer name (important when admin saves contacts)
+    let assignedOfficerUserId = null;
+    try {
+      assignedOfficerUserId = await resolveOfficerUserIdByName(assignedOfficerName);
+    } catch (err) {
+      console.warn('Failed resolving officer user id for assigned_to:', assignedOfficerName, err?.message || err);
+    }
+
+    const officerLetter = officerFirstLetter(assignedOfficerName);
 
     const displayName = `${officerLetter}/${progShort}/B${batchNo} ${name || 'Unknown'}`.trim();
 
@@ -107,7 +162,8 @@ router.post('/from-lead/:leadId', isAuthenticated, async (req, res) => {
       batch_name: leadBatch || null,
       batch_no: batchNo,
       assigned_to: clean(lead?.assigned_to) || null,
-      assigned_user_id: user?.id || null,
+      // Assign to the *officer* (not the saver). This ensures officer-only filtering works.
+      assigned_user_id: assignedOfficerUserId || null,
       created_by: user?.id || null,
       updated_at: new Date().toISOString()
     };
@@ -134,6 +190,13 @@ function canEditContact(user, contact) {
   if (!user) return false;
   const role = user.role || 'user';
   if (role === 'admin') return true;
+
+  // Prefer user_id match if present
+  if (user?.id && contact?.assigned_user_id) {
+    return String(contact.assigned_user_id) === String(user.id);
+  }
+
+  // Fall back to name-based assignment
   return clean(contact?.assigned_to) && clean(contact.assigned_to) === clean(user.name);
 }
 
@@ -154,8 +217,13 @@ router.get('/', isAuthenticated, async (req, res) => {
     if (batch) query = query.eq('batch_name', batch);
 
     // Officers: only their assigned contacts
+    // Prefer assigned_user_id (stable) and fall back to assigned_to (legacy name-based)
     if ((user?.role || 'user') !== 'admin') {
-      query = query.eq('assigned_to', clean(user?.name));
+      if (user?.id) {
+        query = query.eq('assigned_user_id', String(user.id));
+      } else {
+        query = query.eq('assigned_to', clean(user?.name));
+      }
     }
 
     if (q) {

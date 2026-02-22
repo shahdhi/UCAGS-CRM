@@ -746,6 +746,28 @@ const callAPI = {
 /**
  * Health Check API
  */
+const googleAPI = {
+  status: async () => {
+    return fetchAPI('/google/status');
+  },
+  connectUrl: (returnTo = '/#contacts') => {
+    const qs = new URLSearchParams({ returnTo });
+    return `/api/google/oauth/connect?${qs}`;
+  },
+  disconnect: async () => {
+    return fetchAPI('/google/disconnect', { method: 'POST' });
+  },
+  syncContact: async (contactId) => {
+    return fetchAPI(`/google/contacts/sync/${encodeURIComponent(contactId)}`, { method: 'POST' });
+  },
+  syncContacts: async (ids = null) => {
+    return fetchAPI('/google/contacts/sync', {
+      method: 'POST',
+      body: JSON.stringify(ids ? { ids } : {})
+    });
+  }
+};
+
 const healthAPI = {
   check: async () => {
     return fetchAPI('/health');
@@ -763,6 +785,7 @@ window.API = {
   payments: paymentsAPI,
   dashboard: dashboardAPI,
   contacts: contactsAPI,
+  google: googleAPI,
   officers: officersAPI,
   email: emailAPI,
   calendar: calendarAPI,
