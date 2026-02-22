@@ -131,6 +131,8 @@ body {
 /* Shared brand logo (login + sidebar) */
 .brand-logo {
     display: inline-block;
+    user-select: none;
+    -webkit-user-drag: none;
     max-width: 440px;
     max-height: 140px;
     width: auto;
@@ -139,10 +141,10 @@ body {
     margin-bottom: 12px;
 }
 
-/* Login screen logo should be smaller than the sidebar brand mark */
+/* Login screen logo */
 .logo .brand-logo {
-    max-width: 220px;
-    max-height: 70px;
+    max-width: 320px;
+    max-height: 110px;
 }
 
 /* Legacy text logo (kept for any other pages still using <h1>) */
