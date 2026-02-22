@@ -813,12 +813,24 @@ async function createSheetForBatch({ batchName, sheetName, scope, user }) {
   const sc = String(scope || '').toLowerCase();
 
   if (String(user?.role || '') === 'admin' && sc === 'admin') {
+    // Persist metadata in Supabase
     await sb.from('batch_shared_sheets').upsert({
       batch_name: b,
       sheet_name: s,
       created_by: cleanString(user?.name) || cleanString(user?.email) || null
     }, { onConflict: 'batch_name,sheet_name' });
-    return { sheetName: s, scope: 'admin' };
+
+    // Also create the tab in the batch's MAIN Google Spreadsheet so batch sync will pull it.
+    // (Pushes structure only; leads are still managed in Supabase.)
+    try {
+      const batchSheetsSvc = require('../batches/batchSheetsService');
+      await batchSheetsSvc.createSheetForBatch(b, s);
+    } catch (e) {
+      // Don't fail sheet creation in Supabase if Google creation fails, but do warn.
+      console.warn('Failed to create Google Sheet tab for admin sheet:', b, s, e?.message || e);
+    }
+
+    return { sheetName: s, scope: 'admin', googleTabCreated: true };
   }
 
   // officer scope (or default)

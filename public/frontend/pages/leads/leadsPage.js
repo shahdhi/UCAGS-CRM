@@ -310,9 +310,8 @@ async function loadLeads() {
 
       const addBtn = document.createElement('button');
       addBtn.type = 'button';
-      addBtn.className = 'btn btn-primary';
-      addBtn.style.padding = '6px 10px';
-      addBtn.textContent = '+ Add sheet';
+      addBtn.className = 'btn btn-secondary btn-sm';
+      addBtn.innerHTML = '<i class="fas fa-plus"></i> Add sheet';
       addBtn.addEventListener('click', async () => {
         if (window.openAddSheetModal) {
           window.openAddSheetModal({ batchName: batch, scope: isOfficerView ? 'officer' : 'admin' });
@@ -321,10 +320,14 @@ async function loadLeads() {
 
       // Admin-only: Sync from admin Google Sheet -> Supabase
       if (!isOfficerView) {
+        const actionsWrap = document.createElement('div');
+        actionsWrap.style.display = 'inline-flex';
+        actionsWrap.style.gap = '6px';
+        actionsWrap.style.alignItems = 'center';
+
         const syncBtn = document.createElement('button');
         syncBtn.type = 'button';
-        syncBtn.className = 'btn btn-secondary';
-        syncBtn.style.padding = '6px 10px';
+        syncBtn.className = 'btn btn-secondary btn-sm';
         syncBtn.innerHTML = '<i class="fas fa-sync"></i> Sync';
         syncBtn.addEventListener('click', async () => {
           if (!confirm(`Sync leads from Google Sheet for batch "${batch}" into Supabase?`)) return;
@@ -349,10 +352,12 @@ async function loadLeads() {
             syncBtn.disabled = false;
           }
         });
-        tabsEl.appendChild(syncBtn);
+        actionsWrap.appendChild(syncBtn);
+        actionsWrap.appendChild(addBtn);
+        tabsEl.appendChild(actionsWrap);
+      } else {
+        tabsEl.appendChild(addBtn);
       }
-
-      tabsEl.appendChild(addBtn);
     }
 
     await renderSheetTabs();
@@ -642,6 +647,28 @@ function viewLeadDetails(leadId) {
   
   // Add modal to page
   document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+  // After open: detect if contact already saved
+  try {
+    if (window.API && API.contacts && API.contacts.bySource) {
+      API.contacts.bySource('crm_leads', String(lead.id))
+        .then(r => {
+          const exists = !!r?.contact;
+          const btn = document.getElementById('saveContactBtn');
+          if (btn && exists) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-check"></i> Saved';
+            btn.classList.remove('btn-secondary');
+            btn.classList.add('btn-success');
+          }
+        })
+        .catch(e => {
+          console.warn('Contact saved-state check failed:', e?.message || e);
+        });
+    }
+  } catch (e) {
+    console.warn('Contact saved-state check failed:', e?.message || e);
+  }
   
   // Prevent body scroll
   document.body.style.overflow = 'hidden';
@@ -671,6 +698,15 @@ async function saveLeadContact(leadId) {
     }
 
     await API.contacts.saveFromLead(leadId, { programName, batchName });
+
+    // Update button state immediately
+    const btn2 = document.getElementById('saveContactBtn');
+    if (btn2) {
+      btn2.disabled = true;
+      btn2.innerHTML = '<i class="fas fa-check"></i> Saved';
+      btn2.classList.remove('btn-secondary');
+      btn2.classList.add('btn-success');
+    }
 
     if (window.UI && UI.showToast) UI.showToast('Contact saved', 'success');
     else showToast('Contact saved', 'success');

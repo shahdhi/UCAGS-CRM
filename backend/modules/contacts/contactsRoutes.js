@@ -200,6 +200,53 @@ function canEditContact(user, contact) {
   return clean(contact?.assigned_to) && clean(contact.assigned_to) === clean(user.name);
 }
 
+/**
+ * GET /api/contacts/by-source
+ * Query: source_type, source_id
+ * Returns the contact saved for a given source.
+ */
+router.get('/by-source', isAuthenticated, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+    const user = req.user || req.session?.user || {};
+
+    const sourceType = clean(req.query.source_type);
+    const sourceId = clean(req.query.source_id);
+    if (!sourceType || !sourceId) {
+      return res.status(400).json({ success: false, error: 'Missing source_type or source_id' });
+    }
+
+    const { data, error } = await sb
+      .from('contacts')
+      .select('*')
+      .eq('source_type', sourceType)
+      .eq('source_id', sourceId)
+      .maybeSingle();
+    if (error) throw error;
+
+    // Authorization (officers only see their assigned contacts)
+    if (data) {
+      if ((user?.role || 'user') !== 'admin') {
+        const assignedUserId = data?.assigned_user_id ? String(data.assigned_user_id) : null;
+        const assignedTo = clean(data?.assigned_to);
+        if (user?.id) {
+          if (!assignedUserId || assignedUserId !== String(user.id)) {
+            return res.status(404).json({ success: true, contact: null });
+          }
+        } else {
+          if (!assignedTo || assignedTo !== clean(user?.name)) {
+            return res.status(404).json({ success: true, contact: null });
+          }
+        }
+      }
+    }
+
+    res.json({ success: true, contact: data || null });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 router.get('/', isAuthenticated, async (req, res) => {
   try {
     const sb = getSupabaseAdmin();

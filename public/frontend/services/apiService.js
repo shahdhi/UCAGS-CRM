@@ -381,6 +381,13 @@ const studentsAPI = {
 };
 
 const contactsAPI = {
+  bySource: async (sourceType, sourceId) => {
+    const params = new URLSearchParams();
+    params.set('source_type', String(sourceType || ''));
+    params.set('source_id', String(sourceId || ''));
+    return fetchAPI(`/contacts/by-source?${params.toString()}`);
+  },
+
   list: async ({ q = '' } = {}) => {
     const params = new URLSearchParams();
     if (q) params.set('q', String(q));
