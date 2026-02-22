@@ -49,7 +49,7 @@ router.post('/from-lead/:leadId', isAuthenticated, async (req, res) => {
     const { data: lead, error: lErr } = await sb
       .from('crm_leads')
       .select('*')
-      .eq('id', leadId)
+      .eq('sheet_lead_id', leadId)
       .single();
     if (lErr) throw lErr;
 
@@ -73,7 +73,7 @@ router.post('/from-lead/:leadId', isAuthenticated, async (req, res) => {
 
     const upsertRow = {
       source_type: 'crm_leads',
-      source_id: leadId,
+      source_id: String(leadId),
       display_name: displayName,
       name: name || null,
       phone_number: phone || null,

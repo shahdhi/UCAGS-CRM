@@ -6,7 +6,7 @@ create table if not exists public.contacts (
 
   -- Link back to the source record (e.g. crm_leads)
   source_type text not null,
-  source_id uuid not null,
+  source_id text not null,
 
   -- Display / formatted name (e.g., I/P/B14 John Silva)
   display_name text not null,
@@ -37,6 +37,9 @@ create table if not exists public.contacts (
 -- Prevent duplicates when saving contact multiple times for the same lead
 create unique index if not exists contacts_source_unique
   on public.contacts (source_type, source_id);
+
+-- If you already created contacts with source_id uuid, run this migration:
+-- alter table public.contacts alter column source_id type text using source_id::text;
 
 -- Common search indexes
 create index if not exists contacts_display_name_idx
