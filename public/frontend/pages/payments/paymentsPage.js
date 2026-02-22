@@ -434,7 +434,25 @@
     }
 
     if (tbody && (showSkeleton || !window.__paymentsLastSummary)) {
-      tbody.innerHTML = '<tr><td colspan="13" class="loading">Loading payments...</td></tr>';
+      // Skeleton shimmer placeholders
+      const skelRow = () => `
+        <tr class="table-skel-row">
+          <td><div class="table-skel-line" style="width:60%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:45%"></div></td>
+          <td><div class="table-skel-line" style="width:40%"></div></td>
+          <td><div class="table-skel-line" style="width:25%"></div></td>
+          <td><div class="table-skel-line" style="width:25%"></div></td>
+          <td><div class="table-skel-line" style="width:30%"></div></td>
+          <td><div class="table-skel-line" style="width:30%"></div></td>
+          <td><div class="table-skel-line" style="width:30%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:25%"></div></td>
+          <td><div class="table-skel-line" style="width:25%"></div></td>
+          <td><div class="table-skel-line" style="width:40%"></div></td>
+        </tr>
+      `;
+      tbody.innerHTML = Array.from({ length: 8 }).map(skelRow).join('');
     }
 
     // Use summary endpoint (one row per registration)

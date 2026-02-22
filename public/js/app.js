@@ -754,6 +754,14 @@ function updateDeleteSheetButtons(page) {
 
 // Navigate to a specific page
 async function navigateToPage(page) {
+    // Prevent duplicate navigation (click handler + hashchange can both call navigateToPage)
+    const now = Date.now();
+    if (window.__navLastPage === page && window.__navLastAt && (now - window.__navLastAt) < 250) {
+        return;
+    }
+    window.__navLastPage = page;
+    window.__navLastAt = now;
+
     // WhatsApp: do not navigate to an internal page; just open WhatsApp Web
     if (page === 'whatsapp') {
         if (window.openWhatsAppSidePanel) {
