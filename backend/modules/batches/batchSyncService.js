@@ -95,7 +95,8 @@ function parseLeadRow(row, idxFn, rowNumber, headers) {
 }
 
 async function listSheetTabs(spreadsheetId) {
-  const info = await getSpreadsheetInfo(spreadsheetId);
+  // Force fresh metadata so newly created tabs are included immediately (important on serverless).
+  const info = await getSpreadsheetInfo(spreadsheetId, { force: true });
   const titles = (info.sheets || []).map(s => s.properties?.title).filter(Boolean);
   return titles;
 }
@@ -118,14 +119,14 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
   const results = [];
   for (const sheetName of tabs) {
     // Read header
-    const headerRow = await readSheet(spreadsheetId, `${sheetName}!A1:AZ1`);
+    const headerRow = await readSheet(spreadsheetId, `${sheetName}!A1:AZ1`, { force: true });
     const headers = (headerRow && headerRow[0]) ? headerRow[0].map(normalizeHeader) : [];
     const idxFn = indexHeaders(headers);
 
     const idIdx = idxFn('ID');
     
     // Read rows
-    const rows = await readSheet(spreadsheetId, `${sheetName}!A2:AZ`);
+    const rows = await readSheet(spreadsheetId, `${sheetName}!A2:AZ`, { force: true });
     const parsed = (rows || [])
       .filter(r => r && r.length)
       .map((r, i) => parseLeadRow(r, idxFn, i + 2, headers))  // Pass row number (2 = first data row) and headers
