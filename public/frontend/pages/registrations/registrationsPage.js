@@ -495,7 +495,7 @@
 
       if (!tbody) return;
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading">No registrations received</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="empty">No registrations received</td></tr>';
         return;
       }
 

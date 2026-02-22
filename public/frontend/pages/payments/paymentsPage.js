@@ -485,7 +485,7 @@
   function renderPaymentsRows(rows, tbody) {
     if (!tbody) return;
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="13" class="loading">No payments found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="13" class="empty">No payments found</td></tr>';
       return;
     }
 
