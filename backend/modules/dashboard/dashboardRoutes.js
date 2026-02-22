@@ -117,67 +117,48 @@ function toISODate(d) {
   return new Date(d).toISOString().slice(0, 10);
 }
 
-async function getConfirmedPaymentsRegistrationIds(sb, { from = null, to = null } = {}) {
-  // Returns distinct registration_ids with confirmed payments; optional date range
-  // NOTE: We filter by payment_date if present else created_at.
-  const baseSelect = 'registration_id, payment_date, created_at';
+async function getPaymentReceivedRegistrationIds(sb, { from = null, to = null } = {}) {
+  // Returns distinct registration_ids where payment-received was saved (not necessarily confirmed).
+  // We treat it as: installment_no=1, amount>0, and (payment_date set OR slip/receipt received).
+  const baseSelect = 'registration_id, payment_date, created_at, amount, slip_received, receipt_received, installment_no';
 
-  try {
-    let q = sb
-      .from('payments')
-      .select(baseSelect)
-      .eq('is_confirmed', true)
-      .not('registration_id', 'is', null)
-      .limit(20000);
+  let q = sb
+    .from('payments')
+    .select(baseSelect)
+    .eq('installment_no', 1)
+    .not('registration_id', 'is', null)
+    .limit(20000);
 
-    const { data, error } = await q;
-    if (error) throw error;
+  const { data, error } = await q;
+  if (error) throw error;
 
-    let rows = data || [];
-    if (from || to) {
-      const fromMs = from ? startOfDay(from).getTime() : null;
-      const toMs = to ? endOfDay(to).getTime() : null;
-      rows = rows.filter(r => {
-        const t = new Date(r.payment_date || r.created_at || 0).getTime();
-        if (!Number.isFinite(t)) return false;
-        if (fromMs != null && t < fromMs) return false;
-        if (toMs != null && t > toMs) return false;
-        return true;
-      });
-    }
+  let rows = (data || []).filter(r => {
+    const amt = Number(r.amount || 0);
+    if (!Number.isFinite(amt) || amt <= 0) return false;
+    const hasReceipt = !!(r.slip_received || r.receipt_received);
+    const hasDate = !!r.payment_date;
+    return hasDate || hasReceipt;
+  });
 
-    return Array.from(new Set(rows.map(r => r.registration_id).filter(Boolean)));
-  } catch (e1) {
-    const msg = String(e1.message || '').toLowerCase();
-    const missingCol = (msg.includes('column') && msg.includes('is_confirmed') && msg.includes('does not exist')) ||
-      (msg.includes('schema cache') && msg.includes('is_confirmed') && msg.includes('could not find'));
-    if (!missingCol) throw e1;
-
-    let q = sb
-      .from('payments')
-      .select(baseSelect)
-      .eq('receipt_received', true)
-      .not('registration_id', 'is', null)
-      .limit(20000);
-
-    const { data, error } = await q;
-    if (error) throw error;
-
-    let rows = data || [];
-    if (from || to) {
-      const fromMs = from ? startOfDay(from).getTime() : null;
-      const toMs = to ? endOfDay(to).getTime() : null;
-      rows = rows.filter(r => {
-        const t = new Date(r.payment_date || r.created_at || 0).getTime();
-        if (!Number.isFinite(t)) return false;
-        if (fromMs != null && t < fromMs) return false;
-        if (toMs != null && t > toMs) return false;
-        return true;
-      });
-    }
-
-    return Array.from(new Set(rows.map(r => r.registration_id).filter(Boolean)));
+  if (from || to) {
+    const fromMs = from ? startOfDay(from).getTime() : null;
+    const toMs = to ? endOfDay(to).getTime() : null;
+    rows = rows.filter(r => {
+      const t = new Date(r.payment_date || r.created_at || 0).getTime();
+      if (!Number.isFinite(t)) return false;
+      if (fromMs != null && t < fromMs) return false;
+      if (toMs != null && t > toMs) return false;
+      return true;
+    });
   }
+
+  return Array.from(new Set(rows.map(r => r.registration_id).filter(Boolean)));
+}
+
+// Backward compatibility wrapper (older parts of the codebase still refer to "confirmed")
+// We now define "enrollment" by payment received save.
+async function getConfirmedPaymentsRegistrationIds(sb, opts) {
+  return getPaymentReceivedRegistrationIds(sb, opts);
 }
 
 /**
@@ -313,8 +294,8 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
       }
     }
 
-    // Enrollments (confirmed payments) within range
-    const confirmedRegIds = await getConfirmedPaymentsRegistrationIds(sb, { from: fromEff, to: toEff });
+    // Enrollments (payment received saved) within range
+    const confirmedRegIds = await getPaymentReceivedRegistrationIds(sb, { from: fromEff, to: toEff });
     let confirmedPayments = confirmedRegIds.length;
 
     // Officers should see only their own enrollments
@@ -394,37 +375,26 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
       }
       const counts = new Map(days.map(x => [x, 0]));
 
-      // Load confirmed payments rows for time series (need dates)
+      // Load payment-received rows for time series (need dates)
       try {
         let payRows = [];
-        try {
-          const { data, error } = await sb
-            .from('payments')
-            .select('registration_id, payment_date, created_at')
-            .eq('is_confirmed', true)
-            .not('registration_id', 'is', null)
-            .gte('created_at', fromEff.toISOString())
-            .lte('created_at', toEff.toISOString())
-            .limit(20000);
-          if (error) throw error;
-          payRows = data || [];
-        } catch (e1) {
-          const msg = String(e1.message || '').toLowerCase();
-          const missingCol = (msg.includes('column') && msg.includes('is_confirmed') && msg.includes('does not exist')) ||
-            (msg.includes('schema cache') && msg.includes('is_confirmed') && msg.includes('could not find'));
-          if (!missingCol) throw e1;
+        const { data, error } = await sb
+          .from('payments')
+          .select('registration_id, payment_date, created_at, amount, slip_received, receipt_received, installment_no')
+          .eq('installment_no', 1)
+          .not('registration_id', 'is', null)
+          .gte('created_at', fromEff.toISOString())
+          .lte('created_at', toEff.toISOString())
+          .limit(20000);
+        if (error) throw error;
 
-          const { data, error } = await sb
-            .from('payments')
-            .select('registration_id, payment_date, created_at')
-            .eq('receipt_received', true)
-            .not('registration_id', 'is', null)
-            .gte('created_at', fromEff.toISOString())
-            .lte('created_at', toEff.toISOString())
-            .limit(20000);
-          if (error) throw error;
-          payRows = data || [];
-        }
+        payRows = (data || []).filter(r => {
+          const amt = Number(r.amount || 0);
+          if (!Number.isFinite(amt) || amt <= 0) return false;
+          const hasReceipt = !!(r.slip_received || r.receipt_received);
+          const hasDate = !!r.payment_date;
+          return hasDate || hasReceipt;
+        });
 
         // Officers should see only their own enrollments in the time series
         if (!isAdminUser && officerName && payRows.length) {
@@ -484,7 +454,7 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
     const enrollmentsMap = new Map();
     for (const n of officerNames) enrollmentsMap.set(n, 0);
 
-    const batchConfirmedIds = await getConfirmedPaymentsRegistrationIds(sb);
+    const batchConfirmedIds = await getPaymentReceivedRegistrationIds(sb);
     if (batchConfirmedIds.length) {
       let q = sb
         .from('registrations')

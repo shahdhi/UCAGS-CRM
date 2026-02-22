@@ -347,6 +347,13 @@ const registrationsAPI = {
     return fetchAPI(`/registrations/${encodeURIComponent(id)}/payments`);
   },
 
+  deletePayments: async (id) => {
+    if (!id) throw new Error('Missing registration id');
+    return fetchAPI(`/registrations/${encodeURIComponent(id)}/payments`, {
+      method: 'DELETE'
+    });
+  },
+
   // Admin: mark registration as enrolled
   adminEnroll: async (id) => {
     if (!id) throw new Error('Missing registration id');

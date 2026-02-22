@@ -176,12 +176,48 @@
       const paySaveBtn = qs('registrationPaymentSaveBtn');
 
       if (payToggleBtn && paySection) {
-        payToggleBtn.onclick = () => {
+        payToggleBtn.onclick = async () => {
           const open = paySection.style.display !== 'none';
-          paySection.style.display = open ? 'none' : 'block';
-          payToggleBtn.innerHTML = open
-            ? '<i class="fas fa-money-bill-wave"></i> Payment received'
-            : '<i class="fas fa-times"></i> Cancel payment';
+
+          // If currently open, this button acts as "Cancel payment" (remove saved payment)
+          if (open) {
+            const ok = confirm('Cancel payment and remove saved payment details for this registration?');
+            if (!ok) return;
+
+            try {
+              payToggleBtn.disabled = true;
+              await window.API.registrations.deletePayments(selectedRegistrationId);
+
+              // Clear form
+              if (qs('registrationPaymentDate')) qs('registrationPaymentDate').value = '';
+              if (qs('registrationPaymentAmount')) qs('registrationPaymentAmount').value = '';
+              if (qs('registrationReceiptReceived')) qs('registrationReceiptReceived').checked = false;
+
+              // Update local row + refresh list (remove "Received" badge)
+              const cur = lastRowsById.get(String(selectedRegistrationId)) || {};
+              lastRowsById.set(String(selectedRegistrationId), { ...cur, payment_received: false });
+              if (window.Cache) window.Cache.invalidatePrefix('registrations:adminList');
+              if (window.Cache) window.Cache.invalidatePrefix('payments:');
+              await loadRegistrations({ force: true });
+
+              if (window.UI && UI.showToast) UI.showToast('Payment removed', 'success');
+            } catch (e) {
+              console.error(e);
+              if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to cancel payment', 'error');
+              return;
+            } finally {
+              payToggleBtn.disabled = false;
+            }
+
+            // Close the section after cancel
+            paySection.style.display = 'none';
+            payToggleBtn.innerHTML = '<i class="fas fa-money-bill-wave"></i> Payment received';
+            return;
+          }
+
+          // Otherwise open the section
+          paySection.style.display = 'block';
+          payToggleBtn.innerHTML = '<i class="fas fa-times"></i> Cancel payment';
         };
       }
 

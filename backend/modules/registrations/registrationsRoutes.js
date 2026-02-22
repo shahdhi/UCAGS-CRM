@@ -130,7 +130,7 @@ async function attachPaymentFlags(sb, registrations) {
 
   const { data, error } = await sb
     .from('payments')
-    .select('registration_id')
+    .select('registration_id, installment_no, amount, payment_date, slip_received, receipt_received')
     .in('registration_id', ids);
 
   if (error) {
@@ -140,7 +140,19 @@ async function attachPaymentFlags(sb, registrations) {
     throw error;
   }
 
-  const paidSet = new Set((data || []).map(r => r.registration_id));
+  const paidSet = new Set(
+    (data || [])
+      .filter(r => {
+        const n = Number(r.installment_no || 1);
+        if (n !== 1) return false;
+        const amt = Number(r.amount || 0);
+        if (!Number.isFinite(amt) || amt <= 0) return false;
+        const hasReceipt = !!(r.slip_received || r.receipt_received);
+        const hasDate = !!r.payment_date;
+        return hasDate || hasReceipt;
+      })
+      .map(r => r.registration_id)
+  );
   return (registrations || []).map(r => ({
     ...r,
     payment_received: paidSet.has(r.id)
@@ -370,7 +382,61 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
       saved = data;
     }
 
+    // If this is an installment plan, ensure placeholder rows (2..N) exist exactly once.
+    if (planId && installmentCount > 1) {
+      const existingForPlan = (existingRows || []).filter(r => String(r.payment_plan_id || '') === String(planId));
+      const have = new Set(existingForPlan.map(r => Number(r.installment_no || 0)).filter(n => n > 0));
+
+      const toInsert = [];
+      for (let n = 2; n <= installmentCount; n++) {
+        if (have.has(n)) continue;
+        toInsert.push({
+          registration_id: id,
+          registration_name: registrationName,
+          batch_name: batchName,
+          program_id: programId,
+          program_name: programName,
+          payment_plan_id: planId,
+          installment_group_id: null,
+          installment_no: n,
+          installment_due_date: dueDates[n - 1] || null,
+          payment_method: null,
+          payment_plan: paymentPlan,
+          payment_date: null,
+          amount: 0,
+          slip_received: false,
+          receipt_received: false,
+          created_by: createdBy
+        });
+      }
+
+      if (toInsert.length) {
+        const { error: iErr } = await sb.from('payments').insert(toInsert);
+        if (iErr) throw iErr;
+      }
+    }
+
     res.json({ success: true, payments: saved ? [saved] : [] });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// Delete payments for a registration (admin/officer)
+// DELETE /api/registrations/:id/payments
+router.delete('/:id/payments', isAdminOrOfficer, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ success: false, error: 'Missing registration id' });
+
+    const { error } = await sb
+      .from('payments')
+      .delete()
+      .eq('registration_id', id);
+
+    if (error) throw error;
+    res.json({ success: true });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }

@@ -325,18 +325,46 @@ router.post('/admin/:id/unconfirm', isAdmin, async (req, res) => {
     const id = String(req.params.id || '').trim();
     if (!id) return res.status(400).json({ success: false, error: 'Missing payment id' });
 
+    // Load payment first (need receipt_no)
+    const { data: existing, error: exErr } = await sb
+      .from('payments')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (exErr) throw exErr;
+
+    // Undo confirm and clear receipt_no so it can't be downloaded
     const { data, error } = await sb
       .from('payments')
       .update({
         is_confirmed: false,
         confirmed_at: null,
-        confirmed_by: null
+        confirmed_by: null,
+        receipt_no: null
       })
       .eq('id', id)
       .select('*')
       .single();
 
     if (error) throw error;
+
+    // Also delete receipt row (if receipts table exists)
+    try {
+      const { error: rErr } = await sb
+        .from('receipts')
+        .delete()
+        .eq('payment_id', id);
+      if (rErr) throw rErr;
+    } catch (e2) {
+      const msg = String(e2.message || '').toLowerCase();
+      if (msg.includes('relation') && msg.includes('does not exist')) {
+        // ignore
+      } else {
+        // don't fail unconfirm because of receipts cleanup
+        console.warn('Unconfirm: failed to delete receipt row:', e2.message || e2);
+      }
+    }
+
     res.json({ success: true, payment: data });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
