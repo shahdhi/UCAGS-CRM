@@ -389,7 +389,14 @@ async function loadLeads() {
             });
             const json = await res.json();
             if (!json.success) throw new Error(json.error || 'Sync failed');
-            if (window.UI && UI.showToast) UI.showToast('Sync completed', 'success');
+
+            // Summarize results
+            const pull = json.sheetsToSupabase?.sheets || [];
+            const inserted = pull.reduce((a, s) => a + (s.inserted || 0), 0);
+            const updated = pull.reduce((a, s) => a + (s.updated || 0), 0);
+            const tabs = pull.length;
+
+            if (window.UI && UI.showToast) UI.showToast(`Sync completed: ${inserted} inserted, ${updated} updated (${tabs} tabs)`, 'success');
             await loadLeads();
           } catch (e) {
             console.error(e);

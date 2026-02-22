@@ -25,10 +25,21 @@ function normalizeHeader(h) {
   return String(h || '').trim();
 }
 
-function a1Sheet(sheetName) {
-  // Quote sheet names to be safe (spaces/special chars) for Google A1 notation
+function quotedSheetName(sheetName) {
   const safe = String(sheetName || '').replace(/'/g, "''");
   return `'${safe}'`;
+}
+
+async function readSheetWithFallback(readFn, spreadsheetId, sheetName, a1Range, opts) {
+  // Try unquoted first (works reliably for existing sheets).
+  let v = await readFn(spreadsheetId, `${sheetName}!${a1Range}`, opts);
+
+  // If empty and sheet name contains spaces/specials, try quoted name.
+  if ((!v || v.length === 0) && /[^A-Za-z0-9_]/.test(String(sheetName || ''))) {
+    v = await readFn(spreadsheetId, `${quotedSheetName(sheetName)}!${a1Range}`, opts);
+  }
+
+  return v || [];
 }
 
 function indexHeaders(headers) {
@@ -125,14 +136,14 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
   const results = [];
   for (const sheetName of tabs) {
     // Read header
-    const headerRow = await readSheet(spreadsheetId, `${a1Sheet(sheetName)}!A1:AZ1`, { force: true });
+    const headerRow = await readSheetWithFallback(readSheet, spreadsheetId, sheetName, 'A1:AZ1', { force: true });
     const headers = (headerRow && headerRow[0]) ? headerRow[0].map(normalizeHeader) : [];
     const idxFn = indexHeaders(headers);
 
     const idIdx = idxFn('ID');
     
     // Read rows
-    const rows = await readSheet(spreadsheetId, `${a1Sheet(sheetName)}!A2:AZ`, { force: true });
+    const rows = await readSheetWithFallback(readSheet, spreadsheetId, sheetName, 'A2:AZ', { force: true });
     const parsed = (rows || [])
       .filter(r => r && r.length)
       .map((r, i) => parseLeadRow(r, idxFn, i + 2, headers))  // Pass row number (2 = first data row) and headers
@@ -228,6 +239,7 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
     success: true,
     batchName,
     spreadsheetId,
+    tabsProcessed: tabs,
     sheets: results
   };
 }
