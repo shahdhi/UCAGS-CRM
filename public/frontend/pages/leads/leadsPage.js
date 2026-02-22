@@ -658,7 +658,8 @@ async function saveLeadContact(leadId) {
     if (!lead) throw new Error('Lead not found');
 
     const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
-    const batchName = isOfficerView ? window.officerBatchFilter : window.adminBatchFilter;
+    let batchName = isOfficerView ? window.officerBatchFilter : window.adminBatchFilter;
+    if (!batchName || batchName === 'all') batchName = lead.batch || lead.batchName || lead.batch_name || '';
 
     const programName = String(lead.course || lead.intake_json?.course || '').trim();
 

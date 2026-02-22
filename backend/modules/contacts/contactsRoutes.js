@@ -9,13 +9,20 @@ function clean(s) {
 }
 
 function programShort(programName) {
-  const p = clean(programName).toLowerCase();
+  const raw = clean(programName);
+  const p = raw.toLowerCase();
+
+  // Explicit mappings (add more as needed)
   const map = {
     'diploma in psychology': 'P'
   };
   if (map[p]) return map[p];
+
+  // Keyword fallback
+  if (p.includes('psychology')) return 'P';
+
   // fallback: first letter of last word
-  const parts = clean(programName).split(/\s+/).filter(Boolean);
+  const parts = raw.split(/\s+/).filter(Boolean);
   if (!parts.length) return 'X';
   return String(parts[parts.length - 1][0] || 'X').toUpperCase();
 }
@@ -65,7 +72,7 @@ router.post('/from-lead/:leadId', isAuthenticated, async (req, res) => {
     const phone = clean(lead?.phone_number || lead?.phone || lead?.payload?.phone_number || lead?.payload?.phone || '');
     const email = clean(lead?.email || lead?.payload?.email || '');
 
-    const progShort = programShort(programName || lead?.program_name || lead?.program || '');
+    const progShort = programShort(programName || lead?.program_name || lead?.program || lead?.intake_json?.course || '');
     const batchNo = batchNumber(batchName || lead?.batch_name || '');
     const officerLetter = officerFirstLetter(user?.name);
 
