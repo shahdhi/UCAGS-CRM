@@ -10,6 +10,7 @@ function clean(s) {
 
 function programShort(programName) {
   const raw = clean(programName);
+  if (!raw) return 'P';
   const p = raw.toLowerCase();
 
   // Explicit mappings (add more as needed)
@@ -19,7 +20,7 @@ function programShort(programName) {
   if (map[p]) return map[p];
 
   // Keyword fallback
-  if (p.includes('psychology')) return 'P';
+  if (p.includes('psychology') || p.includes('psycho') || p.includes('psych')) return 'P';
 
   // fallback: first letter of last word
   const parts = raw.split(/\s+/).filter(Boolean);
@@ -73,7 +74,19 @@ router.post('/from-lead/:leadId', isAuthenticated, async (req, res) => {
     const phone = clean(lead?.phone_number || lead?.phone || lead?.payload?.phone_number || lead?.payload?.phone || '');
     const email = clean(lead?.email || lead?.payload?.email || '');
 
-    const leadCourse = clean(lead?.intake_json?.course || lead?.course || lead?.program_name || lead?.program || '');
+    const leadPayload = (lead?.payload && typeof lead.payload === 'object') ? lead.payload : {};
+    const leadIntake = (lead?.intake_json && typeof lead.intake_json === 'object') ? lead.intake_json : {};
+
+    const leadCourse = clean(
+      leadIntake?.course ||
+      lead?.course ||
+      lead?.program_name ||
+      lead?.program ||
+      leadPayload?.course ||
+      leadPayload?.program_name ||
+      leadPayload?.program ||
+      ''
+    );
     const leadBatch = clean(lead?.batch_name || '');
 
     const progShort = programShort(leadCourse);

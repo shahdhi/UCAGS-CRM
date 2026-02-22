@@ -41,7 +41,12 @@ router.get('/stats', isAuthenticated, async (req, res) => {
       } else if ((user?.role === 'officer' || user?.role === 'user') && user?.sheetId) {
         enquiries = await sheetsService.getOfficerEnquiries(user.sheetId);
       } else {
-        return res.status(403).json({ error: 'Access denied' });
+        // Fail-soft: user logged in but no sheet access configured
+        return res.json({
+          stats: { total: 0, new: 0, contacted: 0, followUp: 0, registered: 0, closed: 0 },
+          officerStats: null,
+          warning: 'Access denied'
+        });
       }
     } catch (e) {
       // Fail-soft: allow dashboard to load even if Sheets is unavailable/misconfigured
@@ -691,7 +696,8 @@ router.get('/recent', isAuthenticated, async (req, res) => {
     } else if ((user?.role === 'officer' || user?.role === 'user') && user?.sheetId) {
       enquiries = await sheetsService.getOfficerEnquiries(user.sheetId);
     } else {
-      return res.status(403).json({ error: 'Access denied' });
+      // Fail-soft for logged-in users without sheet access
+      return res.json({ enquiries: [] });
     }
 
     enquiries.sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate));
@@ -716,7 +722,8 @@ router.get('/follow-ups', isAuthenticated, async (req, res) => {
     } else if ((user?.role === 'officer' || user?.role === 'user') && user?.sheetId) {
       enquiries = await sheetsService.getOfficerEnquiries(user.sheetId);
     } else {
-      return res.status(403).json({ error: 'Access denied' });
+      // Fail-soft for logged-in users without sheet access
+      return res.json({ overdue: [], upcoming: [] });
     }
 
     const now = new Date();
