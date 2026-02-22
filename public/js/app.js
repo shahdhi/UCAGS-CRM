@@ -1006,9 +1006,15 @@ async function initGoogleContactsUI() {
 
         if (connectBtn && !connectBtn.__bound) {
             connectBtn.__bound = true;
-            connectBtn.addEventListener('click', () => {
-                // Use full page redirect (OAuth)
-                window.location.href = API.google.connectUrl('/#contacts');
+            connectBtn.addEventListener('click', async () => {
+                // Must fetch connect URL with auth headers, then redirect to Google.
+                try {
+                    const url = await API.google.getConnectUrl('/#contacts');
+                    window.location.href = url;
+                } catch (e) {
+                    console.error(e);
+                    UI.showToast(e.message || 'Failed to start Google connect', 'error');
+                }
             });
         }
 
@@ -1145,7 +1151,8 @@ function openContactModal(contact) {
             if (!st?.connected) {
                 const ok = confirm('Google Contacts is not connected. Connect now?');
                 if (ok) {
-                    window.location.href = API.google.connectUrl('/#contacts');
+                    const url = await API.google.getConnectUrl('/#contacts');
+                    window.location.href = url;
                     return;
                 }
                 throw new Error('Google not connected');

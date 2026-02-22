@@ -750,9 +750,11 @@ const googleAPI = {
   status: async () => {
     return fetchAPI('/google/status');
   },
-  connectUrl: (returnTo = '/#contacts') => {
+  getConnectUrl: async (returnTo = '/#contacts') => {
     const qs = new URLSearchParams({ returnTo });
-    return `/api/google/oauth/connect?${qs}`;
+    const r = await fetchAPI(`/google/oauth/connect-url?${qs}`);
+    if (!r?.url) throw new Error('Missing Google connect url');
+    return r.url;
   },
   disconnect: async () => {
     return fetchAPI('/google/disconnect', { method: 'POST' });

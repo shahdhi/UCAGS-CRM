@@ -109,8 +109,45 @@ async function upsertIntegrationRow(sb, key, patch) {
 }
 
 /**
+ * GET /api/google/oauth/connect-url
+ * Returns the Google OAuth consent URL as JSON.
+ * This exists because browser redirects to /oauth/connect do NOT include Bearer tokens.
+ */
+router.get('/oauth/connect-url', isAuthenticated, async (req, res) => {
+  try {
+    const oauth2 = getOAuthClient();
+    const user = req.user || req.session?.user || {};
+    const key = userKey(user);
+
+    const state = signState({
+      k: key,
+      ts: Date.now(),
+      returnTo: clean(req.query.returnTo) || '/#contacts'
+    });
+
+    const scopes = [
+      'https://www.googleapis.com/auth/contacts',
+      'https://www.googleapis.com/auth/userinfo.email'
+    ];
+
+    const url = oauth2.generateAuthUrl({
+      access_type: 'offline',
+      prompt: 'consent',
+      scope: scopes,
+      include_granted_scopes: true,
+      state
+    });
+
+    return res.json({ success: true, url });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+/**
  * GET /api/google/oauth/connect
- * Redirects the logged-in officer to Google OAuth consent screen.
+ * Legacy redirect endpoint (works for cookie-based sessions). For Bearer-token auth,
+ * use /oauth/connect-url then redirect client-side.
  */
 router.get('/oauth/connect', isAuthenticated, async (req, res) => {
   try {
