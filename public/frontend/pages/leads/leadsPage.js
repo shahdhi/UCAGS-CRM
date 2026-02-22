@@ -625,10 +625,10 @@ function viewLeadDetails(leadId) {
 
           
           <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap;">
-            <button class="btn btn-secondary" onclick="saveLeadContact(${lead.id})" style="padding: 12px 24px;">
+            <button class="btn btn-secondary" onclick="saveLeadContact('${String(lead.id).replace(/'/g, "\\'")}')" style="padding: 12px 24px;">
               <i class="fas fa-address-book"></i> Save Contact
             </button>
-            <button class="btn btn-primary" onclick="editLeadDetails(${lead.id})" style="padding: 12px 24px;">
+            <button class="btn btn-primary" onclick="editLeadDetails('${String(lead.id).replace(/'/g, "\\'")}')" style="padding: 12px 24px;">
               <i class="fas fa-edit"></i> Edit Lead
             </button>
           </div>

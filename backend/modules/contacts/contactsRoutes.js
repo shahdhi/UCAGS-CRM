@@ -106,6 +106,13 @@ router.post('/from-lead/:leadId', isAuthenticated, async (req, res) => {
  * List contacts
  * Query: q, batch
  */
+function canEditContact(user, contact) {
+  if (!user) return false;
+  const role = user.role || 'user';
+  if (role === 'admin') return true;
+  return clean(contact?.assigned_to) && clean(contact.assigned_to) === clean(user.name);
+}
+
 router.get('/', isAuthenticated, async (req, res) => {
   try {
     const sb = getSupabaseAdmin();
@@ -136,6 +143,85 @@ router.get('/', isAuthenticated, async (req, res) => {
     if (error) throw error;
 
     res.json({ success: true, contacts: data || [] });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+/**
+ * PUT /api/contacts/:id
+ * Update contact fields
+ */
+router.put('/:id', isAuthenticated, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+    const user = req.user || req.session?.user || {};
+    const id = clean(req.params.id);
+
+    const { data: existing, error: exErr } = await sb
+      .from('contacts')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (exErr) throw exErr;
+
+    if (!canEditContact(user, existing)) {
+      return res.status(403).json({ success: false, error: 'Not allowed' });
+    }
+
+    const patch = {
+      display_name: req.body?.display_name != null ? clean(req.body.display_name) : existing.display_name,
+      name: req.body?.name != null ? clean(req.body.name) : existing.name,
+      phone_number: req.body?.phone_number != null ? clean(req.body.phone_number) : existing.phone_number,
+      email: req.body?.email != null ? clean(req.body.email) : existing.email,
+      program_name: req.body?.program_name != null ? clean(req.body.program_name) : existing.program_name,
+      program_short: req.body?.program_short != null ? clean(req.body.program_short) : existing.program_short,
+      batch_name: req.body?.batch_name != null ? clean(req.body.batch_name) : existing.batch_name,
+      batch_no: req.body?.batch_no != null ? clean(req.body.batch_no) : existing.batch_no,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await sb
+      .from('contacts')
+      .update(patch)
+      .eq('id', id)
+      .select('*')
+      .single();
+    if (error) throw error;
+
+    res.json({ success: true, contact: data });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+/**
+ * DELETE /api/contacts/:id
+ */
+router.delete('/:id', isAuthenticated, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+    const user = req.user || req.session?.user || {};
+    const id = clean(req.params.id);
+
+    const { data: existing, error: exErr } = await sb
+      .from('contacts')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (exErr) throw exErr;
+
+    if (!canEditContact(user, existing)) {
+      return res.status(403).json({ success: false, error: 'Not allowed' });
+    }
+
+    const { error } = await sb
+      .from('contacts')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+
+    res.json({ success: true });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }

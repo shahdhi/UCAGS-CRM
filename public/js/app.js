@@ -996,12 +996,129 @@ async function navigateToPage(page) {
 }
 
 // Load contacts
+function openContactModal(contact) {
+    const escape = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    // Close existing
+    document.getElementById('contactDetailsModal')?.remove();
+
+    const html = `
+      <div class="modal-overlay" id="contactDetailsModal" onclick="this.remove(); document.body.style.overflow='';">
+        <div class="modal-dialog" onclick="event.stopPropagation()" style="max-width:720px;">
+          <div class="modal-header">
+            <h2><i class="fas fa-address-book"></i> Contact Details</h2>
+            <button class="modal-close" onclick="document.getElementById('contactDetailsModal')?.remove(); document.body.style.overflow='';"><i class="fas fa-times"></i></button>
+          </div>
+          <div class="modal-body">
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label>Contact Name</label>
+                <input id="c_display_name" class="form-control" value="${escape(contact.display_name || '')}" />
+              </div>
+              <div class="form-group">
+                <label>Name</label>
+                <input id="c_name" class="form-control" value="${escape(contact.name || '')}" />
+              </div>
+              <div class="form-group">
+                <label>Phone</label>
+                <input id="c_phone" class="form-control" value="${escape(contact.phone_number || '')}" />
+              </div>
+              <div class="form-group">
+                <label>Email</label>
+                <input id="c_email" class="form-control" value="${escape(contact.email || '')}" />
+              </div>
+              <div class="form-group">
+                <label>Program</label>
+                <input id="c_program" class="form-control" value="${escape(contact.program_name || '')}" />
+              </div>
+              <div class="form-group">
+                <label>Program Short</label>
+                <input id="c_program_short" class="form-control" value="${escape(contact.program_short || '')}" />
+              </div>
+              <div class="form-group">
+                <label>Batch</label>
+                <input id="c_batch" class="form-control" value="${escape(contact.batch_name || '')}" />
+              </div>
+              <div class="form-group">
+                <label>Batch No</label>
+                <input id="c_batch_no" class="form-control" value="${escape(contact.batch_no || '')}" />
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer" style="display:flex; justify-content:space-between;">
+            <button class="btn btn-danger" id="c_delete"><i class="fas fa-trash"></i> Delete</button>
+            <div style="display:flex; gap:10px;">
+              <button class="btn btn-secondary" onclick="document.getElementById('contactDetailsModal')?.remove(); document.body.style.overflow='';">Close</button>
+              <button class="btn btn-primary" id="c_save"><i class="fas fa-save"></i> Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', html);
+    document.body.style.overflow = 'hidden';
+
+    document.getElementById('c_save')?.addEventListener('click', async () => {
+        const btn = document.getElementById('c_save');
+        const old = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        try {
+            await API.contacts.update(contact.id, {
+                display_name: document.getElementById('c_display_name')?.value,
+                name: document.getElementById('c_name')?.value,
+                phone_number: document.getElementById('c_phone')?.value,
+                email: document.getElementById('c_email')?.value,
+                program_name: document.getElementById('c_program')?.value,
+                program_short: document.getElementById('c_program_short')?.value,
+                batch_name: document.getElementById('c_batch')?.value,
+                batch_no: document.getElementById('c_batch_no')?.value
+            });
+            UI.showToast('Contact saved', 'success');
+            document.getElementById('contactDetailsModal')?.remove();
+            document.body.style.overflow = '';
+            await loadContacts();
+        } catch (e) {
+            console.error(e);
+            UI.showToast(e.message || 'Failed to save', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = old;
+        }
+    });
+
+    document.getElementById('c_delete')?.addEventListener('click', async () => {
+        const ok = confirm('Delete this contact?');
+        if (!ok) return;
+        const btn = document.getElementById('c_delete');
+        const old = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+        try {
+            await API.contacts.remove(contact.id);
+            UI.showToast('Contact deleted', 'success');
+            document.getElementById('contactDetailsModal')?.remove();
+            document.body.style.overflow = '';
+            await loadContacts();
+        } catch (e) {
+            console.error(e);
+            UI.showToast(e.message || 'Failed to delete', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = old;
+        }
+    });
+}
+
+// Load contacts
 async function loadContacts() {
     try {
         const tbody = document.getElementById('contactsTableBody');
         const q = document.getElementById('contactsSearch')?.value || '';
         const res = await API.contacts.list({ q });
         const rows = res.contacts || [];
+        window.__contactsLastRows = rows;
 
         const escape = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -1022,6 +1139,18 @@ async function loadContacts() {
                 DOMPatcher.patchTableBody(tbody, rows, (x) => x.id, trHtml);
             } else {
                 tbody.innerHTML = rows.map(trHtml).join('') || '<tr><td colspan="7" class="loading">No contacts found.</td></tr>';
+            }
+
+            // Row click -> details modal (bind once)
+            if (!tbody.__bound) {
+                tbody.__bound = true;
+                tbody.addEventListener('click', (ev) => {
+                    const tr = ev.target.closest('tr[data-row-key]');
+                    if (!tr) return;
+                    const id = tr.getAttribute('data-row-key');
+                    const row = (window.__contactsLastRows || []).find(x => String(x.id) === String(id));
+                    if (row) openContactModal(row);
+                });
             }
         }
 

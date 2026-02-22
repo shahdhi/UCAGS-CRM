@@ -394,6 +394,21 @@ const contactsAPI = {
       method: 'POST',
       body: JSON.stringify({ programName, batchName })
     });
+  },
+
+  update: async (id, patch) => {
+    if (!id) throw new Error('Missing contact id');
+    return fetchAPI(`/contacts/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(patch || {})
+    });
+  },
+
+  remove: async (id) => {
+    if (!id) throw new Error('Missing contact id');
+    return fetchAPI(`/contacts/${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    });
   }
 };
 
