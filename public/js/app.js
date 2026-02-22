@@ -1977,10 +1977,11 @@ async function loadDashboard() {
             return;
         }
 
-        setDefaultHomeRange();
+        const fromInputEl = document.getElementById('homeFromDate');
+        const toInputEl = document.getElementById('homeToDate');
 
-        const from = document.getElementById('homeFromDate')?.value || '';
-        const to = document.getElementById('homeToDate')?.value || '';
+        const from = fromInputEl?.value || '';
+        const to = toInputEl?.value || '';
 
         // Bind buttons once
         const applyBtn = document.getElementById('homeApplyRangeBtn');
@@ -2009,6 +2010,10 @@ async function loadDashboard() {
         if (lbLoadingEl) lbLoadingEl.innerHTML = '<p class="loading">Loading...</p>';
 
         const analytics = await API.dashboard.getAnalytics({ from, to });
+
+        // If range inputs are empty, default them to server-chosen range (current batch start -> today)
+        if (fromInputEl && !fromInputEl.value && analytics?.range?.from) fromInputEl.value = analytics.range.from;
+        if (toInputEl && !toInputEl.value && analytics?.range?.to) toInputEl.value = analytics.range.to;
 
         // KPI strip
         const k = analytics.kpis || {};

@@ -105,18 +105,17 @@
     return null;
   }
 
-  function renderAdminTable(reports) {
+  function renderAdminTable(reports, officers, schedule) {
     const wrap = $('reportsAdminTableWrap');
     if (!wrap) return;
 
-    if (!reports?.length) {
-      wrap.innerHTML = '<div class="content-placeholder" style="padding: 20px;"><p>No reports found for this date.</p></div>';
-      return;
-    }
+    // Allow rendering even when there are no submissions (we will show Missing rows)
+    const safeReports = Array.isArray(reports) ? reports : [];
 
     const cols = [
       { key: 'officer_name', label: 'Officer' },
       { key: 'slot_key', label: 'Slot' },
+      { key: 'missing', label: 'Status' },
       { key: 'fresh_calls_made', label: 'Fresh calls' },
       { key: 'fresh_messages_reached', label: 'Fresh messages' },
       { key: 'interested_leads', label: 'Interested' },
@@ -131,9 +130,10 @@
     const escape = (s) => String(s ?? '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
     const trHtmlFn = (r) => `
-      <tr data-row-key="${escape(String(r.id))}">
+      <tr data-row-key="${escape(String(r.id))}" ${r.is_missing ? 'style="opacity:0.75;"' : ''}>
         <td>${escape(r.officer_name || r.officer_user_id)}</td>
         <td>${escape(r.slot_key)}</td>
+        <td>${r.is_missing ? '<span class="badge" style="background:#fff1f2; color:#9f1239; border:1px solid #fecdd3;">Missing</span>' : '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Submitted</span>'}</td>
         <td>${escape(r.fresh_calls_made)}</td>
         <td>${escape(r.fresh_messages_reached)}</td>
         <td>${escape(r.interested_leads)}</td>
@@ -142,9 +142,56 @@
         <td>${escape(r.followup_scheduled)}</td>
         <td>${escape(r.closures)}</td>
         <td style="max-width: 280px; white-space: pre-wrap;">${escape(r.notes || '')}</td>
-        <td><button class="btn btn-secondary" data-edit-report="${r.id}"><i class="fas fa-edit"></i> Edit</button></td>
+        <td>${r.is_missing ? '' : `<button class="btn btn-secondary" data-edit-report="${r.id}"><i class="fas fa-edit"></i> Edit</button>`}</td>
       </tr>
     `;
+
+    // Expand to include missing slots for all officers (admin view)
+    let rowsToRender = safeReports.slice();
+
+    const slots = (schedule?.slots || []).map(s => s.key).filter(Boolean);
+    if (Array.isArray(officers) && officers.length && slots.length) {
+      const byOfficerSlot = new Map();
+      for (const r of rowsToRender) {
+        byOfficerSlot.set(`${r.officer_user_id}:${r.slot_key}`, r);
+      }
+
+      const expanded = [];
+      for (const o of officers) {
+        for (const slotKey of slots) {
+          const key = `${o.id}:${slotKey}`;
+          const found = byOfficerSlot.get(key);
+          if (found) {
+            expanded.push({ ...found, is_missing: false });
+          } else {
+            expanded.push({
+              id: `missing:${o.id}:${slotKey}`,
+              officer_user_id: o.id,
+              officer_name: o.name,
+              slot_key: slotKey,
+              fresh_calls_made: 0,
+              fresh_messages_reached: 0,
+              interested_leads: 0,
+              followup_calls: 0,
+              followup_messages: 0,
+              followup_scheduled: 0,
+              closures: 0,
+              notes: '',
+              is_missing: true
+            });
+          }
+        }
+      }
+
+      // Sort by officer name, then slot order
+      const slotIndex = new Map(slots.map((s, i) => [s, i]));
+      rowsToRender = expanded.sort((a, b) => {
+        const an = String(a.officer_name || a.officer_user_id || '');
+        const bn = String(b.officer_name || b.officer_user_id || '');
+        if (an !== bn) return an.localeCompare(bn);
+        return (slotIndex.get(a.slot_key) ?? 99) - (slotIndex.get(b.slot_key) ?? 99);
+      });
+    }
 
     // Create table skeleton once, then patch tbody
     if (!wrap.querySelector('table')) {
@@ -162,15 +209,15 @@
 
     const tbody = wrap.querySelector('tbody');
     if (tbody && window.DOMPatcher?.patchTableBody) {
-      window.DOMPatcher.patchTableBody(tbody, reports, (x) => x.id, trHtmlFn);
+      window.DOMPatcher.patchTableBody(tbody, rowsToRender, (x) => x.id, trHtmlFn);
     } else if (tbody) {
-      tbody.innerHTML = reports.map(trHtmlFn).join('');
+      tbody.innerHTML = rowsToRender.map(trHtmlFn).join('');
     }
 
     wrap.querySelectorAll('[data-edit-report]')?.forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-edit-report');
-        const row = reports.find(x => String(x.id) === String(id));
+        const row = rowsToRender.find(x => String(x.id) === String(id));
         if (!row) return;
 
         // Simple inline edit: reuse officer modal fields
@@ -267,6 +314,23 @@
     return rows;
   }
 
+  async function fetchOfficers() {
+    const ttlMs = 5 * 60 * 1000;
+    const cacheKey = 'reports:officers';
+    if (window.Cache) {
+      const cached = window.Cache.getFresh(cacheKey, ttlMs);
+      if (cached) return cached;
+    }
+
+    const headers = await authHeaders();
+    const res = await fetch('/api/users/officers', { headers });
+    const json = await res.json();
+    if (!json?.success) throw new Error(json?.error || 'Failed to load officers');
+    const officers = json.officers || [];
+    if (window.Cache) window.Cache.setWithTs(cacheKey, officers);
+    return officers;
+  }
+
   function formatTimeLabel(hhmm) {
     const t = parseHHMM(hhmm);
     if (!t) return String(hhmm || '').trim();
@@ -336,7 +400,7 @@
     if (window.Cache) window.Cache.invalidatePrefix('reports:daily:');
     const date = $('reportsAdminDate')?.value || todayISO();
     const rows = await adminLoadReports(date);
-    renderAdminTable(rows);
+    renderAdminTable(rows, officers, schedule);
   }
 
   function setOfficerDescription(schedule) {
@@ -438,6 +502,7 @@
   }
 
   async function initAdmin(schedule) {
+    const officers = await fetchOfficers().catch(() => []);
     const sec = $('reportsAdminSection');
     if (!sec) return;
     sec.style.display = 'block';
@@ -456,7 +521,7 @@
       if (wrap) wrap.innerHTML = '<div class="content-placeholder" style="padding: 20px;"><p class="loading">Loading...</p></div>';
       try {
         const rows = await adminLoadReports(dateInput.value);
-        renderAdminTable(rows);
+        renderAdminTable(rows, officers, schedule);
       } catch (e) {
         if (wrap) wrap.innerHTML = `<div class="content-placeholder" style="padding: 20px;"><p style="color:#ef4444;">${String(e.message || e)}</p></div>`;
         if (window.showToast) showToast(e.message, 'error');

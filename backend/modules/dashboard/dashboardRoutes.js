@@ -197,9 +197,29 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
 
     const currentBatches = await getCurrentBatchNames(sb);
 
-    // Default window: last 30 days
+    // Default window: current batch start date -> today (fallback: last 30 days)
     const toDefault = endOfDay(new Date());
-    const fromDefault = startOfDay(new Date(Date.now() - 29 * 24 * 3600 * 1000));
+    const fromFallback = startOfDay(new Date(Date.now() - 29 * 24 * 3600 * 1000));
+
+    let batchStart = null;
+    try {
+      if (currentBatches.length) {
+        const { data, error } = await sb
+          .from('batches')
+          .select('created_at')
+          .in('name', currentBatches)
+          .order('created_at', { ascending: true })
+          .limit(1);
+        if (!error) {
+          const first = (data || [])[0];
+          if (first?.created_at) batchStart = startOfDay(new Date(first.created_at));
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    const fromDefault = batchStart || fromFallback;
     const fromEff = from ? startOfDay(from) : fromDefault;
     const toEff = to ? endOfDay(to) : toDefault;
 
