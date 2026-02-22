@@ -250,6 +250,17 @@ body {
     height: 300px;
 }
 
+/* Ripple effect disabled globally */
+.btn::before {
+    content: none !important;
+    display: none !important;
+}
+
+.btn:hover::before {
+    width: 0 !important;
+    height: 0 !important;
+}
+
 /* Remove hover ripple/glow on Login + Logout buttons */
 #loginPage .btn::before,
 #loginPage .btn:hover::before,

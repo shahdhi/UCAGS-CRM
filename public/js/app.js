@@ -2182,7 +2182,7 @@ async function loadDashboard() {
             if (toEnrollBtn && !toEnrollBtn.__bound) {
                 toEnrollBtn.__bound = true;
                 toEnrollBtn.addEventListener('click', () => {
-                    window.location.hash = 'registrations-admin';
+                    window.location.hash = 'registrations';
                 });
             }
 
@@ -2190,7 +2190,7 @@ async function loadDashboard() {
             if (regBtn && !regBtn.__bound) {
                 regBtn.__bound = true;
                 regBtn.addEventListener('click', () => {
-                    window.location.hash = 'registrations-admin';
+                    window.location.hash = 'registrations';
                 });
             }
         }
