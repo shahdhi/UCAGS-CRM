@@ -380,6 +380,23 @@ const studentsAPI = {
   }
 };
 
+const contactsAPI = {
+  list: async ({ q = '' } = {}) => {
+    const params = new URLSearchParams();
+    if (q) params.set('q', String(q));
+    const qs = params.toString();
+    return fetchAPI(`/contacts${qs ? `?${qs}` : ''}`);
+  },
+
+  saveFromLead: async (leadId, { programName = '', batchName = '' } = {}) => {
+    if (!leadId) throw new Error('Missing lead id');
+    return fetchAPI(`/contacts/from-lead/${encodeURIComponent(leadId)}`, {
+      method: 'POST',
+      body: JSON.stringify({ programName, batchName })
+    });
+  }
+};
+
 const dashboardAPI = {
   /**
    * Get dashboard statistics
@@ -730,6 +747,7 @@ window.API = {
   students: studentsAPI,
   payments: paymentsAPI,
   dashboard: dashboardAPI,
+  contacts: contactsAPI,
   officers: officersAPI,
   email: emailAPI,
   calendar: calendarAPI,

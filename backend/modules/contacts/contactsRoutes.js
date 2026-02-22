@@ -1,0 +1,144 @@
+const express = require('express');
+const router = express.Router();
+
+const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
+const { isAuthenticated, isAdmin } = require('../../../server/middleware/auth');
+
+function clean(s) {
+  return String(s || '').trim();
+}
+
+function programShort(programName) {
+  const p = clean(programName).toLowerCase();
+  const map = {
+    'diploma in psychology': 'P'
+  };
+  if (map[p]) return map[p];
+  // fallback: first letter of last word
+  const parts = clean(programName).split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'X';
+  return String(parts[parts.length - 1][0] || 'X').toUpperCase();
+}
+
+function batchNumber(batchName) {
+  const m = clean(batchName).match(/(\d+)/);
+  return m ? m[1] : 'NA';
+}
+
+function officerFirstLetter(officerName) {
+  const n = clean(officerName);
+  return n ? n[0].toUpperCase() : 'U';
+}
+
+/**
+ * POST /api/contacts/from-lead/:leadId
+ * Save contact from an existing CRM lead
+ * Body: { programName, batchName }
+ */
+router.post('/from-lead/:leadId', isAuthenticated, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+    const user = req.user || req.session?.user || {};
+
+    const leadId = clean(req.params.leadId);
+    if (!leadId) return res.status(400).json({ success: false, error: 'Missing lead id' });
+
+    const programName = clean(req.body?.programName);
+    const batchName = clean(req.body?.batchName);
+
+    const { data: lead, error: lErr } = await sb
+      .from('crm_leads')
+      .select('*')
+      .eq('id', leadId)
+      .single();
+    if (lErr) throw lErr;
+
+    const role = user?.role || 'user';
+    if (role !== 'admin') {
+      const assignedTo = clean(lead?.assigned_to);
+      if (!assignedTo || assignedTo !== clean(user?.name)) {
+        return res.status(403).json({ success: false, error: 'Only the assigned officer can save this contact.' });
+      }
+    }
+
+    const name = clean(lead?.name || lead?.full_name || lead?.student_name || lead?.payload?.name || '');
+    const phone = clean(lead?.phone_number || lead?.phone || lead?.payload?.phone_number || lead?.payload?.phone || '');
+    const email = clean(lead?.email || lead?.payload?.email || '');
+
+    const progShort = programShort(programName || lead?.program_name || lead?.program || '');
+    const batchNo = batchNumber(batchName || lead?.batch_name || '');
+    const officerLetter = officerFirstLetter(user?.name);
+
+    const displayName = `${officerLetter}/${progShort}/B${batchNo} ${name || 'Unknown'}`.trim();
+
+    const upsertRow = {
+      source_type: 'crm_leads',
+      source_id: leadId,
+      display_name: displayName,
+      name: name || null,
+      phone_number: phone || null,
+      email: email || null,
+      program_name: programName || lead?.program_name || null,
+      program_short: progShort,
+      batch_name: batchName || lead?.batch_name || null,
+      batch_no: batchNo,
+      assigned_to: clean(lead?.assigned_to) || null,
+      assigned_user_id: user?.id || null,
+      created_by: user?.id || null,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data: saved, error: sErr } = await sb
+      .from('contacts')
+      .upsert(upsertRow, { onConflict: 'source_type,source_id' })
+      .select('*')
+      .single();
+
+    if (sErr) throw sErr;
+    res.json({ success: true, contact: saved });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+/**
+ * GET /api/contacts
+ * List contacts
+ * Query: q, batch
+ */
+router.get('/', isAuthenticated, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+    const user = req.user || req.session?.user || {};
+
+    const q = clean(req.query.q);
+    const batch = clean(req.query.batch);
+
+    let query = sb
+      .from('contacts')
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .limit(500);
+
+    if (batch) query = query.eq('batch_name', batch);
+
+    // Officers: only their assigned contacts
+    if ((user?.role || 'user') !== 'admin') {
+      query = query.eq('assigned_to', clean(user?.name));
+    }
+
+    if (q) {
+      // Basic search (Supabase OR)
+      query = query.or(`display_name.ilike.%${q}%,name.ilike.%${q}%,phone_number.ilike.%${q}%,email.ilike.%${q}%`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, contacts: data || [] });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+module.exports = router;

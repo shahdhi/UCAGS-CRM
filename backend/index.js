@@ -103,6 +103,9 @@ app.use('/api/registrations', require('./modules/registrations/registrationsRout
 // Reports (daily officer reports)
 app.use('/api/reports', require('./modules/reports/reportsRoutes'));
 
+// Contacts (CRM-only)
+app.use('/api/contacts', require('./modules/contacts/contactsRoutes'));
+
 // Notifications
 app.use('/api/notifications', require('./modules/notifications/notificationsRoutes'));
 

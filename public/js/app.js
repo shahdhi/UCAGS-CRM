@@ -939,11 +939,7 @@ async function navigateToPage(page) {
         case 'officers':
             loadOfficers();
             break;
-        case 'contacts-all':
-        case 'contacts-batch1':
-        case 'contacts-batch2':
-        case 'contacts-batch3':
-        case 'contacts-archived':
+        case 'contacts':
             loadContacts(page);
             break;
         case 'gmail':
@@ -999,10 +995,56 @@ async function navigateToPage(page) {
     }
 }
 
-// Load contacts based on page
-function loadContacts(page) {
-    console.log('Loading contacts for:', page);
-    // This will be implemented to load actual contact data
+// Load contacts
+async function loadContacts() {
+    try {
+        const tbody = document.getElementById('contactsTableBody');
+        const q = document.getElementById('contactsSearch')?.value || '';
+        const res = await API.contacts.list({ q });
+        const rows = res.contacts || [];
+
+        const escape = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        const trHtml = (c) => `
+          <tr data-row-key="${escape(c.id)}">
+            <td style="font-weight:700;">${escape(c.display_name || c.name || '')}</td>
+            <td>${escape(c.phone_number || '')}</td>
+            <td>${escape(c.email || '')}</td>
+            <td>${escape(c.program_short || c.program_name || '')}</td>
+            <td>${escape(c.batch_name || '')}</td>
+            <td>${escape(c.assigned_to || '')}</td>
+            <td>${escape((c.updated_at || '').slice(0, 10))}</td>
+          </tr>
+        `;
+
+        if (tbody) {
+            if (window.DOMPatcher && DOMPatcher.patchTableBody) {
+                DOMPatcher.patchTableBody(tbody, rows, (x) => x.id, trHtml);
+            } else {
+                tbody.innerHTML = rows.map(trHtml).join('') || '<tr><td colspan="7" class="loading">No contacts found.</td></tr>';
+            }
+        }
+
+        const refreshBtn = document.getElementById('contactsRefreshBtn');
+        if (refreshBtn && !refreshBtn.__bound) {
+            refreshBtn.__bound = true;
+            refreshBtn.addEventListener('click', () => loadContacts().catch(console.error));
+        }
+
+        const searchEl = document.getElementById('contactsSearch');
+        if (searchEl && !searchEl.__bound) {
+            searchEl.__bound = true;
+            let t = null;
+            searchEl.addEventListener('input', () => {
+                if (t) clearTimeout(t);
+                t = setTimeout(() => loadContacts().catch(console.error), 300);
+            });
+        }
+
+    } catch (e) {
+        console.error('Failed to load contacts:', e);
+        UI.showToast(e.message || 'Failed to load contacts', 'error');
+    }
 }
 
 // Load Gmail view

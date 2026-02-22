@@ -624,7 +624,10 @@ function viewLeadDetails(leadId) {
           </div>
 
           
-          <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
+          <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap;">
+            <button class="btn btn-secondary" onclick="saveLeadContact(${lead.id})" style="padding: 12px 24px;">
+              <i class="fas fa-address-book"></i> Save Contact
+            </button>
             <button class="btn btn-primary" onclick="editLeadDetails(${lead.id})" style="padding: 12px 24px;">
               <i class="fas fa-edit"></i> Edit Lead
             </button>
@@ -647,6 +650,39 @@ function viewLeadDetails(leadId) {
 /**
  * Close lead details modal
  */
+async function saveLeadContact(leadId) {
+  try {
+    if (!window.API || !API.contacts) throw new Error('Contacts API not available');
+
+    const lead = currentLeads.find(l => String(l.id) == String(leadId));
+    if (!lead) throw new Error('Lead not found');
+
+    const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+    const batchName = isOfficerView ? window.officerBatchFilter : window.adminBatchFilter;
+
+    const programName = String(lead.course || lead.intake_json?.course || '').trim();
+
+    const btn = document.querySelector('#leadDetailsModal button[onclick^="saveLeadContact"]');
+    if (btn) {
+      btn.disabled = true;
+      btn.dataset._oldHtml = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    }
+
+    await API.contacts.saveFromLead(leadId, { programName, batchName });
+    showToast('Saved to Contacts', 'success');
+  } catch (e) {
+    console.error(e);
+    showToast(e.message || 'Failed to save contact', 'error');
+  } finally {
+    const btn = document.querySelector('#leadDetailsModal button[onclick^="saveLeadContact"]');
+    if (btn) {
+      btn.disabled = false;
+      if (btn.dataset._oldHtml) btn.innerHTML = btn.dataset._oldHtml;
+    }
+  }
+}
+
 function closeLeadModal(event) {
   // Only close if clicking overlay or close button
   if (event && event.target.className !== 'modal-overlay' && !event.target.closest('.modal-close')) {

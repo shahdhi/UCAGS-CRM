@@ -74,35 +74,10 @@
                     <span>Calendar</span>
                 </a>
 
-                <div class="nav-section">
-                    <div class="nav-section-header">
-                        <i class="fas fa-users"></i>
-                        <span>Contacts</span>
-                        <i class="fas fa-chevron-down toggle-icon"></i>
-                    </div>
-                    <div class="nav-submenu">
-                        <a href="#" class="nav-subitem" data-page="contacts-all">
-                            <i class="fas fa-address-book"></i>
-                            <span>All Contacts</span>
-                        </a>
-                        <a href="#" class="nav-subitem" data-page="contacts-batch1">
-                            <i class="fas fa-layer-group"></i>
-                            <span>Batch 2024-01</span>
-                        </a>
-                        <a href="#" class="nav-subitem" data-page="contacts-batch2">
-                            <i class="fas fa-layer-group"></i>
-                            <span>Batch 2024-02</span>
-                        </a>
-                        <a href="#" class="nav-subitem" data-page="contacts-batch3">
-                            <i class="fas fa-layer-group"></i>
-                            <span>Batch 2024-03</span>
-                        </a>
-                        <a href="#" class="nav-subitem" data-page="contacts-archived">
-                            <i class="fas fa-archive"></i>
-                            <span>Archived</span>
-                        </a>
-                    </div>
-                </div>
+                <a href="#" class="nav-item" data-page="contacts">
+                    <i class="fas fa-address-book"></i>
+                    <span>Contacts</span>
+                </a>
 
                 <!-- Leads for Officers: grouped by batch (no new sheets, just filter by Batch column) -->
                 <div class="nav-section officer-only" id="officerLeadsSection">
@@ -358,47 +333,33 @@
                 </div>
             </div>
 
-            <!-- Contacts Views -->
-            <div id="contacts-allView" class="content-view">
+            <!-- Contacts View -->
+            <div id="contactsView" class="content-view">
                 <div class="page-header">
-                    <h1>All Contacts</h1>
-                    <button class="btn btn-primary">
-                        <i class="fas fa-plus"></i> New Contact
-                    </button>
+                    <h1><i class="fas fa-address-book"></i> Contacts</h1>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <input id="contactsSearch" class="form-control" style="width:240px;" placeholder="Search (name / phone / email)" />
+                        <button id="contactsRefreshBtn" class="btn btn-secondary" type="button"><i class="fas fa-sync"></i> Refresh</button>
+                    </div>
                 </div>
-                <div class="content-placeholder">
-                    <i class="fas fa-address-book"></i>
-                    <p>All student contacts will be displayed here</p>
-                </div>
-            </div>
 
-            <div id="contacts-batch1View" class="content-view">
-                <div class="page-header">
-                    <h1>Batch 2024-01</h1>
-                </div>
-                <div class="content-placeholder">
-                    <i class="fas fa-layer-group"></i>
-                    <p>Students from Batch 2024-01</p>
-                </div>
-            </div>
-
-            <div id="contacts-batch2View" class="content-view">
-                <div class="page-header">
-                    <h1>Batch 2024-02</h1>
-                </div>
-                <div class="content-placeholder">
-                    <i class="fas fa-layer-group"></i>
-                    <p>Students from Batch 2024-02</p>
-                </div>
-            </div>
-
-            <div id="contacts-batch3View" class="content-view">
-                <div class="page-header">
-                    <h1>Batch 2024-03</h1>
-                </div>
-                <div class="content-placeholder">
-                    <i class="fas fa-layer-group"></i>
-                    <p>Students from Batch 2024-03</p>
+                <div class="table-container">
+                    <table class="data-table" id="contactsTable">
+                        <thead>
+                            <tr>
+                                <th>Contact Name</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>Program</th>
+                                <th>Batch</th>
+                                <th>Saved By</th>
+                                <th>Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contactsTableBody">
+                            <tr><td colspan="7" class="loading">Loading contacts...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -431,16 +392,6 @@
                             <tr><td colspan="4" class="loading">Loading students...</td></tr>
                         </tbody>
                     </table>
-                </div>
-            </div>
-
-            <div id="contacts-archivedView" class="content-view">
-                <div class="page-header">
-                    <h1>Archived Contacts</h1>
-                </div>
-                <div class="content-placeholder">
-                    <i class="fas fa-archive"></i>
-                    <p>Archived student contacts</p>
                 </div>
             </div>
 
