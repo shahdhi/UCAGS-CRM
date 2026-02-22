@@ -69,10 +69,14 @@ async function initLeadsPage(modeOrBatch) {
   window.__selectedLeadIds.clear();
   updateSelectionUI();
 
-  // Load leads data (avoid double load on rapid view changes)
+  // Update header title: show only sheet name
   const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
   const batch = isOfficerView ? window.officerBatchFilter : window.adminBatchFilter;
   const sheet = (isOfficerView ? window.officerSheetFilter : window.adminSheetFilter) || 'Main Leads';
+  const titleEl = document.getElementById('leadsViewTitle');
+  if (titleEl) titleEl.textContent = sheet;
+
+  // Load leads data (avoid double load on rapid view changes)
   const key = `${isOfficerView ? 'officer' : 'admin'}|${batch || 'all'}|${sheet}`;
   const now = Date.now();
 
@@ -297,56 +301,76 @@ async function loadLeads() {
         if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
       }
 
-      let sheets = ['Main Leads', 'Extra Leads'];
-      try {
-        if (isOfficerView) {
-          const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`, { headers: authHeaders });
-          const json = await res.json();
-          if (json.success && Array.isArray(json.sheets)) {
-            sheets = Array.from(new Set([...sheets, ...json.sheets]));
-          }
-        } else {
-          const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`, { headers: authHeaders });
-          const json = await res.json();
-          if (json.success && Array.isArray(json.sheets)) {
-            sheets = Array.from(new Set([...sheets, ...json.sheets]));
-          }
-        }
-      } catch (e) {
-        console.warn('Failed to load sheets list', e);
-      }
+      // Use cached sheet list for instant render
+      const cacheKey = `${isOfficerView ? 'officer' : 'admin'}:${batch}`;
+      window.__leadsSheetsCache = window.__leadsSheetsCache || new Map();
 
-      // Build tab bar
-      tabsEl.style.display = 'flex';
-      tabsEl.innerHTML = '';
+      let sheets = window.__leadsSheetsCache.get(cacheKey) || ['Main Leads', 'Extra Leads'];
+      sheets = Array.from(new Set(['Main Leads', 'Extra Leads', ...sheets]));
 
-      const makeTab = (name) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'btn btn-secondary';
-        btn.style.padding = '6px 10px';
-        btn.style.borderRadius = '999px';
-        btn.style.border = (name === currentSheet) ? '1px solid #592c88' : '1px solid #eaecf0';
-        btn.style.background = (name === currentSheet) ? '#f4ebff' : '#fff';
-        btn.style.color = (name === currentSheet) ? '#592c88' : '#344054';
-        btn.textContent = name;
-        btn.addEventListener('click', () => {
-          if (isOfficerView) {
-            window.officerSheetFilter = name;
-          } else {
-            window.adminSheetFilter = name;
-          }
-          const page = isOfficerView
-            ? `leads-myLeads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`
-            : `leads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`;
-          window.location.hash = page;
-          currentPage = 1;
-          loadLeads();
-        });
-        return btn;
+      const applyTabStyle = (btn, active) => {
+        btn.style.border = active ? '1px solid #592c88' : '1px solid #eaecf0';
+        btn.style.background = active ? '#f4ebff' : '#fff';
+        btn.style.color = active ? '#592c88' : '#344054';
       };
 
-      sheets.forEach(s => tabsEl.appendChild(makeTab(s)));
+      const renderTabs = (sheetList) => {
+        // Build tab bar
+        tabsEl.style.display = 'flex';
+        tabsEl.innerHTML = '';
+
+        const makeTab = (name) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn btn-secondary';
+          btn.style.padding = '6px 10px';
+          btn.style.borderRadius = '999px';
+          applyTabStyle(btn, name === currentSheet);
+          btn.textContent = name;
+
+          btn.addEventListener('click', () => {
+            // Instant active UI (don’t wait for loadLeads)
+            try {
+              tabsEl.querySelectorAll('button.btn').forEach(b => applyTabStyle(b, b.textContent === name));
+            } catch (_) {}
+
+            if (isOfficerView) window.officerSheetFilter = name;
+            else window.adminSheetFilter = name;
+
+            const page = isOfficerView
+              ? `leads-myLeads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`
+              : `leads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`;
+            window.location.hash = page;
+            currentPage = 1;
+            loadLeads();
+          });
+          return btn;
+        };
+
+        sheetList.forEach(s => tabsEl.appendChild(makeTab(s)));
+      };
+
+      // Render immediately from cache/default
+      renderTabs(sheets);
+
+      // Refresh sheet list async (don’t block UI)
+      (async () => {
+        try {
+          const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`, { headers: authHeaders });
+          const json = await res.json();
+          if (json.success && Array.isArray(json.sheets)) {
+            const merged = Array.from(new Set(['Main Leads', 'Extra Leads', ...json.sheets]));
+            window.__leadsSheetsCache.set(cacheKey, merged);
+
+            // If list changed, re-render quickly
+            if (merged.join('|') !== sheets.join('|')) {
+              renderTabs(merged);
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to load sheets list', e);
+        }
+      })();
 
       const addBtn = document.createElement('button');
       addBtn.type = 'button';

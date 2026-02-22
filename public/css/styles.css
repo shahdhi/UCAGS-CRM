@@ -574,8 +574,40 @@ body {
     display: flex;
     gap: 8px;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap; /* keep in one row */
     justify-content: flex-end;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+#leadsView .leads-header-actions::-webkit-scrollbar {
+    height: 6px;
+}
+
+#leadsView .leads-header-actions::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.25);
+    border-radius: 999px;
+}
+
+/* Small screens: stack leads header buttons vertically for better tap targets */
+@media (max-width: 640px) {
+  #leadsView .page-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  #leadsView .leads-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  #leadsView .leads-header-actions .btn {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 
 #leadsView .leads-header-actions .btn {
