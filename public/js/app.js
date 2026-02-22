@@ -2124,7 +2124,8 @@ async function loadDashboard() {
         const acEl = document.getElementById('homeActionCenter');
         if (acEl && currentUser.role === 'admin' && ac) {
             const overdue = Number(ac.overdueFollowUps || 0);
-            const pendingPay = Number(ac.paymentsPendingConfirmation || 0);
+            const toConfirm = Number(ac.paymentsToBeConfirmed || 0);
+            const toEnroll = Number(ac.toBeEnrolled || 0);
             const missingAssign = Number(ac.registrationsMissingAssignedTo || 0);
 
             acEl.innerHTML = `
@@ -2136,13 +2137,23 @@ async function loadDashboard() {
                     <button class="btn btn-secondary" type="button" id="acViewFollowUpsBtn">View</button>
                   </div>
                 </div>
+
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-                  <div><strong>Payments pending confirmation</strong><div style="color:#667085; font-size:12px;">Confirm receipts</div></div>
+                  <div><strong>Payments to be confirmed</strong><div style="color:#667085; font-size:12px;">Payment received but not confirmed</div></div>
                   <div style="display:flex; gap:10px; align-items:center;">
-                    <span class="badge" style="background:#fffbeb; color:#92400e; border:1px solid #fde68a;">${pendingPay}</span>
+                    <span class="badge" style="background:#fffbeb; color:#92400e; border:1px solid #fde68a;">${toConfirm}</span>
                     <button class="btn btn-secondary" type="button" id="acViewPaymentsBtn">View</button>
                   </div>
                 </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                  <div><strong>To be enrolled</strong><div style="color:#667085; font-size:12px;">Payment received but not enrolled</div></div>
+                  <div style="display:flex; gap:10px; align-items:center;">
+                    <span class="badge" style="background:#ecfeff; color:#155e75; border:1px solid #a5f3fc;">${toEnroll}</span>
+                    <button class="btn btn-secondary" type="button" id="acViewToEnrollBtn">View</button>
+                  </div>
+                </div>
+
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
                   <div><strong>Registrations missing assignment</strong><div style="color:#667085; font-size:12px;">Assign an officer</div></div>
                   <div style="display:flex; gap:10px; align-items:center;">
@@ -2167,6 +2178,14 @@ async function loadDashboard() {
                     window.location.hash = 'payments';
                 });
             }
+            const toEnrollBtn = document.getElementById('acViewToEnrollBtn');
+            if (toEnrollBtn && !toEnrollBtn.__bound) {
+                toEnrollBtn.__bound = true;
+                toEnrollBtn.addEventListener('click', () => {
+                    window.location.hash = 'registrations-admin';
+                });
+            }
+
             const regBtn = document.getElementById('acViewRegistrationsBtn');
             if (regBtn && !regBtn.__bound) {
                 regBtn.__bound = true;

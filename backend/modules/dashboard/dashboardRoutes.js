@@ -502,34 +502,70 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
       .filter(r => String(r.officer || '').toLowerCase() !== 'admin')
       .sort((a, b) => b.count - a.count || b.conversionRate - a.conversionRate || a.officer.localeCompare(b.officer));
 
-    // Action center: payments pending confirmation (admin only)
-    let paymentsPendingConfirmation = 0;
+    // Action center (admin only)
+    let paymentsToBeConfirmed = 0;
+    let toBeEnrolled = 0;
+
     if (isAdminUser) {
+      // Payments to be confirmed = payment received saved, but is_confirmed=false
       try {
-        let { data, error } = await sb
+        const { data, error } = await sb
           .from('payments')
-          .select('id')
-          .eq('is_confirmed', false)
+          .select('id, is_confirmed, installment_no, amount, payment_date, slip_received, receipt_received')
+          .eq('installment_no', 1)
           .limit(20000);
         if (error) throw error;
-        paymentsPendingConfirmation = (data || []).length;
+
+        paymentsToBeConfirmed = (data || []).filter(p => {
+          const amt = Number(p.amount || 0);
+          if (!Number.isFinite(amt) || amt <= 0) return false;
+          const hasReceipt = !!(p.slip_received || p.receipt_received);
+          const hasDate = !!p.payment_date;
+          if (!(hasDate || hasReceipt)) return false;
+          return p.is_confirmed === false;
+        }).length;
       } catch (e1) {
         const msg = String(e1.message || '').toLowerCase();
         const missingCol = (msg.includes('column') && msg.includes('is_confirmed') && msg.includes('does not exist')) ||
           (msg.includes('schema cache') && msg.includes('is_confirmed') && msg.includes('could not find'));
         if (!missingCol) {
-          // ignore
-        } else {
-          // fallback: treat receipt_received=false as pending
-          try {
-            const { data } = await sb
-              .from('payments')
-              .select('id')
-              .eq('receipt_received', false)
-              .limit(20000);
-            paymentsPendingConfirmation = (data || []).length;
-          } catch (e2) {}
+          console.warn('ActionCenter: failed paymentsToBeConfirmed:', e1.message || e1);
         }
+        paymentsToBeConfirmed = 0;
+      }
+
+      // To be enrolled = payment received saved (current batch) but no student record yet
+      try {
+        const paymentReceivedIds = await getPaymentReceivedRegistrationIds(sb);
+        if (paymentReceivedIds.length) {
+          const { data: regs, error: rErr } = await sb
+            .from('registrations')
+            .select('id, batch_name')
+            .in('id', paymentReceivedIds)
+            .in('batch_name', currentBatches)
+            .limit(20000);
+          if (rErr) throw rErr;
+
+          const regIds = (regs || []).map(r => r.id);
+          if (regIds.length) {
+            let studentCount = 0;
+            try {
+              const { count, error: sErr } = await sb
+                .from('students')
+                .select('id', { count: 'exact', head: true })
+                .in('registration_id', regIds);
+              if (sErr) throw sErr;
+              studentCount = Number(count || 0);
+            } catch (e2) {
+              // If students table missing, can't compute
+              studentCount = 0;
+            }
+
+            toBeEnrolled = Math.max(0, regIds.length - studentCount);
+          }
+        }
+      } catch (e) {
+        toBeEnrolled = 0;
       }
     }
 
@@ -552,7 +588,8 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
       },
       actionCenter: isAdminUser ? {
         overdueFollowUps: followUpsOverdue,
-        paymentsPendingConfirmation,
+        paymentsToBeConfirmed,
+        toBeEnrolled,
         registrationsMissingAssignedTo: missingAssignedTo
       } : null
     });
