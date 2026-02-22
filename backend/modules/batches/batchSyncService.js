@@ -25,6 +25,12 @@ function normalizeHeader(h) {
   return String(h || '').trim();
 }
 
+function a1Sheet(sheetName) {
+  // Quote sheet names to be safe (spaces/special chars) for Google A1 notation
+  const safe = String(sheetName || '').replace(/'/g, "''");
+  return `'${safe}'`;
+}
+
 function indexHeaders(headers) {
   const lowerToIndex = new Map();
   (headers || []).forEach((h, i) => {
@@ -119,21 +125,21 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
   const results = [];
   for (const sheetName of tabs) {
     // Read header
-    const headerRow = await readSheet(spreadsheetId, `${sheetName}!A1:AZ1`, { force: true });
+    const headerRow = await readSheet(spreadsheetId, `${a1Sheet(sheetName)}!A1:AZ1`, { force: true });
     const headers = (headerRow && headerRow[0]) ? headerRow[0].map(normalizeHeader) : [];
     const idxFn = indexHeaders(headers);
 
     const idIdx = idxFn('ID');
     
     // Read rows
-    const rows = await readSheet(spreadsheetId, `${sheetName}!A2:AZ`, { force: true });
+    const rows = await readSheet(spreadsheetId, `${a1Sheet(sheetName)}!A2:AZ`, { force: true });
     const parsed = (rows || [])
       .filter(r => r && r.length)
       .map((r, i) => parseLeadRow(r, idxFn, i + 2, headers))  // Pass row number (2 = first data row) and headers
       .filter(l => l.sheet_lead_id);
 
     if (parsed.length === 0) {
-      results.push({ sheetName, success: true, inserted: 0, updated: 0 });
+      results.push({ sheetName, success: true, inserted: 0, updated: 0, debug: { headers: headers.length, rowsRead: (rows || []).length } });
       continue;
     }
 
@@ -215,7 +221,7 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
       }
     }
 
-    results.push({ sheetName, success: true, inserted: insertPayload.length, updated: updatePayload.length });
+    results.push({ sheetName, success: true, inserted: insertPayload.length, updated: updatePayload.length, debug: { headers: headers.length, rowsRead: (rows || []).length } });
   }
 
   return {
