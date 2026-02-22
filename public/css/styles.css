@@ -1145,6 +1145,24 @@ body {
     font-style: italic;
 }
 
+/* Leads skeleton shimmer (table loading) */
+#leadsView .leads-skel-row td {
+    padding: 14px 12px;
+}
+
+#leadsView .leads-skel-line {
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #f2f4f7 25%, #e4e7ec 37%, #f2f4f7 63%);
+    background-size: 400% 100%;
+    animation: leads-skel-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes leads-skel-shimmer {
+    0% { background-position: 100% 0; }
+    100% { background-position: 0 0; }
+}
+
 /* Payments table: allow horizontal scroll instead of overlapping columns */
 #paymentsView .table-container {
     overflow-x: auto;

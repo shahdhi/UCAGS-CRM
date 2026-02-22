@@ -540,16 +540,24 @@ function renderLeadsTable() {
  */
 function showLeadsLoading() {
   const tbody = document.getElementById('leadsTableBody');
-  if (tbody) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="6" class="loading" style="text-align: center; padding: 40px;">
-          <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
-          <p>Loading leads...</p>
-        </td>
-      </tr>
-    `;
-  }
+  if (!tbody) return;
+
+  // Skeleton shimmer placeholders
+  const rows = 8;
+  const cell = (w = '70%') => `<div class="leads-skel-line" style="width:${w}"></div>`;
+
+  const rowHtml = () => `
+    <tr class="leads-skel-row">
+      <td>${cell('60%')}</td>
+      <td>${cell('40%')}</td>
+      <td>${cell('55%')}</td>
+      <td>${cell('35%')}</td>
+      <td>${cell('45%')}</td>
+      <td>${cell('30%')}</td>
+    </tr>
+  `;
+
+  tbody.innerHTML = Array.from({ length: rows }).map(rowHtml).join('');
 }
 
 /**
