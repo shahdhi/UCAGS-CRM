@@ -317,7 +317,7 @@
 
       if (!tbody) return;
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="loading">No registrations found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">No registrations found</td></tr>';
         return;
       }
 
@@ -365,7 +365,17 @@
 
     // Only show skeleton on first load to prevent flicker
     if (tbody && showSkeleton) {
-      tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading registrations...</td></tr>';
+      const skelRow = () => `
+        <tr class="table-skel-row">
+          <td><div class="table-skel-line" style="width:55%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:45%"></div></td>
+          <td><div class="table-skel-line" style="width:30%"></div></td>
+          <td><div class="table-skel-line" style="width:30%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+        </tr>
+      `;
+      tbody.innerHTML = Array.from({ length: 8 }).map(skelRow).join('');
     }
 
     try {
@@ -376,7 +386,7 @@
     } catch (e) {
       console.error(e);
       if (tbody && showSkeleton) {
-        tbody.innerHTML = `<tr><td colspan="6" class="loading">${escapeHtml(e.message || 'Failed to load registrations')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="empty">${escapeHtml(e.message || 'Failed to load registrations')}</td></tr>`;
       }
       throw e;
     } finally {

@@ -255,7 +255,13 @@
     }
 
     // Only show skeleton on first load to avoid flicker (stable like Lead Management)
-    if (list && showSkeleton) list.innerHTML = '<p class="loading">Loading programs...</p>';
+    if (list && showSkeleton) {
+      list.innerHTML = `
+        <div class="programs-skel">
+          ${Array.from({ length: 6 }).map(() => `<div class="table-skel-line" style="height:14px; width:${40 + Math.floor(Math.random()*40)}%; margin:10px 0;"></div>`).join('')}
+        </div>
+      `;
+    }
 
     try {
       const data = await fetchPrograms();
@@ -264,7 +270,7 @@
     } catch (e) {
       console.error(e);
       if (list && showSkeleton) {
-        list.innerHTML = `<p class="loading">${escapeHtml(e.message || 'Failed to load programs')}</p>`;
+        list.innerHTML = `<p class="empty">${escapeHtml(e.message || 'Failed to load programs')}</p>`;
       }
       throw e;
     } finally {

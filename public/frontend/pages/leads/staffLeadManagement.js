@@ -403,7 +403,18 @@
     }
 
     if (tbody && (showSkeleton || !window.Cache)) {
-      tbody.innerHTML = `<tr><td colspan="7" class="loading">Loading leads...</td></tr>`;
+      const skelRow = () => `
+        <tr class="table-skel-row">
+          <td><div class="table-skel-line" style="width:50%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:60%"></div></td>
+          <td><div class="table-skel-line" style="width:40%"></div></td>
+          <td><div class="table-skel-line" style="width:30%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:25%"></div></td>
+        </tr>
+      `;
+      tbody.innerHTML = Array.from({ length: 8 }).map(skelRow).join('');
     }
 
     isLoading = true;

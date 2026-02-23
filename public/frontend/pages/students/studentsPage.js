@@ -38,7 +38,7 @@
         const rows = cached.students || [];
         lastRowsById = new Map((rows || []).map(s => [String(s.id || s.student_id), s]));
         if (!rows.length) {
-          tbody.innerHTML = '<tr><td colspan="4" class="loading">No students found</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="4" class="empty">No students found</td></tr>';
         } else {
           tbody.innerHTML = rows.map(s => {
             const key = String(s.id || s.student_id);
@@ -60,7 +60,15 @@
     }
 
     if (tbody && showSkeleton) {
-      tbody.innerHTML = '<tr><td colspan="4" class="loading">Loading students...</td></tr>';
+      const skelRow = () => `
+        <tr class="table-skel-row">
+          <td><div class="table-skel-line" style="width:55%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:45%"></div></td>
+          <td><div class="table-skel-line" style="width:30%"></div></td>
+        </tr>
+      `;
+      tbody.innerHTML = Array.from({ length: 8 }).map(skelRow).join('');
     }
 
     try {
@@ -76,7 +84,7 @@
 
       if (!tbody) return;
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="4" class="loading">No students found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="empty">No students found</td></tr>';
         return;
       }
 
@@ -102,7 +110,7 @@
     } catch (e) {
       console.error(e);
       if (tbody && showSkeleton) {
-        tbody.innerHTML = `<tr><td colspan="4" class="loading">${escapeHtml(e.message || 'Failed to load')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="empty">${escapeHtml(e.message || 'Failed to load')}</td></tr>`;
       }
     } finally {
       isLoading = false;
@@ -160,6 +168,7 @@
                 <th style="padding:6px 8px; font-size:12px;">Amount</th>
                 <th style="padding:6px 8px; font-size:12px;">Method</th>
                 <th style="padding:6px 8px; font-size:12px;">Plan</th>
+                <th style="padding:6px 8px; font-size:12px;">Installment</th>
                 <th style="padding:6px 8px; font-size:12px;">Receipt</th>
                 <th style="padding:6px 8px; font-size:12px;">Status</th>
               </tr>
@@ -175,6 +184,7 @@
                     <td style="padding:6px 8px; font-size:12px; white-space:nowrap;">${escapeHtml(p.amount ?? '')}</td>
                     <td style="padding:6px 8px; font-size:12px;">${escapeHtml(p.payment_method || '')}</td>
                     <td style="padding:6px 8px; font-size:12px;">${escapeHtml(p.payment_plan || '')}</td>
+                    <td style="padding:6px 8px; font-size:12px; white-space:nowrap;">${(() => { const n = Number(p.installment_no || 0); return n ? `${n}${n===1?'st':n===2?'nd':n===3?'rd':'th'}` : ''; })()}</td>
                     <td style="padding:6px 8px; font-size:12px; white-space:nowrap;">${escapeHtml(p.receipt_no || '')}</td>
                     <td style="padding:6px 8px; font-size:12px; white-space:nowrap;">${status}</td>
                   </tr>

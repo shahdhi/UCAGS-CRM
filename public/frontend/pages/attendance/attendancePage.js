@@ -211,7 +211,15 @@
   async function loadAdminSummary() {
     const tbody = document.getElementById('attendanceAdminSummaryTableBody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="4" class="loading">Loading...</td></tr>';
+    const skelRow = () => `
+      <tr class="table-skel-row">
+        <td><div class="table-skel-line" style="width:55%"></div></td>
+        <td><div class="table-skel-line" style="width:35%"></div></td>
+        <td><div class="table-skel-line" style="width:45%"></div></td>
+        <td><div class="table-skel-line" style="width:30%"></div></td>
+      </tr>
+    `;
+    tbody.innerHTML = Array.from({ length: 6 }).map(skelRow).join('');
 
     const monthInput = document.getElementById('attendanceAdminSummaryMonth');
     const month = monthInput?.value;
@@ -284,7 +292,18 @@
       }
     }
 
-    if (showSkeleton) tbody.innerHTML = '<tr><td colspan="5" class="loading">Loading…</td></tr>';
+    if (showSkeleton) {
+      const skelRow = () => `
+        <tr class="table-skel-row">
+          <td><div class="table-skel-line" style="width:55%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:45%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:30%"></div></td>
+        </tr>
+      `;
+      tbody.innerHTML = Array.from({ length: 6 }).map(skelRow).join('');
+    }
 
     const headers = await getAuthHeaders();
     const url = date ? `/api/attendance/records?date=${encodeURIComponent(date)}` : '/api/attendance/records';
@@ -507,7 +526,17 @@
       }
     }
 
-    if (showSkeleton) tbody.innerHTML = `<tr><td colspan="4" class="loading">Loading...</td></tr>`;
+    if (showSkeleton) {
+      const skelRow = () => `
+        <tr class="table-skel-row">
+          <td><div class="table-skel-line" style="width:55%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:45%"></div></td>
+          <td><div class="table-skel-line" style="width:30%"></div></td>
+        </tr>
+      `;
+      tbody.innerHTML = Array.from({ length: 6 }).map(skelRow).join('');
+    }
     try {
       const res = await API.attendance.getMyLeaveRequests({});
       if (window.Cache && res) window.Cache.setWithTs(cacheKey, res);
@@ -628,7 +657,18 @@
       }
     }
 
-    if (showSkeleton) tbody.innerHTML = `<tr><td colspan="5" class="loading">Loading...</td></tr>`;
+    if (showSkeleton) {
+      const skelRow = () => `
+        <tr class="table-skel-row">
+          <td><div class="table-skel-line" style="width:55%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:45%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:30%"></div></td>
+        </tr>
+      `;
+      tbody.innerHTML = Array.from({ length: 6 }).map(skelRow).join('');
+    }
     try {
       const res = await API.attendance.getLeaveRequests({ status });
       if (window.Cache && res) window.Cache.setWithTs(cacheKey, res);

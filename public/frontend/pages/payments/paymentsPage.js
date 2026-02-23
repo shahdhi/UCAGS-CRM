@@ -52,7 +52,7 @@
 
     if (!body) return;
     if (!rows.length) {
-      body.innerHTML = '<p class="loading">No payments found</p>';
+      body.innerHTML = '<p class="empty">No payments found</p>';
       return;
     }
 
@@ -87,6 +87,7 @@
           </thead>
           <tbody>
             ${rows.map(p => {
+              const instLabel = p.installment_no ? `Installment ${Number(p.installment_no)}` : '';
               const plan = (p.payment_plan || '') + (p.installment_no ? ` #${p.installment_no}` : '');
               return `
                 <tr data-id="${escapeHtml(p.id)}">
@@ -101,7 +102,7 @@
                         'registration fee only'
                       ].map(m => `<option value="${escapeHtml(m)}" ${m=== (p.payment_plan||'') ? 'selected' : ''}>${escapeHtml(m||'Select')}</option>`).join('')}
                     </select>
-                    <div style="font-size:12px; color:#667085; margin-top:4px;">${escapeHtml(p.installment_no ? `Installment #${p.installment_no}` : '')}</div>
+                    <div style="font-size:12px; color:#667085; margin-top:4px;">${escapeHtml(instLabel)}</div>
                   </td>
                   <td><input type="number" class="form-control pay-amount" value="${escapeHtml(p.amount ?? '')}" style="width:120px;" /></td>
                   <td><input type="date" class="form-control pay-date" value="${escapeHtml(p.payment_date || '')}" style="width:160px;" /></td>
@@ -407,6 +408,8 @@
     confirmBtn.disabled = !isRequiredFieldsFilled(tr);
   }
 
+  let __autoDefaultedInstallment = false;
+
   async function loadPayments({ showSkeleton = false } = {}) {
     const tbody = qs('paymentsTableBody');
     const limit = parseInt(qs('paymentsLimit')?.value || '200', 10) || 200;
@@ -462,6 +465,41 @@
       status: fetchStatus,
       type: selectedInstallmentFilter
     });
+
+    // Auto-default installment filter to current window (only once, only if user hasn't selected)
+    try {
+      if (!__autoDefaultedInstallment && !selectedInstallmentFilter) {
+        const today = new Date();
+        const rows0 = res.payments || [];
+        const match = rows0.find(r => {
+          if (!r.window_start_date || !r.window_end_date) return false;
+          const s = new Date(r.window_start_date);
+          const e = new Date(r.window_end_date);
+          if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return false;
+          return today >= s && today <= e;
+        });
+        const n = Number(match?.installment_no || 0);
+        if (n >= 1 && n <= 4) {
+          selectedInstallmentFilter = `installment_${n}`;
+          __autoDefaultedInstallment = true;
+
+          const typeSel = qs('paymentsInstallmentFilter');
+          if (typeSel) typeSel.value = selectedInstallmentFilter;
+
+          selectedStatus = 'all';
+          renderStatusTabs();
+
+          // Reload once with type filter applied
+          await loadPayments({ showSkeleton: false });
+          return;
+        }
+        __autoDefaultedInstallment = true;
+      }
+    } catch (e) {
+      console.warn('Auto default installment failed:', e?.message || e);
+      __autoDefaultedInstallment = true;
+    }
+
     if (window.Cache) window.Cache.setWithTs(cacheKey, res);
     let rows = res.payments || [];
     window.__paymentsLastSummary = rows;
@@ -502,9 +540,17 @@
         return '<span style="color:#98a2b3;">-</span>';
       })();
 
-      const installmentText = p.installment_no
-        ? `${String(status).toLowerCase() === 'due' ? 'Due ' : ''}${String(status).toLowerCase() === 'overdue' ? 'Overdue ' : ''}Installment #${p.installment_no}`.trim()
-        : '';
+      const installmentText = (() => {
+        const n = Number(p.installment_no || 0);
+        if (!n) return '';
+        const ord = n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
+
+        // Normalize status label
+        const st = String(p.computed_status || status || '').toLowerCase();
+        const label = st ? (st.charAt(0).toUpperCase() + st.slice(1)) : '';
+
+        return label ? `${ord} installment (${label})` : `${ord} installment`;
+      })();
 
       return `
         <tr data-id="${escapeHtml(p.id)}" data-registration-id="${escapeHtml(p.registration_id || '')}">
