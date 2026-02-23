@@ -64,6 +64,7 @@
             </div>
 
             <nav class="sidebar-nav">
+                <!-- Main -->
                 <a href="#" class="nav-item active" data-page="home">
                     <i class="fas fa-home"></i>
                     <span>Home</span>
@@ -79,11 +80,11 @@
                     <span>Contacts</span>
                 </a>
 
-                <!-- Leads for Officers: grouped by batch (no new sheets, just filter by Batch column) -->
+                <!-- Leads (Admin + Officer) -->
                 <div class="nav-section officer-only" id="officerLeadsSection">
                     <div class="nav-section-header">
                         <i class="fas fa-users"></i>
-                        <span>My Leads</span>
+                        <span>Leads</span>
                         <i class="fas fa-chevron-down toggle-icon"></i>
                     </div>
                     <div class="nav-submenu" id="officerLeadsBatchesMenu">
@@ -94,34 +95,22 @@
                         <!-- Batch subitems injected dynamically -->
                     </div>
                 </div>
-                
-                <div class="nav-section officer-only" id="officerLeadManagementSection">
-                    <div class="nav-section-header">
-                        <i class="fas fa-tasks"></i>
-                        <span>Lead Management</span>
-                        <i class="fas fa-chevron-down toggle-icon"></i>
-                    </div>
-                    <div class="nav-submenu" id="officerLeadManagementBatchesMenu">
-                        <a href="#" class="nav-subitem" data-page="lead-management">
-                            <i class="fas fa-list"></i>
-                            <span>All</span>
-                        </a>
-                        <!-- Batch subitems injected dynamically -->
-                    </div>
-                </div>
 
-                <!-- Leads for Admins: With batch submenu -->
                 <div class="nav-section admin-only">
                     <div class="nav-section-header">
                         <i class="fas fa-users"></i>
                         <span>Leads</span>
                         <i class="fas fa-chevron-down toggle-icon"></i>
                     </div>
-                    <div class="nav-submenu" id="leadsBatchesMenu">
-                    </div>
+                    <div class="nav-submenu" id="leadsBatchesMenu"></div>
                 </div>
 
                 <a href="#" class="nav-item admin-only" data-page="registrations">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Registrations</span>
+                </a>
+
+                <a href="#" class="nav-item officer-only" data-page="registrations-my">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Registrations</span>
                 </a>
@@ -134,22 +123,6 @@
                 <a href="#" class="nav-item admin-only" data-page="students">
                     <i class="fas fa-user-graduate"></i>
                     <span>Students</span>
-                </a>
-
-                <a href="#" class="nav-item admin-only" data-page="programs">
-                    <i class="fas fa-layer-group"></i>
-                    <span>Programs</span>
-                </a>
-
-                <a href="#" class="nav-item officer-only" data-page="registrations-my">
-                    <i class="fas fa-clipboard-list"></i>
-                    <span>Registrations</span>
-                </a>
-
-                <a href="#" class="nav-item nav-disabled" data-page="admissions" title="Coming Soon">
-                    <i class="fas fa-graduation-cap"></i>
-                    <span>Admissions</span>
-                    <span class="badge badge-secondary">Soon</span>
                 </a>
 
                 <a href="#" class="nav-item" data-page="whatsapp">
@@ -171,6 +144,7 @@
 
                 <div class="nav-divider"></div>
 
+                <!-- Admin tools -->
                 <a href="#" class="nav-item admin-only" data-page="users">
                     <i class="fas fa-users-cog"></i>
                     <span>Staff Management</span>
@@ -181,31 +155,52 @@
                     <span>Staff Attendance</span>
                 </a>
 
+                <a href="#" class="nav-item officer-only" data-page="attendance">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Staff Attendance</span>
+                </a>
+
                 <a href="#" class="nav-item admin-only" data-page="staff-lead-management">
                     <i class="fas fa-tasks"></i>
                     <span>Lead Management</span>
                 </a>
+
+                <div class="nav-section officer-only" id="officerLeadManagementSection">
+                    <div class="nav-section-header">
+                        <i class="fas fa-tasks"></i>
+                        <span>Lead Management</span>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="nav-submenu" id="officerLeadManagementBatchesMenu">
+                        <a href="#" class="nav-subitem" data-page="lead-management">
+                            <i class="fas fa-list"></i>
+                            <span>All</span>
+                        </a>
+                        <!-- Batch subitems injected dynamically -->
+                    </div>
+                </div>
 
                 <a href="#" class="nav-item" data-page="reports">
                     <i class="fas fa-chart-line"></i>
                     <span>Reports</span>
                 </a>
 
-                <a href="#" class="nav-item" data-page="settings">
-                    <i class="fas fa-cog"></i>
-                    <span>Settings</span>
-                </a>
-
                 <div class="nav-divider"></div>
 
-                <a href="#" class="nav-item officer-only" data-page="attendance">
-                    <i class="fas fa-clipboard-check"></i>
-                    <span>Attendance</span>
+                <!-- System -->
+                <a href="#" class="nav-item admin-only" data-page="programs">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Programs</span>
                 </a>
 
                 <a href="#" class="nav-item admin-only" data-page="receipts">
                     <i class="fas fa-receipt"></i>
                     <span>Receipts</span>
+                </a>
+
+                <a href="#" class="nav-item" data-page="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
                 </a>
 
             </nav>
@@ -305,6 +300,14 @@
                     <div class="dashboard-card admin-only">
                         <h3>Action Center</h3>
                         <div id="homeActionCenter" class="recent-list">
+                            <p class="loading">Loading...</p>
+                        </div>
+                    </div>
+
+                    <!-- Action Center (Officer only) -->
+                    <div class="dashboard-card officer-only">
+                        <h3>Action Center</h3>
+                        <div id="homeOfficerActionCenter" class="recent-list">
                             <p class="loading">Loading...</p>
                         </div>
                     </div>

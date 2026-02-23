@@ -12,6 +12,15 @@
       .replace(/'/g, '&#039;');
   }
 
+  function formatStudentId(sid) {
+    const raw = String(sid || '').trim();
+    if (!raw) return '';
+    if (raw.includes('/')) return raw;
+    const m = raw.match(/^([A-Za-z]+)(\d+)$/);
+    if (!m) return raw;
+    return `${m[1]}/${m[2]}`;
+  }
+
   let isLoading = false;
   let loadedOnce = false;
   let lastRowsById = new Map();
@@ -44,7 +53,7 @@
             const key = String(s.id || s.student_id);
             return `
               <tr data-student-key="${escapeHtml(key)}" style="cursor:pointer;">
-                <td style="font-weight:700;">${escapeHtml(s.student_id || '')}</td>
+                <td style="font-weight:700;">${escapeHtml(formatStudentId(s.student_id) || '')}</td>
                 <td>${escapeHtml(s.name || '')}</td>
                 <td>${escapeHtml(s.phone_number || '')}</td>
                 <td>${escapeHtml(s.email || '')}</td>
@@ -92,7 +101,7 @@
         const key = String(s.id || s.student_id);
         return `
           <tr data-row-key="${escapeHtml(key)}" data-student-key="${escapeHtml(key)}" style="cursor:pointer;">
-            <td style="font-weight:700;">${escapeHtml(s.student_id || '')}</td>
+            <td style="font-weight:700;">${escapeHtml(formatStudentId(s.student_id) || '')}</td>
             <td>${escapeHtml(s.name || '')}</td>
             <td>${escapeHtml(s.phone_number || '')}</td>
             <td>${escapeHtml(s.email || '')}</td>
@@ -209,7 +218,7 @@
     const get = (key) => student?.[key] ?? payload?.[key] ?? '';
 
     const personal = [
-      ['Student ID', student?.student_id],
+      ['Student ID', formatStudentId(student?.student_id)],
       ['Name', get('name')],
       ['Phone', get('phone_number')],
       ['Email', get('email')],
@@ -234,7 +243,7 @@
     body.innerHTML = `
       <div style="margin-bottom: 6px;">
         <div style="font-size:12px; color:#667085;">Student</div>
-        <div style="font-size:16px; font-weight:700; color:#101828; margin-top:2px;">${escapeHtml(student?.student_id || '')} — ${escapeHtml(get('name') || '')}</div>
+        <div style="font-size:16px; font-weight:700; color:#101828; margin-top:2px;">${escapeHtml(formatStudentId(student?.student_id) || '')} — ${escapeHtml(get('name') || '')}</div>
       </div>
 
       ${renderSection('Personal Details', renderKeyValueRows(personal))}

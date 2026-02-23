@@ -1221,6 +1221,9 @@ body {
     100% { background-position: 0 0; }
 }
 
+/* Home skeleton wrapper */
+.home-skel { padding: 6px 0; }
+
 /* Generic table skeleton shimmer (Registrations, Payments, etc.) */
 .table-skel-row td {
     padding: 14px 12px;

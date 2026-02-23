@@ -2301,9 +2301,16 @@ async function loadDashboard() {
 
         // Stable loading placeholders (avoid layout jumps)
         const acLoadingEl = document.getElementById('homeActionCenter');
+        const officerAcLoadingEl = document.getElementById('homeOfficerActionCenter');
         const lbLoadingEl = document.getElementById('homeLeaderboard');
-        if (acLoadingEl) acLoadingEl.innerHTML = '<p class="loading">Loading...</p>';
-        if (lbLoadingEl) lbLoadingEl.innerHTML = '<p class="loading">Loading...</p>';
+
+        const skelLines = (n = 5) => Array.from({ length: n }).map(() =>
+          `<div class="table-skel-line" style="height:14px; width:${40 + Math.floor(Math.random()*50)}%; margin:10px 0;"></div>`
+        ).join('');
+
+        if (acLoadingEl) acLoadingEl.innerHTML = `<div class="home-skel">${skelLines(6)}</div>`;
+        if (officerAcLoadingEl) officerAcLoadingEl.innerHTML = `<div class="home-skel">${skelLines(6)}</div>`;
+        if (lbLoadingEl) lbLoadingEl.innerHTML = `<div class="home-skel">${skelLines(6)}</div>`;
 
         const analytics = await API.dashboard.getAnalytics({ from, to });
 
@@ -2415,7 +2422,7 @@ async function loadDashboard() {
             }
         }
 
-        // Action center
+        // Action center (Admin)
         const ac = analytics.actionCenter || null;
         const acEl = document.getElementById('homeActionCenter');
         if (acEl && currentUser.role === 'admin' && ac) {
@@ -2423,6 +2430,17 @@ async function loadDashboard() {
             const toConfirm = Number(ac.paymentsToBeConfirmed || 0);
             const toEnroll = Number(ac.toBeEnrolled || 0);
             const missingAssign = Number(ac.registrationsMissingAssignedTo || 0);
+
+            // Pending leave approvals
+            let pendingLeave = 0;
+            try {
+                const authHeaders = await getAuthHeadersWithRetry();
+                const res = await fetch('/api/attendance/leave-requests?status=pending', { headers: authHeaders, cache: 'no-store' });
+                const json = await res.json();
+                if (json && json.success) pendingLeave = Number(json.count || (json.requests || []).length || 0);
+            } catch (e) {
+                pendingLeave = 0;
+            }
 
             acEl.innerHTML = `
               <div style="display:flex; flex-direction:column; gap:10px;">
@@ -2457,6 +2475,14 @@ async function loadDashboard() {
                     <button class="btn btn-secondary" type="button" id="acViewRegistrationsBtn">View</button>
                   </div>
                 </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                  <div><strong>Leave requests to be approved</strong><div style="color:#667085; font-size:12px;">Pending staff leave</div></div>
+                  <div style="display:flex; gap:10px; align-items:center;">
+                    <span class="badge" style="background:#fef2f2; color:#991b1b; border:1px solid #fecaca;">${pendingLeave}</span>
+                    <button class="btn btn-secondary" type="button" id="acViewLeaveRequestsBtn">View</button>
+                  </div>
+                </div>
               </div>
             `;
 
@@ -2488,6 +2514,154 @@ async function loadDashboard() {
                 regBtn.addEventListener('click', () => {
                     window.location.hash = 'registrations';
                 });
+            }
+
+            const lrBtn = document.getElementById('acViewLeaveRequestsBtn');
+            if (lrBtn && !lrBtn.__bound) {
+                lrBtn.__bound = true;
+                lrBtn.addEventListener('click', () => {
+                    window.location.hash = 'attendance';
+                    // best-effort: force pending filter once the page renders
+                    setTimeout(() => {
+                        try {
+                            const sel = document.getElementById('attendanceAdminLeaveStatus');
+                            if (sel) sel.value = 'pending';
+                            document.getElementById('attendanceAdminLeaveRefreshBtn')?.click();
+                        } catch (e) {}
+                    }, 600);
+                });
+            }
+        }
+
+        // Action center (Officer)
+        const officerAcEl = document.getElementById('homeOfficerActionCenter');
+        if (officerAcEl && currentUser.role !== 'admin') {
+            const authHeaders = await getAuthHeadersWithRetry();
+
+            // helper: Sri Lanka date (YYYY-MM-DD)
+            const slDateISO = () => {
+                const offsetMin = 330;
+                const d = new Date(Date.now() + offsetMin * 60 * 1000);
+                const yyyy = d.getUTCFullYear();
+                const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+                const dd = String(d.getUTCDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
+            };
+            const todayISO = slDateISO();
+
+            // 1) Check-in reminder
+            let checkedIn = false;
+            try {
+                const r = await fetch('/api/attendance/me/today', { headers: authHeaders, cache: 'no-store' });
+                const j = await r.json();
+                checkedIn = !!j?.checkedIn;
+            } catch (e) {}
+
+            // 2) Followups today
+            let followupsToday = 0;
+            try {
+                const r = await fetch('/api/calendar/followups', { headers: authHeaders, cache: 'no-store' });
+                const j = await r.json();
+                const all = [...(j?.overdue || []), ...(j?.upcoming || [])];
+                followupsToday = all.filter(ev => String(ev?.date || '').slice(0, 10) === todayISO).length;
+            } catch (e) {}
+
+            // 3) Daily report reminder: show next slot label/time
+            let nextSlotLabel = '---';
+            try {
+                const r = await fetch('/api/reports/daily/schedule', { headers: authHeaders, cache: 'no-store' });
+                const j = await r.json();
+                const slots = (j?.config?.slots || []).map(s => ({
+                    key: s.key,
+                    label: s.label || s.time,
+                    time: s.time
+                }));
+
+                const now = new Date(Date.now() + 330 * 60 * 1000);
+                const curMins = now.getUTCHours() * 60 + now.getUTCMinutes();
+
+                const parseMins = (t) => {
+                    const m = String(t || '').match(/^(\d{1,2}):(\d{2})$/);
+                    if (!m) return null;
+                    const hh = Number(m[1]);
+                    const mm = Number(m[2]);
+                    if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
+                    return hh * 60 + mm;
+                };
+
+                const ordered = slots
+                    .map(s => ({ ...s, mins: parseMins(s.time) }))
+                    .filter(s => typeof s.mins === 'number')
+                    .sort((a, b) => a.mins - b.mins);
+
+                const next = ordered.find(s => s.mins >= curMins);
+                nextSlotLabel = next?.label || (ordered[0]?.label ? `Tomorrow: ${ordered[0].label}` : '---');
+            } catch (e) {}
+
+            // 4) New leads to be contacted
+            let newLeads = 0;
+            try {
+                const r = await fetch('/api/crm-leads/my?batch=all', { headers: authHeaders, cache: 'no-store' });
+                const j = await r.json();
+                const leads = j?.leads || [];
+                newLeads = leads.filter(l => String(l.status || '').toLowerCase().trim() === 'new' || !String(l.status || '').trim()).length;
+            } catch (e) {}
+
+            officerAcEl.innerHTML = `
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                  <div><strong>Check-in reminder</strong><div style="color:#667085; font-size:12px;">${checkedIn ? 'Checked in today' : 'You have not checked in yet'}</div></div>
+                  <div style="display:flex; gap:10px; align-items:center;">
+                    <span class="badge" style="background:${checkedIn ? '#dcfce7' : '#fffbeb'}; color:${checkedIn ? '#166534' : '#92400e'}; border:1px solid ${checkedIn ? '#bbf7d0' : '#fde68a'};">${checkedIn ? 'Done' : 'Pending'}</span>
+                    <button class="btn btn-secondary" type="button" id="oacGoAttendanceBtn">Open</button>
+                  </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                  <div><strong>Followups today</strong><div style="color:#667085; font-size:12px;">Scheduled for today</div></div>
+                  <div style="display:flex; gap:10px; align-items:center;">
+                    <span class="badge" style="background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe;">${followupsToday}</span>
+                    <button class="btn btn-secondary" type="button" id="oacGoCalendarBtn">Open</button>
+                  </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                  <div><strong>Daily report reminder</strong><div style="color:#667085; font-size:12px;">Next slot: ${nextSlotLabel}</div></div>
+                  <div style="display:flex; gap:10px; align-items:center;">
+                    <span class="badge" style="background:#ecfeff; color:#155e75; border:1px solid #a5f3fc;">Today</span>
+                    <button class="btn btn-secondary" type="button" id="oacGoReportsBtn">Open</button>
+                  </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                  <div><strong>New leads to be contacted</strong><div style="color:#667085; font-size:12px;">Status: New</div></div>
+                  <div style="display:flex; gap:10px; align-items:center;">
+                    <span class="badge" style="background:#fff7ed; color:#9a3412; border:1px solid #fed7aa;">${newLeads}</span>
+                    <button class="btn btn-secondary" type="button" id="oacGoLeadsBtn">Open</button>
+                  </div>
+                </div>
+              </div>
+            `;
+
+            const goAttendance = document.getElementById('oacGoAttendanceBtn');
+            if (goAttendance && !goAttendance.__bound) {
+                goAttendance.__bound = true;
+                goAttendance.addEventListener('click', () => { window.location.hash = 'attendance'; });
+            }
+            const goCal = document.getElementById('oacGoCalendarBtn');
+            if (goCal && !goCal.__bound) {
+                goCal.__bound = true;
+                goCal.addEventListener('click', () => { window.location.hash = 'calendar'; });
+            }
+            const goReports = document.getElementById('oacGoReportsBtn');
+            if (goReports && !goReports.__bound) {
+                goReports.__bound = true;
+                goReports.addEventListener('click', () => { window.location.hash = 'reports'; });
+            }
+            const goLeads = document.getElementById('oacGoLeadsBtn');
+            if (goLeads && !goLeads.__bound) {
+                goLeads.__bound = true;
+                goLeads.addEventListener('click', () => { window.location.hash = 'leads-myLeads'; });
             }
         }
 

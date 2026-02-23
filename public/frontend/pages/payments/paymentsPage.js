@@ -12,6 +12,15 @@
       .replace(/'/g, '&#039;');
   }
 
+  function formatStudentId(sid) {
+    const raw = String(sid || '').trim();
+    if (!raw) return '';
+    if (raw.includes('/')) return raw;
+    const m = raw.match(/^([A-Za-z]+)(\d+)$/);
+    if (!m) return raw;
+    return `${m[1]}/${m[2]}`;
+  }
+
   function fmtDate(iso) {
     if (!iso) return '';
     const d = new Date(iso);
@@ -557,7 +566,7 @@
           <td>
             <a href="#" class="pay-view" style="color:#175CD3; text-decoration:none; font-weight:600;">${escapeHtml(p.registration_name || '')}</a>
           </td>
-          <td style="font-weight:700; color:#101828;">${escapeHtml(p.student_id || '-')}</td>
+          <td style="font-weight:700; color:#101828;">${escapeHtml(formatStudentId(p.student_id) || '-')}</td>
           <td>${statusBadge}</td>
           <td style="color:#475467; font-weight:600;">${escapeHtml(installmentText || '-')}</td>
           <td><input type="checkbox" class="pay-email" ${p.email_sent ? 'checked' : ''} /></td>

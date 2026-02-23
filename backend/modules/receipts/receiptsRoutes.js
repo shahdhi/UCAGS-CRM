@@ -366,7 +366,15 @@ router.get('/payment/:paymentId', isAdmin, async (req, res) => {
     const finalReceiptDate = (payment.confirmed_at || payment.payment_date || new Date().toISOString()).slice(0, 10);
 
     const studentName = registration?.name || payload.name || payment.registration_name || '';
-    const studentId = (registration?.student_id || payload.student_id || '');
+    const studentIdRaw = (registration?.student_id || payload.student_id || '');
+    const studentId = (() => {
+      const v = String(studentIdRaw || '').trim();
+      if (!v) return '';
+      if (v.includes('/')) return v;
+      const m = v.match(/^([A-Za-z]+)(\d+)$/);
+      if (!m) return v;
+      return `${m[1]}/${m[2]}`;
+    })();
     const enrolledProgram = registration?.program_name || payload.program_name || payload.course_program || payment.program_name || '';
     const paymentPlan = payment.payment_plan || '';
 

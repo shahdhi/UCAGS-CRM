@@ -141,7 +141,28 @@ function collectFormData() {
   const receiptDate = document.getElementById('receiptDate').value;
   const studentName = document.getElementById('studentName').value.trim();
   const studentIdInput = document.getElementById('studentId').value.trim();
-  const studentId = 'UCAGS/' + studentIdInput; // Add UCAGS/ prefix
+
+  const normalizeStudentId = (raw) => {
+    const v = String(raw || '').trim();
+    if (!v) return '';
+
+    // If already UCAGS/0004
+    const m1 = v.match(/^UCAGS\/(\d+)$/i);
+    if (m1) return `UCAGS/${m1[1]}`;
+
+    // If UCAGS0004
+    const m2 = v.match(/^UCAGS(\d+)$/i);
+    if (m2) return `UCAGS/${m2[1]}`;
+
+    // If only digits
+    const m3 = v.match(/^(\d+)$/);
+    if (m3) return `UCAGS/${m3[1]}`;
+
+    // Unknown format: leave as-is
+    return v;
+  };
+
+  const studentId = normalizeStudentId(studentIdInput);
   const enrolledProgram = document.getElementById('enrolledProgram').value.trim();
   const paymentPlan = document.getElementById('paymentPlan').value.trim();
   
