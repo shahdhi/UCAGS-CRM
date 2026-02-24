@@ -760,9 +760,16 @@ body {
 #homeView .stats-grid .stat-card {
     cursor: default !important;
     transition: none !important;
+    /* Remove global floating animation (defined in animations.css) for Home KPI cards */
+    animation: none !important;
     min-height: 88px;
     box-shadow: var(--shadow-sm) !important;
     border-color: var(--separator) !important;
+}
+
+/* Home (Analytics): also keep dashboard cards stable (no floating animation) */
+#homeView .dashboard-card {
+    animation: none !important;
 }
 
 #homeView .stats-grid .stat-card:hover,

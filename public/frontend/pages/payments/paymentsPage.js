@@ -65,12 +65,41 @@
       return;
     }
 
-    // Use current summary row (if available) to show due window
+    // Use current summary row (if available) to show due window + lead details
     let windowHtml = '';
+    let detailsHtml = '';
+
     if (window.__paymentsLastSummary && Array.isArray(window.__paymentsLastSummary)) {
       const cur = window.__paymentsLastSummary.find(x => String(x.registration_id) === String(registrationId));
+
       if (cur && (cur.window_start_date || cur.window_end_date)) {
         windowHtml = `<div style=\"font-size:12px; color:#667085; margin-top:6px;\">Window: ${escapeHtml(cur.window_start_date || '')} → ${escapeHtml(cur.window_end_date || '')}</div>`;
+      }
+
+      if (cur) {
+        const name = cur.registration_name || registrationName || '';
+        const email = cur.registration_email || '';
+        const phone = cur.registration_phone_number || '';
+        const wa = cur.registration_wa_number || phone || '';
+        const sid = formatStudentId(cur.student_id) || '';
+        const assignedTo = cur.assigned_to || '';
+
+        const row = (label, value) => `
+          <div style="display:flex; gap:8px;">
+            <div style="min-width:120px; color:#667085; font-weight:600;">${escapeHtml(label)}</div>
+            <div style="color:#101828; font-weight:600;">${escapeHtml(value || '-')}</div>
+          </div>
+        `;
+
+        detailsHtml = `
+          <div style="display:grid; gap:6px; padding:10px 12px; border:1px solid #eaecf0; border-radius:10px; background:#fcfcfd; margin-top:10px;">
+            ${row('Name', name)}
+            ${row('Email', email)}
+            ${row('Whatsapp Number', wa)}
+            ${row('Student ID', sid)}
+            ${row('Assigned to', assignedTo)}
+          </div>
+        `;
       }
     }
 
@@ -78,6 +107,7 @@
       <div style="margin-bottom:10px; color:#475467;">
         <div style="font-weight:700; color:#101828;">${escapeHtml(registrationName || '')}</div>
         ${windowHtml}
+        ${detailsHtml}
       </div>
       <div style="overflow-x:auto; width:100%;">
         <table class="data-table">
@@ -450,7 +480,6 @@
       const skelRow = () => `
         <tr class="table-skel-row">
           <td><div class="table-skel-line" style="width:60%"></div></td>
-          <td><div class="table-skel-line" style="width:35%"></div></td>
           <td><div class="table-skel-line" style="width:45%"></div></td>
           <td><div class="table-skel-line" style="width:40%"></div></td>
           <td><div class="table-skel-line" style="width:25%"></div></td>
@@ -532,7 +561,7 @@
   function renderPaymentsRows(rows, tbody) {
     if (!tbody) return;
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="13" class="empty">No payments found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="12" class="empty">No payments found</td></tr>';
       return;
     }
 
@@ -566,7 +595,6 @@
           <td>
             <a href="#" class="pay-view" style="color:#175CD3; text-decoration:none; font-weight:600;">${escapeHtml(p.registration_name || '')}</a>
           </td>
-          <td style="font-weight:700; color:#101828;">${escapeHtml(formatStudentId(p.student_id) || '-')}</td>
           <td>${statusBadge}</td>
           <td style="color:#475467; font-weight:600;">${escapeHtml(installmentText || '-')}</td>
           <td><input type="checkbox" class="pay-email" ${p.email_sent ? 'checked' : ''} /></td>

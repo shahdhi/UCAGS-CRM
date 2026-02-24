@@ -1103,8 +1103,51 @@ async function initGoogleContactsUI() {
 }
 
 // Load contacts
-function openContactModal(contact) {
+async function ensureProgramsCache() {
+    if (window.__programsCache && Array.isArray(window.__programsCache)) return window.__programsCache;
+    try {
+        const authHeaders = (window.getAuthHeadersWithRetry ? await getAuthHeadersWithRetry() : {});
+        const res = await fetch('/api/programs/sidebar', { headers: authHeaders, credentials: 'include' });
+        const json = await res.json().catch(() => null);
+        if (json?.success && Array.isArray(json.programs)) {
+            window.__programsCache = json.programs;
+            return window.__programsCache;
+        }
+    } catch (e) {
+        console.warn('Failed to load programs cache:', e?.message || e);
+    }
+    window.__programsCache = window.__programsCache || [];
+    return window.__programsCache;
+}
+
+function resolveProgramDisplayName(contact) {
+    const full = String(contact?.program_name || '').trim();
+    const short = String(contact?.program_short || '').trim();
+
+    // If program_name already looks like a full title (not just a code), use it.
+    const looksLikeCode = (s) => !!s && s.length <= 4 && /^[A-Za-z]+$/.test(s);
+    if (full && !looksLikeCode(full)) return full;
+
+    // Try to resolve using cached programs list (by common fields)
+    const programs = Array.isArray(window.__programsCache) ? window.__programsCache : [];
+    const key = (full || short || '').toLowerCase();
+    if (!key) return '';
+
+    const match = programs.find(p => {
+        const name = String(p?.name || '').trim().toLowerCase();
+        const code = String(p?.code || p?.short_code || p?.short || p?.program_short || '').trim().toLowerCase();
+        const id = String(p?.id || '').trim().toLowerCase();
+        return (code && code === key) || (name && name === key) || (id && id === key);
+    });
+
+    return String(match?.name || full || short || '').trim();
+}
+
+async function openContactModal(contact) {
     const escape = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    // Ensure programs cache is available so short codes resolve to full names
+    await ensureProgramsCache();
 
     // Close existing
     document.getElementById('contactDetailsModal')?.remove();
@@ -1136,7 +1179,7 @@ function openContactModal(contact) {
               </div>
               <div class="form-group">
                 <label>Program</label>
-                <input id="c_program" class="form-control" value="${escape(contact.program_name || contact.program_short || '')}" />
+                <input id="c_program" class="form-control" value="${escape(resolveProgramDisplayName(contact))}" />
               </div>
               <div class="form-group">
                 <label>Batch</label>
@@ -1157,6 +1200,9 @@ function openContactModal(contact) {
         </div>
       </div>
     `;
+
+    // Load programs cache in background (used to resolve program short codes to full names)
+    ensureProgramsCache().catch(() => {});
 
     document.body.insertAdjacentHTML('beforeend', html);
     document.body.style.overflow = 'hidden';
@@ -1274,7 +1320,7 @@ async function loadContacts() {
                     if (!tr) return;
                     const id = tr.getAttribute('data-row-key');
                     const row = (window.__contactsLastRows || []).find(x => String(x.id) === String(id));
-                    if (row) openContactModal(row);
+                    if (row) openContactModal(row).catch(console.error);
                 });
             }
         }

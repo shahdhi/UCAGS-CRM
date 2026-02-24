@@ -120,6 +120,31 @@ router.get('/admin/summary', isAdmin, async (req, res) => {
       });
     }
 
+    // Enrich with registration details (needed by Payments UI modal)
+    const sumRegIds = Array.from(new Set(summary.map(r => r.registration_id).filter(Boolean)));
+    let regById = new Map();
+    if (sumRegIds.length) {
+      const { data: regs, error: rErr } = await sb
+        .from('registrations')
+        .select('id,name,email,phone_number,wa_number,student_id,assigned_to,payload')
+        .in('id', sumRegIds);
+      if (rErr) throw rErr;
+
+      regById = new Map((regs || []).map(r => [String(r.id), r]));
+    }
+
+    for (const row of summary) {
+      const reg = regById.get(String(row.registration_id || ''));
+      const payload = reg?.payload && typeof reg.payload === 'object' ? reg.payload : {};
+
+      row.registration_name = row.registration_name || reg?.name || payload?.name || null;
+      row.registration_email = row.registration_email || reg?.email || payload?.email || null;
+      row.registration_phone_number = row.registration_phone_number || reg?.phone_number || payload?.phone_number || null;
+      row.registration_wa_number = row.registration_wa_number || reg?.wa_number || payload?.wa_number || null;
+      row.student_id = row.student_id || reg?.student_id || payload?.student_id || null;
+      row.assigned_to = row.assigned_to || reg?.assigned_to || payload?.assigned_to || null;
+    }
+
     // Sort: overdue first, then due, then upcoming, then completed, by end date
     const order = { overdue: 0, due: 1, upcoming: 2, completed: 3 };
     summary.sort((a, b) => {
