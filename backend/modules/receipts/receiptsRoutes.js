@@ -70,6 +70,9 @@ function renderReceiptPdf(doc, {
     }
   }
 
+  // Default font for entire document
+  doc.font(fontRegular);
+
   // Header - Purple background
   doc.rect(0, 0, doc.page.width, 70).fill(purple);
 
@@ -172,19 +175,32 @@ function renderReceiptPdf(doc, {
   const col4X = 240;
   const col5X = 310;
 
-  doc.rect(col1X, tableTop, doc.page.width - 60, 30).fill(purple);
-  doc.fontSize(9).fillColor('white').font(fontBold);
-  doc.text('No', col1X + 5, tableTop + 10, { width: 25 });
-  doc.text('Date', col2X + 5, tableTop + 10, { width: 70 });
-  doc.text('Description', col3X + 5, tableTop + 10, { width: 90 });
-  doc.text('Paid by', col4X + 5, tableTop + 10, { width: 60 });
-  doc.text('Amount', col5X + 5, tableTop + 10, { width: 80 });
+  const tableWidth = doc.page.width - 60;
+  const headerHeight = 32;
+  const rowHeight = 32;
 
-  yPos += 30;
+  doc.rect(col1X, tableTop, tableWidth, headerHeight).fill(purple);
+
+  // White grid (header)
+  doc.save().strokeColor('#FFFFFF').lineWidth(1);
+  doc.rect(col1X, tableTop, tableWidth, headerHeight).stroke();
+  [col2X, col3X, col4X, col5X].forEach(x => {
+    doc.moveTo(x, tableTop).lineTo(x, tableTop + headerHeight).stroke();
+  });
+  doc.restore();
+
+  doc.fontSize(9).fillColor('white').font(fontBold);
+  const hy = tableTop + 11;
+  doc.text('No', col1X + 5, hy, { width: 25, lineBreak: false });
+  doc.text('Date', col2X + 5, hy, { width: 70, lineBreak: false });
+  doc.text('Description', col3X + 5, hy, { width: 90, lineBreak: false });
+  doc.text('Paid by', col4X + 5, hy, { width: 60, lineBreak: false });
+  doc.text('Amount', col5X + 5, hy, { width: 80, lineBreak: false });
+
+  yPos += headerHeight;
 
   // Fit rows into the space available above the footer + thank-you block
   const availableBottomY = footerY - thankBlockHeight - 16;
-  const rowHeight = 25;
   const rows = (payments || []);
   const totalAmountAll = rows.reduce((sum, p) => sum + (parseFloat(p?.amount) || 0), 0);
 
@@ -193,16 +209,31 @@ function renderReceiptPdf(doc, {
   const visibleRows = rows.slice(0, maxRows);
 
   visibleRows.forEach((payment, index) => {
-    doc.rect(col1X, yPos, doc.page.width - 60, rowHeight).fill(index % 2 === 0 ? '#F5F3FF' : lightPurple);
+    doc.rect(col1X, yPos, tableWidth, rowHeight).fill(index % 2 === 0 ? '#F5F3FF' : lightPurple);
+
+    // White grid (row)
+    doc.save().strokeColor('#FFFFFF').lineWidth(1);
+    doc.rect(col1X, yPos, tableWidth, rowHeight).stroke();
+    [col2X, col3X, col4X, col5X].forEach(x => {
+      doc.moveTo(x, yPos).lineTo(x, yPos + rowHeight).stroke();
+    });
+    doc.restore();
+
     doc.fontSize(9).fillColor('#101828').font(fontRegular);
 
-    doc.text(String(index + 1), col1X + 5, yPos + 8, { width: 25 });
-    doc.text(payment.date || '-', col2X + 5, yPos + 8, { width: 70 });
-    doc.text(payment.description || '-', col3X + 5, yPos + 8, { width: 90 });
-    doc.text(payment.paidBy || '-', col4X + 5, yPos + 8, { width: 60 });
-
+    const ty = yPos + 11;
+    const no = String(index + 1);
+    const date = payment.date || '-';
+    const desc = payment.description || '-';
+    const paidBy = payment.paidBy || '-';
     const amount = parseFloat(payment.amount) || 0;
-    doc.text(amount > 0 ? `LKR ${amount.toLocaleString()}` : '-', col5X + 5, yPos + 8, { width: 80 });
+
+    // Prevent wrapping in narrow columns (avoid overlap). Use ellipsis if too long.
+    doc.text(no, col1X + 5, ty, { width: 25, lineBreak: false, ellipsis: true });
+    doc.text(date, col2X + 5, ty, { width: 70, lineBreak: false, ellipsis: true });
+    doc.text(desc, col3X + 5, ty, { width: 90, lineBreak: false, ellipsis: true });
+    doc.text(paidBy, col4X + 5, ty, { width: 60, lineBreak: false, ellipsis: true });
+    doc.text(amount > 0 ? `LKR ${amount.toLocaleString()}` : '-', col5X + 5, ty, { width: 80, lineBreak: false, ellipsis: true });
 
     yPos += rowHeight;
   });
@@ -217,8 +248,17 @@ function renderReceiptPdf(doc, {
   // Total row (ensure it stays visible)
   const totalRectY = Math.min(yPos, availableBottomY);
   doc.rect(col4X, totalRectY, doc.page.width - col4X - 30, rowHeight).fill(lightPurple);
+
+  // White grid (total row)
+  doc.save().strokeColor('#FFFFFF').lineWidth(1);
+  doc.rect(col1X, totalRectY, tableWidth, rowHeight).stroke();
+  [col2X, col3X, col4X, col5X].forEach(x => {
+    doc.moveTo(x, totalRectY).lineTo(x, totalRectY + rowHeight).stroke();
+  });
+  doc.restore();
+
   doc.fontSize(10).fillColor('#101828').font(fontBold);
-  doc.text(`LKR ${totalAmountAll.toLocaleString()}`, col5X + 5, totalRectY + 8, { width: 80 });
+  doc.text(`LKR ${totalAmountAll.toLocaleString()}`, col5X + 5, totalRectY + 11, { width: 80, lineBreak: false });
 
   yPos = totalRectY + rowHeight;
 
