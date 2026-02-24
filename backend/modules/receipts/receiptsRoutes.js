@@ -202,75 +202,37 @@ function renderReceiptPdf(doc, {
   const rows = (payments || []);
   const totalAmountAll = rows.reduce((sum, p) => sum + (parseFloat(p?.amount) || 0), 0);
 
-  // Reserve space for total row (variable row heights; allow Paid by to wrap to 2 lines)
-  const totalRowHeight = rowHeight;
-  const maxPaidByLines = 2;
+  // Reserve space for total row (fixed row height; single-line cells)
+  const maxRows = Math.max(0, Math.floor((availableBottomY - yPos - rowHeight) / rowHeight));
+  const visibleRows = rows.slice(0, maxRows);
 
-  doc.fontSize(9).fillColor('#101828').font(fontRegular);
-  const lineH = doc.currentLineHeight(true);
-  const capH = lineH * maxPaidByLines;
-  const vPad = 7;
-  const baseRowHeight = rowHeight;
-
-  const visibleRows = [];
-  for (let i = 0; i < rows.length; i++) {
-    const p = rows[i];
-    const paidByText = String(p?.paidBy || '-');
-
-    // Height needed for paidBy (cap at 2 lines)
-    const paidByH = doc.heightOfString(paidByText, { width: 60, align: 'left' });
-    const paidByHCapped = Math.min(paidByH, capH);
-
-    const neededRowH = Math.max(baseRowHeight, Math.ceil(paidByHCapped + vPad * 2));
-
-    // Check if this row + total row can fit
-    if ((yPos + neededRowH + totalRowHeight) > availableBottomY) break;
-
-    visibleRows.push({ payment: p, rowHeight: neededRowH });
-    yPos += neededRowH;
-  }
-
-  // Reset yPos to start drawing rows
-  yPos = tableTop + headerHeight;
-
-  visibleRows.forEach((row, idx) => {
-    const { payment, rowHeight: rH } = row;
-
-    doc.rect(col1X, yPos, tableWidth, rH).fill(idx % 2 === 0 ? '#F5F3FF' : lightPurple);
+  visibleRows.forEach((payment, idx) => {
+    doc.rect(col1X, yPos, tableWidth, rowHeight).fill(idx % 2 === 0 ? '#F5F3FF' : lightPurple);
 
     // White grid (row)
     doc.save().strokeColor('#FFFFFF').lineWidth(1);
-    doc.rect(col1X, yPos, tableWidth, rH).stroke();
+    doc.rect(col1X, yPos, tableWidth, rowHeight).stroke();
     [col2X, col3X, col4X, col5X].forEach(x => {
-      doc.moveTo(x, yPos).lineTo(x, yPos + rH).stroke();
+      doc.moveTo(x, yPos).lineTo(x, yPos + rowHeight).stroke();
     });
     doc.restore();
 
     doc.fontSize(9).fillColor('#101828').font(fontRegular);
 
-    const ty = yPos + vPad;
+    const ty = yPos + 11;
     const no = String(idx + 1);
     const date = payment.date || '-';
     const desc = payment.description || '-';
     const paidBy = String(payment.paidBy || '-');
     const amount = parseFloat(payment.amount) || 0;
 
-    // Single-line cells
     doc.text(no, col1X + 5, ty, { width: 25, lineBreak: false, ellipsis: true });
     doc.text(date, col2X + 5, ty, { width: 70, lineBreak: false, ellipsis: true });
     doc.text(desc, col3X + 5, ty, { width: 90, lineBreak: false, ellipsis: true });
-
-    // 2-line wrap for Paid by (cap to 2 lines)
-    doc.text(paidBy, col4X + 5, ty, {
-      width: 60,
-      height: capH,
-      lineGap: 1,
-      ellipsis: true
-    });
-
+    doc.text(paidBy, col4X + 5, ty, { width: 60, lineBreak: false, ellipsis: true });
     doc.text(amount > 0 ? `LKR ${amount.toLocaleString()}` : '-', col5X + 5, ty, { width: 80, lineBreak: false, ellipsis: true });
 
-    yPos += rH;
+    yPos += rowHeight;
   });
 
   const omitted = rows.length - visibleRows.length;
