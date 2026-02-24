@@ -156,15 +156,13 @@ function renderReceiptPdf(doc, {
   // Footer (fixed)
   const footerY = doc.page.height - 90;
 
-  // Thank you + seal (keep above footer)
+  // Seal + Thank you (keep above footer; thank-you should be just above footer, below the seal)
   const sealSize = 105;
   const thankYouHeight = 16;
-  const thankYouToSealGap = 18;
-  const sealTopPad = 8;
-  const sealBottomPad = 8;
+  const thankYouToSealGap = 12; // gap between seal and thank-you text
 
-  const sealBlockHeight = (fs.existsSync(sealPngPath) ? (sealTopPad + sealSize + sealBottomPad) : 0);
-  const thankBlockHeight = thankYouHeight + thankYouToSealGap + sealBlockHeight;
+  const sealBlockHeight = (fs.existsSync(sealPngPath) ? sealSize : 0);
+  const thankBlockHeight = sealBlockHeight + (sealBlockHeight ? thankYouToSealGap : 0) + thankYouHeight;
 
   // Payment table (moved down to prevent overlap with details)
   yPos = boxY + boxHeight + 18;
@@ -199,43 +197,80 @@ function renderReceiptPdf(doc, {
 
   yPos += headerHeight;
 
-  // Fit rows into the space available above the footer + thank-you block
+  // Fit rows into the space available above the footer + (anchored) seal+thank-you block
   const availableBottomY = footerY - thankBlockHeight - 16;
   const rows = (payments || []);
   const totalAmountAll = rows.reduce((sum, p) => sum + (parseFloat(p?.amount) || 0), 0);
 
-  // Reserve space for total row
-  const maxRows = Math.max(0, Math.floor((availableBottomY - yPos - rowHeight) / rowHeight));
-  const visibleRows = rows.slice(0, maxRows);
+  // Reserve space for total row (variable row heights; allow Paid by to wrap to 2 lines)
+  const totalRowHeight = rowHeight;
+  const maxPaidByLines = 2;
 
-  visibleRows.forEach((payment, index) => {
-    doc.rect(col1X, yPos, tableWidth, rowHeight).fill(index % 2 === 0 ? '#F5F3FF' : lightPurple);
+  doc.fontSize(9).fillColor('#101828').font(fontRegular);
+  const lineH = doc.currentLineHeight(true);
+  const capH = lineH * maxPaidByLines;
+  const vPad = 7;
+  const baseRowHeight = rowHeight;
+
+  const visibleRows = [];
+  for (let i = 0; i < rows.length; i++) {
+    const p = rows[i];
+    const paidByText = String(p?.paidBy || '-');
+
+    // Height needed for paidBy (cap at 2 lines)
+    const paidByH = doc.heightOfString(paidByText, { width: 60, align: 'left' });
+    const paidByHCapped = Math.min(paidByH, capH);
+
+    const neededRowH = Math.max(baseRowHeight, Math.ceil(paidByHCapped + vPad * 2));
+
+    // Check if this row + total row can fit
+    if ((yPos + neededRowH + totalRowHeight) > availableBottomY) break;
+
+    visibleRows.push({ payment: p, rowHeight: neededRowH });
+    yPos += neededRowH;
+  }
+
+  // Reset yPos to start drawing rows
+  yPos = tableTop + headerHeight;
+
+  visibleRows.forEach((row, idx) => {
+    const { payment, rowHeight: rH } = row;
+
+    doc.rect(col1X, yPos, tableWidth, rH).fill(idx % 2 === 0 ? '#F5F3FF' : lightPurple);
 
     // White grid (row)
     doc.save().strokeColor('#FFFFFF').lineWidth(1);
-    doc.rect(col1X, yPos, tableWidth, rowHeight).stroke();
+    doc.rect(col1X, yPos, tableWidth, rH).stroke();
     [col2X, col3X, col4X, col5X].forEach(x => {
-      doc.moveTo(x, yPos).lineTo(x, yPos + rowHeight).stroke();
+      doc.moveTo(x, yPos).lineTo(x, yPos + rH).stroke();
     });
     doc.restore();
 
     doc.fontSize(9).fillColor('#101828').font(fontRegular);
 
-    const ty = yPos + 11;
-    const no = String(index + 1);
+    const ty = yPos + vPad;
+    const no = String(idx + 1);
     const date = payment.date || '-';
     const desc = payment.description || '-';
-    const paidBy = payment.paidBy || '-';
+    const paidBy = String(payment.paidBy || '-');
     const amount = parseFloat(payment.amount) || 0;
 
-    // Prevent wrapping in narrow columns (avoid overlap). Use ellipsis if too long.
+    // Single-line cells
     doc.text(no, col1X + 5, ty, { width: 25, lineBreak: false, ellipsis: true });
     doc.text(date, col2X + 5, ty, { width: 70, lineBreak: false, ellipsis: true });
     doc.text(desc, col3X + 5, ty, { width: 90, lineBreak: false, ellipsis: true });
-    doc.text(paidBy, col4X + 5, ty, { width: 60, lineBreak: false, ellipsis: true });
+
+    // 2-line wrap for Paid by (cap to 2 lines)
+    doc.text(paidBy, col4X + 5, ty, {
+      width: 60,
+      height: capH,
+      lineGap: 1,
+      ellipsis: true
+    });
+
     doc.text(amount > 0 ? `LKR ${amount.toLocaleString()}` : '-', col5X + 5, ty, { width: 80, lineBreak: false, ellipsis: true });
 
-    yPos += rowHeight;
+    yPos += rH;
   });
 
   const omitted = rows.length - visibleRows.length;
@@ -257,29 +292,29 @@ function renderReceiptPdf(doc, {
   });
   doc.restore();
 
-  doc.fontSize(10).fillColor('#101828').font(fontBold);
+  doc.fontSize(10).fillColor('#101828').font(fontRegular);
   doc.text(`LKR ${totalAmountAll.toLocaleString()}`, col5X + 5, totalRectY + 11, { width: 80, lineBreak: false });
 
   yPos = totalRectY + rowHeight;
 
-  // Place thank-you block either 30pt after table or (if needed) squeeze it to be above footer.
-  yPos += 32;
-  yPos = Math.min(yPos, footerY - thankBlockHeight - 10);
+  // Seal (above) and Thank-you (below) anchored to the footer.
+  // Thank-you should sit just above the footer.
+  const thankYouY = footerY - 10 - thankYouHeight;
 
-  doc.fontSize(11).fillColor('#101828').font(fontRegular)
-    .text('Thank you for your payment', 30, yPos, { align: 'center', width: doc.page.width - 60 });
-
-  yPos += thankYouToSealGap;
+  // Draw seal above the thank-you line
   if (fs.existsSync(sealPngPath)) {
     try {
-      // Bigger seal, moved more to the right
       const sealX = (doc.page.width / 2) - (sealSize / 2) + 85;
-      doc.image(sealPngPath, sealX, yPos + sealTopPad, { width: sealSize, height: sealSize });
-      yPos += sealTopPad + sealSize + sealBottomPad;
+      const sealY = thankYouY - thankYouToSealGap - sealSize;
+      doc.image(sealPngPath, sealX, sealY, { width: sealSize, height: sealSize });
     } catch (err) {
       // ignore
     }
   }
+
+  // Thank you line (centered, just above footer)
+  doc.fontSize(11).fillColor('#101828').font(fontRegular)
+    .text('Thank you for your payment', 30, thankYouY, { align: 'center', width: doc.page.width - 60 });
 
   // Footer
   const footerRadius = 15;
@@ -305,7 +340,7 @@ function renderReceiptPdf(doc, {
     .closePath()
     .fill();
 
-  doc.fontSize(10).fillColor('black').font(fontBold)
+  doc.fontSize(10).fillColor('black').font(fontRegular)
     .text('UNIVERSAL COLLEGE OF APPLIED & GENERAL STUDIES', 20, footerY + 9, {
       align: 'center',
       width: doc.page.width - 40
