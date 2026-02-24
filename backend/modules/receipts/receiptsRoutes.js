@@ -43,19 +43,40 @@ function renderReceiptPdf(doc, {
   const purple = '#5B2C6F';
   const lightPurple = '#E8DFF5';
 
-  // Header - Purple background
-  doc.rect(0, 0, doc.page.width, 70).fill(purple);
-
-  doc.fontSize(32)
-    .fillColor('white')
-    .font('Helvetica-Bold')
-    .text('RECEIPT', 30, 18);
-
   // Resolve assets from project root
   // __dirname = <root>/backend/modules/receipts
   const rootDir = path.join(__dirname, '../../..');
   const logoPngPath = path.join(rootDir, 'logo.png');
   const sealPngPath = path.join(rootDir, 'seal.png');
+
+  // Fonts (San Francisco).
+  // Note: Apple's San Francisco fonts are not bundled here due to licensing.
+  // If you add SF Pro font files to <root>/fonts/, they will be used automatically.
+  const fontsDir = path.join(rootDir, 'fonts');
+  const sfRegular = path.join(fontsDir, 'SF-Pro-Text-Regular.ttf');
+  const sfBold = path.join(fontsDir, 'SF-Pro-Text-Semibold.ttf');
+  const sfBold2 = path.join(fontsDir, 'SF-Pro-Text-Bold.ttf');
+
+  const hasSf = fs.existsSync(sfRegular) && (fs.existsSync(sfBold) || fs.existsSync(sfBold2));
+  const fontRegular = hasSf ? 'SF' : 'Helvetica';
+  const fontBold = hasSf ? 'SF-Bold' : 'Helvetica-Bold';
+
+  if (hasSf) {
+    try {
+      doc.registerFont('SF', sfRegular);
+      doc.registerFont('SF-Bold', fs.existsSync(sfBold) ? sfBold : sfBold2);
+    } catch (e) {
+      // Fallback silently
+    }
+  }
+
+  // Header - Purple background
+  doc.rect(0, 0, doc.page.width, 70).fill(purple);
+
+  doc.fontSize(32)
+    .fillColor('white')
+    .font(fontBold)
+    .text('RECEIPT', 30, 18);
 
   if (fs.existsSync(logoPngPath)) {
     try {
@@ -68,8 +89,10 @@ function renderReceiptPdf(doc, {
 
   // Info box with rounded top-right corner
   const boxY = 70;
-  const boxHeight = 100;
   const cornerRadius = 15;
+
+  // More breathing room for the receipt details block
+  const boxHeight = 148;
 
   doc.fillColor(purple);
   doc.moveTo(doc.page.width - cornerRadius, boxY)
@@ -87,18 +110,61 @@ function renderReceiptPdf(doc, {
     .closePath()
     .fill();
 
-  // Receipt details
-  let yPos = 80;
-  doc.fontSize(11).fillColor('black').font('Helvetica');
-  doc.text(`Receipt No: ${receiptNumber}`, 30, yPos); yPos += 15;
-  doc.text(`Receipt Date: ${formatDate(receiptDate)}`, 30, yPos); yPos += 15;
-  doc.text(`Student: ${studentName}`, 30, yPos); yPos += 15;
-  doc.text(`Student ID: ${studentId}`, 30, yPos); yPos += 15;
-  doc.text(`Enrolled program: ${enrolledProgram}`, 30, yPos); yPos += 15;
-  doc.text(`Payment plan: ${paymentPlan}`, 30, yPos);
+  // Receipt details (with spacing + white dividers)
+  const detailsLeftX = 30;
+  const detailsRightX = doc.page.width - 30;
+  const detailLineGap = 22; // vertical spacing between items
+  const dividerInset = 0;
 
-  // Payment table
-  yPos = 190;
+  const details = [
+    `Receipt No: ${receiptNumber}`,
+    `Receipt Date: ${formatDate(receiptDate)}`,
+    `Student: ${studentName}`,
+    `Student ID: ${studentId}`,
+    `Enrolled program: ${enrolledProgram}`,
+    `Payment plan: ${paymentPlan}`
+  ];
+
+  let yPos = boxY + 16;
+  doc.fontSize(11).fillColor('#101828').font(fontRegular);
+
+  details.forEach((line, idx) => {
+    doc.text(line, detailsLeftX, yPos, {
+      width: detailsRightX - detailsLeftX,
+      lineGap: 2
+    });
+
+    // Divider between rows (white line)
+    if (idx < details.length - 1) {
+      const dividerY = yPos + detailLineGap - 7;
+      doc
+        .save()
+        .lineWidth(1)
+        .strokeColor('#FFFFFF')
+        .moveTo(detailsLeftX + dividerInset, dividerY)
+        .lineTo(detailsRightX - dividerInset, dividerY)
+        .stroke()
+        .restore();
+    }
+
+    yPos += detailLineGap;
+  });
+
+  // Footer (fixed)
+  const footerY = doc.page.height - 90;
+
+  // Thank you + seal (keep above footer)
+  const sealSize = 105;
+  const thankYouHeight = 16;
+  const thankYouToSealGap = 18;
+  const sealTopPad = 8;
+  const sealBottomPad = 8;
+
+  const sealBlockHeight = (fs.existsSync(sealPngPath) ? (sealTopPad + sealSize + sealBottomPad) : 0);
+  const thankBlockHeight = thankYouHeight + thankYouToSealGap + sealBlockHeight;
+
+  // Payment table (moved down to prevent overlap with details)
+  yPos = boxY + boxHeight + 18;
   const tableTop = yPos;
   const col1X = 30;
   const col2X = 60;
@@ -107,7 +173,7 @@ function renderReceiptPdf(doc, {
   const col5X = 310;
 
   doc.rect(col1X, tableTop, doc.page.width - 60, 30).fill(purple);
-  doc.fontSize(9).fillColor('white').font('Helvetica-Bold');
+  doc.fontSize(9).fillColor('white').font(fontBold);
   doc.text('No', col1X + 5, tableTop + 10, { width: 25 });
   doc.text('Date', col2X + 5, tableTop + 10, { width: 70 });
   doc.text('Description', col3X + 5, tableTop + 10, { width: 90 });
@@ -115,11 +181,20 @@ function renderReceiptPdf(doc, {
   doc.text('Amount', col5X + 5, tableTop + 10, { width: 80 });
 
   yPos += 30;
-  let totalAmount = 0;
 
-  (payments || []).forEach((payment, index) => {
-    doc.rect(col1X, yPos, doc.page.width - 60, 25).fill(index % 2 === 0 ? '#F5F3FF' : lightPurple);
-    doc.fontSize(9).fillColor('black').font('Helvetica');
+  // Fit rows into the space available above the footer + thank-you block
+  const availableBottomY = footerY - thankBlockHeight - 16;
+  const rowHeight = 25;
+  const rows = (payments || []);
+  const totalAmountAll = rows.reduce((sum, p) => sum + (parseFloat(p?.amount) || 0), 0);
+
+  // Reserve space for total row
+  const maxRows = Math.max(0, Math.floor((availableBottomY - yPos - rowHeight) / rowHeight));
+  const visibleRows = rows.slice(0, maxRows);
+
+  visibleRows.forEach((payment, index) => {
+    doc.rect(col1X, yPos, doc.page.width - 60, rowHeight).fill(index % 2 === 0 ? '#F5F3FF' : lightPurple);
+    doc.fontSize(9).fillColor('#101828').font(fontRegular);
 
     doc.text(String(index + 1), col1X + 5, yPos + 8, { width: 25 });
     doc.text(payment.date || '-', col2X + 5, yPos + 8, { width: 70 });
@@ -127,36 +202,46 @@ function renderReceiptPdf(doc, {
     doc.text(payment.paidBy || '-', col4X + 5, yPos + 8, { width: 60 });
 
     const amount = parseFloat(payment.amount) || 0;
-    totalAmount += amount;
     doc.text(amount > 0 ? `LKR ${amount.toLocaleString()}` : '-', col5X + 5, yPos + 8, { width: 80 });
 
-    yPos += 25;
+    yPos += rowHeight;
   });
 
-  doc.rect(col4X, yPos, doc.page.width - col4X - 30, 25).fill(lightPurple);
-  doc.fontSize(10).fillColor('black').font('Helvetica-Bold');
-  doc.text(`LKR ${totalAmount.toLocaleString()}`, col5X + 5, yPos + 8, { width: 80 });
+  const omitted = rows.length - visibleRows.length;
+  if (omitted > 0) {
+    doc.fontSize(8).fillColor('#667085').font(fontRegular)
+      .text(`+${omitted} more payment(s) not shown`, col1X + 5, yPos + 6, { width: doc.page.width - 60 });
+    yPos += 14;
+  }
 
-  // Thank you + seal
-  yPos += 50;
-  doc.fontSize(11).fillColor('black').font('Helvetica')
+  // Total row (ensure it stays visible)
+  const totalRectY = Math.min(yPos, availableBottomY);
+  doc.rect(col4X, totalRectY, doc.page.width - col4X - 30, rowHeight).fill(lightPurple);
+  doc.fontSize(10).fillColor('#101828').font(fontBold);
+  doc.text(`LKR ${totalAmountAll.toLocaleString()}`, col5X + 5, totalRectY + 8, { width: 80 });
+
+  yPos = totalRectY + rowHeight;
+
+  // Place thank-you block either 30pt after table or (if needed) squeeze it to be above footer.
+  yPos += 32;
+  yPos = Math.min(yPos, footerY - thankBlockHeight - 10);
+
+  doc.fontSize(11).fillColor('#101828').font(fontRegular)
     .text('Thank you for your payment', 30, yPos, { align: 'center', width: doc.page.width - 60 });
 
-  yPos += 25;
+  yPos += thankYouToSealGap;
   if (fs.existsSync(sealPngPath)) {
     try {
-      const sealSize = 105;
-      // Bigger seal, moved more to the right and slightly down
+      // Bigger seal, moved more to the right
       const sealX = (doc.page.width / 2) - (sealSize / 2) + 85;
-      doc.image(sealPngPath, sealX, yPos + 14, { width: sealSize, height: sealSize });
-      yPos += sealSize + 10;
+      doc.image(sealPngPath, sealX, yPos + sealTopPad, { width: sealSize, height: sealSize });
+      yPos += sealTopPad + sealSize + sealBottomPad;
     } catch (err) {
       // ignore
     }
   }
 
   // Footer
-  const footerY = doc.page.height - 90;
   const footerRadius = 15;
   const collegeTitleHeight = 32;
 
@@ -180,14 +265,14 @@ function renderReceiptPdf(doc, {
     .closePath()
     .fill();
 
-  doc.fontSize(10).fillColor('black').font('Helvetica-Bold')
+  doc.fontSize(10).fillColor('black').font(fontBold)
     .text('UNIVERSAL COLLEGE OF APPLIED & GENERAL STUDIES', 20, footerY + 9, {
       align: 'center',
       width: doc.page.width - 40
     });
 
   const contactY = footerY + collegeTitleHeight;
-  doc.fontSize(8).fillColor('white').font('Helvetica');
+  doc.fontSize(8).fillColor('white').font(fontRegular);
   const footerTextY = contactY + 12;
   doc.text('Corporate Office: 190 A Anagarika Dharmapala Mawatha (Allen Avenue), Dehiwala, Sri Lanka', 20, footerTextY, {
     align: 'center',
