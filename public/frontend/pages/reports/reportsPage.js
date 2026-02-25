@@ -133,7 +133,7 @@
       <tr data-row-key="${escape(String(r.id))}" ${r.is_missing ? 'style="opacity:0.75;"' : ''}>
         <td>${escape(r.officer_name || r.officer_user_id)}</td>
         <td>${escape(r.slot_key)}</td>
-        <td>${r.is_missing ? '<span class="badge" style="background:#fff1f2; color:#9f1239; border:1px solid #fecdd3;">Missing</span>' : '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Submitted</span>'}</td>
+        <td>${r.is_missing ? '<span class="badge" style="background:#fff1f2; color:#9f1239; border:1px solid #fecdd3;">Not submitted</span>' : '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Submitted</span>'}</td>
         <td>${escape(r.fresh_calls_made)}</td>
         <td>${escape(r.fresh_messages_reached)}</td>
         <td>${escape(r.interested_leads)}</td>
@@ -510,13 +510,13 @@
     const wrap = $('reportsAdminTableWrap');
     if (wrap && !wrap.__loadedOnce) {
       wrap.__loadedOnce = true;
-      wrap.innerHTML = '<div class="content-placeholder" style="padding: 20px;"><p>Select a date and click Load.</p></div>';
+      wrap.innerHTML = '<div class="content-placeholder" style="padding: 20px;"><p class="loading">Loading...</p></div>';
     }
 
     const dateInput = $('reportsAdminDate');
     if (dateInput && !dateInput.value) dateInput.value = todayISO();
 
-    $('reportsAdminLoadBtn').onclick = async () => {
+    const doLoad = async () => {
       const wrap = $('reportsAdminTableWrap');
       if (wrap) wrap.innerHTML = '<div class="content-placeholder" style="padding: 20px;"><p class="loading">Loading...</p></div>';
       try {
@@ -527,6 +527,11 @@
         if (window.showToast) showToast(e.message, 'error');
       }
     };
+
+    $('reportsAdminLoadBtn').onclick = doLoad;
+
+    // Auto-load for the selected date (defaults to today)
+    doLoad();
 
     $('reportsAdminEditScheduleBtn').onclick = async () => {
       try {
