@@ -19,6 +19,14 @@ const {
 
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
 
+// Ensure admin accounts never appear in officer lists
+const ADMIN_EMAILS = ['admin@ucags.edu.lk', 'mohamedunais2018@gmail.com'];
+function isAdminAccount(user) {
+  const email = String(user?.email || '').toLowerCase();
+  const role = user?.user_metadata?.role;
+  return role === 'admin' || ADMIN_EMAILS.includes(email);
+}
+
 // GET /api/reports/daily/schedule
 router.get('/daily/schedule', isAuthenticated, async (req, res) => {
   try {
@@ -82,7 +90,10 @@ router.get('/daily/overview', isAdminOrOfficer, async (req, res) => {
       if (error) throw error;
       officers = (users || [])
         .filter(u => {
-          const role = u.user_metadata?.role || 'officer';
+          if (isAdminAccount(u)) return false;
+          const role = u.user_metadata?.role;
+          // Treat missing role as officer, but never include admin emails.
+          if (!role) return true;
           return role === 'officer' || role === 'admission_officer';
         })
         .map(u => ({

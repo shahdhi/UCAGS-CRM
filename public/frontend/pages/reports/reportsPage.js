@@ -105,147 +105,52 @@
     return null;
   }
 
-  function renderAdminTable(reports, officers, schedule) {
+  function renderAdminOverview({ reports, officers, schedule }) {
     const wrap = $('reportsAdminTableWrap');
     if (!wrap) return;
 
-    // Allow rendering even when there are no submissions (we will show Missing rows)
     const safeReports = Array.isArray(reports) ? reports : [];
-
-    const cols = [
-      { key: 'officer_name', label: 'Officer' },
-      { key: 'slot_key', label: 'Slot' },
-      { key: 'missing', label: 'Status' },
-      { key: 'fresh_calls_made', label: 'Fresh calls' },
-      { key: 'fresh_messages_reached', label: 'Fresh messages' },
-      { key: 'interested_leads', label: 'Interested' },
-      { key: 'followup_calls', label: 'FU calls' },
-      { key: 'followup_messages', label: 'FU messages' },
-      { key: 'followup_scheduled', label: 'FU scheduled' },
-      { key: 'closures', label: 'Closures' },
-      { key: 'notes', label: 'Notes' },
-      { key: 'actions', label: 'Actions' }
-    ];
+    const safeOfficers = Array.isArray(officers) ? officers : [];
+    const slots = (schedule?.slots || []).filter(s => s?.key);
 
     const escape = (s) => String(s ?? '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-    const trHtmlFn = (r) => `
-      <tr data-row-key="${escape(String(r.id))}" ${r.is_missing ? 'style="opacity:0.75;"' : ''}>
-        <td>${escape(r.officer_name || r.officer_user_id)}</td>
-        <td>${escape(r.slot_key)}</td>
-        <td>${r.is_missing ? '<span class="badge" style="background:#fff1f2; color:#9f1239; border:1px solid #fecdd3;">Not submitted</span>' : '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Submitted</span>'}</td>
-        <td>${escape(r.fresh_calls_made)}</td>
-        <td>${escape(r.fresh_messages_reached)}</td>
-        <td>${escape(r.interested_leads)}</td>
-        <td>${escape(r.followup_calls)}</td>
-        <td>${escape(r.followup_messages)}</td>
-        <td>${escape(r.followup_scheduled)}</td>
-        <td>${escape(r.closures)}</td>
-        <td style="max-width: 280px; white-space: pre-wrap;">${escape(r.notes || '')}</td>
-        <td>${r.is_missing ? '' : `<button class="btn btn-secondary" data-edit-report="${r.id}"><i class="fas fa-edit"></i> Edit</button>`}</td>
-      </tr>
-    `;
-
-    // Expand to include missing slots for all officers (admin view)
-    let rowsToRender = safeReports.slice();
-
-    const slots = (schedule?.slots || []).map(s => s.key).filter(Boolean);
-    if (Array.isArray(officers) && officers.length && slots.length) {
-      const byOfficerSlot = new Map();
-      for (const r of rowsToRender) {
-        byOfficerSlot.set(`${r.officer_user_id}:${r.slot_key}`, r);
-      }
-
-      const expanded = [];
-      for (const o of officers) {
-        for (const slotKey of slots) {
-          const key = `${o.id}:${slotKey}`;
-          const found = byOfficerSlot.get(key);
-          if (found) {
-            expanded.push({ ...found, is_missing: false });
-          } else {
-            expanded.push({
-              id: `missing:${o.id}:${slotKey}`,
-              officer_user_id: o.id,
-              officer_name: o.name,
-              slot_key: slotKey,
-              fresh_calls_made: 0,
-              fresh_messages_reached: 0,
-              interested_leads: 0,
-              followup_calls: 0,
-              followup_messages: 0,
-              followup_scheduled: 0,
-              closures: 0,
-              notes: '',
-              is_missing: true
-            });
-          }
-        }
-      }
-
-      // Sort by officer name, then slot order
-      const slotIndex = new Map(slots.map((s, i) => [s, i]));
-      rowsToRender = expanded.sort((a, b) => {
-        const an = String(a.officer_name || a.officer_user_id || '');
-        const bn = String(b.officer_name || b.officer_user_id || '');
-        if (an !== bn) return an.localeCompare(bn);
-        return (slotIndex.get(a.slot_key) ?? 99) - (slotIndex.get(b.slot_key) ?? 99);
-      });
+    const byOfficerSlot = new Map();
+    for (const r of safeReports) {
+      if (!r?.officer_user_id || !r?.slot_key) continue;
+      byOfficerSlot.set(`${r.officer_user_id}:${r.slot_key}`, r);
     }
 
-    // Create table skeleton once, then patch tbody
-    if (!wrap.querySelector('table')) {
-      wrap.innerHTML = `
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>${cols.map(c => `<th>${escape(c.label)}</th>`).join('')}</tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+    const badge = (submitted) => submitted
+      ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Submitted</span>'
+      : '<span class="badge" style="background:#fff1f2; color:#9f1239; border:1px solid #fecdd3;">Not submitted</span>';
+
+    const officersSorted = safeOfficers
+      .slice()
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+
+    const sectionsHtml = slots.map(slot => {
+      const listHtml = officersSorted.map(o => {
+        const found = byOfficerSlot.get(`${o.id}:${slot.key}`);
+        return `
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 10px; border:1px solid #eaecf0; border-radius:10px; background:#fff; margin-top:8px;">
+            <div style="font-weight:700; color:#101828;">${escape(o.name)}</div>
+            <div>${badge(!!found)}</div>
+          </div>
+        `;
+      }).join('');
+
+      const slotTitle = (slot.key || '').toLowerCase() === 'slot1' ? 'Slot 1' : (slot.key || '').toLowerCase() === 'slot2' ? 'Slot 2' : (slot.key || '').toLowerCase() === 'slot3' ? 'Slot 3' : String(slot.key || '').toUpperCase();
+
+      return `
+        <div style="margin-top:14px; padding:12px; border:1px solid #eaecf0; border-radius:12px; background:#fcfcfd;">
+          <div style="font-weight:900; color:#101828; margin-bottom:6px;">${escape(slotTitle)}:</div>
+          ${listHtml || `<div class=\"empty\" style=\"padding:10px;\">No officers</div>`}
         </div>
       `;
-    }
+    }).join('');
 
-    const tbody = wrap.querySelector('tbody');
-    if (tbody && window.DOMPatcher?.patchTableBody) {
-      window.DOMPatcher.patchTableBody(tbody, rowsToRender, (x) => x.id, trHtmlFn);
-    } else if (tbody) {
-      tbody.innerHTML = rowsToRender.map(trHtmlFn).join('');
-    }
-
-    wrap.querySelectorAll('[data-edit-report]')?.forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.getAttribute('data-edit-report');
-        const row = rowsToRender.find(x => String(x.id) === String(id));
-        if (!row) return;
-
-        // Simple inline edit: reuse officer modal fields
-        $('freshCallsMade').value = row.fresh_calls_made ?? 0;
-        $('freshMessagesReached').value = row.fresh_messages_reached ?? 0;
-        $('interestedLeads').value = row.interested_leads ?? 0;
-        $('followUpCalls').value = row.followup_calls ?? 0;
-        $('followUpMessages').value = row.followup_messages ?? 0;
-        $('followUpScheduled').value = row.followup_scheduled ?? 0;
-        $('closures').value = row.closures ?? 0;
-        $('dailyReportNotes').value = row.notes ?? '';
-
-        // Slot select locked when editing
-        $('dailyReportSlot').innerHTML = `<option value="${row.slot_key}">${row.slot_key}</option>`;
-        $('dailyReportSlot').disabled = true;
-
-        const msg = $('dailyReportSubmitMsg');
-        if (msg) msg.textContent = 'Admin editing existing report.';
-
-        const submitBtn = $('submitDailyReportBtn');
-        submitBtn.textContent = 'Save Changes';
-        submitBtn.onclick = async () => {
-          await adminSaveReportEdit(id);
-        };
-
-        if (window.openModal) window.openModal('dailyReportModal');
-      });
-    });
+    wrap.innerHTML = sectionsHtml || '<div class="content-placeholder" style="padding: 20px;"><p>No slots configured.</p></div>';
   }
 
   async function fetchSchedule() {
@@ -588,7 +493,7 @@
       if (wrap) wrap.innerHTML = '<div class="content-placeholder" style="padding: 20px;"><p class="loading">Loading...</p></div>';
       try {
         const rows = await adminLoadReports(dateInput.value);
-        renderAdminTable(rows, officers, schedule);
+        renderAdminOverview({ reports: rows, officers, schedule });
       } catch (e) {
         if (wrap) wrap.innerHTML = `<div class="content-placeholder" style="padding: 20px;"><p style="color:#ef4444;">${String(e.message || e)}</p></div>`;
         if (window.showToast) showToast(e.message, 'error');

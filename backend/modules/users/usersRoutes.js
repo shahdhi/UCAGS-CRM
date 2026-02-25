@@ -54,9 +54,14 @@ router.get('/officers', isAdmin, async (req, res) => {
       if (error) throw error;
       
       // Filter and format officers only
+      const ADMIN_EMAILS = ['admin@ucags.edu.lk', 'mohamedunais2018@gmail.com'];
+
       const officers = users
         .filter(user => {
-          const role = user.user_metadata?.role || 'officer';
+          const email = String(user?.email || '').toLowerCase();
+          const role = user.user_metadata?.role;
+          if (role === 'admin' || ADMIN_EMAILS.includes(email)) return false;
+          if (!role) return true;
           return role === 'officer' || role === 'admission_officer';
         })
         .map(user => ({
