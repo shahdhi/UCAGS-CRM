@@ -973,6 +973,11 @@ async function navigateToPage(page) {
         case 'reports':
             loadReports();
             break;
+        case 'notifications':
+            document.getElementById('pageTitle').textContent = 'Notifications';
+            try { await window.NotificationsPage?.init?.(); } catch (e) { console.warn('Notifications page init failed:', e); }
+            break;
+
         case 'settings':
             loadSettings();
             break;

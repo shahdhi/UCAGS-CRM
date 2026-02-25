@@ -2165,16 +2165,29 @@ body {
     right: 0;
     width: 360px;
     max-width: calc(100vw - 32px);
-    background: white;
+    background: rgba(255,255,255,0.98);
     border: 1px solid var(--separator);
-    border-radius: 10px;
+    border-radius: 12px;
     box-shadow: var(--shadow-lg);
     z-index: 2200;
     overflow: hidden;
+
+    /* Apple-like popover motion */
+    transform-origin: top right;
+    transform: translateY(-6px) scale(0.98);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 160ms cubic-bezier(0.2, 0, 0, 1), opacity 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .notification-dropdown.hidden {
-    display: none;
+    /* keep in DOM for animation */
+}
+
+.notification-dropdown:not(.hidden) {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .notification-dropdown-header {

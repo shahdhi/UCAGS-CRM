@@ -118,6 +118,59 @@ router.post('/intake', async (req, res) => {
     }
 
     const data = await insertWithMissingColumnFallback(row);
+
+    // Notifications: registration received
+    try {
+      const { createNotification, listAdminUserIds, getNotificationSettings } = require('../notifications/notificationsService');
+
+      const assignedToName = cleanString(data?.assigned_to || row.assigned_to);
+      const sb2 = getSupabaseAdmin();
+
+      // Notify assigned officer (if we can resolve to a user id)
+      if (assignedToName && sb2) {
+        const { data: { users }, error } = await sb2.auth.admin.listUsers();
+        if (!error && Array.isArray(users)) {
+          const target = (users || []).find(u => {
+            const nm = String(u.user_metadata?.name || '').trim().toLowerCase();
+            const em = String(u.email || '').trim().toLowerCase();
+            const role = u.user_metadata?.role;
+            if (role === 'admin') return false;
+            if (role !== 'officer' && role !== 'admission_officer') return false;
+            if (nm && nm === assignedToName.toLowerCase()) return true;
+            // fallback: match email prefix
+            const prefix = em.split('@')[0];
+            return prefix && prefix === assignedToName.toLowerCase().replace(/\s+/g, '.');
+          });
+
+          if (target?.id) {
+            await createNotification({
+              userId: target.id,
+              category: 'registrations',
+              title: 'New registration received',
+              message: `${data.name || 'A student'} submitted a registration for ${data.program_name || 'a program'}.`,
+              type: 'info'
+            });
+          }
+        }
+      }
+
+      // Notify admins (optional; controlled via notification settings if present)
+      const adminIds = await listAdminUserIds();
+      for (const adminId of adminIds) {
+        const s = await getNotificationSettings(adminId);
+        if (s && s.admin_registrations === false) continue;
+        await createNotification({
+          userId: adminId,
+          category: 'admin_registrations',
+          title: 'Registration received',
+          message: `${data.name || 'A student'} registered for ${data.program_name || 'a program'}${data.assigned_to ? ` (Assigned to: ${data.assigned_to})` : ''}.`,
+          type: 'info'
+        });
+      }
+    } catch (e) {
+      // ignore notification failures
+    }
+
     res.json({ success: true, registration: data });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });

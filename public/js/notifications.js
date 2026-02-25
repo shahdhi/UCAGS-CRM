@@ -415,15 +415,29 @@
   }
 
   // Watcher for server-generated notifications (admin + officer)
-  let lastSeenNotificationId = null;
-
-  function loadLastSeen(userId) {
-    return localStorage.getItem(`notify:lastSeen:${userId}`) || null;
+  // Use created_at watermark instead of an ID.
+  // ID-based cursor breaks when the lastSeen ID falls outside the limited list and causes duplicates.
+  function loadLastSeenTs(userId) {
+    const v = localStorage.getItem(`notify:lastSeenTs:${userId}`);
+    const n = v ? Number(v) : 0;
+    return Number.isFinite(n) ? n : 0;
   }
 
-  function saveLastSeen(userId, id) {
-    if (!id) return;
-    localStorage.setItem(`notify:lastSeen:${userId}`, String(id));
+  function saveLastSeenTs(userId, ts) {
+    if (!ts) return;
+    localStorage.setItem(`notify:lastSeenTs:${userId}`, String(Number(ts) || 0));
+  }
+
+  function popDedupKey(userId, notifId) {
+    return `notify:popped:${userId}:${String(notifId)}`;
+  }
+
+  function wasPopped(userId, notifId) {
+    try { return sessionStorage.getItem(popDedupKey(userId, notifId)) === '1'; } catch { return false; }
+  }
+
+  function markPopped(userId, notifId) {
+    try { sessionStorage.setItem(popDedupKey(userId, notifId), '1'); } catch {}
   }
 
   async function pollInbox(currentUser) {
@@ -436,17 +450,22 @@
       const rows = json.notifications || [];
       if (!rows.length) return;
 
-      const lastSeen = loadLastSeen(userId);
+      const lastSeenTs = loadLastSeenTs(userId);
       // newest first
       const newest = rows[0];
-      if (!lastSeen) {
-        saveLastSeen(userId, newest.id);
+      const newestTs = newest?.created_at ? new Date(newest.created_at).getTime() : 0;
+
+      if (!lastSeenTs) {
+        // First run: set watermark, don't pop historical notifications
+        if (newestTs) saveLastSeenTs(userId, newestTs);
         return;
       }
 
-      // find notifications newer than lastSeen
-      const idx = rows.findIndex(r => String(r.id) === String(lastSeen));
-      const newOnes = idx === -1 ? rows : rows.slice(0, idx);
+      // New ones are those created after watermark
+      const newOnes = rows.filter(r => {
+        const ts = r?.created_at ? new Date(r.created_at).getTime() : 0;
+        return ts > lastSeenTs;
+      });
 
       // apply category toggles for admin
       const isAdmin = (currentUser?.role === 'admin') || document.body.classList.contains('admin');
@@ -457,19 +476,25 @@
         if (j2?.success) settings = j2.settings;
       } catch (e) {}
 
-      newOnes.reverse().forEach(n => {
-        if (isAdmin && settings) {
-          if (n.category === 'admin_leave_requests' && settings.admin_leave_requests === false) return;
-          if (n.category === 'admin_daily_reports' && settings.admin_daily_reports === false) return;
-        }
-        // Only pop if unread
-        if (n.read_at) return;
-        const msg = `${n.title}: ${n.message}`;
-        notifyInApp(msg, n.type || 'info');
-        notifyBrowser(n.title, n.message);
-      });
+      newOnes
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+        .forEach(n => {
+          if (isAdmin && settings) {
+            if (n.category === 'admin_leave_requests' && settings.admin_leave_requests === false) return;
+            if (n.category === 'admin_daily_reports' && settings.admin_daily_reports === false) return;
+          }
+          // Only pop if unread
+          if (n.read_at) return;
+          if (wasPopped(userId, n.id)) return;
+          markPopped(userId, n.id);
 
-      saveLastSeen(userId, newest.id);
+          const msg = `${n.title}: ${n.message}`;
+          notifyInApp(msg, n.type || 'info');
+          notifyBrowser(n.title, n.message);
+        });
+
+      // Move watermark forward to newest created_at we have
+      if (newestTs) saveLastSeenTs(userId, Math.max(lastSeenTs, newestTs));
     } catch (e) {
       // ignore
     }
@@ -478,9 +503,19 @@
   let inboxTimer = null;
   function startInboxWatcher(currentUser) {
     if (inboxTimer) return;
+
+    const run = () => pollInbox(currentUser).catch(() => {});
+
     // initial
-    pollInbox(currentUser);
-    inboxTimer = setInterval(() => pollInbox(currentUser), 30 * 1000);
+    run();
+    inboxTimer = setInterval(run, 30 * 1000);
+
+    // Run immediately when user returns to the tab (fix: only seeing notifications after tab change/refresh)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') run();
+    });
+    window.addEventListener('focus', run);
+    window.addEventListener('online', run);
   }
 
   async function init(currentUser) {
