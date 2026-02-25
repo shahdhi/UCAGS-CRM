@@ -412,12 +412,89 @@
     if (p) p.textContent = `Submit ${schedule?.slots?.length || 3} reports/day (${times}). Submission closes ${grace} minutes after each time.`;
   }
 
+  function renderOfficerOverview({ reports, officers, schedule }) {
+    const wrap = $('reportsOfficerTableWrap');
+    if (!wrap) return;
+
+    const safeReports = Array.isArray(reports) ? reports : [];
+    const safeOfficers = Array.isArray(officers) ? officers : [];
+    const slots = (schedule?.slots || []).filter(s => s?.key);
+
+    const escape = (s) => String(s ?? '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    const byOfficerSlot = new Map();
+    for (const r of safeReports) {
+      if (!r?.officer_user_id || !r?.slot_key) continue;
+      byOfficerSlot.set(`${r.officer_user_id}:${r.slot_key}`, r);
+    }
+
+    const badge = (submitted) => submitted
+      ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Submitted</span>'
+      : '<span class="badge" style="background:#fff1f2; color:#9f1239; border:1px solid #fecdd3;">Not submitted</span>';
+
+    const sectionsHtml = slots.map(slot => {
+      const rowsHtml = safeOfficers
+        .slice()
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+        .map(o => {
+          const found = byOfficerSlot.get(`${o.id}:${slot.key}`);
+          return `
+            <tr>
+              <td style="font-weight:600; color:#101828;">${escape(o.name)}</td>
+              <td>${badge(!!found)}</td>
+            </tr>
+          `;
+        })
+        .join('');
+
+      return `
+        <div class="table-container" style="margin-top:12px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;">
+            <div style="font-weight:800; color:#101828;">${escape(slot.key.toUpperCase())}: ${escape(slot.label || slot.time || '')}</div>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Officer</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml || `<tr><td colspan="2" class="empty">No officers</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }).join('');
+
+    wrap.innerHTML = sectionsHtml || '<div class="content-placeholder" style="padding: 20px;"><p>No slots configured.</p></div>';
+  }
+
+  async function officerLoadOverview(dateISO) {
+    const headers = await authHeaders();
+    const res = await fetch(`/api/reports/daily/overview?date=${encodeURIComponent(dateISO)}`, { headers });
+    const json = await res.json();
+    if (!json?.success) throw new Error(json?.error || 'Failed to load reports');
+    return { reports: json.reports || [], officers: json.officers || [] };
+  }
+
   async function initOfficer(schedule) {
     const sec = $('reportsOfficerSection');
     if (!sec) return;
     sec.style.display = 'block';
 
     setOfficerDescription(schedule);
+
+    // Load overview table for all officers (today)
+    try {
+      const wrap = $('reportsOfficerTableWrap');
+      if (wrap) wrap.innerHTML = '<div class="content-placeholder" style="padding: 20px;"><p class="loading">Loading...</p></div>';
+      const { reports, officers } = await officerLoadOverview(todayISO());
+      renderOfficerOverview({ reports, officers, schedule });
+    } catch (e) {
+      const wrap = $('reportsOfficerTableWrap');
+      if (wrap) wrap.innerHTML = `<div class="content-placeholder" style="padding: 20px;"><p style="color:#ef4444;">${String(e.message || e)}</p></div>`;
+    }
 
     const select = $('dailyReportSlot');
     select.innerHTML = '';

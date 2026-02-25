@@ -17,6 +17,8 @@ const {
   adminUpdateReport
 } = require('./dailyReportsService');
 
+const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
+
 // GET /api/reports/daily/schedule
 router.get('/daily/schedule', isAuthenticated, async (req, res) => {
   try {
@@ -63,6 +65,36 @@ router.post('/daily/submit', isAdminOrOfficer, async (req, res) => {
   } catch (error) {
     console.error('POST /api/reports/daily/submit error:', error);
     res.status(error.status || 500).json({ success: false, error: error.message, meta: error.meta });
+  }
+});
+
+// GET /api/reports/daily/overview?date=YYYY-MM-DD (admin/officer)
+// Returns submissions for the date plus officer list (excluding admins).
+router.get('/daily/overview', isAdminOrOfficer, async (req, res) => {
+  try {
+    const date = req.query?.date;
+    const rows = await listDailyReports({ dateISO: date });
+
+    const sb = getSupabaseAdmin();
+    let officers = [];
+    if (sb) {
+      const { data: { users }, error } = await sb.auth.admin.listUsers();
+      if (error) throw error;
+      officers = (users || [])
+        .filter(u => {
+          const role = u.user_metadata?.role || 'officer';
+          return role === 'officer' || role === 'admission_officer';
+        })
+        .map(u => ({
+          id: u.id,
+          name: u.user_metadata?.name || u.email?.split('@')?.[0] || 'Officer'
+        }));
+    }
+
+    res.json({ success: true, reports: rows, officers });
+  } catch (error) {
+    console.error('GET /api/reports/daily/overview error:', error);
+    res.status(error.status || 500).json({ success: false, error: error.message });
   }
 });
 
