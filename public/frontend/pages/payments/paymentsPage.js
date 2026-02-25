@@ -448,6 +448,7 @@
   }
 
   let __autoDefaultedInstallment = false;
+  let __paymentsAllRows = [];
 
   async function loadPayments({ showSkeleton = false } = {}) {
     const tbody = qs('paymentsTableBody');
@@ -470,6 +471,8 @@
         }
 
         rows = applyInstallmentFilter(rows);
+        __paymentsAllRows = rows;
+        rows = filterPaymentsByQuery(rows, getPaymentsSearchQuery());
         renderPaymentsRows(rows, tbody);
         return;
       }
@@ -548,7 +551,9 @@
     }
 
     rows = applyInstallmentFilter(rows);
+    __paymentsAllRows = rows;
 
+    rows = filterPaymentsByQuery(rows, getPaymentsSearchQuery());
     renderPaymentsRows(rows, tbody);
   }
 
@@ -556,6 +561,40 @@
     // Installment/type filtering is handled server-side via /payments/admin/summary?type=...
     // Keep this as a no-op for compatibility.
     return rows;
+  }
+
+  function normalizeSearchText(s) {
+    return String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+  }
+
+  function filterPaymentsByQuery(rows, qRaw) {
+    const q = normalizeSearchText(qRaw);
+    if (!q) return rows;
+
+    return (rows || []).filter(r => {
+      const hay = [
+        r.registration_name,
+        r.registration_email,
+        r.registration_phone_number,
+        r.registration_wa_number,
+        r.student_id,
+        r.assigned_to,
+        r.receipt_no,
+        r.payment_method,
+        r.payment_plan,
+        r.amount,
+        r.computed_status,
+        r.installment_no,
+        r.window_start_date,
+        r.window_end_date
+      ].map(normalizeSearchText).join(' | ');
+
+      return hay.includes(q);
+    });
+  }
+
+  function getPaymentsSearchQuery() {
+    return qs('paymentsSearchInput')?.value || '';
   }
 
   function renderPaymentsRows(rows, tbody) {
@@ -877,6 +916,7 @@
     const limitEl = qs('paymentsLimit');
     const batchSel = qs('paymentsBatchSelect');
     const typeSel = qs('paymentsInstallmentFilter');
+    const searchInput = qs('paymentsSearchInput');
 
     if (batchSel && !batchSel.__bound) {
       batchSel.__bound = true;
@@ -899,6 +939,19 @@
         }
 
         loadPayments().catch(console.error);
+      });
+    }
+
+    if (searchInput && !searchInput.__bound) {
+      searchInput.__bound = true;
+      let t = null;
+      searchInput.addEventListener('input', () => {
+        if (t) clearTimeout(t);
+        t = setTimeout(() => {
+          const tbody = qs('paymentsTableBody');
+          const filtered = filterPaymentsByQuery(__paymentsAllRows, searchInput.value);
+          renderPaymentsRows(filtered, tbody);
+        }, 150);
       });
     }
 
