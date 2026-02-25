@@ -432,37 +432,27 @@
       ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Submitted</span>'
       : '<span class="badge" style="background:#fff1f2; color:#9f1239; border:1px solid #fecdd3;">Not submitted</span>';
 
+    const officersSorted = safeOfficers
+      .slice()
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+
     const sectionsHtml = slots.map(slot => {
-      const rowsHtml = safeOfficers
-        .slice()
-        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
-        .map(o => {
-          const found = byOfficerSlot.get(`${o.id}:${slot.key}`);
-          return `
-            <tr>
-              <td style="font-weight:600; color:#101828;">${escape(o.name)}</td>
-              <td>${badge(!!found)}</td>
-            </tr>
-          `;
-        })
-        .join('');
+      const listHtml = officersSorted.map(o => {
+        const found = byOfficerSlot.get(`${o.id}:${slot.key}`);
+        return `
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 10px; border:1px solid #eaecf0; border-radius:10px; background:#fff; margin-top:8px;">
+            <div style="font-weight:700; color:#101828;">${escape(o.name)}</div>
+            <div>${badge(!!found)}</div>
+          </div>
+        `;
+      }).join('');
+
+      const slotTitle = (slot.key || '').toLowerCase() === 'slot1' ? 'Slot 1' : (slot.key || '').toLowerCase() === 'slot2' ? 'Slot 2' : (slot.key || '').toLowerCase() === 'slot3' ? 'Slot 3' : String(slot.key || '').toUpperCase();
 
       return `
-        <div class="table-container" style="margin-top:12px;">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;">
-            <div style="font-weight:800; color:#101828;">${escape(slot.key.toUpperCase())}: ${escape(slot.label || slot.time || '')}</div>
-          </div>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Officer</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rowsHtml || `<tr><td colspan="2" class="empty">No officers</td></tr>`}
-            </tbody>
-          </table>
+        <div style="margin-top:14px; padding:12px; border:1px solid #eaecf0; border-radius:12px; background:#fcfcfd;">
+          <div style="font-weight:900; color:#101828; margin-bottom:6px;">${escape(slotTitle)}:</div>
+          ${listHtml || `<div class=\"empty\" style=\"padding:10px;\">No officers</div>`}
         </div>
       `;
     }).join('');
