@@ -134,13 +134,35 @@
       .slice()
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 
+    const kpiLine = (label, val) => `<div style=\"display:flex; justify-content:space-between; gap:10px;\"><span style=\"color:#667085;\">${escape(label)}</span><span style=\"font-weight:700; color:#101828;\">${escape(val)}</span></div>`;
+
     const sectionsHtml = slots.map(slot => {
       const listHtml = officersSorted.map(o => {
         const found = byOfficerSlot.get(`${o.id}:${slot.key}`);
+
+        const kpis = found ? `
+          <div style="margin-top:6px; padding:8px 10px; border:1px dashed #e4e7ec; border-radius:10px; background:#fcfcfd; font-size:12px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px 12px;">
+              ${kpiLine('Fresh calls', found.fresh_calls_made ?? 0)}
+              ${kpiLine('Fresh messages', found.fresh_messages_reached ?? 0)}
+              ${kpiLine('Interested', found.interested_leads ?? 0)}
+              ${kpiLine('FU calls', found.followup_calls ?? 0)}
+              ${kpiLine('FU messages', found.followup_messages ?? 0)}
+              ${kpiLine('FU scheduled', found.followup_scheduled ?? 0)}
+              ${kpiLine('Closures', found.closures ?? 0)}
+              ${kpiLine('', '')}
+            </div>
+            ${found.notes ? `<div style=\"margin-top:6px; color:#344054;\"><span style=\"color:#667085; font-weight:700;\">Notes:</span> ${escape(found.notes)}</div>` : ''}
+          </div>
+        ` : '';
+
         return `
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 10px; border:1px solid #eaecf0; border-radius:10px; background:#fff; margin-top:8px;">
-            <div style="font-weight:700; color:#101828;">${escape(o.name)}</div>
-            <div>${badge(!!found)}</div>
+          <div style="padding:8px 10px; border:1px solid #eaecf0; border-radius:10px; background:#fff; margin-top:8px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+              <div style="font-weight:700; color:#101828;">${escape(o.name)}</div>
+              <div>${badge(!!found)}</div>
+            </div>
+            ${kpis}
           </div>
         `;
       }).join('');
@@ -351,13 +373,35 @@
       .slice()
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 
+    const kpiLine = (label, val) => `<div style=\"display:flex; justify-content:space-between; gap:10px;\"><span style=\"color:#667085;\">${escape(label)}</span><span style=\"font-weight:700; color:#101828;\">${escape(val)}</span></div>`;
+
     const sectionsHtml = slots.map(slot => {
       const listHtml = officersSorted.map(o => {
         const found = byOfficerSlot.get(`${o.id}:${slot.key}`);
+
+        const kpis = found ? `
+          <div style="margin-top:6px; padding:8px 10px; border:1px dashed #e4e7ec; border-radius:10px; background:#fcfcfd; font-size:12px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px 12px;">
+              ${kpiLine('Fresh calls', found.fresh_calls_made ?? 0)}
+              ${kpiLine('Fresh messages', found.fresh_messages_reached ?? 0)}
+              ${kpiLine('Interested', found.interested_leads ?? 0)}
+              ${kpiLine('FU calls', found.followup_calls ?? 0)}
+              ${kpiLine('FU messages', found.followup_messages ?? 0)}
+              ${kpiLine('FU scheduled', found.followup_scheduled ?? 0)}
+              ${kpiLine('Closures', found.closures ?? 0)}
+              ${kpiLine('', '')}
+            </div>
+            ${found.notes ? `<div style=\"margin-top:6px; color:#344054;\"><span style=\"color:#667085; font-weight:700;\">Notes:</span> ${escape(found.notes)}</div>` : ''}
+          </div>
+        ` : '';
+
         return `
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 10px; border:1px solid #eaecf0; border-radius:10px; background:#fff; margin-top:8px;">
-            <div style="font-weight:700; color:#101828;">${escape(o.name)}</div>
-            <div>${badge(!!found)}</div>
+          <div style="padding:8px 10px; border:1px solid #eaecf0; border-radius:10px; background:#fff; margin-top:8px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+              <div style="font-weight:700; color:#101828;">${escape(o.name)}</div>
+              <div>${badge(!!found)}</div>
+            </div>
+            ${kpis}
           </div>
         `;
       }).join('');

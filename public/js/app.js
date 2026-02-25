@@ -1439,7 +1439,8 @@ async function loadSettings() {
             } else {
                 const s = serverSettings || {};
                 if (btnAdminLeave) btnAdminLeave.textContent = (s.admin_leave_requests === false) ? 'Off' : 'On';
-                if (btnAdminDaily) btnAdminDaily.textContent = (s.admin_daily_reports === false) ? 'Off' : 'On';
+                // Admin daily report setting removed: admins always receive officer-submitted daily report notifications.
+                if (btnAdminDaily) btnAdminDaily.style.display = 'none';
             }
 
             // Browser alerts
@@ -1545,13 +1546,7 @@ async function loadSettings() {
                     refresh();
                 };
             }
-            if (btnAdminDaily) {
-                btnAdminDaily.onclick = async () => {
-                    const curOff = (serverSettings && serverSettings.admin_daily_reports === false);
-                    serverSettings = await saveServerSettings({ admin_daily_reports: curOff ? true : false });
-                    refresh();
-                };
-            }
+            // Admin daily report setting removed
         }
 
         refresh();

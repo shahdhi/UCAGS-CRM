@@ -57,8 +57,10 @@ router.post('/daily/submit', isAdminOrOfficer, async (req, res) => {
       const { listAdminUserIds, createNotification, getNotificationSettings } = require('../notifications/notificationsService');
       const adminIds = await listAdminUserIds();
       for (const adminId of adminIds) {
-        const s = await getNotificationSettings(adminId);
-        if (s && s.admin_daily_reports === false) continue;
+        // Admin should always receive daily report submission notifications
+        // (admins do not submit daily reports themselves, so no reminder toggle)
+        // const s = await getNotificationSettings(adminId);
+        // if (s && s.admin_daily_reports === false) continue;
         await createNotification({
           userId: adminId,
           category: 'admin_daily_reports',

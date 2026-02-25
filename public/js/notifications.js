@@ -481,7 +481,8 @@
         .forEach(n => {
           if (isAdmin && settings) {
             if (n.category === 'admin_leave_requests' && settings.admin_leave_requests === false) return;
-            if (n.category === 'admin_daily_reports' && settings.admin_daily_reports === false) return;
+            // Admin should always receive daily report submissions; no toggle/reminder needed.
+            // if (n.category === 'admin_daily_reports' && settings.admin_daily_reports === false) return;
           }
           // Only pop if unread
           if (n.read_at) return;
