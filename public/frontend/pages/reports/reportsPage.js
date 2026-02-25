@@ -126,6 +126,11 @@
       : '<span class="badge" style="background:#fff1f2; color:#9f1239; border:1px solid #fecdd3;">Not submitted</span>';
 
     const officersSorted = safeOfficers
+      .filter(o => {
+        const name = String(o?.name || '').toLowerCase();
+        const email = String(o?.email || '').toLowerCase();
+        return !(name.includes('admin') || email.includes('admin'));
+      })
       .slice()
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 
@@ -338,6 +343,11 @@
       : '<span class="badge" style="background:#fff1f2; color:#9f1239; border:1px solid #fecdd3;">Not submitted</span>';
 
     const officersSorted = safeOfficers
+      .filter(o => {
+        const name = String(o?.name || '').toLowerCase();
+        const email = String(o?.email || '').toLowerCase();
+        return !(name.includes('admin') || email.includes('admin'));
+      })
       .slice()
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 

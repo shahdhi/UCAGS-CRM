@@ -60,8 +60,8 @@ router.get('/officers', isAdmin, async (req, res) => {
         .filter(user => {
           const email = String(user?.email || '').toLowerCase();
           const role = user.user_metadata?.role;
-          if (role === 'admin' || ADMIN_EMAILS.includes(email)) return false;
-          if (!role) return true;
+          if (role === 'admin' || ADMIN_EMAILS.includes(email) || email.includes('admin')) return false;
+          // Only include explicit officer roles (avoid accidentally including admin accounts with missing metadata)
           return role === 'officer' || role === 'admission_officer';
         })
         .map(user => ({

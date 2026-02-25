@@ -24,7 +24,9 @@ const ADMIN_EMAILS = ['admin@ucags.edu.lk', 'mohamedunais2018@gmail.com'];
 function isAdminAccount(user) {
   const email = String(user?.email || '').toLowerCase();
   const role = user?.user_metadata?.role;
-  return role === 'admin' || ADMIN_EMAILS.includes(email);
+  // Be defensive: some accounts may have missing role metadata.
+  // Treat anything that looks like an admin account as admin.
+  return role === 'admin' || ADMIN_EMAILS.includes(email) || email.includes('admin');
 }
 
 // GET /api/reports/daily/schedule
@@ -92,8 +94,7 @@ router.get('/daily/overview', isAdminOrOfficer, async (req, res) => {
         .filter(u => {
           if (isAdminAccount(u)) return false;
           const role = u.user_metadata?.role;
-          // Treat missing role as officer, but never include admin emails.
-          if (!role) return true;
+          // Only include explicit officer roles (avoid accidentally including admin accounts with missing metadata)
           return role === 'officer' || role === 'admission_officer';
         })
         .map(u => ({
