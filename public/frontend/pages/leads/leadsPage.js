@@ -76,17 +76,8 @@ async function initLeadsPage(modeOrBatch) {
   const titleEl = document.getElementById('leadsViewTitle');
   if (titleEl) titleEl.textContent = sheet;
 
-  // Load leads data (avoid double load on rapid view changes)
-  const key = `${isOfficerView ? 'officer' : 'admin'}|${batch || 'all'}|${sheet}`;
-  const now = Date.now();
-
-  if (window.__leadsLastKey === key && window.__leadsLastLoadedAt && (now - window.__leadsLastLoadedAt) < 4000) {
-    // skip reload
-  } else {
-    await loadLeads();
-    window.__leadsLastKey = key;
-    window.__leadsLastLoadedAt = now;
-  }
+  // Load leads data (no caching; always load fresh)
+  await loadLeads();
 
   // Start auto-refresh (every 30 seconds) once
   if (!window.__leadsAutoRefreshStarted) {
@@ -224,36 +215,32 @@ async function loadLeads() {
         const programId = window.adminProgramId || window.officerProgramId;
         if (programId) {
           sel.style.display = '';
-          // load once per program
-          const cacheKey = `programBatches:${programId}`;
-          window.__programBatchesCache = window.__programBatchesCache || new Map();
-          if (!window.__programBatchesCache.has(cacheKey)) {
-            try {
-              const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
-              const r = await fetch('/api/programs/sidebar', { headers: authHeaders });
-              const j = await r.json();
-              const batches = (j.batches || []).filter(b => String(b.program_id) === String(programId));
-              // build options
-              const current = batches.find(b => b.is_current);
-              sel.innerHTML = '';
-              batches
-                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                .forEach(b => {
-                  const opt = document.createElement('option');
-                  opt.value = b.batch_name;
-                  opt.textContent = b.batch_name;
-                  sel.appendChild(opt);
-                });
-              // default
-              // Default selection: current batch
-              const currentBatchName = current?.batch_name;
-              const activeBatch = (window.adminBatchFilter || window.officerBatchFilter);
-              if (activeBatch && activeBatch !== 'all') sel.value = activeBatch;
-              else if (currentBatchName) sel.value = currentBatchName;
-              window.__programBatchesCache.set(cacheKey, true);
-            } catch (e) {
-              console.warn('Failed to load program batches for dropdown', e);
-            }
+          // No caching: always fetch fresh program batches and rebuild options
+          try {
+            const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+            const r = await fetch('/api/programs/sidebar', { headers: authHeaders });
+            const j = await r.json();
+            const batches = (j.batches || []).filter(b => String(b.program_id) === String(programId));
+            const current = batches.find(b => b.is_current);
+
+            sel.innerHTML = '';
+            batches
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+              .forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.batch_name;
+                opt.textContent = b.batch_name;
+                sel.appendChild(opt);
+              });
+
+            // Sync selection
+            const activeBatch = (window.adminBatchFilter || window.officerBatchFilter);
+            const currentBatchName = current?.batch_name;
+            const hasOption = (val) => Array.from(sel.options || []).some(o => String(o.value) === String(val));
+            if (activeBatch && activeBatch !== 'all' && hasOption(activeBatch)) sel.value = activeBatch;
+            else if (currentBatchName && hasOption(currentBatchName)) sel.value = currentBatchName;
+          } catch (e) {
+            console.warn('Failed to load program batches for dropdown', e);
           }
         } else {
           // If user refreshed directly on a leads-batch-* route, infer program from batch
@@ -301,12 +288,9 @@ async function loadLeads() {
         if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
       }
 
-      // Use cached sheet list for instant render
-      const cacheKey = `${isOfficerView ? 'officer' : 'admin'}:${batch}`;
-      window.__leadsSheetsCache = window.__leadsSheetsCache || new Map();
-
-      let sheets = window.__leadsSheetsCache.get(cacheKey) || ['Main Leads', 'Extra Leads'];
-      sheets = Array.from(new Set(['Main Leads', 'Extra Leads', ...sheets]));
+      // No caching: start with defaults, then fetch from server
+      let sheets = ['Main Leads', 'Extra Leads'];
+      sheets = Array.from(new Set(sheets));
 
       const applyTabStyle = (btn, active) => {
         btn.style.border = active ? '1px solid #592c88' : '1px solid #eaecf0';
@@ -360,7 +344,6 @@ async function loadLeads() {
           const json = await res.json();
           if (json.success && Array.isArray(json.sheets)) {
             const merged = Array.from(new Set(['Main Leads', 'Extra Leads', ...json.sheets]));
-            window.__leadsSheetsCache.set(cacheKey, merged);
 
             // If list changed, re-render quickly
             if (merged.join('|') !== sheets.join('|')) {
