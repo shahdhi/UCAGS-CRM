@@ -64,10 +64,9 @@
       const title = s.title || `Demo ${s.demo_number}`;
 
       return `
-        <button class="demo-card" data-id="${escapeHtml(s.id)}" style="text-align:left; padding:12px; border-radius:14px; border:1px solid ${active ? '#7c3aed' : '#eaecf0'}; background:${active ? 'rgba(124,58,237,0.06)' : '#fff'}; cursor:pointer;">
+        <button class="demo-card" data-id="${escapeHtml(s.id)}" style="text-align:left; padding:12px; border-radius:14px; border:1px solid ${active ? '#7c3aed' : '#eaecf0'}; background:${active ? 'rgba(124,58,237,0.06)' : '#fff'}; cursor:pointer; min-width: 220px;">
           <div style="font-weight:900; color:#101828;">${escapeHtml(title)}</div>
           <div style="margin-top:4px; font-size:12px; color:#667085;">${escapeHtml(when)}</div>
-          <div style="margin-top:8px; font-size:12px; color:#344054;">Link: ${s.meeting_link ? `<a href="${escapeHtml(s.meeting_link)}" target="_blank">Open</a>` : '—'}</div>
         </button>
       `;
     }).join('');
@@ -117,14 +116,11 @@
           <td>
             <input class="form-control" data-act="comments" data-id="${escapeHtml(inv.id)}" value="${escapeHtml(inv.comments_after_inauguration || '')}" placeholder="Comments" />
           </td>
-          <td>
-            <input class="form-control" data-act="link" data-id="${escapeHtml(inv.id)}" value="${escapeHtml(inv.link || '')}" placeholder="Link (optional)" />
-          </td>
         </tr>
       `;
     }).join('');
 
-    tbody.innerHTML = rows || '<tr><td colspan="8" style="padding:14px; color:#667085;">No invites yet</td></tr>';
+    tbody.innerHTML = rows || '<tr><td colspan="7" style="padding:14px; color:#667085;">No invites yet</td></tr>';
 
     // Bind change handlers
     tbody.querySelectorAll('[data-act]').forEach(el => {
@@ -161,7 +157,6 @@
         el.onblur = async () => {
           const patch = {};
           if (act === 'comments') patch.commentsAfterInauguration = el.value;
-          if (act === 'link') patch.link = el.value;
           try {
             await apiPatch(`/api/demo-sessions/invites/${encodeURIComponent(id)}`, patch);
           } catch (e) {

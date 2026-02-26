@@ -706,7 +706,6 @@ async function openManageLeadModal(leadId) {
                   <option value="3">Demo 3</option>
                   <option value="4">Demo 4</option>
                 </select>
-                <input id="demoInviteLink" class="form-control" style="min-width:260px; flex:1;" placeholder="Link (optional)" />
                 <button type="button" class="btn btn-primary btn-sm" id="demoInviteBtn">
                   <i class="fas fa-paper-plane"></i> Invite
                 </button>
@@ -776,8 +775,6 @@ async function openManageLeadModal(leadId) {
       inviteBtn.onclick = async () => {
         const msgEl = document.getElementById('demoInviteMsg');
         const demoNumber = Number(document.getElementById('demoInviteNumber')?.value || '1');
-        const link = String(document.getElementById('demoInviteLink')?.value || '').trim();
-
         try {
           inviteBtn.disabled = true;
           if (msgEl) msgEl.textContent = 'Inviting…';
@@ -789,7 +786,6 @@ async function openManageLeadModal(leadId) {
             body: JSON.stringify({
               batchName: lead.batch,
               demoNumber,
-              link,
               lead: {
                 supabaseId: lead.supabaseId,
                 batch: lead.batch,
