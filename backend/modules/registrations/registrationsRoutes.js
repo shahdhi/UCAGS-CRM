@@ -813,7 +813,8 @@ router.post('/admin/export-sheet', isAdmin, async (req, res) => {
     const sb = getSupabaseAdmin();
     const { data: regs, error } = await sb
       .from('registrations')
-      .select('id, created_at, batch_name, program_id, assigned_to, full_name, phone, email, nic, payment_status, notes')
+      // Use actual columns + payload JSON for fallback
+      .select('id, created_at, batch_name, program_id, assigned_to, name, phone_number, email, payload, nic, payment_status, notes')
       .eq('batch_name', batchName)
       .order('created_at', { ascending: true })
       .limit(5000);
@@ -826,18 +827,26 @@ router.post('/admin/export-sheet', isAdmin, async (req, res) => {
       if (!id) continue;
       if (existingIds.has(id)) continue;
 
+      const payload = (r.payload && typeof r.payload === 'object') ? r.payload : {};
+      const fullName = r.name || payload.name || payload.full_name || '';
+      const phone = r.phone_number || payload.phone_number || payload.phone || '';
+      const email = r.email || payload.email || '';
+      const nic = r.nic || payload.nic || payload.ID || payload.id_number || '';
+      const paymentStatus = r.payment_status || payload.payment_status || '';
+      const notes = r.notes || payload.notes || '';
+
       toAppend.push([
         cleanCell(r.id),
         cleanCell(r.created_at),
-        cleanCell(r.batch_name),
-        cleanCell(r.program_id),
-        cleanCell(r.assigned_to),
-        cleanCell(r.full_name),
-        cleanCell(r.phone),
-        cleanCell(r.email),
-        cleanCell(r.nic),
-        cleanCell(r.payment_status),
-        cleanCell(r.notes)
+        cleanCell(r.batch_name || payload.batch_name || ''),
+        cleanCell(r.program_id || payload.program_id || ''),
+        cleanCell(r.assigned_to || payload.assigned_to || payload.assignedTo || ''),
+        cleanCell(fullName),
+        cleanCell(phone),
+        cleanCell(email),
+        cleanCell(nic),
+        cleanCell(paymentStatus),
+        cleanCell(notes)
       ]);
     }
 
