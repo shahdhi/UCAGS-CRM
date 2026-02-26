@@ -756,18 +756,12 @@ router.delete('/admin/:id', isAdmin, async (req, res) => {
 // ==========================
 
 const REG_SHEET_NAME = 'registrations';
-const REG_HEADERS = [
-  'registration_id',
-  'created_at',
-  'batch_name',
-  'program_id',
-  'assigned_to',
-  'full_name',
-  'phone',
-  'email',
-  'nic',
-  'payment_status',
-  'notes'
+// Export columns are dynamic:
+//  - Always start with registration_id (Supabase registrations.id)
+//  - Include all DB columns
+//  - Include all payload.* keys (prefixed to avoid collisions)
+const REG_HEADERS_BASE = [
+  'registration_id'
 ];
 
 function cleanCell(v) {
@@ -776,12 +770,76 @@ function cleanCell(v) {
   return String(v);
 }
 
-async function ensureRegistrationsTab(spreadsheetId) {
+function colToLetter(col) {
+  let temp = col;
+  let letter = '';
+  while (temp > 0) {
+    const rem = (temp - 1) % 26;
+    letter = String.fromCharCode(65 + rem) + letter;
+    temp = Math.floor((temp - 1) / 26);
+  }
+  return letter;
+}
+
+function toSafeHeaderKey(k) {
+  // keep it simple: stringify + trim
+  return String(k || '').trim();
+}
+
+function buildDynamicHeaders(regs) {
+  const dbKeys = new Set();
+  const payloadKeys = new Set();
+
+  for (const r of (regs || [])) {
+    if (r && typeof r === 'object') {
+      Object.keys(r).forEach(k => {
+        if (k === 'payload') return;
+        dbKeys.add(k);
+      });
+
+      const p = (r.payload && typeof r.payload === 'object') ? r.payload : null;
+      if (p) {
+        Object.keys(p).forEach(k => payloadKeys.add(k));
+      }
+    }
+  }
+
+  // Stable ordering: id column first, then common columns, then remaining db keys, then payload keys
+  const common = ['created_at', 'batch_name', 'program_id', 'program_name', 'assigned_to', 'name', 'phone_number', 'wa_number', 'email'];
+
+  const dbSorted = Array.from(dbKeys)
+    .filter(k => k !== 'id')
+    .sort((a, b) => String(a).localeCompare(String(b)));
+
+  // ensure common columns come early (if present)
+  const dbFinal = [];
+  for (const k of common) {
+    if (dbKeys.has(k) && k !== 'id') dbFinal.push(k);
+  }
+  for (const k of dbSorted) {
+    if (dbFinal.includes(k)) continue;
+    dbFinal.push(k);
+  }
+
+  const payloadFinal = Array.from(payloadKeys)
+    .map(k => `payload.${toSafeHeaderKey(k)}`)
+    .sort((a, b) => String(a).localeCompare(String(b)));
+
+  return [
+    ...REG_HEADERS_BASE,
+    ...dbFinal,
+    ...payloadFinal
+  ];
+}
+
+async function ensureRegistrationsTab(spreadsheetId, headers) {
   const exists = await sheetExists(spreadsheetId, REG_SHEET_NAME);
   if (!exists) {
     await createSheet(spreadsheetId, REG_SHEET_NAME);
   }
-  await writeSheet(spreadsheetId, `${REG_SHEET_NAME}!A1:K1`, [REG_HEADERS]);
+
+  const maxCol = colToLetter(headers.length);
+  await writeSheet(spreadsheetId, `${REG_SHEET_NAME}!A1:${maxCol}1`, [headers]);
 }
 
 async function readExistingRegistrationIds(spreadsheetId) {
@@ -807,19 +865,44 @@ router.post('/admin/export-sheet', isAdmin, async (req, res) => {
 
     const spreadsheetId = batch.admin_spreadsheet_id;
 
-    await ensureRegistrationsTab(spreadsheetId);
-    const existingIds = await readExistingRegistrationIds(spreadsheetId);
-
+    // 1) Load registrations for the batch
     const sb = getSupabaseAdmin();
     const { data: regs, error } = await sb
       .from('registrations')
-      // Use actual columns + payload JSON for fallback
-      .select('id, created_at, batch_name, program_id, assigned_to, name, phone_number, email, payload, nic, payment_status, notes')
+      .select('*')
       .eq('batch_name', batchName)
       .order('created_at', { ascending: true })
       .limit(5000);
 
     if (error) throw error;
+
+    // 2) Determine headers (expand if new fields appear)
+    // Read existing headers first (if sheet exists)
+    let existingHeaders = [];
+    try {
+      const h = await readSheet(spreadsheetId, `${REG_SHEET_NAME}!A1:ZZ1`, { force: true });
+      existingHeaders = (h && h[0]) ? h[0].map(x => String(x || '').trim()).filter(Boolean) : [];
+    } catch (_) {}
+
+    const dynamicHeaders = buildDynamicHeaders(regs || []);
+
+    // Merge headers but preserve order:
+    // - keep existing headers first
+    // - append any new headers in dynamicHeaders order
+    const mergedHeaders = [...existingHeaders];
+    const seen = new Set(existingHeaders);
+    for (const h of dynamicHeaders) {
+      if (!seen.has(h)) {
+        mergedHeaders.push(h);
+        seen.add(h);
+      }
+    }
+
+    // Ensure at least base header exists
+    if (!mergedHeaders.length) mergedHeaders.push(...dynamicHeaders);
+
+    await ensureRegistrationsTab(spreadsheetId, mergedHeaders);
+    const existingIds = await readExistingRegistrationIds(spreadsheetId);
 
     const toAppend = [];
     for (const r of (regs || [])) {
@@ -828,30 +911,30 @@ router.post('/admin/export-sheet', isAdmin, async (req, res) => {
       if (existingIds.has(id)) continue;
 
       const payload = (r.payload && typeof r.payload === 'object') ? r.payload : {};
-      const fullName = r.name || payload.name || payload.full_name || '';
-      const phone = r.phone_number || payload.phone_number || payload.phone || '';
-      const email = r.email || payload.email || '';
-      const nic = r.nic || payload.nic || payload.ID || payload.id_number || '';
-      const paymentStatus = r.payment_status || payload.payment_status || '';
-      const notes = r.notes || payload.notes || '';
 
-      toAppend.push([
-        cleanCell(r.id),
-        cleanCell(r.created_at),
-        cleanCell(r.batch_name || payload.batch_name || ''),
-        cleanCell(r.program_id || payload.program_id || ''),
-        cleanCell(r.assigned_to || payload.assigned_to || payload.assignedTo || ''),
-        cleanCell(fullName),
-        cleanCell(phone),
-        cleanCell(email),
-        cleanCell(nic),
-        cleanCell(paymentStatus),
-        cleanCell(notes)
-      ]);
+      // Build row aligned with mergedHeaders
+      const rowMap = {};
+      rowMap.registration_id = r.id;
+
+      // DB columns
+      for (const [k, v] of Object.entries(r || {})) {
+        if (k === 'payload') continue;
+        if (k === 'id') continue; // already mapped to registration_id
+        rowMap[k] = v;
+      }
+
+      // payload.* columns
+      for (const [k, v] of Object.entries(payload || {})) {
+        rowMap[`payload.${toSafeHeaderKey(k)}`] = v;
+      }
+
+      const row = mergedHeaders.map(h => cleanCell(rowMap[h]));
+      toAppend.push(row);
     }
 
     if (toAppend.length) {
-      await appendSheet(spreadsheetId, `${REG_SHEET_NAME}!A:K`, toAppend);
+      const maxCol = colToLetter(mergedHeaders.length);
+      await appendSheet(spreadsheetId, `${REG_SHEET_NAME}!A:${maxCol}`, toAppend);
     }
 
     res.json({
