@@ -112,6 +112,9 @@ app.use('/api/google', require('./modules/google/googleRoutes'));
 // Notifications
 app.use('/api/notifications', require('./modules/notifications/notificationsRoutes'));
 
+// Demo Sessions (invite + attendance + reminders)
+app.use('/api/demo-sessions', require('./modules/demoSessions/demoSessionsRoutes'));
+
 // Attendance (check-in / check-out)
 app.use('/api/attendance', require('./modules/attendance/attendanceRoutes'));
 

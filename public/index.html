@@ -184,6 +184,10 @@
                     <i class="fas fa-chart-line"></i>
                     <span>Reports</span>
                 </a>
+                <a href="#" class="nav-item" data-page="demo-sessions">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                    <span>Demo Sessions</span>
+                </a>
 
                 <div class="nav-divider"></div>
 
@@ -1118,6 +1122,50 @@
             </div>
 
             <!-- Reports View (Admin Only) -->
+            <div id="demoSessionsView" class="content-view" style="display:none;">
+                <div class="page-header">
+                    <h1><i class="fas fa-chalkboard-teacher"></i> Demo Sessions</h1>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <select id="demoBatchSelect" class="form-control" style="width:200px;"></select>
+                        <button id="demoSessionsRefreshBtn" class="btn btn-secondary btn-sm" type="button"><i class="fas fa-sync"></i> Refresh</button>
+                    </div>
+                </div>
+
+                <div class="dashboard-card no-anim" style="margin-bottom:12px;">
+                    <div style="display:grid; grid-template-columns: 320px 1fr; gap:12px; align-items:start;">
+                        <div>
+                            <div style="font-weight:900; color:#101828; margin-bottom:8px;">Sessions</div>
+                            <div id="demoSessionsCards" style="display:flex; flex-direction:column; gap:10px;"></div>
+                        </div>
+                        <div>
+                            <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; margin-bottom:10px;">
+                                <div style="font-weight:900; color:#101828;">Participants</div>
+                                <div style="color:#667085; font-size:12px;">Mark attendance & response, add reminders</div>
+                            </div>
+                            <div style="overflow:auto; border:1px solid #eaecf0; border-radius:12px;">
+                                <table class="data-table" style="min-width:1100px;">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Contact Number</th>
+                                            <th>Status</th>
+                                            <th>Reminders</th>
+                                            <th>Attendance</th>
+                                            <th>Response</th>
+                                            <th>Comments After Inauguration</th>
+                                            <th>Link</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="demoInvitesTbody">
+                                        <tr><td colspan="8" style="padding:14px; color:#667085;">Select a demo session</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div id="reportsView" class="content-view">
                 <div class="page-header">
                     <h1>Reports</h1>
@@ -1892,6 +1940,7 @@
     <script src="/frontend/pages/leads/staffLeadManagement.js?v=1"></script>
     <script src="/frontend/pages/registrations/registrationsPage.js?v=1"></script>
     <script src="/frontend/pages/registrations/myRegistrationsPage.js?v=1"></script>
+    <script src="/frontend/pages/demoSessions/demoSessionsPage.js?v=1"></script>
     <script src="/frontend/pages/programs/programsPage.js?v=1"></script>
     <script src="/frontend/pages/payments/paymentsPage.js?v=2"></script>
     <script src="/frontend/pages/payments/batchPaymentSetup.js?v=1"></script>

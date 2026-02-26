@@ -849,6 +849,14 @@ async function navigateToPage(page) {
                 subEl.textContent = text;
             }
         }
+    } else if (page === 'demo-sessions') {
+        const viewElement = document.getElementById('demoSessionsView');
+        if (viewElement) {
+            viewElement.classList.add('active');
+        } else {
+            window.location.hash = 'home';
+            return;
+        }
     } else {
         const viewElement = document.getElementById(`${page}View`);
         if (viewElement) {
@@ -981,6 +989,11 @@ async function navigateToPage(page) {
             break;
         case 'reports':
             loadReports();
+            break;
+        case 'demo-sessions':
+            if (window.initDemoSessionsPage) {
+                await window.initDemoSessionsPage();
+            }
             break;
         case 'notifications':
             document.getElementById('pageTitle').textContent = 'Notifications';

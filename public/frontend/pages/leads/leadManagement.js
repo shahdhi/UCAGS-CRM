@@ -688,6 +688,32 @@ async function openManageLeadModal(leadId) {
               </span>
             </div>
             
+            <!-- Invite to Demo Session -->
+            <div style="background:#f8f5ff; padding: 12px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #e9d7fe;">
+              <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
+                <div>
+                  <div style="font-weight:900; color:#5b21b6;"><i class=\"fas fa-chalkboard-teacher\"></i> Invite to Demo Session</div>
+                  <div style="font-size:12px; color:#667085; margin-top:2px;">Invite this lead to Demo 1..4 for the batch and track attendance/response.</div>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" id="demoGoToPageBtn" title="Open Demo Sessions page">
+                  <i class="fas fa-external-link-alt"></i> Open
+                </button>
+              </div>
+              <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px;">
+                <select id="demoInviteNumber" class="form-control" style="width:140px;">
+                  <option value="1">Demo 1</option>
+                  <option value="2">Demo 2</option>
+                  <option value="3">Demo 3</option>
+                  <option value="4">Demo 4</option>
+                </select>
+                <input id="demoInviteLink" class="form-control" style="min-width:260px; flex:1;" placeholder="Link (optional)" />
+                <button type="button" class="btn btn-primary btn-sm" id="demoInviteBtn">
+                  <i class="fas fa-paper-plane"></i> Invite
+                </button>
+                <span id="demoInviteMsg" style="font-size:12px; color:#667085;"></span>
+              </div>
+            </div>
+
             <!-- Contact Information (Read-only reference) -->
             <div style="background: #f5f5f5; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
               <strong>Contact:</strong> 
@@ -734,6 +760,62 @@ async function openManageLeadModal(leadId) {
   
   document.body.insertAdjacentHTML('beforeend', modalHTML);
   document.body.style.overflow = 'hidden';
+
+  // Demo invite actions
+  try {
+    const goBtn = document.getElementById('demoGoToPageBtn');
+    if (goBtn) {
+      goBtn.onclick = () => {
+        window.location.hash = 'demo-sessions';
+        if (window.navigateToPage) window.navigateToPage('demo-sessions');
+      };
+    }
+
+    const inviteBtn = document.getElementById('demoInviteBtn');
+    if (inviteBtn) {
+      inviteBtn.onclick = async () => {
+        const msgEl = document.getElementById('demoInviteMsg');
+        const demoNumber = Number(document.getElementById('demoInviteNumber')?.value || '1');
+        const link = String(document.getElementById('demoInviteLink')?.value || '').trim();
+
+        try {
+          inviteBtn.disabled = true;
+          if (msgEl) msgEl.textContent = 'Inviting…';
+
+          const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+          const res = await fetch('/api/demo-sessions/invite', {
+            method: 'POST',
+            headers: { ...authHeaders, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              batchName: lead.batch,
+              demoNumber,
+              link,
+              lead: {
+                supabaseId: lead.supabaseId,
+                batch: lead.batch,
+                sheet: lead.sheet,
+                sheetLeadId: lead.sheetLeadId,
+                name: lead.name,
+                phone: lead.phone
+              }
+            })
+          });
+          const json = await res.json();
+          if (!json?.success) throw new Error(json?.error || 'Invite failed');
+
+          if (msgEl) msgEl.textContent = `Invited to Demo ${demoNumber}`;
+          if (window.UI?.showToast) UI.showToast(`Invited ${lead.name} to Demo ${demoNumber}`, 'success');
+        } catch (e) {
+          if (msgEl) msgEl.textContent = e.message;
+          if (window.UI?.showToast) UI.showToast(e.message, 'error');
+        } finally {
+          inviteBtn.disabled = false;
+        }
+      };
+    }
+  } catch (e) {
+    // ignore
+  }
 
   // Bind submit handler safely (avoid inline onsubmit quoting issues)
   const form = document.getElementById('manageLeadForm');

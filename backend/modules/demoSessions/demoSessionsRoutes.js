@@ -1,0 +1,91 @@
+const express = require('express');
+const router = express.Router();
+
+const { isAdminOrOfficer } = require('../../../server/middleware/auth');
+const svc = require('./demoSessionsService');
+
+// GET /api/demo-sessions/sessions?batch=Batch%201
+router.get('/sessions', isAdminOrOfficer, async (req, res) => {
+  try {
+    const batchName = req.query?.batch;
+    const sessions = await svc.listSessions({ batchName });
+    res.json({ success: true, sessions });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// POST /api/demo-sessions/sessions
+// Body: { batchName, demoNumber, patch }
+router.post('/sessions', isAdminOrOfficer, async (req, res) => {
+  try {
+    const { batchName, demoNumber, patch } = req.body || {};
+    const actorUserId = req.user?.id;
+    const session = await svc.ensureSession({ batchName, demoNumber, patch: patch || {}, actorUserId });
+    res.json({ success: true, session });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// GET /api/demo-sessions/invites?sessionId=...
+router.get('/invites', isAdminOrOfficer, async (req, res) => {
+  try {
+    const demoSessionId = req.query?.sessionId;
+    const invites = await svc.listInvites({ demoSessionId });
+    res.json({ success: true, invites });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// POST /api/demo-sessions/invite
+// Body: { batchName, demoNumber, lead, link }
+router.post('/invite', isAdminOrOfficer, async (req, res) => {
+  try {
+    const { batchName, demoNumber, lead, link } = req.body || {};
+    const actorUserId = req.user?.id;
+    const out = await svc.inviteLeadToDemo({ batchName, demoNumber, lead, actorUserId, link });
+    res.status(201).json({ success: true, ...out });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// PATCH /api/demo-sessions/invites/:id
+router.patch('/invites/:id', isAdminOrOfficer, async (req, res) => {
+  try {
+    const inviteId = req.params.id;
+    const actorUserId = req.user?.id;
+    const invite = await svc.updateInvite({ inviteId, patch: req.body || {}, actorUserId });
+    res.json({ success: true, invite });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// GET /api/demo-sessions/invites/:id/reminders
+router.get('/invites/:id/reminders', isAdminOrOfficer, async (req, res) => {
+  try {
+    const inviteId = req.params.id;
+    const reminders = await svc.listReminders({ inviteId });
+    res.json({ success: true, reminders });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// POST /api/demo-sessions/invites/:id/reminders
+// Body: { note }
+router.post('/invites/:id/reminders', isAdminOrOfficer, async (req, res) => {
+  try {
+    const inviteId = req.params.id;
+    const actorUserId = req.user?.id;
+    const reminder = await svc.addReminder({ inviteId, note: req.body?.note, actorUserId });
+    res.status(201).json({ success: true, reminder });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+module.exports = router;
