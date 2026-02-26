@@ -11,6 +11,64 @@
 
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
 
+// Resolve officer display name -> Supabase Auth user id (best effort)
+// We keep a short-lived cache because listUsers can be expensive.
+let __officerIdCache = { map: new Map(), expiresAt: 0 };
+
+async function resolveOfficerUserIdByName(officerName) {
+  const name = cleanString(officerName);
+  if (!name) return null;
+
+  const sb = requireSupabase();
+
+  // cache for 60s
+  if (__officerIdCache.expiresAt > Date.now()) {
+    return __officerIdCache.map.get(name.toLowerCase()) || null;
+  }
+
+  try {
+    const { data: { users } = {}, error } = await sb.auth.admin.listUsers({ page: 1, perPage: 2000 });
+    if (error) throw error;
+
+    const map = new Map();
+    (users || []).forEach(u => {
+      const role = u?.user_metadata?.role;
+      const display = cleanString(u?.user_metadata?.name) || cleanString(u?.email?.split('@')?.[0]);
+      if (!display) return;
+      // Only cache staff-like accounts
+      if (role && !['officer', 'admission_officer', 'admin'].includes(role)) return;
+      map.set(display.toLowerCase(), u.id);
+    });
+
+    __officerIdCache = { map, expiresAt: Date.now() + 60 * 1000 };
+    return map.get(name.toLowerCase()) || null;
+  } catch (e) {
+    console.warn('resolveOfficerUserIdByName failed:', e.message);
+    return null;
+  }
+}
+
+async function notifyLeadAssignment({ officerName, leadCount = 1, batchName, sheetName }) {
+  const userId = await resolveOfficerUserIdByName(officerName);
+  if (!userId) return;
+
+  try {
+    const { createNotification } = require('../notifications/notificationsService');
+    const title = 'New leads assigned';
+    const msg = `${Number(leadCount) || 1} lead(s) assigned — ${cleanString(batchName)}${sheetName ? ' / ' + cleanString(sheetName) : ''}`;
+    await createNotification({
+      userId,
+      category: 'lead_assignment',
+      title,
+      message: msg,
+      type: 'info'
+    });
+  } catch (e) {
+    // non-fatal
+    console.warn('notifyLeadAssignment failed:', e.message);
+  }
+}
+
 function requireSupabase() {
   const sb = getSupabaseAdmin();
   if (!sb) {
@@ -267,7 +325,7 @@ async function updateAdminLead({ batchName, sheetName, sheetLeadId, updates }) {
   // Find the lead
   const { data: existing, error: exErr } = await sb
     .from('crm_leads')
-    .select('id, management_json')
+    .select('id, management_json, assigned_to')
     .eq('batch_name', batchName)
     .eq('sheet_name', sheetName)
     .eq('sheet_lead_id', sheetLeadId)
@@ -316,6 +374,15 @@ async function updateAdminLead({ batchName, sheetName, sheetLeadId, updates }) {
     .single();
 
   if (error) throw error;
+
+  // Notify on assignment change (best effort)
+  try {
+    const prevAssigned = cleanString(existing?.assigned_to);
+    const nextAssigned = cleanString(updated?.assigned_to);
+    if (updates?.assignedTo !== undefined && prevAssigned !== nextAssigned && nextAssigned) {
+      await notifyLeadAssignment({ officerName: nextAssigned, leadCount: 1, batchName, sheetName });
+    }
+  } catch (_) {}
 
   return rowToLead(updated);
 }
@@ -419,6 +486,15 @@ async function bulkAssignAdmin({ batchName, sheetName, leadIds, assignedTo }) {
     .select('id');
 
   if (error) throw error;
+
+  // Notify new assignee once (best effort)
+  try {
+    const officerName = cleanString(assignedTo);
+    if (officerName) {
+      await notifyLeadAssignment({ officerName, leadCount: (data || []).length, batchName, sheetName });
+    }
+  } catch (_) {}
+
   return { updatedCount: (data || []).length };
 }
 

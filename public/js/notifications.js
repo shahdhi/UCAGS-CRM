@@ -502,6 +502,71 @@
   }
 
   let inboxTimer = null;
+
+  // Realtime watcher for server-generated notifications (instant)
+  let realtimeChannel = null;
+  function startRealtimeInboxWatcher(currentUser) {
+    try {
+      if (realtimeChannel) return;
+      if (!window.supabaseClient || typeof window.supabaseClient.channel !== 'function') return;
+      const userId = currentUser?.id;
+      if (!userId) return;
+
+      // Listen for new notifications for this user
+      realtimeChannel = window.supabaseClient
+        .channel('user_notifications_inbox')
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'user_notifications',
+          filter: `user_id=eq.${userId}`
+        }, (payload) => {
+          try {
+            const n = payload?.new;
+            if (!n) return;
+
+            // Only pop if unread
+            if (n.read_at) return;
+            if (wasPopped(userId, n.id)) return;
+            markPopped(userId, n.id);
+
+            const msg = `${n.title}: ${n.message}`;
+            notifyInApp(msg, n.type || 'info');
+            notifyBrowser(n.title, n.message);
+
+            // Refresh bell badge/dropdown immediately
+            try {
+              if (window.NotificationCenter?.updateBadge) {
+                window.NotificationCenter.updateBadge();
+              }
+              const dd = document.querySelector('.notification-dropdown');
+              const isOpen = dd && !dd.classList.contains('hidden');
+              if (isOpen && window.NotificationCenter?.show) {
+                // show() triggers a re-render
+                window.NotificationCenter.show();
+              }
+            } catch (_) {}
+
+            // advance watermark so poll watcher won't re-pop it
+            const ts = n?.created_at ? new Date(n.created_at).getTime() : 0;
+            if (ts) {
+              const lastSeenTs = loadLastSeenTs(userId);
+              saveLastSeenTs(userId, Math.max(lastSeenTs, ts));
+            }
+          } catch (e) {
+            // ignore
+          }
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            // ok
+          }
+        });
+    } catch (e) {
+      console.warn('Realtime inbox watcher failed:', e.message);
+    }
+  }
+
   function startInboxWatcher(currentUser) {
     if (inboxTimer) return;
 
@@ -534,6 +599,7 @@
       }
 
       // Everyone: server inbox watcher (for admin events, and future server-generated events)
+      startRealtimeInboxWatcher(currentUser);
       startInboxWatcher(currentUser);
     } catch (e) {
       console.warn('Notifications init failed:', e.message);
