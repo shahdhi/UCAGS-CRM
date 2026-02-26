@@ -115,6 +115,18 @@
 
     const escape = (s) => String(s ?? '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+    // Backwards/forwards compatible KPI getter (API uses snake_case; some UIs may still send camelCase)
+    const getKpi = (row, snake, camel) => {
+      if (!row) return 0;
+      const v = row?.[snake];
+      if (v != null) return v;
+      if (camel) {
+        const v2 = row?.[camel];
+        if (v2 != null) return v2;
+      }
+      return 0;
+    };
+
     const byOfficerSlot = new Map();
     for (const r of safeReports) {
       if (!r?.officer_user_id || !r?.slot_key) continue;
@@ -332,7 +344,7 @@
     if (window.Cache) window.Cache.invalidatePrefix('reports:daily:');
     const date = $('reportsAdminDate')?.value || todayISO();
     const rows = await adminLoadReports(date);
-    renderAdminTable(rows, officers, schedule);
+    renderAdminOverview({ reports: rows, officers, schedule });
   }
 
   function setOfficerDescription(schedule) {
@@ -353,6 +365,18 @@
     const slots = (schedule?.slots || []).filter(s => s?.key);
 
     const escape = (s) => String(s ?? '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    // Backwards/forwards compatible KPI getter (API uses snake_case; some UIs may still send camelCase)
+    const getKpi = (row, snake, camel) => {
+      if (!row) return 0;
+      const v = row?.[snake];
+      if (v != null) return v;
+      if (camel) {
+        const v2 = row?.[camel];
+        if (v2 != null) return v2;
+      }
+      return 0;
+    };
 
     const byOfficerSlot = new Map();
     for (const r of safeReports) {
@@ -513,6 +537,17 @@
       if (msg) msg.textContent = 'Submitting...';
       try {
         await officerSubmit(schedule);
+
+        // Refresh slot overview so KPI numbers show immediately after submission
+        try {
+          const dateISO = todayISO();
+          const { reports, officers } = await officerLoadOverview(dateISO);
+          renderOfficerOverview({ reports, officers, schedule });
+        } catch (refreshErr) {
+          // non-fatal; user still sees success toast
+          console.warn('Failed to refresh officer overview after submit:', refreshErr);
+        }
+
         if (msg) msg.textContent = 'Submitted successfully.';
         if (window.showToast) showToast('Daily report submitted', 'success');
         if (window.closeModal) closeModal('dailyReportModal');
