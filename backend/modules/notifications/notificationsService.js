@@ -30,13 +30,14 @@ async function createNotification({ userId, category = 'general', title, message
   // Only applied to known noisy categories.
   if (row.category === 'lead_assignment') {
     try {
-      const cutoff = new Date(Date.now() - 60 * 1000).toISOString();
+      // Strong dedupe: if a lead-assignment notification was created very recently for this user,
+      // treat it as the same event. (Prevents duplicates when two endpoints fire.)
+      const cutoff = new Date(Date.now() - 10 * 1000).toISOString();
       const { data: existing, error: exErr } = await sb
         .from('user_notifications')
         .select('*')
         .eq('user_id', row.user_id)
         .eq('category', row.category)
-        .eq('message', row.message)
         .is('read_at', null)
         .gte('created_at', cutoff)
         .order('created_at', { ascending: false })
