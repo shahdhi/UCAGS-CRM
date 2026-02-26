@@ -1903,7 +1903,8 @@ body {
     position: fixed;
     bottom: 24px;
     right: 24px;
-    z-index: 2000;
+    /* Ensure toasts appear above modals/overlays */
+    z-index: 10000;
     max-width: 450px;
 }
 

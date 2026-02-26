@@ -132,10 +132,11 @@
     playNotificationSound();
     ringBellIcon();
     try {
-      if (window.showToast) {
-        window.showToast(message, type);
-      } else if (window.UI?.showToast) {
+      // Prefer UI.showToast (it auto-creates #toastContainer and uses our CSS)
+      if (window.UI?.showToast) {
         window.UI.showToast(message, type);
+      } else if (window.showToast) {
+        window.showToast(message, type);
       } else {
         console.log('[notify]', message);
       }
@@ -466,7 +467,8 @@
 
   async function pollInbox(currentUser) {
     try {
-      const userId = currentUser?.id || 'me';
+      const userId = currentUser?.id;
+      if (!userId) return;
       const res = await fetch('/api/notifications?limit=20', { headers: await getAuthHeaders() });
       const json = await res.json();
       if (!json?.success) return;
@@ -516,6 +518,18 @@
           const msg = `${n.title}: ${n.message}`;
           notifyInApp(msg, n.type || 'info');
           notifyBrowser(n.title, n.message);
+
+          // Refresh bell badge/dropdown immediately
+          try {
+            if (window.NotificationCenter?.updateBadge) {
+              window.NotificationCenter.updateBadge();
+            }
+            const dd = document.querySelector('.notification-dropdown');
+            const isOpen = dd && !dd.classList.contains('hidden');
+            if (isOpen && window.NotificationCenter?.show) {
+              window.NotificationCenter.show();
+            }
+          } catch (_) {}
         });
 
       // Move watermark forward to newest created_at we have
