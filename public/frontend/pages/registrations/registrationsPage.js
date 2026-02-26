@@ -583,6 +583,7 @@
     }
 
     const refreshBtn = qs('registrationsRefreshBtn');
+    const exportBtn = qs('registrationsExportBtn');
     const limitEl = qs('registrationsLimit');
     const batchSel = qs('registrationsBatchSelect');
     const tbody = qs('registrationsTableBody');
@@ -646,6 +647,41 @@
         console.error(err);
         if (window.UI && UI.showToast) UI.showToast(err.message || 'Failed to load registrations', 'error');
       }));
+    }
+
+    if (exportBtn && !exportBtn.__bound) {
+      exportBtn.__bound = true;
+      exportBtn.addEventListener('click', async () => {
+        try {
+          const batchName = selectedBatchName || batchSel?.value;
+          if (!batchName) throw new Error('Please select a batch');
+
+          const ok = confirm(`Export registrations for ${batchName} to Google Sheet tab "registrations"?`);
+          if (!ok) return;
+
+          exportBtn.disabled = true;
+          exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+
+          const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+          const r = await fetch('/api/registrations/admin/export-sheet', {
+            method: 'POST',
+            headers: { ...authHeaders, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ batchName })
+          });
+          const j = await r.json();
+          if (!j?.success) throw new Error(j?.error || 'Export failed');
+
+          if (window.UI && UI.showToast) {
+            UI.showToast(`Exported: ${j.appended} new registrations to sheet (${j.sheetName})`, 'success');
+          }
+        } catch (err) {
+          console.error(err);
+          if (window.UI && UI.showToast) UI.showToast(err.message || 'Export failed', 'error');
+        } finally {
+          exportBtn.disabled = false;
+          exportBtn.innerHTML = '<i class="fas fa-file-export"></i> Export';
+        }
+      });
     }
 
     if (limitEl && !limitEl.__bound) {

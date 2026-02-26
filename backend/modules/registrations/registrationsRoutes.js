@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
+const { getBatch } = require('../../core/batches/batchesStore');
+const { sheetExists, createSheet, writeSheet, appendSheet, readSheet } = require('../../core/sheets/sheetsClient');
 const { isAdmin, isAdminOrOfficer } = require('../../../server/middleware/auth');
 const { findAssigneeByPhoneAcrossAllSheets, normalizePhoneToSL } = require('./registrationAssignmentService');
 
@@ -742,6 +744,118 @@ router.delete('/admin/:id', isAdmin, async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// ==========================
+// Export registrations -> Google Sheet tab (push-only)
+// POST /api/registrations/admin/export-sheet
+// Body: { batchName }
+// - Ensures "registrations" sheet exists in the batch admin spreadsheet
+// - Appends only new registrations (dedupe by registrations.id)
+// ==========================
+
+const REG_SHEET_NAME = 'registrations';
+const REG_HEADERS = [
+  'registration_id',
+  'created_at',
+  'batch_name',
+  'program_id',
+  'assigned_to',
+  'full_name',
+  'phone',
+  'email',
+  'nic',
+  'payment_status',
+  'notes'
+];
+
+function cleanCell(v) {
+  if (v == null) return '';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+async function ensureRegistrationsTab(spreadsheetId) {
+  const exists = await sheetExists(spreadsheetId, REG_SHEET_NAME);
+  if (!exists) {
+    await createSheet(spreadsheetId, REG_SHEET_NAME);
+  }
+  await writeSheet(spreadsheetId, `${REG_SHEET_NAME}!A1:K1`, [REG_HEADERS]);
+}
+
+async function readExistingRegistrationIds(spreadsheetId) {
+  // Column A: registration_id, starting row 2
+  const rows = await readSheet(spreadsheetId, `${REG_SHEET_NAME}!A2:A`, { force: true });
+  const ids = new Set();
+  for (const r of (rows || [])) {
+    const id = String(r?.[0] || '').trim();
+    if (id) ids.add(id);
+  }
+  return ids;
+}
+
+router.post('/admin/export-sheet', isAdmin, async (req, res) => {
+  try {
+    const batchName = String(req.body?.batchName || '').trim();
+    if (!batchName) return res.status(400).json({ success: false, error: 'batchName is required' });
+
+    const batch = await getBatch(batchName);
+    if (!batch?.admin_spreadsheet_id) {
+      return res.status(404).json({ success: false, error: 'Batch spreadsheet not found' });
+    }
+
+    const spreadsheetId = batch.admin_spreadsheet_id;
+
+    await ensureRegistrationsTab(spreadsheetId);
+    const existingIds = await readExistingRegistrationIds(spreadsheetId);
+
+    const sb = getSupabaseAdmin();
+    const { data: regs, error } = await sb
+      .from('registrations')
+      .select('id, created_at, batch_name, program_id, assigned_to, full_name, phone, email, nic, payment_status, notes')
+      .eq('batch_name', batchName)
+      .order('created_at', { ascending: true })
+      .limit(5000);
+
+    if (error) throw error;
+
+    const toAppend = [];
+    for (const r of (regs || [])) {
+      const id = String(r.id || '').trim();
+      if (!id) continue;
+      if (existingIds.has(id)) continue;
+
+      toAppend.push([
+        cleanCell(r.id),
+        cleanCell(r.created_at),
+        cleanCell(r.batch_name),
+        cleanCell(r.program_id),
+        cleanCell(r.assigned_to),
+        cleanCell(r.full_name),
+        cleanCell(r.phone),
+        cleanCell(r.email),
+        cleanCell(r.nic),
+        cleanCell(r.payment_status),
+        cleanCell(r.notes)
+      ]);
+    }
+
+    if (toAppend.length) {
+      await appendSheet(spreadsheetId, `${REG_SHEET_NAME}!A:K`, toAppend);
+    }
+
+    res.json({
+      success: true,
+      batchName,
+      spreadsheetId,
+      sheetName: REG_SHEET_NAME,
+      appended: toAppend.length,
+      total: (regs || []).length
+    });
+  } catch (error) {
+    console.error('POST /api/registrations/admin/export-sheet error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
