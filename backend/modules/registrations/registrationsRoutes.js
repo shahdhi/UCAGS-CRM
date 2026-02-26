@@ -790,6 +790,21 @@ function buildDynamicHeaders(regs) {
   const dbKeys = new Set();
   const payloadKeys = new Set();
 
+  // Payload keys we do NOT want to export as separate columns (they are already exported via DB cols)
+  const EXCLUDE_PAYLOAD_KEYS = new Set([
+    'address',
+    'confirm_interest',
+    'country',
+    'date_of_birth',
+    'email',
+    'gender',
+    'name',
+    'phone_number',
+    'program_id',
+    'wa_number',
+    'working_status'
+  ]);
+
   for (const r of (regs || [])) {
     if (r && typeof r === 'object') {
       Object.keys(r).forEach(k => {
@@ -799,7 +814,11 @@ function buildDynamicHeaders(regs) {
 
       const p = (r.payload && typeof r.payload === 'object') ? r.payload : null;
       if (p) {
-        Object.keys(p).forEach(k => payloadKeys.add(k));
+        Object.keys(p).forEach(k => {
+          // exclude redundant payload keys
+          if (EXCLUDE_PAYLOAD_KEYS.has(String(k))) return;
+          payloadKeys.add(k);
+        });
       }
     }
   }
