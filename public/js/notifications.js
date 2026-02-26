@@ -114,14 +114,33 @@
     }
   }
 
+  function ringBellIcon() {
+    try {
+      const btn = document.getElementById('notificationsBtn');
+      if (!btn) return;
+      // restart animation
+      btn.classList.remove('ring');
+      // force reflow
+      void btn.offsetWidth;
+      btn.classList.add('ring');
+      setTimeout(() => btn.classList.remove('ring'), 900);
+    } catch (e) {}
+  }
+
   function notifyInApp(message, type = 'info') {
     // "Pop" + sound
     playNotificationSound();
-    if (window.showToast) {
-      window.showToast(message, type);
-    } else if (window.UI?.showToast) {
-      window.UI.showToast(message, type);
-    } else {
+    ringBellIcon();
+    try {
+      if (window.showToast) {
+        window.showToast(message, type);
+      } else if (window.UI?.showToast) {
+        window.UI.showToast(message, type);
+      } else {
+        console.log('[notify]', message);
+      }
+    } catch (e) {
+      console.warn('Toast failed:', e.message);
       console.log('[notify]', message);
     }
   }
@@ -322,12 +341,17 @@
       newSnapshot[key] = Array.from(currIds);
 
       if (newOnes.length) {
-        const title = 'New leads assigned';
-        const msg = `${newOnes.length} lead(s) assigned — ${g.batch}${g.sheet ? ' / ' + g.sheet : ''}`;
-        notifyInApp(msg, 'info');
-        notifyBrowser(title, msg);
-        if (window.NotificationCenter?.add) {
-          window.NotificationCenter.add({ title, message: msg, ts: Date.now(), type: 'info' });
+        // Avoid duplicate notifications: assignments are now delivered via server inbox (user_notifications)
+        // and popped via realtime/pollInbox.
+        const serverInboxActive = window.__serverInboxNotificationsEnabled === true;
+        if (!serverInboxActive) {
+          const title = 'New leads assigned';
+          const msg = `${newOnes.length} lead(s) assigned — ${g.batch}${g.sheet ? ' / ' + g.sheet : ''}`;
+          notifyInApp(msg, 'info');
+          notifyBrowser(title, msg);
+          if (window.NotificationCenter?.add) {
+            window.NotificationCenter.add({ title, message: msg, ts: Date.now(), type: 'info' });
+          }
         }
       }
     }
@@ -599,6 +623,7 @@
       }
 
       // Everyone: server inbox watcher (for admin events, and future server-generated events)
+      window.__serverInboxNotificationsEnabled = true;
       startRealtimeInboxWatcher(currentUser);
       startInboxWatcher(currentUser);
     } catch (e) {

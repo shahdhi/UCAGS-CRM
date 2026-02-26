@@ -230,6 +230,14 @@
     const btn = document.getElementById('notificationsBtn');
     if (!btn) return;
 
+    // Idempotent init: some CRM views may re-run init / re-render header
+    if (btn.__notificationCenterBound) {
+      // Still refresh badge
+      updateBadge();
+      return;
+    }
+    btn.__notificationCenterBound = true;
+
     // Hide badge initially; it will update after init
     updateBadge();
 

@@ -87,7 +87,13 @@ const UI = {
 
     // Toast notifications
     showToast(message, type = 'info') {
-        const container = document.getElementById('toastContainer');
+        let container = document.getElementById('toastContainer');
+        // Some CRM views may re-render sections; ensure toast container always exists
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toastContainer';
+            document.body.appendChild(container);
+        }
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.innerHTML = `

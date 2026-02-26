@@ -2241,6 +2241,27 @@ body {
 
 /* Header bell badge */
 #notificationsBtn { position: relative; }
+
+/* Bell ring effect on new notifications */
+@keyframes bellRing {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(18deg); }
+  20% { transform: rotate(-16deg); }
+  30% { transform: rotate(14deg); }
+  40% { transform: rotate(-12deg); }
+  50% { transform: rotate(10deg); }
+  60% { transform: rotate(-8deg); }
+  70% { transform: rotate(6deg); }
+  80% { transform: rotate(-4deg); }
+  90% { transform: rotate(2deg); }
+  100% { transform: rotate(0deg); }
+}
+
+#notificationsBtn.ring {
+  animation: bellRing 0.8s ease-in-out;
+  transform-origin: 50% 10%;
+}
+
 #notificationsBtn .notification-badge {
     position: absolute;
     top: -6px;

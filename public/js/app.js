@@ -793,6 +793,15 @@ async function navigateToPage(page) {
     document.querySelectorAll('.content-view').forEach(view => {
         view.classList.remove('active');
     });
+
+    // Re-bind notification UI after navigation (some views can affect header DOM)
+    try {
+        window.NotificationCenter?.init?.();
+        window.NotificationCenter?.updateBadge?.();
+        if (window.currentUser && window.Notifications?.init) {
+            window.Notifications.init(window.currentUser);
+        }
+    } catch (e) {}
     
     // For leads pages, use the shared leadsView
     // (parse the route first so the title is correct on refresh)
