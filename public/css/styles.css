@@ -2166,19 +2166,23 @@ body {
     right: 0;
     width: 360px;
     max-width: calc(100vw - 32px);
-    background: rgba(255,255,255,0.98);
-    border: 1px solid var(--separator);
-    border-radius: 12px;
-    box-shadow: var(--shadow-lg);
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(14px) saturate(180%);
+    -webkit-backdrop-filter: blur(14px) saturate(180%);
+    border: 1px solid rgba(234, 236, 240, 0.9);
+    border-radius: 14px;
+    box-shadow: 0 18px 48px rgba(16, 24, 40, 0.22);
     z-index: 2200;
     overflow: hidden;
 
-    /* Apple-like popover motion */
+    /* Premium popover motion */
     transform-origin: top right;
-    transform: translateY(-6px) scale(0.98);
+    transform: translateY(-10px) scale(0.96);
     opacity: 0;
     pointer-events: none;
-    transition: transform 160ms cubic-bezier(0.2, 0, 0, 1), opacity 160ms cubic-bezier(0.2, 0, 0, 1);
+    transition:
+      transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .notification-dropdown.hidden {
@@ -2209,6 +2213,12 @@ body {
 .notification-item {
     padding: 10px 12px;
     border-bottom: 1px solid var(--separator);
+    transition: background 140ms ease, transform 140ms ease;
+}
+
+.notification-item:hover {
+    background: rgba(16, 24, 40, 0.03);
+    transform: translateY(-1px);
 }
 
 .notification-item.unread {
@@ -2241,7 +2251,17 @@ body {
 }
 
 /* Header bell badge */
-#notificationsBtn { position: relative; }
+#notificationsBtn {
+  position: relative;
+  transition: transform 140ms cubic-bezier(0.2, 0, 0, 1), filter 140ms cubic-bezier(0.2, 0, 0, 1);
+  will-change: transform;
+}
+
+/* Premium press effect on click */
+#notificationsBtn.pressed {
+  transform: scale(0.94);
+  filter: brightness(0.98);
+}
 
 /* Bell ring effect on new notifications */
 @keyframes bellRing {

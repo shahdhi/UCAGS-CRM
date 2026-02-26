@@ -245,6 +245,13 @@
 
     btn.addEventListener('click', (e) => {
       e.preventDefault();
+
+      // Premium press effect
+      try {
+        btn.classList.add('pressed');
+        setTimeout(() => btn.classList.remove('pressed'), 160);
+      } catch (_) {}
+
       toggle();
       // Mark read when user opens the dropdown
       setReadNow().then(() => updateBadge()).catch(() => {});
