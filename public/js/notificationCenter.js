@@ -71,15 +71,18 @@
     } catch (e) {}
   }
 
-  async function add({ title, message, ts = Date.now(), type = 'info' }) {
-    // Optimistic local add
+  async function add({ title, message, ts = Date.now(), type = 'info', persist = false } = {}) {
+    // Local-only add by default.
+    // Server notifications should be created by backend (service role) to avoid duplicates and "general" spam.
     const items = loadItemsLocal();
     const localItem = { id: `${ts}:${Math.random().toString(16).slice(2)}`, title, message, ts, type };
     items.unshift(localItem);
     saveItemsLocal(items);
     updateBadge();
 
-    // Best-effort persist to server
+    if (!persist) return;
+
+    // Optional: persist to server (explicit use only)
     try {
       const res = await fetch('/api/notifications', {
         method: 'POST',
@@ -88,7 +91,6 @@
       });
       const json = await res.json();
       if (json?.success && json.notification) {
-        // Refresh from server to keep consistent
         const serverItems = await loadItems();
         saveItemsLocal(serverItems);
         updateBadge();

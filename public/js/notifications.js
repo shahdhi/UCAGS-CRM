@@ -127,6 +127,32 @@
     } catch (e) {}
   }
 
+  function notifyNearBell(title, message, type = 'info') {
+    try {
+      const btn = document.getElementById('notificationsBtn');
+      if (!btn) return;
+      const host = btn.parentElement || btn;
+      host.style.position = host.style.position || 'relative';
+
+      // Remove existing (keep one at a time)
+      host.querySelectorAll('.bell-toast').forEach(x => x.remove());
+
+      const el = document.createElement('div');
+      el.className = `bell-toast ${type || 'info'}`;
+      el.innerHTML = `
+        <div class="t"></div>
+        <div class="m"></div>
+      `;
+      el.querySelector('.t').textContent = String(title || 'Notification');
+      el.querySelector('.m').textContent = String(message || '');
+      host.appendChild(el);
+
+      setTimeout(() => {
+        try { el.remove(); } catch (_) {}
+      }, 4500);
+    } catch (e) {}
+  }
+
   function notifyInApp(message, type = 'info') {
     // "Pop" + sound
     playNotificationSound();
@@ -517,6 +543,7 @@
 
           const msg = `${n.title}: ${n.message}`;
           notifyInApp(msg, n.type || 'info');
+          notifyNearBell(n.title, n.message, n.type || 'info');
           notifyBrowser(n.title, n.message);
 
           // Refresh bell badge/dropdown immediately
@@ -570,6 +597,7 @@
 
             const msg = `${n.title}: ${n.message}`;
             notifyInApp(msg, n.type || 'info');
+            notifyNearBell(n.title, n.message, n.type || 'info');
             notifyBrowser(n.title, n.message);
 
             // Refresh bell badge/dropdown immediately

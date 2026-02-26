@@ -2263,6 +2263,45 @@ body {
   transform-origin: 50% 10%;
 }
 
+/* Bell-anchored popup */
+.bell-toast {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  width: 320px;
+  max-width: min(320px, 80vw);
+  background: #ffffff;
+  border: 1px solid #eaecf0;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.18);
+  padding: 10px 12px;
+  z-index: 12000;
+  animation: bellToastIn 0.18s ease-out;
+}
+
+.bell-toast .t {
+  font-weight: 900;
+  font-size: 13px;
+  color: #101828;
+  margin-bottom: 4px;
+}
+
+.bell-toast .m {
+  font-size: 12px;
+  color: #475467;
+  line-height: 1.35;
+}
+
+.bell-toast.info { border-left: 4px solid #7c3aed; }
+.bell-toast.warning { border-left: 4px solid #f59e0b; }
+.bell-toast.error { border-left: 4px solid #ef4444; }
+.bell-toast.success { border-left: 4px solid #10b981; }
+
+@keyframes bellToastIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 #notificationsBtn .notification-badge {
     position: absolute;
     top: -6px;

@@ -26,6 +26,28 @@ async function createNotification({ userId, category = 'general', title, message
     created_at: new Date().toISOString()
   };
 
+  // Dedupe guard (prevents double-pop when two backend paths generate the same notification)
+  // Only applied to known noisy categories.
+  if (row.category === 'lead_assignment') {
+    try {
+      const cutoff = new Date(Date.now() - 60 * 1000).toISOString();
+      const { data: existing, error: exErr } = await sb
+        .from('user_notifications')
+        .select('*')
+        .eq('user_id', row.user_id)
+        .eq('category', row.category)
+        .eq('message', row.message)
+        .is('read_at', null)
+        .gte('created_at', cutoff)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!exErr && existing) return existing;
+    } catch (e) {
+      // ignore dedupe failures
+    }
+  }
+
   const { data, error } = await sb.from('user_notifications').insert(row).select('*').single();
   if (error) throw error;
   return data;
