@@ -133,10 +133,6 @@
       byOfficerSlot.set(`${r.officer_user_id}:${r.slot_key}`, r);
     }
 
-    const badge = (submitted) => submitted
-      ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Submitted</span>'
-      : '<span class="badge" style="background:#fff1f2; color:#9f1239; border:1px solid #fecdd3;">Not submitted</span>';
-
     const officersSorted = safeOfficers
       .filter(o => {
         const name = String(o?.name || '').toLowerCase();
@@ -146,45 +142,66 @@
       .slice()
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 
-    const kpiLine = (label, val) => `<div style=\"display:flex; justify-content:space-between; gap:10px;\"><span style=\"color:#667085;\">${escape(label)}</span><span style=\"font-weight:700; color:#101828;\">${escape(val)}</span></div>`;
+    const headerCell = (label) => `<th style="text-align:left; padding:10px 12px; font-size:12px; color:#475467; font-weight:800; border-bottom:1px solid #eaecf0; white-space:nowrap;">${escape(label)}</th>`;
+    const cell = (val) => `<td style="padding:10px 12px; border-bottom:1px solid #eaecf0; font-size:13px; color:#101828; white-space:nowrap;">${escape(val)}</td>`;
+
+    const numOrDash = (found, snake, camel) => {
+      if (!found) return '—';
+      const v = getKpi(found, snake, camel);
+      return (v == null || v === '') ? '—' : String(v);
+    };
+
+    const statusText = (found) => (found ? 'Submitted' : 'Not submitted');
 
     const sectionsHtml = slots.map(slot => {
-      const listHtml = officersSorted.map(o => {
+      const rowsHtml = officersSorted.map(o => {
         const found = byOfficerSlot.get(`${o.id}:${slot.key}`);
-
-        const kpis = found ? `
-          <div style="margin-top:6px; padding:8px 10px; border:1px dashed #e4e7ec; border-radius:10px; background:#fcfcfd; font-size:12px;">
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px 12px;">
-              ${kpiLine('Fresh calls', found.fresh_calls_made ?? 0)}
-              ${kpiLine('Fresh messages', found.fresh_messages_reached ?? 0)}
-              ${kpiLine('Interested', found.interested_leads ?? 0)}
-              ${kpiLine('FU calls', found.followup_calls ?? 0)}
-              ${kpiLine('FU messages', found.followup_messages ?? 0)}
-              ${kpiLine('FU scheduled', found.followup_scheduled ?? 0)}
-              ${kpiLine('Closures', found.closures ?? 0)}
-              ${kpiLine('', '')}
-            </div>
-            ${found.notes ? `<div style=\"margin-top:6px; color:#344054;\"><span style=\"color:#667085; font-weight:700;\">Notes:</span> ${escape(found.notes)}</div>` : ''}
-          </div>
-        ` : '';
-
         return `
-          <div style="padding:8px 10px; border:1px solid #eaecf0; border-radius:10px; background:#fff; margin-top:8px;">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-              <div style="font-weight:700; color:#101828;">${escape(o.name)}</div>
-              <div>${badge(!!found)}</div>
-            </div>
-            ${kpis}
-          </div>
+          <tr>
+            ${cell(o.name || '')}
+            ${cell(statusText(found))}
+            ${cell(numOrDash(found, 'fresh_calls_made', 'freshCallsMade'))}
+            ${cell(numOrDash(found, 'fresh_messages_reached', 'freshMessagesReached'))}
+            ${cell(numOrDash(found, 'interested_leads', 'interestedLeads'))}
+            ${cell(numOrDash(found, 'followup_calls', 'followUpCalls'))}
+            ${cell(numOrDash(found, 'followup_messages', 'followUpMessages'))}
+            ${cell(numOrDash(found, 'followup_scheduled', 'followUpScheduled'))}
+            ${cell(numOrDash(found, 'closures', 'closures'))}
+            ${cell(found?.notes ? found.notes : '—')}
+          </tr>
         `;
       }).join('');
 
       const slotTitle = (slot.key || '').toLowerCase() === 'slot1' ? 'Slot 1' : (slot.key || '').toLowerCase() === 'slot2' ? 'Slot 2' : (slot.key || '').toLowerCase() === 'slot3' ? 'Slot 3' : String(slot.key || '').toUpperCase();
 
+      const tableHtml = `
+        <div style="overflow:auto; border:1px solid #eaecf0; border-radius:12px; background:#fff;">
+          <table style="width:100%; border-collapse:collapse; min-width:980px;">
+            <thead>
+              <tr style="background:#f9fafb;">
+                ${headerCell('Officer')}
+                ${headerCell('Status')}
+                ${headerCell('Fresh calls')}
+                ${headerCell('Fresh messages')}
+                ${headerCell('Interested')}
+                ${headerCell('FU calls')}
+                ${headerCell('FU messages')}
+                ${headerCell('FU scheduled')}
+                ${headerCell('Closures')}
+                ${headerCell('Notes')}
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml || `<tr><td colspan="10" style="padding:12px; color:#667085;">No officers</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      `;
+
       return `
         <div style="margin-top:14px; padding:12px; border:1px solid #eaecf0; border-radius:12px; background:#fcfcfd;">
           <div style="font-weight:900; color:#101828; margin-bottom:6px;">${escape(slotTitle)}:</div>
-          ${listHtml || `<div class=\"empty\" style=\"padding:10px;\">No officers</div>`}
+          ${tableHtml}
         </div>
       `;
     }).join('');
@@ -384,10 +401,6 @@
       byOfficerSlot.set(`${r.officer_user_id}:${r.slot_key}`, r);
     }
 
-    const badge = (submitted) => submitted
-      ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Submitted</span>'
-      : '<span class="badge" style="background:#fff1f2; color:#9f1239; border:1px solid #fecdd3;">Not submitted</span>';
-
     const officersSorted = safeOfficers
       .filter(o => {
         const name = String(o?.name || '').toLowerCase();
@@ -397,45 +410,66 @@
       .slice()
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 
-    const kpiLine = (label, val) => `<div style=\"display:flex; justify-content:space-between; gap:10px;\"><span style=\"color:#667085;\">${escape(label)}</span><span style=\"font-weight:700; color:#101828;\">${escape(val)}</span></div>`;
+    const headerCell = (label) => `<th style="text-align:left; padding:10px 12px; font-size:12px; color:#475467; font-weight:800; border-bottom:1px solid #eaecf0; white-space:nowrap;">${escape(label)}</th>`;
+    const cell = (val) => `<td style="padding:10px 12px; border-bottom:1px solid #eaecf0; font-size:13px; color:#101828; white-space:nowrap;">${escape(val)}</td>`;
+
+    const numOrDash = (found, snake, camel) => {
+      if (!found) return '—';
+      const v = getKpi(found, snake, camel);
+      return (v == null || v === '') ? '—' : String(v);
+    };
+
+    const statusText = (found) => (found ? 'Submitted' : 'Not submitted');
 
     const sectionsHtml = slots.map(slot => {
-      const listHtml = officersSorted.map(o => {
+      const rowsHtml = officersSorted.map(o => {
         const found = byOfficerSlot.get(`${o.id}:${slot.key}`);
-
-        const kpis = found ? `
-          <div style="margin-top:6px; padding:8px 10px; border:1px dashed #e4e7ec; border-radius:10px; background:#fcfcfd; font-size:12px;">
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px 12px;">
-              ${kpiLine('Fresh calls', found.fresh_calls_made ?? 0)}
-              ${kpiLine('Fresh messages', found.fresh_messages_reached ?? 0)}
-              ${kpiLine('Interested', found.interested_leads ?? 0)}
-              ${kpiLine('FU calls', found.followup_calls ?? 0)}
-              ${kpiLine('FU messages', found.followup_messages ?? 0)}
-              ${kpiLine('FU scheduled', found.followup_scheduled ?? 0)}
-              ${kpiLine('Closures', found.closures ?? 0)}
-              ${kpiLine('', '')}
-            </div>
-            ${found.notes ? `<div style=\"margin-top:6px; color:#344054;\"><span style=\"color:#667085; font-weight:700;\">Notes:</span> ${escape(found.notes)}</div>` : ''}
-          </div>
-        ` : '';
-
         return `
-          <div style="padding:8px 10px; border:1px solid #eaecf0; border-radius:10px; background:#fff; margin-top:8px;">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-              <div style="font-weight:700; color:#101828;">${escape(o.name)}</div>
-              <div>${badge(!!found)}</div>
-            </div>
-            ${kpis}
-          </div>
+          <tr>
+            ${cell(o.name || '')}
+            ${cell(statusText(found))}
+            ${cell(numOrDash(found, 'fresh_calls_made', 'freshCallsMade'))}
+            ${cell(numOrDash(found, 'fresh_messages_reached', 'freshMessagesReached'))}
+            ${cell(numOrDash(found, 'interested_leads', 'interestedLeads'))}
+            ${cell(numOrDash(found, 'followup_calls', 'followUpCalls'))}
+            ${cell(numOrDash(found, 'followup_messages', 'followUpMessages'))}
+            ${cell(numOrDash(found, 'followup_scheduled', 'followUpScheduled'))}
+            ${cell(numOrDash(found, 'closures', 'closures'))}
+            ${cell(found?.notes ? found.notes : '—')}
+          </tr>
         `;
       }).join('');
 
       const slotTitle = (slot.key || '').toLowerCase() === 'slot1' ? 'Slot 1' : (slot.key || '').toLowerCase() === 'slot2' ? 'Slot 2' : (slot.key || '').toLowerCase() === 'slot3' ? 'Slot 3' : String(slot.key || '').toUpperCase();
 
+      const tableHtml = `
+        <div style="overflow:auto; border:1px solid #eaecf0; border-radius:12px; background:#fff;">
+          <table style="width:100%; border-collapse:collapse; min-width:980px;">
+            <thead>
+              <tr style="background:#f9fafb;">
+                ${headerCell('Officer')}
+                ${headerCell('Status')}
+                ${headerCell('Fresh calls')}
+                ${headerCell('Fresh messages')}
+                ${headerCell('Interested')}
+                ${headerCell('FU calls')}
+                ${headerCell('FU messages')}
+                ${headerCell('FU scheduled')}
+                ${headerCell('Closures')}
+                ${headerCell('Notes')}
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml || `<tr><td colspan="10" style="padding:12px; color:#667085;">No officers</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      `;
+
       return `
         <div style="margin-top:14px; padding:12px; border:1px solid #eaecf0; border-radius:12px; background:#fcfcfd;">
           <div style="font-weight:900; color:#101828; margin-bottom:6px;">${escape(slotTitle)}:</div>
-          ${listHtml || `<div class=\"empty\" style=\"padding:10px;\">No officers</div>`}
+          ${tableHtml}
         </div>
       `;
     }).join('');
