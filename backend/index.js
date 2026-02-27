@@ -115,6 +115,9 @@ app.use('/api/notifications', require('./modules/notifications/notificationsRout
 // Demo Sessions (invite + attendance + reminders)
 app.use('/api/demo-sessions', require('./modules/demoSessions/demoSessionsRoutes'));
 
+// Batch Setup (program batch settings)
+app.use('/api/batch-setup', require('./modules/batchSetup/batchSetupRoutes'));
+
 // Attendance (check-in / check-out)
 app.use('/api/attendance', require('./modules/attendance/attendanceRoutes'));
 

@@ -123,7 +123,7 @@
                   <th>Batch</th>
                   <th>Current</th>
                   <th>Created</th>
-                  <th>Action</th>
+                  <th>Setup</th>
                   <th>Delete</th>
                 </tr>
               </thead>
@@ -135,12 +135,12 @@
                   return `
                     <tr>
                       <td>
-                        <a href="#" data-action="edit-payment" data-program-id="${escapeHtml(p.id)}" data-batch-id="${escapeHtml(b.id)}" data-batch-name="${escapeHtml(b.batch_name)}" style="color:#175CD3; text-decoration:none; font-weight:600;">${escapeHtml(b.batch_name)}</a>
+                        <a href="#" data-action="edit-batch-setup" data-program-id="${escapeHtml(p.id)}" data-batch-id="${escapeHtml(b.id)}" data-batch-name="${escapeHtml(b.batch_name)}" style="color:#175CD3; text-decoration:none; font-weight:600;">${escapeHtml(b.batch_name)}</a>
                       </td>
                       <td>${b.is_current ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Yes</span>' : '-'}</td>
                       <td>${escapeHtml(new Date(b.created_at).toLocaleString())}</td>
                       <td>
-                        <button class="btn btn-primary btn-sm" type="button" data-action="set-current" data-program-id="${escapeHtml(p.id)}" data-batch-id="${escapeHtml(b.id)}">Set Current</button>
+                        <span style="color:#98a2b3;">Use Edit to set current</span>
                       </td>
                       <td>
                         ${b.is_current ? '<span style="color:#98a2b3;">-</span>' : `<button class=\"btn btn-danger btn-sm\" type=\"button\" data-action=\"delete-batch\" data-program-id=\"${escapeHtml(p.id)}\" data-batch-id=\"${escapeHtml(b.id)}\">Delete</button>`}
@@ -186,33 +186,16 @@
       });
     });
 
-    wrap.querySelectorAll('a[data-action="edit-payment"]').forEach(a => {
+    wrap.querySelectorAll('a[data-action="edit-batch-setup"]').forEach(a => {
       a.addEventListener('click', (e) => {
         e.preventDefault();
         const batchName = a.getAttribute('data-batch-name');
         const programId = a.getAttribute('data-program-id');
         const batchId = a.getAttribute('data-batch-id');
-        if (window.BatchPaymentSetup && window.BatchPaymentSetup.open) {
-          window.BatchPaymentSetup.open(batchName, { programId, batchId }).catch(console.error);
-        } else if (window.openBatchPaymentSetup) {
-          window.openBatchPaymentSetup(batchName);
-        }
-      });
-    });
 
-    wrap.querySelectorAll('button[data-action="set-current"]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const programId = btn.getAttribute('data-program-id');
-        const batchId = btn.getAttribute('data-batch-id');
-        try {
-          await setCurrentBatch(programId, batchId);
-          if (window.Cache) window.Cache.invalidatePrefix('programs:');
-          if (window.UI && UI.showToast) UI.showToast('Current batch updated', 'success');
-          await load();
-        } catch (e) {
-          console.error(e);
-          if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to set current batch', 'error');
-        }
+        const page = `batch-setup-program-${encodeURIComponent(programId)}-batch-${encodeURIComponent(batchId)}-name-${encodeURIComponent(batchName)}`;
+        window.location.hash = page;
+        if (window.navigateToPage) window.navigateToPage(page);
       });
     });
 
