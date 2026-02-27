@@ -291,16 +291,21 @@
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Failed to link Google Sheet');
 
-      await addBatch(programId, batchName);
+      const newBatch = await addBatch(programId, batchName);
       if (window.Cache) window.Cache.invalidatePrefix('programs:');
       closeModal('programBatchAddModal');
       if (window.UI && UI.showToast) UI.showToast('Batch created, sheet linked, and set as current', 'success');
       await load();
 
-      // Open payment setup for this new batch
-      if (window.openBatchPaymentSetup) {
-        window.openBatchPaymentSetup(batchName);
-      }
+      // Open combined batch setup page
+      try {
+        const batchId = newBatch?.id;
+        if (batchId) {
+          const page = `batch-setup-program-${encodeURIComponent(programId)}-batch-${encodeURIComponent(batchId)}-name-${encodeURIComponent(batchName)}`;
+          window.location.hash = page;
+          if (window.navigateToPage) window.navigateToPage(page);
+        }
+      } catch (_) {}
     } catch (e) {
       console.error(e);
       if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to add batch', 'error');

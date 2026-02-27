@@ -56,6 +56,7 @@
     if (sub) sub.textContent = `Program: ${meta.programId}`;
   }
 
+  // (Legacy) Installments editor removed from combined setup. Use existing payment setup screen.
   function renderInstallments(items) {
     const wrap = qs('batchSetupInstallments');
     if (!wrap) return;
@@ -183,6 +184,39 @@
     if (el) el.textContent = '';
   }
 
+  async function loadPaymentSummary(batchName) {
+    const wrap = qs('batchSetupPaymentsSummary');
+    if (!wrap) return;
+    try {
+      const j = await apiGet(`/api/payment-setup/batches/${encodeURIComponent(batchName)}`);
+      const methods = j.methods || [];
+      const plans = j.plans || [];
+      const installments = j.installments || [];
+
+      const methodHtml = methods.length
+        ? methods.map(m => `<span class="badge" style="background:#f2f4f7; color:#344054; border:1px solid #eaecf0; margin-right:6px;">${escapeHtml(m.method_name)}</span>`).join('')
+        : '<span style="color:#98a2b3;">No methods set</span>';
+
+      const planHtml = plans.length ? plans.map(p => {
+        const inst = installments.filter(x => x.plan_id === p.id).sort((a,b)=>Number(a.installment_no)-Number(b.installment_no));
+        const dd = inst.length ? inst.map(i => `<span class="badge" style="background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; margin-right:6px;">I${i.installment_no}: ${escapeHtml(i.due_date)}</span>`).join('') : '';
+        return `
+          <div style="padding:10px; border:1px solid #eaecf0; border-radius:12px; background:#fff; margin-top:8px;">
+            <div style="font-weight:900; color:#101828;">${escapeHtml(p.plan_name)} <span style="color:#667085; font-weight:700;">(${p.installment_count} installment(s))</span></div>
+            <div style="margin-top:8px;">${dd || '<span style="color:#98a2b3;">No due dates</span>'}</div>
+          </div>
+        `;
+      }).join('') : '<div style="color:#98a2b3; margin-top:8px;">No plans set</div>';
+
+      wrap.innerHTML = `
+        <div><span style="font-weight:900;">Methods:</span> ${methodHtml}</div>
+        <div style="margin-top:10px;"><span style="font-weight:900;">Plans:</span>${planHtml}</div>
+      `;
+    } catch (e) {
+      wrap.innerHTML = `<div style="color:#b42318;">Failed to load payment setup: ${escapeHtml(e.message)}</div>`;
+    }
+  }
+
   async function load(meta) {
     state.meta = meta;
     setTitle(meta);
@@ -231,24 +265,6 @@
       };
     }
 
-    const regFee = qs('batchSetupRegFee');
-    if (regFee) {
-      regFee.value = state.payments.registrationFee;
-      regFee.oninput = () => { state.payments.registrationFee = regFee.value; markDirty(); };
-    }
-
-    const fullAmt = qs('batchSetupFullAmt');
-    if (fullAmt) {
-      fullAmt.value = state.payments.fullPaymentAmount;
-      fullAmt.oninput = () => { state.payments.fullPaymentAmount = fullAmt.value; markDirty(); };
-    }
-
-    const cur = qs('batchSetupCurrency');
-    if (cur) {
-      cur.value = state.payments.currency;
-      cur.onchange = () => { state.payments.currency = cur.value; markDirty(); };
-    }
-
     // officers
     const officers = await loadOfficers();
     const sel = qs('batchSetupCoordinator');
@@ -258,8 +274,10 @@
       sel.onchange = () => { state.general.coordinatorUserId = sel.value; markDirty(); };
     }
 
-    // render tables
-    renderInstallments(state.payments.installments);
+    // Payments summary (existing payment setup tables)
+    await loadPaymentSummary(meta.batchName);
+
+    // render demo sessions
     renderDemoSessions(Object.keys(state.demo.sessions).map(k => ({ demo_number: Number(k), ...state.demo.sessions[k] })), state.general.demoSessionsCount);
 
     clearDirty();
@@ -278,18 +296,7 @@
         coordinatorUserId: state.general.coordinatorUserId,
         demoSessionsCount: state.general.demoSessionsCount
       },
-      payments: {
-        registrationFee: state.payments.registrationFee === '' ? null : Number(state.payments.registrationFee),
-        fullPaymentAmount: state.payments.fullPaymentAmount === '' ? null : Number(state.payments.fullPaymentAmount),
-        currency: state.payments.currency,
-        installments: state.payments.installments.map((it, idx) => ({
-          title: it.title,
-          amount: Number(it.amount || 0),
-          dueDate: it.due_date || null,
-          notes: it.notes,
-          sortOrder: idx
-        }))
-      },
+      payments: {},
       demo: {
         demoSessionsCount: state.general.demoSessionsCount,
         sessions: state.demo.sessions
@@ -333,13 +340,16 @@
       };
     }
 
-    const addIns = qs('batchSetupAddInstallmentBtn');
-    if (addIns && !addIns.__bound) {
-      addIns.__bound = true;
-      addIns.onclick = () => {
-        state.payments.installments.push({ title: '', amount: '', due_date: '', notes: '' });
-        renderInstallments(state.payments.installments);
-        markDirty();
+    const editPayBtn = qs('batchSetupEditPaymentsBtn');
+    if (editPayBtn && !editPayBtn.__bound) {
+      editPayBtn.__bound = true;
+      editPayBtn.onclick = () => {
+        if (window.openBatchPaymentSetup) {
+          window.openBatchPaymentSetup(state.meta.batchName);
+        } else {
+          window.location.hash = 'payments';
+          if (window.navigateToPage) window.navigateToPage('payments');
+        }
       };
     }
 
