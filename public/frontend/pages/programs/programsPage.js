@@ -375,6 +375,14 @@
     qs('batchSetupModalTitle').textContent = `Batch Setup — ${batchName}`;
     qs('batchSetupModalMeta').textContent = `Program: ${programId}`;
 
+    // Open immediately with loading placeholders
+    try {
+      qs('batchSetupMethodsWrap').innerHTML = '<div style="color:#667085;">Loading…</div>';
+      qs('batchSetupPlansWrap').innerHTML = '';
+      qs('batchSetupDemoSessions').innerHTML = '';
+      openModal('batchSetupModal');
+    } catch (_) {}
+
     const state = {
       meta: { programId, batchId, batchName },
       general: { isCurrent: false, coordinatorUserId: '', demoSessionsCount: 4 },
@@ -398,19 +406,31 @@
       console.warn('Batch setup load failed:', e);
     }
 
-    // Load payment setup
-    const pay = await apiGet(`/api/payment-setup/batches/${encodeURIComponent(batchName)}`);
-    state.payment.methods = (pay.methods || []).map(m => ({ method_name: m.method_name }));
-    const inst = pay.installments || [];
-    state.payment.plans = (pay.plans || []).map(p => ({
-      plan_name: p.plan_name,
-      installment_count: p.installment_count,
-      due_dates: inst.filter(x => x.plan_id === p.id).sort((a,b)=>Number(a.installment_no)-Number(b.installment_no)).map(x => x.due_date)
-    }));
+    // Load payment setup (best effort)
+    try {
+      const pay = await apiGet(`/api/payment-setup/batches/${encodeURIComponent(batchName)}`);
+      state.payment.methods = (pay.methods || []).map(m => ({ method_name: m.method_name }));
+      const inst = pay.installments || [];
+      state.payment.plans = (pay.plans || []).map(p => ({
+        plan_name: p.plan_name,
+        installment_count: p.installment_count,
+        due_dates: inst.filter(x => x.plan_id === p.id).sort((a,b)=>Number(a.installment_no)-Number(b.installment_no)).map(x => x.due_date)
+      }));
+    } catch (e) {
+      console.warn('Payment setup load failed:', e);
+      if (window.UI?.showToast) UI.showToast('Failed to load payment setup', 'error');
+      state.payment.methods = [];
+      state.payment.plans = [];
+    }
 
-    // Officers list
-    const officersRes = await apiGet('/api/batches/officers');
-    const officers = officersRes.officers || [];
+    // Officers list (best effort)
+    let officers = [];
+    try {
+      const officersRes = await apiGet('/api/batches/officers');
+      officers = officersRes.officers || [];
+    } catch (e) {
+      console.warn('Officers load failed:', e);
+    }
     const coordSel = qs('batchSetupCoordinator');
     coordSel.innerHTML = `<option value="">(Not set)</option>` + officers.map(o => `<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
 
@@ -529,7 +549,7 @@
     renderPaymentEditor(state);
     renderDemoEditor(state);
 
-    openModal('batchSetupModal');
+    // Modal already open
   }
 
   window.openBatchSetupModal = openBatchSetupModal;
@@ -726,18 +746,28 @@
     try {
       if (saveBtn) saveBtn.disabled = true;
 
-      const res = await fetch('/api/batches/create', {
-        method: 'POST',
-        headers: {
-          ...(await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {})),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ batchName, mainSpreadsheetUrl: mainSheetUrl })
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || 'Failed to link Google Sheet');
-
+      // 1) Create program batch first (so UI can proceed even if sheet linking fails)
       const newBatch = await addBatch(programId, batchName);
+
+      // 2) Link Google Sheet mapping (best effort)
+      try {
+        const res = await fetch('/api/batches/create', {
+          method: 'POST',
+          headers: {
+            ...(await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {})),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ batchName, mainSpreadsheetUrl: mainSheetUrl })
+        });
+        const json = await res.json();
+        if (!json.success) {
+          console.warn('Sheet linking failed:', json.error);
+          if (window.UI && UI.showToast) UI.showToast(`Batch created but sheet linking failed: ${json.error}`, 'warning');
+        }
+      } catch (e) {
+        console.warn('Sheet linking failed:', e);
+        if (window.UI && UI.showToast) UI.showToast('Batch created but sheet linking failed', 'warning');
+      }
       if (window.Cache) window.Cache.invalidatePrefix('programs:');
       closeModal('programBatchAddModal');
       if (window.UI && UI.showToast) UI.showToast('Batch created, sheet linked, and set as current', 'success');
