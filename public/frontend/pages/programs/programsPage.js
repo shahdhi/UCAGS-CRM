@@ -297,15 +297,7 @@
       if (window.UI && UI.showToast) UI.showToast('Batch created, sheet linked, and set as current', 'success');
       await load();
 
-      // Open combined batch setup page
-      try {
-        const batchId = newBatch?.id;
-        if (batchId) {
-          const page = `batch-setup-program-${encodeURIComponent(programId)}-batch-${encodeURIComponent(batchId)}-name-${encodeURIComponent(batchName)}`;
-          window.location.hash = page;
-          if (window.navigateToPage) window.navigateToPage(page);
-        }
-      } catch (_) {}
+      // Batch setup is opened when user clicks the batch name (Edit)
     } catch (e) {
       console.error(e);
       if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to add batch', 'error');

@@ -62,6 +62,7 @@ async function listSessions({ batchName }) {
     .from('demo_sessions')
     .select('*')
     .eq('batch_name', b)
+    .eq('archived', false)
     .order('demo_number', { ascending: true });
   if (error) throw error;
   return data || [];
