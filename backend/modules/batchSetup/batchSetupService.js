@@ -19,13 +19,15 @@ async function getBatchSetup({ programId, batchId, batchName }) {
     .maybeSingle();
   if (pbErr) throw pbErr;
 
-  // payment plan
-  const { data: plan, error: planErr } = await sb
+  // payment plan (be tolerant if duplicates exist; pick latest)
+  const { data: plans, error: planErr } = await sb
     .from('batch_payment_plans')
     .select('*')
     .eq('batch_name', batchName)
-    .maybeSingle();
+    .order('updated_at', { ascending: false })
+    .limit(1);
   if (planErr) throw planErr;
+  const plan = (plans && plans[0]) ? plans[0] : null;
 
   let installments = [];
   if (plan?.id) {
@@ -115,12 +117,12 @@ async function saveBatchSetup({ programId, batchId, batchName, general = {}, pay
     updated_at: new Date().toISOString()
   };
 
-  const { data: plan, error: pErr } = await sb
+  const { data: planRows, error: pErr } = await sb
     .from('batch_payment_plans')
     .upsert(planPatch, { onConflict: 'batch_name' })
-    .select('*')
-    .single();
+    .select('*');
   if (pErr) throw pErr;
+  const plan = Array.isArray(planRows) ? planRows[0] : planRows;
 
   const incoming = Array.isArray(payments.installments) ? payments.installments : [];
 
