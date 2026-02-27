@@ -19,26 +19,8 @@ async function getBatchSetup({ programId, batchId, batchName }) {
     .maybeSingle();
   if (pbErr) throw pbErr;
 
-  // payment plan (be tolerant if duplicates exist; pick latest)
-  const { data: plans, error: planErr } = await sb
-    .from('batch_payment_plans')
-    .select('*')
-    .eq('batch_name', batchName)
-    .order('created_at', { ascending: false })
-    .limit(1);
-  if (planErr) throw planErr;
-  const plan = (plans && plans[0]) ? plans[0] : null;
-
-  let installments = [];
-  if (plan?.id) {
-    const { data, error } = await sb
-      .from('batch_payment_installments')
-      .select('*')
-      .eq('plan_id', plan.id)
-      .order('sort_order', { ascending: true });
-    if (error) throw error;
-    installments = data || [];
-  }
+  // Payment setup is handled by existing payment-setup module (/api/payment-setup)
+  // and should not be loaded via batch-setup.
 
   // demo sessions (non-archived only)
   const { data: sessions, error: sErr } = await sb
@@ -49,7 +31,7 @@ async function getBatchSetup({ programId, batchId, batchName }) {
     .order('demo_number', { ascending: true });
   if (sErr) throw sErr;
 
-  return { programBatch: pb, paymentPlan: plan, installments, demoSessions: sessions || [] };
+  return { programBatch: pb, demoSessions: sessions || [] };
 }
 
 async function saveBatchSetup({ programId, batchId, batchName, general = {}, payments = {}, demo = {}, actorUserId }) {
@@ -107,42 +89,9 @@ async function saveBatchSetup({ programId, batchId, batchName, general = {}, pay
     .eq('batch_name', batchName)
     .gt('demo_number', demoSessionsCount);
 
-  // 3) Payments: upsert plan + replace installments
-  const planPatch = {
-    program_id: String(programId),
-    batch_name: batchName,
-    registration_fee: payments.registration_fee ?? payments.registrationFee ?? null,
-    full_payment_amount: payments.full_payment_amount ?? payments.fullPaymentAmount ?? null,
-    currency: clean(payments.currency || 'LKR') || 'LKR'
-  };
+  // 3) Payments are handled by /api/payment-setup and saved separately from the UI.
 
-  const { data: planRows, error: pErr } = await sb
-    .from('batch_payment_plans')
-    .upsert(planPatch, { onConflict: 'batch_name' })
-    .select('*');
-  if (pErr) throw pErr;
-  const plan = Array.isArray(planRows) ? planRows[0] : planRows;
-
-  const incoming = Array.isArray(payments.installments) ? payments.installments : [];
-
-  // delete old installments
-  await sb.from('batch_payment_installments').delete().eq('plan_id', plan.id);
-
-  if (incoming.length) {
-    const rows = incoming.map((it, idx) => ({
-      plan_id: plan.id,
-      title: clean(it.title) || `Installment ${idx + 1}`,
-      amount: Number(it.amount || 0) || 0,
-      due_date: it.due_date || it.dueDate || null,
-      notes: it.notes || null,
-      sort_order: Number(it.sort_order ?? it.sortOrder ?? idx) || idx
-    }));
-
-    const { error } = await sb.from('batch_payment_installments').insert(rows);
-    if (error) throw error;
-  }
-
-  return { programBatch: updatedPb, paymentPlan: plan };
+  return { programBatch: updatedPb };
 }
 
 module.exports = { getBatchSetup, saveBatchSetup };
