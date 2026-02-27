@@ -882,4 +882,17 @@
   }
 
   window.initProgramsPage = initProgramsPage;
+
+  // Debug helper
+  window.testBatchSetupModal = async () => {
+    console.log('testBatchSetupModal called');
+    if (!window.openBatchSetupModal) {
+      console.warn('openBatchSetupModal missing');
+      return;
+    }
+    // dummy values; will likely error but should open modal
+    await window.openBatchSetupModal({ programId: 'TEST', batchId: 'TEST', batchName: 'TEST' });
+  };
+
+  console.log('[programsPage] loaded');
 })();
