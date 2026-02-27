@@ -24,7 +24,7 @@ async function getBatchSetup({ programId, batchId, batchName }) {
     .from('batch_payment_plans')
     .select('*')
     .eq('batch_name', batchName)
-    .order('updated_at', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(1);
   if (planErr) throw planErr;
   const plan = (plans && plans[0]) ? plans[0] : null;
@@ -113,8 +113,7 @@ async function saveBatchSetup({ programId, batchId, batchName, general = {}, pay
     batch_name: batchName,
     registration_fee: payments.registration_fee ?? payments.registrationFee ?? null,
     full_payment_amount: payments.full_payment_amount ?? payments.fullPaymentAmount ?? null,
-    currency: clean(payments.currency || 'LKR') || 'LKR',
-    updated_at: new Date().toISOString()
+    currency: clean(payments.currency || 'LKR') || 'LKR'
   };
 
   const { data: planRows, error: pErr } = await sb
@@ -136,8 +135,7 @@ async function saveBatchSetup({ programId, batchId, batchName, general = {}, pay
       amount: Number(it.amount || 0) || 0,
       due_date: it.due_date || it.dueDate || null,
       notes: it.notes || null,
-      sort_order: Number(it.sort_order ?? it.sortOrder ?? idx) || idx,
-      updated_at: new Date().toISOString()
+      sort_order: Number(it.sort_order ?? it.sortOrder ?? idx) || idx
     }));
 
     const { error } = await sb.from('batch_payment_installments').insert(rows);
