@@ -2340,6 +2340,24 @@ body {
     line-height: 1;
 }
 
+/* Desktop-only global scale (matches ~90% browser zoom) */
+@media (min-width: 1024px) {
+  /* Prefer zoom (Chrome/Edge) because it behaves like browser zoom */
+  #dashboardPage {
+    zoom: 0.9;
+  }
+
+  /* Fallback for browsers that don't support zoom (e.g., Firefox) */
+  @supports not (zoom: 1) {
+    #dashboardPage {
+      transform: scale(0.9);
+      transform-origin: top left;
+      width: 111.111%;
+      height: 111.111%;
+    }
+  }
+}
+
 /* WhatsApp Drawer + Inbox Styles */
 .wa-drawer-overlay{
   position: fixed;
