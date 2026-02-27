@@ -601,7 +601,9 @@
                   return `
                     <tr>
                       <td>
-                        <a href="#" data-action="edit-batch-setup" data-program-id="${escapeHtml(p.id)}" data-batch-id="${escapeHtml(b.id)}" data-batch-name="${escapeHtml(b.batch_name)}" style="color:#175CD3; text-decoration:none; font-weight:600;">${escapeHtml(b.batch_name)}</a>
+                        <a href="#" data-action="edit-batch-setup" data-program-id="${escapeHtml(p.id)}" data-batch-id="${escapeHtml(b.id)}" data-batch-name="${escapeHtml(b.batch_name)}"
+                           onclick="event.preventDefault(); if(window.openBatchSetupModal){window.openBatchSetupModal({ programId: this.getAttribute('data-program-id'), batchId: this.getAttribute('data-batch-id'), batchName: this.getAttribute('data-batch-name') });} return false;"
+                           style="color:#175CD3; text-decoration:none; font-weight:600;">${escapeHtml(b.batch_name)}</a>
                       </td>
                       <td>${b.is_current ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Yes</span>' : '-'}</td>
                       <td>${escapeHtml(new Date(b.created_at).toLocaleString())}</td>
@@ -652,11 +654,33 @@
       });
     });
 
-    // Event delegation: batch setup open (robust across re-renders/cached renders)
+    // Batch setup open (bind per-anchor, plus delegation as fallback)
+    wrap.querySelectorAll('a[data-action="edit-batch-setup"]').forEach(a => {
+      if (a.__boundBatchSetup) return;
+      a.__boundBatchSetup = true;
+      a.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const batchName = a.getAttribute('data-batch-name');
+        const programId = a.getAttribute('data-program-id');
+        const batchId = a.getAttribute('data-batch-id');
+        if (!window.openBatchSetupModal) {
+          console.warn('openBatchSetupModal not available');
+          return;
+        }
+        await window.openBatchSetupModal({ programId, batchId, batchName });
+      });
+    });
+
     if (!wrap.__batchSetupDelegationBound) {
       wrap.__batchSetupDelegationBound = true;
       wrap.addEventListener('click', async (e) => {
-        const a = e.target?.closest?.('a[data-action="edit-batch-setup"]');
+        // Very defensive closest() replacement
+        let el = e.target;
+        let a = null;
+        while (el && el !== wrap) {
+          if (el.matches && el.matches('a[data-action="edit-batch-setup"]')) { a = el; break; }
+          el = el.parentElement;
+        }
         if (!a) return;
         e.preventDefault();
 
