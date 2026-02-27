@@ -1,7 +1,12 @@
 /* Reset and Base Styles */
 
 /* Demo Sessions */
-#demoSessionsCards { justify-content: start; justify-items: start; }
+#demoSessionsCards {
+  justify-content: start;
+  justify-items: start;
+  grid-auto-flow: row;
+  grid-template-columns: max-content;
+}
 button.demo-card {
   width: max-content;
   max-width: 100%;
