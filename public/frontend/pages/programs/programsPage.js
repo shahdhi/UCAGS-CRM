@@ -652,18 +652,26 @@
       });
     });
 
-    wrap.querySelectorAll('a[data-action="edit-batch-setup"]').forEach(a => {
-      a.addEventListener('click', async (e) => {
+    // Event delegation: batch setup open (robust across re-renders/cached renders)
+    if (!wrap.__batchSetupDelegationBound) {
+      wrap.__batchSetupDelegationBound = true;
+      wrap.addEventListener('click', async (e) => {
+        const a = e.target?.closest?.('a[data-action="edit-batch-setup"]');
+        if (!a) return;
         e.preventDefault();
+
         const batchName = a.getAttribute('data-batch-name');
         const programId = a.getAttribute('data-program-id');
         const batchId = a.getAttribute('data-batch-id');
 
-        if (window.openBatchSetupModal) {
-          await window.openBatchSetupModal({ programId, batchId, batchName });
+        if (!window.openBatchSetupModal) {
+          console.warn('openBatchSetupModal not available');
+          return;
         }
+
+        await window.openBatchSetupModal({ programId, batchId, batchName });
       });
-    });
+    }
 
     wrap.querySelectorAll('button[data-action="delete-batch"]').forEach(btn => {
       btn.addEventListener('click', async () => {
@@ -776,7 +784,13 @@
       // Open combined Batch Setup modal
       try {
         if (window.openBatchSetupModal) {
-          await window.openBatchSetupModal({ programId, batchId: newBatch?.id, batchName });
+          // Defer to next tick so the create modal is fully closed
+          setTimeout(() => {
+            window.openBatchSetupModal({ programId, batchId: newBatch?.id, batchName })
+              .catch(err => console.warn('Failed to open batch setup modal:', err));
+          }, 0);
+        } else {
+          console.warn('openBatchSetupModal not available');
         }
       } catch (e) {
         console.warn('Failed to open batch setup modal:', e);
