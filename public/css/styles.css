@@ -1,4 +1,12 @@
 /* Reset and Base Styles */
+
+/* Demo Sessions */
+#demoSessionsCards { justify-content: start; justify-items: start; }
+button.demo-card {
+  width: max-content;
+  max-width: 100%;
+}
+
 * {
     margin: 0;
     padding: 0;
