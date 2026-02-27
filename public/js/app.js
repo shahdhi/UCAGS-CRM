@@ -857,14 +857,6 @@ async function navigateToPage(page) {
             window.location.hash = 'home';
             return;
         }
-    } else if (page.startsWith('batch-setup-')) {
-        const viewElement = document.getElementById('batchSetupView');
-        if (viewElement) {
-            viewElement.classList.add('active');
-        } else {
-            window.location.hash = 'home';
-            return;
-        }
     } else {
         const viewElement = document.getElementById(`${page}View`);
         if (viewElement) {
@@ -885,18 +877,6 @@ async function navigateToPage(page) {
     
     // Update delete-sheet buttons based on route
     updateDeleteSheetButtons(page);
-
-    // Batch Setup route (dynamic)
-    if (page.startsWith('batch-setup-')) {
-        try {
-            if (window.initBatchSetupPage) {
-                await window.initBatchSetupPage(page);
-            }
-        } catch (e) {
-            console.warn('Batch setup init failed:', e);
-        }
-        return;
-    }
 
     // Load data for the view
     switch(page) {
