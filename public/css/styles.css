@@ -20,9 +20,11 @@
     --gradient-secondary: linear-gradient(135deg, #C4B5FD 0%, #DDD6FE 100%);
     --gradient-glass: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(196, 181, 253, 0.1) 100%);
 
-    /* Modal header theme: light  dark purple (premium, no black) */
-    /* Flow: light -> dark */
-    --gradient-modal-header: linear-gradient(135deg, #A78BFA 0%, #7C3AED 55%, #3B0764 100%);
+    /* Modal header theme: match sidebar gradient */
+    --gradient-modal-header: linear-gradient(180deg, rgba(88, 28, 135, 0.95) 0%, rgba(17, 24, 39, 0.95) 100%);
+
+    /* Primary action gradient (use same as modal header/sidebar for consistency) */
+    --gradient-action-primary: var(--gradient-modal-header);
     
     /* Neutral Colors - Modern Clean */
     --bg-primary: #FFFFFF;
@@ -291,6 +293,20 @@ body {
     background: var(--primary-purple-dark);
     transform: translateY(-1px);
     box-shadow: var(--shadow-md);
+}
+
+/* Modal primary actions: match sidebar/modal header gradient for premium consistency */
+.modal .btn-primary,
+.modal-overlay .btn-primary {
+    width: auto; /* avoid full-width in modal footers */
+    background: var(--gradient-action-primary);
+    box-shadow: 0 8px 20px rgba(88, 28, 135, 0.28);
+}
+
+.modal .btn-primary:hover,
+.modal-overlay .btn-primary:hover {
+    background: var(--gradient-action-primary);
+    box-shadow: 0 12px 28px rgba(88, 28, 135, 0.38);
 }
 
 #loginPage .btn-primary:hover,
