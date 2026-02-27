@@ -129,7 +129,7 @@
 
   function buildBatchSetupModalHtml() {
     return `
-      <div class="modal" id="batchSetupModal" style="display:none;">
+      <div class="modal" id="batchSetupModal">
         <div class="modal-content" style="max-width:1100px;">
           <div class="modal-header">
             <h2 id="batchSetupModalTitle">Batch Setup</h2>
@@ -383,7 +383,8 @@
     if (window.openModal) window.openModal('batchSetupModal');
     else {
       const m = qs('batchSetupModal');
-      if (m) m.style.display = 'flex';
+      if (m) m.classList.add('active');
+      document.body.style.overflow = 'hidden';
     }
 
     const state = {
