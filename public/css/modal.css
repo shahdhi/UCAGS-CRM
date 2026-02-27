@@ -53,12 +53,15 @@
 
 .modal-header {
     padding: 24px 28px;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+    /* Global modal header theme (blue effect) */
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 45%, #06b6d4 100%);
     color: white;
+
     border-radius: 12px 12px 0 0;
     flex: 0 0 auto;
 }

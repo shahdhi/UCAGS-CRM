@@ -582,6 +582,20 @@
       return;
     }
 
+    // React to current-batch changes from Programs -> Batch Setup
+    if (!window.__registrationsCurrentBatchListenerBound) {
+      window.__registrationsCurrentBatchListenerBound = true;
+      window.addEventListener('currentBatchChanged', async () => {
+        try {
+          selectedBatchName = '';
+          await renderProgramTabs();
+          await loadRegistrations({ showSkeleton: false });
+        } catch (e) {
+          // ignore
+        }
+      });
+    }
+
     const refreshBtn = qs('registrationsRefreshBtn');
     const exportBtn = qs('registrationsExportBtn');
     const limitEl = qs('registrationsLimit');

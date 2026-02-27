@@ -41,15 +41,29 @@ router.post('/intake', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid program selected' });
     }
 
-    const { data: currentBatch, error: batchErr } = await sb
+    let { data: currentBatch, error: batchErr } = await sb
       .from('program_batches')
       .select('batch_name')
       .eq('program_id', programId)
       .eq('is_current', true)
       .maybeSingle();
     if (batchErr) throw batchErr;
+
+    // Fallback: if no current batch is set, use the most recently created batch.
     if (!currentBatch?.batch_name) {
-      return res.status(400).json({ success: false, error: 'No current batch configured for this program' });
+      const { data: latest, error: latestErr } = await sb
+        .from('program_batches')
+        .select('batch_name')
+        .eq('program_id', programId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latestErr) throw latestErr;
+      currentBatch = latest;
+    }
+
+    if (!currentBatch?.batch_name) {
+      return res.status(400).json({ success: false, error: 'No batch configured for this program' });
     }
 
     const registrationBatchName = String(currentBatch.batch_name);

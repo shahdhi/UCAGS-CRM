@@ -244,6 +244,19 @@
     const view = qs('demoSessionsView');
     if (!view) return;
 
+    // React to current-batch changes from Programs -> Batch Setup
+    if (!window.__demoSessionsCurrentBatchListenerBound) {
+      window.__demoSessionsCurrentBatchListenerBound = true;
+      window.addEventListener('currentBatchChanged', async () => {
+        try {
+          await loadBatchesIntoSelect();
+          await refreshAll();
+        } catch (e) {
+          // ignore
+        }
+      });
+    }
+
     await loadBatchesIntoSelect();
 
     const refreshBtn = qs('demoSessionsRefreshBtn');

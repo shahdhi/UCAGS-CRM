@@ -232,7 +232,8 @@
 }
 
 .modal-header {
-  background: #5B2C6F;
+  /* Global modal header theme (blue effect) */
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 45%, #06b6d4 100%);
   color: white;
   padding: 20px 30px;
   border-radius: 12px 12px 0 0;

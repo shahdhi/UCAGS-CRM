@@ -64,6 +64,32 @@ async function initLeadsPage(modeOrBatch) {
     setupLeadsEventListeners();
   }
 
+  // React to current-batch changes from Programs -> Batch Setup
+  if (!window.__leadsCurrentBatchListenerBound) {
+    window.__leadsCurrentBatchListenerBound = true;
+    window.addEventListener('currentBatchChanged', async () => {
+      try {
+        const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+        // Reset batch selection so dropdown defaults to new current batch
+        if (isOfficerView) {
+          window.officerBatchFilter = '';
+          window.officerSheetFilter = 'Main Leads';
+        } else {
+          window.adminBatchFilter = '';
+          window.adminSheetFilter = 'Main Leads';
+        }
+
+        const view = document.getElementById('leadsView');
+        const visible = view && view.classList.contains('active');
+        if (visible) {
+          await loadLeads();
+        }
+      } catch (e) {
+        // ignore
+      }
+    });
+  }
+
   // Reset selection UI on entry
   ensureSelectionState();
   window.__selectedLeadIds.clear();
@@ -237,8 +263,15 @@ async function loadLeads() {
             const activeBatch = (window.adminBatchFilter || window.officerBatchFilter);
             const currentBatchName = current?.batch_name;
             const hasOption = (val) => Array.from(sel.options || []).some(o => String(o.value) === String(val));
-            if (activeBatch && activeBatch !== 'all' && hasOption(activeBatch)) sel.value = activeBatch;
-            else if (currentBatchName && hasOption(currentBatchName)) sel.value = currentBatchName;
+            if (activeBatch && activeBatch !== 'all' && hasOption(activeBatch)) {
+              sel.value = activeBatch;
+            } else if (currentBatchName && hasOption(currentBatchName)) {
+              sel.value = currentBatchName;
+              // IMPORTANT: keep internal batch filter in sync when we auto-select current batch.
+              // Otherwise the dropdown shows current batch but the API call may still be "all batches".
+              if (isOfficerView) window.officerBatchFilter = currentBatchName;
+              else window.adminBatchFilter = currentBatchName;
+            }
           } catch (e) {
             console.warn('Failed to load program batches for dropdown', e);
           }

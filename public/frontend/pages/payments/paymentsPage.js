@@ -912,6 +912,20 @@
   async function initPaymentsPage() {
     if (!window.currentUser || window.currentUser.role !== 'admin') return;
 
+    // React to current-batch changes from Programs -> Batch Setup
+    if (!window.__paymentsCurrentBatchListenerBound) {
+      window.__paymentsCurrentBatchListenerBound = true;
+      window.addEventListener('currentBatchChanged', async () => {
+        try {
+          selectedBatchName = '';
+          await renderProgramTabs();
+          await loadPayments({ showSkeleton: false });
+        } catch (e) {
+          // ignore
+        }
+      });
+    }
+
     const refreshBtn = qs('paymentsRefreshBtn');
     const limitEl = qs('paymentsLimit');
     const batchSel = qs('paymentsBatchSelect');

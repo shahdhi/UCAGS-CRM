@@ -1639,19 +1639,32 @@ body {
 
 .modal-header {
     padding: 24px 28px;
-    border-bottom: 1px solid #E5E5EA;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
     display: flex;
     justify-content: space-between;
     align-items: center;
+
+    /* Global modal header theme (blue effect) */
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 45%, #06b6d4 100%);
+    color: #fff;
 }
 
 .modal-header h2 {
-    color: var(--text-primary);
-    font-weight: 700;
+    color: #fff;
+    font-weight: 800;
     font-size: 18px;
     letter-spacing: -0.01em;
 }
 
+/* Ensure icons inside modal titles are white too */
+.modal-header h2 i,
+.modal-header h2 .fas,
+.modal-header h2 .far,
+.modal-header h2 .fab {
+    color: #fff;
+}
+
+/* Default close button (used by many modals) */
 .close-btn {
     background: #F5F5F7;
     border: none;
@@ -1667,9 +1680,26 @@ body {
     transition: all var(--transition-base);
 }
 
-.close-btn:hover {
-    background: #E5E5EA;
-    color: var(--text-primary);
+/* When the close button is inside a modal header, match the header theme */
+.modal-header .close-btn {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+}
+
+.modal-header .close-btn:hover {
+    background: rgba(255, 255, 255, 0.28);
+    color: #fff;
+}
+
+/* Lead/CRM modals use .modal-close (X button). Match it too. */
+.modal-header .modal-close {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+}
+
+.modal-header .modal-close:hover {
+    background: rgba(255, 255, 255, 0.28);
+    color: #fff;
 }
 
 .modal-body {

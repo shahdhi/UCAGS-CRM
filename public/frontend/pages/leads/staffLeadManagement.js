@@ -167,6 +167,22 @@
       await loadOfficersIntoSelect();
       setupEventListeners();
 
+      // React to current-batch changes from Programs -> Batch Setup
+      if (!window.__staffLeadMgmtCurrentBatchListenerBound) {
+        window.__staffLeadMgmtCurrentBatchListenerBound = true;
+        window.addEventListener('currentBatchChanged', async () => {
+          try {
+            // Clear caches so we don't show stale results
+            if (window.Cache) window.Cache.invalidatePrefix('leads:');
+            // Reload batches/sheets + refresh current table
+            await loadBatchesAndSheetsForOfficer();
+            await refreshStaffLeadManagement({ showSkeleton: true });
+          } catch (e) {
+            // ignore
+          }
+        });
+      }
+
       // Preload batches/sheets for the initially-selected officer
       await loadBatchesAndSheetsForOfficer();
     }

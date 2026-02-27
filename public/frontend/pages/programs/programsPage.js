@@ -142,48 +142,51 @@
               <div style="color:#b42318; font-size:12px;" id="batchSetupModalDirty"></div>
             </div>
 
-            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:14px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:14px;">
               <div>
                 <label style="font-size:12px; color:#667085; font-weight:800;">Current Batch</label>
                 <div style="margin-top:6px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                  <span id="batchSetupCurrentBadge" class="badge" style="background:#f2f4f7; color:#344054; border:1px solid #eaecf0;">Not current</span>
-                  <button class="btn btn-primary btn-sm" type="button" id="batchSetupSetCurrentBtn"><i class="fas fa-star"></i> Set as current</button>
+                  <button class="btn btn-primary btn-sm" type="button" id="batchSetupCurrentBtn"><i class="fas fa-star"></i> Set as current</button>
                 </div>
               </div>
               <div>
                 <label style="font-size:12px; color:#667085; font-weight:800;">Batch Coordinator</label>
                 <select id="batchSetupCoordinator" class="form-control" style="margin-top:6px;"></select>
               </div>
-              <div>
-                <label style="font-size:12px; color:#667085; font-weight:800;">Number of Demo Sessions</label>
-                <select id="batchSetupDemoCount" class="form-control" style="margin-top:6px;">
-                  ${Array.from({length:8}).map((_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}
-                </select>
-              </div>
             </div>
 
             <div style="border-top:1px solid #eaecf0; padding-top:12px;">
               <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
                 <h3 style="margin:0;">Payment Setup</h3>
-                <div style="display:flex; gap:8px;">
-                  <button class="btn btn-secondary btn-sm" type="button" id="batchSetupAddMethodBtn"><i class="fas fa-plus"></i> Add method</button>
-                  <button class="btn btn-secondary btn-sm" type="button" id="batchSetupAddPlanBtn"><i class="fas fa-plus"></i> Add plan</button>
-                </div>
               </div>
               <div style="margin-top:10px;">
                 <div style="font-weight:900; margin-bottom:6px;">Methods</div>
                 <div id="batchSetupMethodsWrap"></div>
+                <div style="margin-top:8px;">
+                  <button class="btn btn-secondary btn-sm" type="button" id="batchSetupAddMethodBtn"><i class="fas fa-plus"></i> Add method</button>
+                </div>
               </div>
               <div style="margin-top:12px;">
                 <div style="font-weight:900; margin-bottom:6px;">Plans</div>
                 <div id="batchSetupPlansWrap"></div>
+                <div style="margin-top:8px;">
+                  <button class="btn btn-secondary btn-sm" type="button" id="batchSetupAddPlanBtn"><i class="fas fa-plus"></i> Add plan</button>
+                </div>
               </div>
             </div>
 
             <div style="border-top:1px solid #eaecf0; padding-top:12px; margin-top:14px;">
-              <h3 style="margin:0 0 10px 0;">Demo Sessions</h3>
+              <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+                <h3 style="margin:0;">Demo Sessions</h3>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                  <div style="display:flex; gap:8px; align-items:center;">
+                    <span style="font-size:12px; color:#667085; font-weight:800;">Number of Demo Sessions</span>
+                    <input id="batchSetupDemoCountInput" class="form-control" type="number" min="1" value="1" style="width:90px;" />
+                  </div>
+                  <button class="btn btn-secondary btn-sm" type="button" id="batchSetupAddDemoBtn"><i class="fas fa-plus"></i> Add demo</button>
+                </div>
+              </div>
               <div id="batchSetupDemoSessions"></div>
-              <div style="margin-top:6px; color:#667085; font-size:12px;">Reducing count will archive extra demo sessions and hide them everywhere.</div>
             </div>
 
             <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; margin-top:16px;">
@@ -250,12 +253,15 @@
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
               <input class="form-control" data-plan="name" data-pi="${idx}" value="${escapeHtml(p.plan_name)}" placeholder="Plan name" style="width:240px;" />
               <input class="form-control" data-plan="count" data-pi="${idx}" type="number" min="1" value="${escapeHtml(count)}" style="width:120px;" />
-              <span style="color:#667085; font-size:12px; font-weight:800;">installments</span>
+              <span style="color:#667085; font-size:12px; font-weight:800;">Number of Installments</span>
             </div>
             <button class="btn btn-danger btn-sm" data-del-p="${idx}" type="button">Remove</button>
           </div>
-          <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-            ${dueInputs}
+          <div style="margin-top:10px;">
+            <div style="font-size:12px; color:#667085; font-weight:800; margin-bottom:6px;">Due dates</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              ${dueInputs}
+            </div>
           </div>
         </div>
       `;
@@ -317,52 +323,66 @@
   function renderDemoEditor(state) {
     const wrap = qs('batchSetupDemoSessions');
     if (!wrap) return;
-    const count = Number(state.general.demoSessionsCount || 4);
 
-    const rows = [];
-    for (let i = 1; i <= count; i++) {
-      const s = state.demo.sessions[i] || { title: `Demo ${i}`, scheduled_at: null, notes: '' };
-      const dt = s.scheduled_at ? new Date(s.scheduled_at) : null;
-      const local = dt ? new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
-
-      rows.push(`
-        <tr>
-          <td style="font-weight:900;">Demo ${i}</td>
-          <td><input class="form-control" data-dk="title" data-dn="${i}" value="${escapeHtml(s.title || '')}"/></td>
-          <td><input class="form-control" data-dk="scheduled_at" data-dn="${i}" type="datetime-local" value="${escapeHtml(local)}"/></td>
-          <td><input class="form-control" data-dk="notes" data-dn="${i}" value="${escapeHtml(s.notes || '')}"/></td>
-        </tr>
-      `);
+    const sessions = state.demo.sessionsList || [];
+    if (!sessions.length) {
+      wrap.innerHTML = '<div style="color:#98a2b3;">No demo sessions added</div>';
+      return;
     }
 
-    wrap.innerHTML = `
-      <div style="overflow:auto; border:1px solid #eaecf0; border-radius:12px; background:#fff;">
-        <table class="data-table" style="min-width:900px;">
-          <thead>
-            <tr>
-              <th>Demo</th>
-              <th>Title</th>
-              <th>Date/time</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows.join('')}
-          </tbody>
-        </table>
-      </div>
-    `;
+    wrap.innerHTML = sessions.map((s, idx) => {
+      const dt = s.scheduled_at ? new Date(s.scheduled_at) : null;
+      const local = dt ? new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
+      return `
+        <div style="padding:12px; border:1px solid #eaecf0; border-radius:14px; background:#fff; margin-top:10px;">
+          <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
+            <div style="font-weight:900; color:#101828;">Demo ${escapeHtml(s.demo_number)}</div>
+            <button class="btn btn-danger btn-sm" type="button" data-demo-del="${idx}">Remove</button>
+          </div>
 
-    wrap.querySelectorAll('input[data-dk]').forEach(inp => {
+          <div style="display:grid; grid-template-columns: 1fr 220px; gap:10px; margin-top:10px;">
+            <div>
+              <div style="font-size:12px; color:#667085; font-weight:800; margin-bottom:6px;">Title</div>
+              <input class="form-control" data-demo-k="title" data-demo-i="${idx}" value="${escapeHtml(s.title || '')}" />
+            </div>
+            <div>
+              <div style="font-size:12px; color:#667085; font-weight:800; margin-bottom:6px;">Date/time</div>
+              <input class="form-control" data-demo-k="scheduled_at" data-demo-i="${idx}" type="datetime-local" value="${escapeHtml(local)}" />
+            </div>
+          </div>
+
+          <div style="margin-top:10px;">
+            <div style="font-size:12px; color:#667085; font-weight:800; margin-bottom:6px;">Notes</div>
+            <input class="form-control" data-demo-k="notes" data-demo-i="${idx}" value="${escapeHtml(s.notes || '')}" />
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    wrap.querySelectorAll('input[data-demo-k]').forEach(inp => {
       inp.oninput = () => {
-        const dn = Number(inp.getAttribute('data-dn'));
-        const dk = inp.getAttribute('data-dk');
-        state.demo.sessions[dn] = state.demo.sessions[dn] || {};
-        if (dk === 'scheduled_at') {
-          state.demo.sessions[dn].scheduled_at = inp.value ? new Date(inp.value).toISOString() : null;
+        const i = Number(inp.getAttribute('data-demo-i'));
+        const k = inp.getAttribute('data-demo-k');
+        const s = state.demo.sessionsList[i];
+        if (!s) return;
+        if (k === 'scheduled_at') {
+          s.scheduled_at = inp.value ? new Date(inp.value).toISOString() : null;
         } else {
-          state.demo.sessions[dn][dk] = inp.value;
+          s[k] = inp.value;
         }
+        markBatchSetupDirty();
+      };
+    });
+
+    wrap.querySelectorAll('button[data-demo-del]').forEach(btn => {
+      btn.onclick = () => {
+        const i = Number(btn.getAttribute('data-demo-del'));
+        state.demo.sessionsList.splice(i, 1);
+        // re-number sequentially
+        state.demo.sessionsList.forEach((x, j) => { x.demo_number = j + 1; if (!x.title) x.title = `Demo ${j + 1}`; });
+        const cnt = qs('batchSetupDemoCountInput');
+        if (cnt) cnt.value = String(state.demo.sessionsList.length || 1);
+        renderDemoEditor(state);
         markBatchSetupDirty();
       };
     });
@@ -389,9 +409,9 @@
 
     const state = {
       meta: { programId, batchId, batchName },
-      general: { isCurrent: false, coordinatorUserId: '', demoSessionsCount: 4 },
+      general: { isCurrent: false, coordinatorUserId: '', demoSessionsCount: 1 },
       payment: { methods: [], plans: [] },
-      demo: { sessions: {} }
+      demo: { sessionsList: [] }
     };
 
     // Load batch setup (general + demo)
@@ -400,11 +420,21 @@
       const pb = data.programBatch || {};
       state.general.isCurrent = !!pb.is_current;
       state.general.coordinatorUserId = pb.coordinator_user_id || '';
-      state.general.demoSessionsCount = Number(pb.demo_sessions_count || 4);
+      state.general.demoSessionsCount = Number(pb.demo_sessions_count || 1);
 
-      (data.demoSessions || []).forEach(s => {
-        state.demo.sessions[Number(s.demo_number)] = { title: s.title, scheduled_at: s.scheduled_at, notes: s.notes };
-      });
+      // Build demo sessions list (card-style)
+      state.demo.sessionsList = (data.demoSessions || [])
+        .slice()
+        .sort((a, b) => Number(a.demo_number) - Number(b.demo_number))
+        .map(s => ({
+          demo_number: Number(s.demo_number),
+          title: s.title || `Demo ${s.demo_number}`,
+          scheduled_at: s.scheduled_at || null,
+          notes: s.notes || ''
+        }));
+
+      // Keep count in sync
+      state.general.demoSessionsCount = state.demo.sessionsList.length || 1;
     } catch (e) {
       // If columns don't exist yet, still allow payment setup, but inform
       console.warn('Batch setup load failed:', e);
@@ -439,43 +469,73 @@
     coordSel.innerHTML = `<option value="">(Not set)</option>` + officers.map(o => `<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
 
     // Bind general
-    const badge = qs('batchSetupCurrentBadge');
-    const setBtn = qs('batchSetupSetCurrentBtn');
-    if (badge) {
-      badge.textContent = state.general.isCurrent ? 'Current' : 'Not current';
-      badge.style.background = state.general.isCurrent ? '#ecfdf3' : '#f2f4f7';
-      badge.style.color = state.general.isCurrent ? '#027a48' : '#344054';
-      badge.style.border = state.general.isCurrent ? '1px solid #abefc6' : '1px solid #eaecf0';
-    }
-    if (setBtn) {
-      setBtn.disabled = !!state.general.isCurrent;
-      setBtn.onclick = async () => {
+    const curBtn = qs('batchSetupCurrentBtn');
+    const renderCurBtn = () => {
+      if (!curBtn) return;
+      if (state.general.isCurrent) {
+        curBtn.disabled = true;
+        curBtn.classList.remove('btn-primary');
+        curBtn.classList.add('btn-secondary');
+        curBtn.innerHTML = '<i class="fas fa-check"></i> Current';
+      } else {
+        curBtn.disabled = false;
+        curBtn.classList.remove('btn-secondary');
+        curBtn.classList.add('btn-primary');
+        curBtn.innerHTML = '<i class="fas fa-star"></i> Set as current';
+      }
+    };
+    renderCurBtn();
+    if (curBtn) {
+      curBtn.onclick = async () => {
         if (state.general.isCurrent) return;
         const ok = confirm('Set this batch as CURRENT? This will unset current status for other batches in this program.');
         if (!ok) return;
         state.general.isCurrent = true;
         markBatchSetupDirty();
-        // update UI immediately
-        if (badge) {
-          badge.textContent = 'Current';
-          badge.style.background = '#ecfdf3';
-          badge.style.color = '#027a48';
-          badge.style.border = '1px solid #abefc6';
-        }
-        setBtn.disabled = true;
+        renderCurBtn();
       };
     }
 
     coordSel.value = state.general.coordinatorUserId || '';
     coordSel.onchange = () => { state.general.coordinatorUserId = coordSel.value; markBatchSetupDirty(); };
 
-    const demoCount = qs('batchSetupDemoCount');
-    demoCount.value = String(state.general.demoSessionsCount);
-    demoCount.onchange = () => {
-      state.general.demoSessionsCount = Number(demoCount.value || 4);
-      renderDemoEditor(state);
-      markBatchSetupDirty();
-    };
+    const demoCount = qs('batchSetupDemoCountInput');
+    const addDemoBtn = qs('batchSetupAddDemoBtn');
+
+    // Ensure at least 1 demo exists in UI
+    if (!state.demo.sessionsList || !state.demo.sessionsList.length) {
+      state.demo.sessionsList = [{ demo_number: 1, title: 'Demo 1', scheduled_at: null, notes: '' }];
+    }
+
+    if (demoCount) {
+      demoCount.value = String(state.demo.sessionsList.length || 1);
+      demoCount.oninput = () => {
+        const target = Math.max(parseInt(demoCount.value || '1', 10) || 1, 1);
+        // Grow list
+        while (state.demo.sessionsList.length < target) {
+          const n = state.demo.sessionsList.length + 1;
+          state.demo.sessionsList.push({ demo_number: n, title: `Demo ${n}`, scheduled_at: null, notes: '' });
+        }
+        // Shrink list
+        while (state.demo.sessionsList.length > target) {
+          state.demo.sessionsList.pop();
+        }
+        // Re-number
+        state.demo.sessionsList.forEach((x, i) => { x.demo_number = i + 1; if (!x.title) x.title = `Demo ${i + 1}`; });
+        renderDemoEditor(state);
+        markBatchSetupDirty();
+      };
+    }
+
+    if (addDemoBtn) {
+      addDemoBtn.onclick = () => {
+        const n = (state.demo.sessionsList.length || 0) + 1;
+        state.demo.sessionsList.push({ demo_number: n, title: `Demo ${n}`, scheduled_at: null, notes: '' });
+        if (demoCount) demoCount.value = String(state.demo.sessionsList.length);
+        renderDemoEditor(state);
+        markBatchSetupDirty();
+      };
+    }
 
     // bind payment add
     qs('batchSetupAddMethodBtn').onclick = () => {
@@ -531,14 +591,28 @@
             demoSessionsCount: state.general.demoSessionsCount
           },
           demo: {
-            demoSessionsCount: state.general.demoSessionsCount,
-            sessions: state.demo.sessions
+            demoSessionsCount: (state.demo.sessionsList || []).length,
+            sessions: (state.demo.sessionsList || []).reduce((acc, s) => {
+              acc[String(s.demo_number)] = { title: s.title, scheduled_at: s.scheduled_at, notes: s.notes };
+              return acc;
+            }, {})
           },
           payments: {}
         });
 
         clearBatchSetupDirty();
         if (window.Cache) window.Cache.invalidatePrefix('programs:');
+
+        // Notify other pages that current batch may have changed
+        try {
+          window.dispatchEvent(new CustomEvent('currentBatchChanged', {
+            detail: { programId, batchName }
+          }));
+          // clear any in-memory batch dropdown caches
+          window.__programBatchesCache = null;
+          window.__programBatchesMeta = null;
+        } catch (_) {}
+
         if (window.UI?.showToast) UI.showToast('Batch setup saved', 'success');
         closeModal('batchSetupModal');
         await load();
@@ -558,9 +632,11 @@
 
   window.openBatchSetupModal = openBatchSetupModal;
 
-  function render({ programs, batches }) {
+  function render({ programs, batches, _officers }) {
     const wrap = qs('programsList');
     if (!wrap) return;
+
+    const officerNameById = new Map((_officers || []).map(o => [String(o.id), String(o.name)]));
 
     const byProgram = new Map();
     (batches || []).forEach(b => {
@@ -587,14 +663,13 @@
           </div>
 
           <div style="margin-top:12px; overflow-x:auto;">
-            <table class="data-table" style="min-width:520px;">
+            <table class="data-table" style="min-width:620px;">
               <thead>
                 <tr>
                   <th>Batch</th>
                   <th>Current</th>
                   <th>Created</th>
-                  <th>Setup</th>
-                  <th>Delete</th>
+                  <th>Batch Coordinator</th>
                 </tr>
               </thead>
               <tbody>
@@ -602,6 +677,10 @@
                   if (!b.id) {
                     return `<tr><td colspan="4" class="loading">No batches yet</td></tr>`;
                   }
+
+                  const coordId = b.coordinator_user_id || b.coordinatorUserId || '';
+                  const coordName = coordId ? (officerNameById.get(String(coordId)) || '') : '';
+
                   return `
                     <tr>
                       <td>
@@ -609,12 +688,7 @@
                       </td>
                       <td>${b.is_current ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Yes</span>' : '-'}</td>
                       <td>${escapeHtml(new Date(b.created_at).toLocaleString())}</td>
-                      <td>
-                        <span style="color:#98a2b3;">Use Edit to set current</span>
-                      </td>
-                      <td>
-                        ${b.is_current ? '<span style="color:#98a2b3;">-</span>' : `<button class=\"btn btn-danger btn-sm\" type=\"button\" data-action=\"delete-batch\" data-program-id=\"${escapeHtml(p.id)}\" data-batch-id=\"${escapeHtml(b.id)}\">Delete</button>`}
-                      </td>
+                      <td>${coordName ? escapeHtml(coordName) : '<span style="color:#98a2b3;">-</span>'}</td>
                     </tr>
                   `;
                 }).join('')}
@@ -732,6 +806,15 @@
 
     try {
       const data = await fetchPrograms();
+
+      // Load officers list (for Batch Coordinator display). Best-effort.
+      try {
+        const officersRes = await apiGet('/api/batches/officers');
+        data._officers = officersRes.officers || [];
+      } catch (e) {
+        data._officers = [];
+      }
+
       if (window.Cache) window.Cache.setWithTs(cacheKey, data);
       render(data);
     } catch (e) {

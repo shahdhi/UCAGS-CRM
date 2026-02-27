@@ -91,6 +91,29 @@ async function initLeadManagementPage() {
     isInitialized = true;
   }
   
+  // React to current-batch changes from Programs -> Batch Setup
+  if (!window.__leadManagementCurrentBatchListenerBound) {
+    window.__leadManagementCurrentBatchListenerBound = true;
+    window.addEventListener('currentBatchChanged', async () => {
+      try {
+        // Reset so dropdown defaults to new current batch
+        window.officerBatchFilter = '';
+        window.officerSheetFilter = 'Main Leads';
+
+        // Clear cached leads so we don't show stale data
+        if (window.Cache) window.Cache.invalidatePrefix('leads:');
+
+        const view = document.getElementById('lead-managementView');
+        const visible = view && (view.classList.contains('active') || view.style.display !== 'none');
+        if (visible) {
+          await loadLeadManagement();
+        }
+      } catch (e) {
+        // ignore
+      }
+    });
+  }
+
   // Always load leads when page is opened
   await loadLeadManagement();
 
@@ -144,8 +167,10 @@ async function loadLeadManagement() {
   const officerKey = window.currentUser?.id || window.currentUser?.email || window.currentUser?.name || 'me';
   const cacheKey = `leads:management:${encodeURIComponent(officerKey)}:${encodeURIComponent(batchFilter||'all')}:${encodeURIComponent(sheet)}`;
 
-  // Fast path: use cache and skip fetch
-  if (window.Cache) {
+  // Fast path: use cache and skip fetch.
+  // NOTE: if batchFilter is empty we are about to auto-select program's current batch,
+  // so do NOT serve cached "all" data.
+  if (window.Cache && batchFilter && batchFilter !== 'all') {
     const cached = window.Cache.getFresh(cacheKey, ttlMs);
     if (cached && Array.isArray(cached)) {
       managementLeads = cached;
@@ -216,8 +241,13 @@ async function loadLeadManagement() {
               sel.appendChild(opt);
             });
             const active = window.officerBatchFilter;
-            if (active && active !== 'all') sel.value = active;
-            else if (current?.batch_name) sel.value = current.batch_name;
+            if (active && active !== 'all') {
+              sel.value = active;
+            } else if (current?.batch_name) {
+              sel.value = current.batch_name;
+              // Keep filter in sync when auto-selecting current batch
+              window.officerBatchFilter = current.batch_name;
+            }
           } catch (e) {
             console.warn('Failed to load batches for management dropdown', e);
           }

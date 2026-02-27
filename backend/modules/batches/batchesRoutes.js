@@ -71,7 +71,10 @@ async function listOfficers() {
       return true;
     })
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-    .map(u => (u.user_metadata?.name || u.email.split('@')[0]));
+    .map(u => ({
+      id: u.id,
+      name: u.user_metadata?.name || u.email.split('@')[0]
+    }));
 }
 
 function validateBatchName(batchName) {
