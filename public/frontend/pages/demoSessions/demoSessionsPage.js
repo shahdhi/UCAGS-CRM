@@ -64,7 +64,7 @@
       const title = s.title || `Demo ${s.demo_number}`;
 
       return `
-        <button class="demo-card" data-id="${escapeHtml(s.id)}" style="text-align:left; padding:12px; border-radius:14px; border:1px solid ${active ? '#7c3aed' : '#eaecf0'}; background:${active ? 'rgba(124,58,237,0.06)' : '#fff'}; cursor:pointer; min-width: 220px;">
+        <button class="demo-card" data-id="${escapeHtml(s.id)}" style="text-align:left; padding:10px 10px; border-radius:14px; border:1px solid ${active ? '#7c3aed' : '#eaecf0'}; background:${active ? 'rgba(124,58,237,0.06)' : '#fff'}; cursor:pointer; min-width: 0;">
           <div style="font-weight:900; color:#101828;">${escapeHtml(title)}</div>
           <div style="margin-top:4px; font-size:12px; color:#667085;">${escapeHtml(when)}</div>
         </button>
