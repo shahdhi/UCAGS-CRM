@@ -369,6 +369,7 @@
   }
 
   async function openBatchSetupModal({ programId, batchId, batchName }) {
+    console.log('openBatchSetupModal called', { programId, batchId, batchName });
     ensureBatchSetupModal();
     clearBatchSetupDirty();
 
@@ -893,6 +894,14 @@
     // dummy values; will likely error but should open modal
     await window.openBatchSetupModal({ programId: 'TEST', batchId: 'TEST', batchName: 'TEST' });
   };
+
+  // Debug: global click probe for batch links
+  document.addEventListener('click', (e) => {
+    const a = e.target && e.target.closest ? e.target.closest('a[data-action="edit-batch-setup"]') : null;
+    if (a) {
+      console.log('Batch link clicked (probe)', a.getAttribute('data-batch-name'));
+    }
+  }, true);
 
   console.log('[programsPage] loaded');
 })();
