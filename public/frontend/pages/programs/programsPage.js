@@ -340,7 +340,7 @@
             <button class="btn btn-danger btn-sm" type="button" data-demo-del="${idx}">Remove</button>
           </div>
 
-          <div style="display:grid; grid-template-columns: 1fr 220px; gap:10px; margin-top:10px;">
+          <div style="display:grid; grid-template-columns: 1fr 220px 1fr; gap:10px; margin-top:10px; align-items:end;">
             <div>
               <div style="font-size:12px; color:#667085; font-weight:800; margin-bottom:6px;">Title</div>
               <input class="form-control" data-demo-k="title" data-demo-i="${idx}" value="${escapeHtml(s.title || '')}" />
@@ -349,11 +349,10 @@
               <div style="font-size:12px; color:#667085; font-weight:800; margin-bottom:6px;">Date/time</div>
               <input class="form-control" data-demo-k="scheduled_at" data-demo-i="${idx}" type="datetime-local" value="${escapeHtml(local)}" />
             </div>
-          </div>
-
-          <div style="margin-top:10px;">
-            <div style="font-size:12px; color:#667085; font-weight:800; margin-bottom:6px;">Notes</div>
-            <input class="form-control" data-demo-k="notes" data-demo-i="${idx}" value="${escapeHtml(s.notes || '')}" />
+            <div>
+              <div style="font-size:12px; color:#667085; font-weight:800; margin-bottom:6px;">Notes</div>
+              <input class="form-control" data-demo-k="notes" data-demo-i="${idx}" value="${escapeHtml(s.notes || '')}" />
+            </div>
           </div>
         </div>
       `;

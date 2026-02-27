@@ -232,8 +232,8 @@
 }
 
 .modal-header {
-  /* Global modal header theme (blue effect) */
-  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 45%, #06b6d4 100%);
+  /* Global modal header theme (purple + black accent) */
+  background: var(--gradient-modal-header);
   color: white;
   padding: 20px 30px;
   border-radius: 12px 12px 0 0;
