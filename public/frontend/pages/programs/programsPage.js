@@ -133,7 +133,7 @@
         <div class="modal-content" style="max-width:1100px;">
           <div class="modal-header">
             <h2 id="batchSetupModalTitle">Batch Setup</h2>
-            <button class="modal-close" onclick="closeModal('batchSetupModal')">&times;</button>
+            <button class="modal-close" onclick="window.closeModal && window.closeModal('batchSetupModal')">&times;</button>
           </div>
 
           <div class="modal-body">
@@ -189,7 +189,7 @@
             <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; margin-top:16px;">
               <button class="btn btn-danger" type="button" id="batchSetupDeleteBtn"><i class="fas fa-trash"></i> Delete Batch</button>
               <div style="display:flex; gap:8px;">
-                <button class="btn btn-secondary" type="button" onclick="closeModal('batchSetupModal')">Cancel</button>
+                <button class="btn btn-secondary" type="button" onclick="window.closeModal && window.closeModal('batchSetupModal')">Cancel</button>
                 <button class="btn btn-primary" type="button" id="batchSetupSaveBtn"><i class="fas fa-save"></i> Save</button>
               </div>
             </div>
@@ -377,12 +377,14 @@
     qs('batchSetupModalMeta').textContent = `Program: ${programId}`;
 
     // Open immediately with loading placeholders
-    try {
-      qs('batchSetupMethodsWrap').innerHTML = '<div style="color:#667085;">Loading…</div>';
-      qs('batchSetupPlansWrap').innerHTML = '';
-      qs('batchSetupDemoSessions').innerHTML = '';
-      openModal('batchSetupModal');
-    } catch (_) {}
+    qs('batchSetupMethodsWrap').innerHTML = '<div style="color:#667085;">Loading…</div>';
+    qs('batchSetupPlansWrap').innerHTML = '';
+    qs('batchSetupDemoSessions').innerHTML = '';
+    if (window.openModal) window.openModal('batchSetupModal');
+    else {
+      const m = qs('batchSetupModal');
+      if (m) m.style.display = 'flex';
+    }
 
     const state = {
       meta: { programId, batchId, batchName },
@@ -602,9 +604,7 @@
                   return `
                     <tr>
                       <td>
-                        <a href="#" data-action="edit-batch-setup" data-program-id="${escapeHtml(p.id)}" data-batch-id="${escapeHtml(b.id)}" data-batch-name="${escapeHtml(b.batch_name)}"
-                           onclick="event.preventDefault(); if(window.openBatchSetupModal){window.openBatchSetupModal({ programId: this.getAttribute('data-program-id'), batchId: this.getAttribute('data-batch-id'), batchName: this.getAttribute('data-batch-name') });} return false;"
-                           style="color:#175CD3; text-decoration:none; font-weight:600;">${escapeHtml(b.batch_name)}</a>
+                        <a href="#" data-action="edit-batch-setup" data-program-id="${escapeHtml(p.id)}" data-batch-id="${escapeHtml(b.id)}" data-batch-name="${escapeHtml(b.batch_name)}" style="color:#175CD3; text-decoration:none; font-weight:600;">${escapeHtml(b.batch_name)}</a>
                       </td>
                       <td>${b.is_current ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Yes</span>' : '-'}</td>
                       <td>${escapeHtml(new Date(b.created_at).toLocaleString())}</td>
@@ -655,23 +655,7 @@
       });
     });
 
-    // Batch setup open (bind per-anchor, plus delegation as fallback)
-    wrap.querySelectorAll('a[data-action="edit-batch-setup"]').forEach(a => {
-      if (a.__boundBatchSetup) return;
-      a.__boundBatchSetup = true;
-      a.addEventListener('click', async (e) => {
-        e.preventDefault();
-        const batchName = a.getAttribute('data-batch-name');
-        const programId = a.getAttribute('data-program-id');
-        const batchId = a.getAttribute('data-batch-id');
-        if (!window.openBatchSetupModal) {
-          console.warn('openBatchSetupModal not available');
-          return;
-        }
-        await window.openBatchSetupModal({ programId, batchId, batchName });
-      });
-    });
-
+    // Batch setup open (event delegation; robust across re-renders)
     if (!wrap.__batchSetupDelegationBound) {
       wrap.__batchSetupDelegationBound = true;
       wrap.addEventListener('click', async (e) => {
@@ -894,14 +878,6 @@
     // dummy values; will likely error but should open modal
     await window.openBatchSetupModal({ programId: 'TEST', batchId: 'TEST', batchName: 'TEST' });
   };
-
-  // Debug: global click probe for batch links
-  document.addEventListener('click', (e) => {
-    const a = e.target && e.target.closest ? e.target.closest('a[data-action="edit-batch-setup"]') : null;
-    if (a) {
-      console.log('Batch link clicked (probe)', a.getAttribute('data-batch-name'));
-    }
-  }, true);
 
   console.log('[programsPage] loaded');
 })();
