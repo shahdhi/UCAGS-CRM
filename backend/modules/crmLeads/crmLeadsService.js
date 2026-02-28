@@ -1225,7 +1225,14 @@ async function listAdminSheets({ assignedTo, batchName }) {
   const { data, error } = await q;
   if (error) throw error;
 
-  const set = new Set((data || []).map(r => r.sheet_name).filter(Boolean));
+  const excluded = new Set(['registrations', 'registration']);
+  const set = new Set(
+    (data || [])
+      .map(r => normalizeSheetName(r.sheet_name))
+      .filter(Boolean)
+      .filter(s => !excluded.has(String(s).toLowerCase()))
+  );
+
   return Array.from(set).sort((a, b) => String(a).localeCompare(String(b)));
 }
 
@@ -1293,7 +1300,11 @@ async function listSheetsForBatch({ batchName, user }) {
     }
   }
 
-  return Array.from(set).sort((a, c) => String(a).localeCompare(String(c)));
+  // Exclude exported registrations sheet (comes from Registrations page export)
+  const excluded = new Set(['registrations', 'registration']);
+  const filtered = Array.from(set).filter(s => !excluded.has(String(normalizeSheetName(s)).toLowerCase()));
+
+  return filtered.sort((a, c) => String(a).localeCompare(String(c)));
 }
 
 async function deleteSheetForBatch({ batchName, sheetName, scope, user }) {
