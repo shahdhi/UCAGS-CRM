@@ -54,6 +54,13 @@
     `;
   }
 
+  function isPastDayInSriLanka(dateISO) {
+    // Disable once the Sri Lanka day is over.
+    const nowSL = new Date(Date.now() + SL_OFFSET_MIN * 60 * 1000);
+    const todaySL = nowSL.toISOString().slice(0, 10);
+    return String(dateISO) < todaySL;
+  }
+
   function renderDaySection(dateISO, officers, matrix) {
     const rows = officers.map(o => {
       const c = matrix?.[dateISO]?.[o.id] || null;
@@ -61,8 +68,12 @@
       const slot2 = c ? badge(!!c.slot2) : badge(false);
       const slot3 = c ? badge(!!c.slot3) : badge(false);
       const contacted = c ? Number(c.leadsContacted || 0) : 0;
-      const todo = c ? Number(c.leadsToBeContacted || 0) : 0;
+      const newLeads = c ? Number(c.leadsToBeContacted || 0) : 0;
       const rec = recordingSelect(c?.callRecording || 'na', dateISO, o.id);
+
+      const leadsStatus = newLeads > 0
+        ? `<span style="font-size:14px; font-weight:700;">${newLeads}</span> <span style="font-size:13px;">to be contacted</span>`
+        : `<span style="font-size:13px; font-weight:700; color:#166534;">All leads contacted</span>`;
 
       return `
         <tr>
@@ -70,17 +81,27 @@
           <td>${slot1}</td>
           <td>${slot2}</td>
           <td>${slot3}</td>
-          <td><span class="badge" style="background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe;">${contacted}</span></td>
-          <td><span class="badge" style="background:#fffbeb; color:#92400e; border:1px solid #fde68a;">${todo}</span></td>
+          <td>
+            <div style="font-size:14px; font-weight:700;">Contacted: ${contacted}</div>
+            <div style="margin-top:2px;">${leadsStatus}</div>
+          </td>
           <td>${rec}</td>
         </tr>
       `;
     }).join('');
 
+    const recordDisabled = isPastDayInSriLanka(dateISO);
+
     return `
       <div class="dashboard-card" style="margin-bottom: 16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
           <h2 style="margin:0;"><i class="fas fa-calendar-day"></i> ${escapeHtml(dateISO)}</h2>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button class="btn btn-primary daily-checklist-record-btn" data-date="${escapeHtml(dateISO)}" ${recordDisabled ? 'disabled' : ''}>
+              <i class="fas fa-save"></i> Record
+            </button>
+            ${recordDisabled ? '<span style="font-size:12px; color:#666;">Day over</span>' : '<span style="font-size:12px; color:#666;">Saves NEW leads snapshot for this date</span>'}
+          </div>
         </div>
         <div style="overflow:auto; margin-top: 10px;">
           <table class="data-table" style="min-width: 900px;">
@@ -90,13 +111,12 @@
                 <th>Slot 1 report</th>
                 <th>Slot 2 report</th>
                 <th>Slot 3 report</th>
-                <th>Leads contacted</th>
-                <th>To be contacted</th>
+                <th>Leads</th>
                 <th>Call recordings</th>
               </tr>
             </thead>
             <tbody>
-              ${rows || `<tr><td colspan="7" class="loading">No officers found.</td></tr>`}
+              ${rows || `<tr><td colspan="6" class="loading">No officers found.</td></tr>`}
             </tbody>
           </table>
         </div>
@@ -152,6 +172,18 @@
     return json.row;
   }
 
+  async function recordSnapshotForDate(dateISO) {
+    const headers = { ...(await authHeaders()), 'Content-Type': 'application/json' };
+    const res = await fetch('/api/reports/daily-checklist/snapshot', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ dateISO })
+    });
+    const json = await res.json();
+    if (!json?.success) throw new Error(json?.error || 'Failed to record snapshot');
+    return json.result;
+  }
+
   async function loadChecklist() {
     const start = $('dailyChecklistStart')?.value;
     const days = $('dailyChecklistDays')?.value || 7;
@@ -177,6 +209,34 @@
 
     const sections = (json.days || []).map(d => renderDaySection(d, json.officers || [], json.byDate || {})).join('');
     if (wrap) wrap.innerHTML = sections || `<div class="dashboard-card"><p class="loading">No data.</p></div>`;
+
+    // Bind per-day Record snapshot buttons
+    wrap?.querySelectorAll('button.daily-checklist-record-btn')?.forEach(btn => {
+      if (btn.__bound) return;
+      btn.__bound = true;
+      btn.addEventListener('click', async () => {
+        const dateISO = btn.getAttribute('data-date');
+        if (!dateISO) return;
+
+        btn.disabled = true;
+        const oldHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Recording…';
+        try {
+          await recordSnapshotForDate(dateISO);
+          if (window.showToast) showToast(`Recorded snapshot for ${dateISO}`, 'success');
+          // Reload checklist so the new snapshot values appear
+          await loadChecklist();
+        } catch (e) {
+          console.error(e);
+          if (window.showToast) showToast(e.message || 'Failed to record snapshot', 'error');
+          btn.disabled = isPastDayInSriLanka(dateISO);
+        } finally {
+          btn.innerHTML = oldHtml;
+          // If it's today, keep enabled for multiple clicks; if past day, stay disabled.
+          btn.disabled = isPastDayInSriLanka(dateISO);
+        }
+      });
+    });
 
     // Bind dropdown change
     wrap?.querySelectorAll('select.daily-checklist-recording')?.forEach(sel => {

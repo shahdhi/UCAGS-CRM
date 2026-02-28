@@ -17,7 +17,7 @@ const {
   adminUpdateReport
 } = require('./dailyReportsService');
 
-const { getDailyChecklist, upsertCallRecordingStatus } = require('./dailyChecklistService');
+const { getDailyChecklist, upsertCallRecordingStatus, upsertLeadsSnapshot } = require('./dailyChecklistService');
 
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
 
@@ -165,6 +165,57 @@ router.get('/daily-checklist', isAdmin, async (req, res) => {
     res.json({ success: true, ...data });
   } catch (error) {
     console.error('GET /api/reports/daily-checklist error:', error);
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/reports/daily-checklist/snapshot (admin)
+// Body: { dateISO: 'YYYY-MM-DD' } or { startISO:'YYYY-MM-DD', days:7 }
+router.post('/daily-checklist/snapshot', isAdmin, async (req, res) => {
+  try {
+    const { dateISO, startISO, days } = req.body || {};
+
+    const sb = getSupabaseAdmin();
+    let officers = [];
+    if (sb) {
+      const { data: { users }, error } = await sb.auth.admin.listUsers();
+      if (error) throw error;
+      officers = (users || [])
+        .filter(u => {
+          if (isAdminAccount(u)) return false;
+          const role = u.user_metadata?.role;
+          return role === 'officer' || role === 'admission_officer';
+        })
+        .map(u => ({
+          id: u.id,
+          name: u.user_metadata?.name || u.email?.split('@')?.[0] || 'Officer'
+        }));
+    }
+
+    const targets = [];
+    if (dateISO) {
+      targets.push(String(dateISO).slice(0, 10));
+    } else if (startISO) {
+      const n = Number(days || 7);
+      for (let i = 0; i < n; i++) {
+        const d = new Date(`${startISO}T00:00:00Z`);
+        d.setUTCDate(d.getUTCDate() + i);
+        targets.push(d.toISOString().slice(0, 10));
+      }
+    } else {
+      return res.status(400).json({ success: false, error: 'Provide dateISO or startISO (+days)' });
+    }
+
+    const all = [];
+    for (const d of targets) {
+      // Snapshot uses *current* New lead counts; storing them against the requested date.
+      const saved = await upsertLeadsSnapshot({ dateISO: d, officers });
+      all.push({ dateISO: d, rows: saved });
+    }
+
+    res.json({ success: true, result: all });
+  } catch (error) {
+    console.error('POST /api/reports/daily-checklist/snapshot error:', error);
     res.status(error.status || 500).json({ success: false, error: error.message });
   }
 });

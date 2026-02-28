@@ -116,11 +116,26 @@ async function listFollowupsRange({ startISO, endISO }) {
   return data || [];
 }
 
-async function listNewLeadsCurrent() {
+async function listLeadSnapshotsRange({ startISO, endISO }) {
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from('daily_officer_leads_snapshot')
+    .select('snapshot_date, officer_user_id, new_leads_count')
+    .gte('snapshot_date', startISO)
+    .lte('snapshot_date', endISO);
+
+  if (error) {
+    // If table isn't created yet, be non-fatal.
+    console.warn('daily_officer_leads_snapshot select failed:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
+async function computeNewLeadsCountsCurrent({ officers }) {
   const sb = requireSupabase();
 
-  // Snapshot of leads that are currently "New".
-  // This matches: "all currently-New leads assigned to the officer".
+  // Current counts of leads in status=New grouped by assigned_to (officer name)
   const fields = 'id, batch_name, sheet_name, sheet_lead_id, assigned_to, status';
   const { data, error } = await sb
     .from('crm_leads')
@@ -128,7 +143,25 @@ async function listNewLeadsCurrent() {
     .eq('status', 'New');
 
   if (error) throw error;
-  return data || [];
+
+  const officerNameToId = new Map((officers || []).map(o => [String(o.name || '').trim(), o.id]));
+  const counts = new Map();
+
+  for (const l of (data || [])) {
+    const assignee = String(l.assigned_to || '').trim();
+    const officerId = officerNameToId.get(assignee);
+    if (!officerId) continue;
+
+    const leadKey = [l.batch_name, l.sheet_name, l.sheet_lead_id].join('|');
+    const set = counts.get(officerId) || new Set();
+    set.add(leadKey);
+    counts.set(officerId, set);
+  }
+
+  // Return map officerId -> count
+  const out = new Map();
+  for (const [officerId, set] of counts.entries()) out.set(officerId, set.size);
+  return out;
 }
 
 async function listCallRecordingStatuses({ startISO, endISO }) {
@@ -215,10 +248,10 @@ async function getDailyChecklist({ startISO, days, officers }) {
 
   const end = dates[dates.length - 1];
 
-  const [reportRows, followups, newLeads, recordings] = await Promise.all([
+  const [reportRows, followups, leadSnapshots, recordings] = await Promise.all([
     listDailyReportsRange({ startISO: start, endISO: end }),
     listFollowupsRange({ startISO: start, endISO: end }),
-    listNewLeadsCurrent(),
+    listLeadSnapshotsRange({ startISO: start, endISO: end }),
     listCallRecordingStatuses({ startISO: start, endISO: end })
   ]);
 
@@ -250,18 +283,13 @@ async function getDailyChecklist({ startISO, days, officers }) {
     contactedByDayOfficer.set(k, set);
   }
 
-  // To be contacted: snapshot of all leads that are currently NEW and assigned to the officer.
-  const officerNameToId = new Map((officers || []).map(o => [String(o.name || '').trim(), o.id]));
-  const newByOfficer = new Map();
-  for (const l of newLeads) {
-    const assignee = String(l.assigned_to || '').trim();
-    const officerId = officerNameToId.get(assignee);
-    if (!officerId) continue;
-
-    const leadKey = [l.batch_name, l.sheet_name, l.sheet_lead_id].join('|');
-    const set = newByOfficer.get(officerId) || new Set();
-    set.add(leadKey);
-    newByOfficer.set(officerId, set);
+  // To be contacted: per-day snapshot values from daily_officer_leads_snapshot.
+  // If a snapshot row is missing, default to 0 (admin can backfill via snapshot endpoint).
+  const snapshotByDayOfficer = new Map();
+  for (const r of (leadSnapshots || [])) {
+    const d = String(r.snapshot_date).slice(0, 10);
+    const k = `${d}|${r.officer_user_id}`;
+    snapshotByDayOfficer.set(k, Number(r.new_leads_count || 0));
   }
 
   for (const d of dates) {
@@ -269,7 +297,7 @@ async function getDailyChecklist({ startISO, days, officers }) {
       const k = `${d}|${o.id}`;
       const cell = byDate[d][o.id];
       cell.leadsContacted = (contactedByDayOfficer.get(k)?.size) || 0;
-      cell.leadsToBeContacted = (newByOfficer.get(o.id)?.size) || 0;
+      cell.leadsToBeContacted = snapshotByDayOfficer.get(k) || 0;
     }
   }
 
@@ -290,7 +318,31 @@ async function getDailyChecklist({ startISO, days, officers }) {
   };
 }
 
+async function upsertLeadsSnapshot({ dateISO, officers }) {
+  const sb = requireSupabase();
+  const date = cleanString(dateISO);
+  if (!date) throw Object.assign(new Error('dateISO is required'), { status: 400 });
+
+  const counts = await computeNewLeadsCountsCurrent({ officers });
+
+  const rows = (officers || []).map(o => ({
+    snapshot_date: date,
+    officer_user_id: o.id,
+    new_leads_count: counts.get(o.id) || 0,
+    meta: { source: 'crm_leads_status_new', generated_at: new Date().toISOString() }
+  }));
+
+  const { data, error } = await sb
+    .from('daily_officer_leads_snapshot')
+    .upsert(rows, { onConflict: 'snapshot_date,officer_user_id' })
+    .select('snapshot_date, officer_user_id, new_leads_count');
+
+  if (error) throw error;
+  return data || [];
+}
+
 module.exports = {
   getDailyChecklist,
-  upsertCallRecordingStatus
+  upsertCallRecordingStatus,
+  upsertLeadsSnapshot
 };
