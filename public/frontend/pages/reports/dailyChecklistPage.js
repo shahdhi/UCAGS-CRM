@@ -96,10 +96,9 @@
         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
           <h2 style="margin:0;"><i class="fas fa-calendar-day"></i> ${escapeHtml(dateISO)}</h2>
           <div style="display:flex; gap:8px; align-items:center;">
-            <button class="btn btn-primary daily-checklist-record-btn" data-date="${escapeHtml(dateISO)}" ${recordDisabled ? 'disabled' : ''}>
+            <button class="btn btn-primary daily-checklist-record-btn" data-date="${escapeHtml(dateISO)}" ${recordDisabled ? 'disabled' : ''} style="padding:6px 10px; font-size:12px; line-height:1.1;">
               <i class="fas fa-save"></i> Record
             </button>
-            ${recordDisabled ? '<span style="font-size:12px; color:#666;">Day over</span>' : '<span style="font-size:12px; color:#666;">Saves NEW leads snapshot for this date</span>'}
           </div>
         </div>
         <div style="overflow:auto; margin-top: 10px;">

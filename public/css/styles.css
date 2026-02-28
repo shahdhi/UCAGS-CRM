@@ -770,6 +770,38 @@ body {
     box-shadow: var(--shadow-md);
 }
 
+/* Daily Checklist (Admin): compact + stable (no hover lift) */
+#daily-checklistView .dashboard-card,
+#daily-checklistView .dashboard-card:hover,
+#daily-checklistView .dashboard-card:active {
+    transition: none !important;
+    transform: none !important;
+    animation: none !important;
+    box-shadow: var(--shadow-sm) !important;
+    border-color: var(--separator) !important;
+}
+
+#daily-checklistView .dashboard-card {
+    padding: 12px !important;
+    margin-bottom: 10px !important;
+}
+
+#daily-checklistView h1 { margin-bottom: 10px !important; }
+#daily-checklistView h2 { font-size: 16px !important; }
+
+#daily-checklistView .data-table th,
+#daily-checklistView .data-table td {
+    padding: 8px 10px !important;
+    font-size: 13px !important;
+}
+
+#daily-checklistView .badge { padding: 3px 8px !important; font-size: 11px !important; }
+
+#daily-checklistView .form-control {
+    padding: 8px 10px !important;
+    height: auto !important;
+}
+
 /* Disable "floating" hover movement in Attendance + Reports pages */
 
 /* Settings view: keep UI stable (no view entry animation and no hover lift) */
