@@ -840,13 +840,10 @@ async function navigateToPage(page) {
             if (titleEl) {
                 titleEl.innerHTML = `<i class="fas fa-tasks"></i> Lead Management`;
             }
+            // Subtitle below Lead Management title is optional; currently keep it empty
+            // (requested: remove e.g. “(Batch-14) - Main Leads”)
             if (subEl) {
-                const batchLabel = (window.officerBatchFilter && window.officerBatchFilter !== 'all')
-                    ? `(${window.officerBatchFilter})`
-                    : '';
-                const sheetLabel = window.officerSheetFilter ? `${window.officerSheetFilter}` : '';
-                const text = [batchLabel, sheetLabel].filter(Boolean).join(' - ');
-                subEl.textContent = text;
+                subEl.textContent = '';
             }
         }
     } else if (page === 'demo-sessions') {
