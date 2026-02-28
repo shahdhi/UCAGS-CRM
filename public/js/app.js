@@ -857,6 +857,14 @@ async function navigateToPage(page) {
             window.location.hash = 'home';
             return;
         }
+    } else if (page === 'batch-management') {
+        const viewElement = document.getElementById('batchManagementView');
+        if (viewElement) {
+            viewElement.classList.add('active');
+        } else {
+            window.location.hash = 'home';
+            return;
+        }
     } else {
         const viewElement = document.getElementById(`${page}View`);
         if (viewElement) {
