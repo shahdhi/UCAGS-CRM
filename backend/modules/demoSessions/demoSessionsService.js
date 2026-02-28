@@ -146,7 +146,7 @@ async function updateInvite({ inviteId, patch, actorUserId }) {
   return data;
 }
 
-async function addReminder({ inviteId, note, actorUserId }) {
+async function addReminder({ inviteId, remindAt, note, actorUserId }) {
   const sb = requireSupabase();
   const id = clean(inviteId);
   if (!id) throw Object.assign(new Error('inviteId is required'), { status: 400 });
@@ -158,11 +158,19 @@ async function addReminder({ inviteId, note, actorUserId }) {
 
   const n = (count || 0) + 1;
 
+  const parsed = clean(remindAt);
+  const d = parsed ? new Date(parsed) : null;
+  if (!d || Number.isNaN(d.getTime())) {
+    throw Object.assign(new Error('remindAt is required'), { status: 400 });
+  }
+  const remindAtIso = d.toISOString();
+
   const row = {
     invite_id: id,
     reminder_number: n,
     note: clean(note),
-    sent_at: new Date().toISOString(),
+    // Reuse existing column as the scheduled reminder time
+    sent_at: remindAtIso,
     created_by: actorUserId || null
   };
 

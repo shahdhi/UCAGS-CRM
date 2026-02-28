@@ -1165,6 +1165,31 @@
                 </div>
             </div>
 
+            <!-- Modal: Demo Session Reminder -->
+            <div id="demoReminderModal" class="modal">
+                <div class="modal-content" style="max-width: 520px;">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-bell"></i> Add Reminder</h2>
+                        <button class="modal-close" onclick="closeModal('demoReminderModal')"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="demoReminderWhen">Reminder time</label>
+                            <input id="demoReminderWhen" class="form-control" type="datetime-local" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="demoReminderNote">Reminder note (optional)</label>
+                            <textarea id="demoReminderNote" class="form-control" rows="3" placeholder="Type a note..."></textarea>
+                        </div>
+                        <small style="color:#667085; display:block; margin-top:6px;">Hover the R1/R2 badges to see time and note.</small>
+                    </div>
+                    <div class="modal-actions" style="margin-top: 10px;">
+                        <button type="button" class="btn btn-secondary" id="demoReminderCancelBtn">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="demoReminderSaveBtn"><i class="fas fa-save"></i> Save</button>
+                    </div>
+                </div>
+            </div>
+
             <div id="reportsView" class="content-view">
                 <div class="page-header">
                     <h1>Reports</h1>

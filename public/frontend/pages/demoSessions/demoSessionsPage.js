@@ -51,8 +51,44 @@
     sessions: [],
     selectedSessionId: '',
     invites: [],
-    remindersByInvite: new Map()
+    remindersByInvite: new Map(),
+    reminderInviteId: ''
   };
+
+  function toDatetimeLocalValue(d) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function openReminderModal(inviteId) {
+    state.reminderInviteId = inviteId;
+    const whenEl = qs('demoReminderWhen');
+    const noteEl = qs('demoReminderNote');
+    if (whenEl) whenEl.value = toDatetimeLocalValue(new Date(Date.now() + 60 * 60 * 1000)); // default +1h
+    if (noteEl) noteEl.value = '';
+    if (window.openModal) window.openModal('demoReminderModal');
+  }
+
+  async function saveReminderFromModal() {
+    const inviteId = state.reminderInviteId;
+    const whenEl = qs('demoReminderWhen');
+    if (!inviteId) throw new Error('No invite selected');
+    const v = (whenEl?.value || '').trim();
+    if (!v) throw new Error('Reminder time is required');
+    const remindAt = new Date(v);
+    if (Number.isNaN(remindAt.getTime())) throw new Error('Invalid reminder time');
+
+    const note = (qs('demoReminderNote')?.value || '').trim();
+    await apiPost(`/api/demo-sessions/invites/${encodeURIComponent(inviteId)}/reminders`, {
+      remindAt: remindAt.toISOString(),
+      note
+    });
+
+    await loadRemindersForInvite(inviteId);
+    renderInvites();
+    if (window.closeModal) window.closeModal('demoReminderModal');
+    if (window.UI?.showToast) UI.showToast('Reminder added', 'success');
+  }
 
   function renderSessions() {
     const wrap = qs('demoSessionsCards');
@@ -88,8 +124,15 @@
 
     const rows = (state.invites || []).map(inv => {
       const rems = state.remindersByInvite.get(inv.id) || [];
-      const remHtml = rems.map(r => `<span class="badge" style="background:#f2f4f7; color:#344054; border:1px solid #eaecf0; margin-right:6px;">R${r.reminder_number}</span>`).join('') +
-        ` <button class="btn btn-secondary btn-sm" data-act="add-rem" data-id="${escapeHtml(inv.id)}"><i class="fas fa-bell"></i></button>`;
+      const remHtml = rems.map(r => {
+        const when = r.sent_at ? new Date(r.sent_at).toLocaleString() : '';
+        const note = (r.note || '').trim();
+        const tip = [when ? `Time: ${when}` : '', note ? `Note: ${note}` : ''].filter(Boolean).join('\n');
+        const titleAttr = tip ? ` title="${escapeHtml(tip)}"` : '';
+        const aria = tip ? ` aria-label="${escapeHtml(tip)}"` : '';
+        return `<span class="badge"${titleAttr}${aria} tabindex="0" style="background:#f2f4f7; color:#344054; border:1px solid #eaecf0; margin-right:6px; cursor:help;">R${r.reminder_number}</span>`;
+      }).join('') +
+        ` <button class="btn btn-secondary btn-sm" data-act="add-rem" data-id="${escapeHtml(inv.id)}" title="Add reminder"><i class="fas fa-bell"></i></button>`;
 
       const sel = (val, opts) => opts.map(o => `<option value="${escapeHtml(o)}" ${String(o)===String(val)?'selected':''}>${escapeHtml(o)}</option>`).join('');
 
@@ -129,15 +172,7 @@
 
       if (act === 'add-rem') {
         el.onclick = async () => {
-          const note = prompt('Reminder note (optional):') || '';
-          try {
-            await apiPost(`/api/demo-sessions/invites/${encodeURIComponent(id)}/reminders`, { note });
-            await loadRemindersForInvite(id);
-            renderInvites();
-            if (window.UI?.showToast) UI.showToast('Reminder added', 'success');
-          } catch (e) {
-            if (window.UI?.showToast) UI.showToast(e.message, 'error');
-          }
+          openReminderModal(id);
         };
         return;
       }
@@ -241,6 +276,24 @@
   }
 
   async function initDemoSessionsPage() {
+    // Bind reminder modal buttons once
+    const remSave = qs('demoReminderSaveBtn');
+    const remCancel = qs('demoReminderCancelBtn');
+    if (remSave && !remSave.__bound) {
+      remSave.__bound = true;
+      remSave.onclick = async () => {
+        try {
+          await saveReminderFromModal();
+        } catch (e) {
+          if (window.UI?.showToast) UI.showToast(e.message, 'error');
+        }
+      };
+    }
+    if (remCancel && !remCancel.__bound) {
+      remCancel.__bound = true;
+      remCancel.onclick = () => window.closeModal && window.closeModal('demoReminderModal');
+    }
+
     const view = qs('demoSessionsView');
     if (!view) return;
 

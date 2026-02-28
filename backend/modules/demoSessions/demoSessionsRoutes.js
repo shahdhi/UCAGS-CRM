@@ -76,12 +76,18 @@ router.get('/invites/:id/reminders', isAdminOrOfficer, async (req, res) => {
 });
 
 // POST /api/demo-sessions/invites/:id/reminders
-// Body: { note }
+// Body: { remindAt, note }
 router.post('/invites/:id/reminders', isAdminOrOfficer, async (req, res) => {
   try {
     const inviteId = req.params.id;
     const actorUserId = req.user?.id;
-    const reminder = await svc.addReminder({ inviteId, note: req.body?.note, actorUserId });
+    const reminder = await svc.addReminder({
+      inviteId,
+      // Backward-compatible: if old client calls without remindAt, default to now
+      remindAt: req.body?.remindAt || new Date().toISOString(),
+      note: req.body?.note,
+      actorUserId
+    });
     res.status(201).json({ success: true, reminder });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
