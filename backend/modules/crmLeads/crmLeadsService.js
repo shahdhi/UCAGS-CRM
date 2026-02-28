@@ -708,6 +708,98 @@ async function importAdminCsv({ batchName, sheetName, csvText }) {
   return { importedCount: patches.length };
 }
 
+async function copyLeadRowForNew({ sb, sourceRow, targetBatchName, targetSheetName, assignedToOverride = undefined }) {
+  const now = new Date().toISOString();
+  const newSheetLeadId = `${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+
+  const row = {
+    batch_name: cleanString(targetBatchName),
+    sheet_name: normalizeSheetName(targetSheetName),
+    sheet_lead_id: newSheetLeadId,
+
+    // Copy core lead fields
+    name: cleanString(sourceRow?.name),
+    email: cleanString(sourceRow?.email),
+    phone: cleanString(sourceRow?.phone),
+    source: cleanString(sourceRow?.source),
+    status: cleanString(sourceRow?.status) || 'New',
+    priority: cleanString(sourceRow?.priority),
+    notes: cleanString(sourceRow?.notes),
+
+    // Treat as new: reset tracking/management json
+    management_json: null,
+
+    // Keep intake_json if present
+    intake_json: sourceRow?.intake_json && typeof sourceRow.intake_json === 'object' ? sourceRow.intake_json : null,
+
+    assigned_to: assignedToOverride !== undefined ? cleanString(assignedToOverride) : cleanString(sourceRow?.assigned_to),
+
+    created_at: now,
+    created_date: now,
+    updated_at: now
+  };
+
+  const { data, error } = await sb
+    .from('crm_leads')
+    .insert(row)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return mapLeadRowToApi(data);
+}
+
+async function copyMyLead({ officerName, sourceBatchName, sourceSheetName, sourceLeadId, targetBatchName, targetSheetName }) {
+  const sb = requireSupabase();
+  const off = cleanString(officerName);
+  if (!off) throw Object.assign(new Error('Missing officerName'), { status: 400 });
+
+  const srcBatch = cleanString(sourceBatchName);
+  const srcSheet = normalizeSheetName(sourceSheetName);
+  const srcId = cleanString(sourceLeadId);
+  if (!srcBatch || !srcSheet || !srcId) throw Object.assign(new Error('Missing source lead'), { status: 400 });
+
+  const { data: src, error } = await sb
+    .from('crm_leads')
+    .select('*')
+    .eq('batch_name', srcBatch)
+    .eq('sheet_name', srcSheet)
+    .eq('sheet_lead_id', srcId)
+    .single();
+  if (error) throw error;
+
+  if (String(src.assigned_to || '') !== String(off)) {
+    throw Object.assign(new Error('Forbidden: lead not assigned to you'), { status: 403 });
+  }
+
+  // Officer copy: keep assigned_to as officer
+  return copyLeadRowForNew({
+    sb,
+    sourceRow: src,
+    targetBatchName,
+    targetSheetName,
+    assignedToOverride: off
+  });
+}
+
+async function copyAdminLead({ sourceBatchName, sourceSheetName, sourceLeadId, targetBatchName, targetSheetName }) {
+  const sb = requireSupabase();
+  const srcBatch = cleanString(sourceBatchName);
+  const srcSheet = normalizeSheetName(sourceSheetName);
+  const srcId = cleanString(sourceLeadId);
+  if (!srcBatch || !srcSheet || !srcId) throw Object.assign(new Error('Missing source lead'), { status: 400 });
+
+  const { data: src, error } = await sb
+    .from('crm_leads')
+    .select('*')
+    .eq('batch_name', srcBatch)
+    .eq('sheet_name', srcSheet)
+    .eq('sheet_lead_id', srcId)
+    .single();
+  if (error) throw error;
+
+  return copyLeadRowForNew({ sb, sourceRow: src, targetBatchName, targetSheetName });
+}
+
 async function createOfficerLead({ officerName, batchName, sheetName, lead }) {
   const sb = requireSupabase();
   if (!officerName) {
@@ -940,5 +1032,7 @@ module.exports = {
   listAdminSheets,
   listSheetsForBatch,
   createSheetForBatch,
-  deleteSheetForBatch
+  deleteSheetForBatch,
+  copyMyLead,
+  copyAdminLead
 };

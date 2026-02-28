@@ -158,6 +158,25 @@ router.put('/admin/:batchName/:sheetName/:leadId', isAdmin, async (req, res) => 
   }
 });
 
+// POST /api/crm-leads/admin/copy
+// Body: { source: { batchName, sheetName, leadId }, target: { batchName, sheetName } }
+router.post('/admin/copy', isAdmin, async (req, res) => {
+  try {
+    const source = req.body?.source || {};
+    const target = req.body?.target || {};
+    const lead = await svc.copyAdminLead({
+      sourceBatchName: source.batchName,
+      sourceSheetName: source.sheetName,
+      sourceLeadId: source.leadId,
+      targetBatchName: target.batchName,
+      targetSheetName: target.sheetName
+    });
+    res.status(201).json({ success: true, lead });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 // POST /api/crm-leads/admin/create
 // Body: { batchName, sheetName, lead: { name,email,phone,course,source,status,priority,assignedTo,notes } }
 router.post('/admin/create', isAdmin, async (req, res) => {
@@ -165,6 +184,27 @@ router.post('/admin/create', isAdmin, async (req, res) => {
     const { batchName, sheetName, lead } = req.body || {};
     const created = await svc.createAdminLead({ batchName, sheetName, lead: lead || {} });
     res.status(201).json({ success: true, lead: created });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// POST /api/crm-leads/my/copy
+// Body: { source: { batchName, sheetName, leadId }, target: { batchName, sheetName } }
+router.post('/my/copy', isAuthenticated, async (req, res) => {
+  try {
+    const officerName = req.user?.name;
+    const source = req.body?.source || {};
+    const target = req.body?.target || {};
+    const lead = await svc.copyMyLead({
+      officerName,
+      sourceBatchName: source.batchName,
+      sourceSheetName: source.sheetName,
+      sourceLeadId: source.leadId,
+      targetBatchName: target.batchName,
+      targetSheetName: target.sheetName
+    });
+    res.status(201).json({ success: true, lead });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }

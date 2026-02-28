@@ -791,6 +791,9 @@ function viewLeadDetails(leadId) {
           </div>
         </div>
         <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="copyLeadBtn" title="Copy this lead to another batch/sheet">
+            <i class="fas fa-copy"></i> Copy
+          </button>
           <button class="btn btn-secondary" onclick="closeLeadModal()">Close</button>
         </div>
       </div>
@@ -799,6 +802,14 @@ function viewLeadDetails(leadId) {
   
   // Add modal to page
   document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+  // Copy lead
+  try {
+    const copyBtn = document.getElementById('copyLeadBtn');
+    if (copyBtn) {
+      copyBtn.onclick = () => openCopyLeadModal(lead);
+    }
+  } catch (_) {}
 
   // After open: detect if contact already saved
   try {
@@ -873,6 +884,125 @@ async function saveLeadContact(leadId) {
       if (btn.dataset._oldHtml) btn.innerHTML = btn.dataset._oldHtml;
     }
   }
+}
+
+async function openCopyLeadModal(lead) {
+  const modalId = 'copyLeadModal';
+  document.getElementById(modalId)?.remove();
+
+  const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+
+  const html = `
+    <div class="modal-overlay" id="${modalId}" onclick="closeLeadsActionModalOnOverlayClick(event, '${modalId}')">
+      <div class="modal-dialog" onclick="event.stopPropagation()" style="max-width: 620px;">
+        <div class="modal-header">
+          <h2><i class="fas fa-copy"></i> Copy Lead</h2>
+          <button class="modal-close" onclick="closeLeadsActionModal('${modalId}')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <div style="color:#667085; font-size:13px; margin-bottom:12px;">
+            Copy <strong>${escapeHtml(lead.name || '')}</strong> to another batch/sheet. The copied lead will be treated as a new lead.
+          </div>
+
+          <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group" style="margin:0;">
+              <label>Target Batch</label>
+              <select id="${modalId}_batch" class="form-control"></select>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label>Target Sheet</label>
+              <select id="${modalId}_sheet" class="form-control"></select>
+              <small style="color:#667085; display:block; margin-top:6px;">Officers will also see their personal sheets for the selected batch.</small>
+            </div>
+          </div>
+
+          <div id="${modalId}_msg" style="margin-top:10px; font-size:13px; color:#667085;"></div>
+        </div>
+        <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #eaecf0; padding-top:12px;">
+          <button type="button" class="btn btn-secondary" onclick="closeLeadsActionModal('${modalId}')">Cancel</button>
+          <button type="button" class="btn btn-primary" id="${modalId}_ok"><i class="fas fa-copy"></i> Copy</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.body.style.overflow = 'hidden';
+
+  const batchSel = document.getElementById(`${modalId}_batch`);
+  const sheetSel = document.getElementById(`${modalId}_sheet`);
+  const msgEl = document.getElementById(`${modalId}_msg`);
+  const okBtn = document.getElementById(`${modalId}_ok`);
+
+  msgEl.textContent = 'Loading batches...';
+
+  // Load batches from programs sidebar
+  const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+  const r = await fetch('/api/programs/sidebar', { headers: authHeaders });
+  const j = await r.json();
+  const batches = (j.batches || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  batchSel.innerHTML = batches.map(b => `<option value="${escapeHtml(b.batch_name)}">${escapeHtml(b.batch_name)}</option>`).join('');
+
+  const defaultBatch = batches.find(b => b.is_current)?.batch_name || batches[0]?.batch_name || '';
+  batchSel.value = defaultBatch;
+
+  async function loadSheetsForBatch(batchName) {
+    if (!batchName) {
+      sheetSel.innerHTML = '';
+      return;
+    }
+    msgEl.textContent = 'Loading sheets...';
+    const sr = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batchName)}`, { headers: authHeaders });
+    const sj = await sr.json();
+    const sheets = (sj.sheets || []).slice();
+    sheetSel.innerHTML = sheets.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    sheetSel.value = 'Main Leads';
+    msgEl.textContent = '';
+  }
+
+  await loadSheetsForBatch(batchSel.value);
+
+  batchSel.onchange = async () => {
+    await loadSheetsForBatch(batchSel.value);
+  };
+
+  okBtn.onclick = async () => {
+    const targetBatchName = batchSel.value;
+    const targetSheetName = sheetSel.value;
+
+    if (!targetBatchName || !targetSheetName) {
+      msgEl.textContent = 'Please choose batch and sheet';
+      return;
+    }
+
+    okBtn.disabled = true;
+    msgEl.textContent = 'Copying...';
+
+    try {
+      const source = {
+        batchName: lead.batch,
+        sheetName: lead.sheet || 'Main Leads',
+        leadId: lead.id
+      };
+      const target = { batchName: targetBatchName, sheetName: targetSheetName };
+
+      if (isAdmin) await API.leads.copyAdmin({ source, target });
+      else await API.leads.copyMy({ source, target });
+
+      msgEl.textContent = 'Copied successfully';
+      if (window.UI?.showToast) UI.showToast('Lead copied', 'success');
+
+      closeLeadsActionModal(modalId);
+      // refresh current view
+      await loadLeads();
+    } catch (e) {
+      msgEl.textContent = e.message || 'Copy failed';
+      if (window.UI?.showToast) UI.showToast(msgEl.textContent, 'error');
+    } finally {
+      okBtn.disabled = false;
+    }
+  };
 }
 
 function closeLeadModal(event) {

@@ -192,6 +192,26 @@ const leadsAPI = {
   },
 
   /**
+   * Copy lead to another batch/sheet (admin)
+   */
+  copyAdmin: async ({ source, target }) => {
+    return fetchAPI('/crm-leads/admin/copy', {
+      method: 'POST',
+      body: JSON.stringify({ source, target })
+    });
+  },
+
+  /**
+   * Copy lead to another batch/sheet (officer)
+   */
+  copyMy: async ({ source, target }) => {
+    return fetchAPI('/crm-leads/my/copy', {
+      method: 'POST',
+      body: JSON.stringify({ source, target })
+    });
+  },
+
+  /**
    * Distribute all unassigned leads (admin)
    */
   distributeUnassigned: async ({ batchName, sheetName, officers }) => {
