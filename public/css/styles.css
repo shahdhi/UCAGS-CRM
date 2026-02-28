@@ -33,8 +33,8 @@ button.demo-card {
     --gradient-secondary: linear-gradient(135deg, #C4B5FD 0%, #DDD6FE 100%);
     --gradient-glass: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(196, 181, 253, 0.1) 100%);
 
-    /* Modal header theme: pure purple (match app accent) */
-    --gradient-modal-header: var(--gradient-primary);
+    /* Modal header theme: darker purple (closer to page header accent) */
+    --gradient-modal-header: linear-gradient(135deg, #4C1D95 0%, #6D28D9 100%);
 
     /* Primary action gradient in modals */
     --gradient-action-primary: var(--gradient-primary);
