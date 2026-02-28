@@ -789,10 +789,29 @@ body {
 #daily-checklistView h1 { margin-bottom: 10px !important; }
 #daily-checklistView h2 { font-size: 16px !important; }
 
+#daily-checklistView .data-table {
+    width: 100% !important;
+    table-layout: fixed !important;
+}
+
 #daily-checklistView .data-table th,
 #daily-checklistView .data-table td {
     padding: 8px 10px !important;
     font-size: 13px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+#daily-checklistView .data-table td select {
+    max-width: 100% !important;
+}
+
+/* Prevent row hover from causing horizontal scrollbar/reflow in Daily Checklist */
+#daily-checklistView .data-table tbody tr:hover,
+#daily-checklistView .data-table tbody tr:active {
+    transform: none !important;
+    box-shadow: none !important;
 }
 
 #daily-checklistView .badge { padding: 3px 8px !important; font-size: 11px !important; }

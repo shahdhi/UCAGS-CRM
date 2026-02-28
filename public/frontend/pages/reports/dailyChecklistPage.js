@@ -48,7 +48,7 @@
       { value: 'not_received', label: 'Not received' }
     ];
     return `
-      <select class="form-control daily-checklist-recording" data-date="${escapeHtml(dateISO)}" data-officer="${escapeHtml(officerUserId)}" style="min-width:140px;">
+      <select class="form-control daily-checklist-recording" data-date="${escapeHtml(dateISO)}" data-officer="${escapeHtml(officerUserId)}" style="min-width:110px;">
         ${options.map(o => `<option value="${o.value}" ${o.value === v ? 'selected' : ''}>${o.label}</option>`).join('')}
       </select>
     `;
@@ -101,8 +101,8 @@
             </button>
           </div>
         </div>
-        <div style="overflow:auto; margin-top: 10px;">
-          <table class="data-table" style="min-width: 900px;">
+        <div style="overflow:hidden; margin-top: 8px;">
+          <table class="data-table" style="width:100%; table-layout:fixed;">
             <thead>
               <tr>
                 <th>Officer</th>
@@ -127,32 +127,45 @@
     const days = data?.days || [];
     const byDate = data?.byDate || {};
 
-    const scoreByOfficer = new Map();
+    // We avoid a subtractive "score" (can go negative and look odd).
+    // Instead, we pick the leader by sorting using the requested priorities:
+    // 1) Highest number of reports submitted
+    // 2) Highest number of times call recordings received
+    // 3) Lowest leads to be contacted
+    const agg = new Map();
+    for (const o of officers) {
+      agg.set(o.id, { reports: 0, recordings: 0, toContact: 0 });
+    }
 
     for (const d of days) {
       for (const o of officers) {
         const c = byDate?.[d]?.[o.id];
         if (!c) continue;
+        const a = agg.get(o.id) || { reports: 0, recordings: 0, toContact: 0 };
 
-        // Simple scoring:
-        //  +1 per submitted slot
-        //  + contacted count
-        //  -0.25 per to-be-contacted (to reward clearing queue)
-        const score =
-          (c.slot1 ? 1 : 0) +
-          (c.slot2 ? 1 : 0) +
-          (c.slot3 ? 1 : 0) +
-          Number(c.leadsContacted || 0) -
-          0.25 * Number(c.leadsToBeContacted || 0);
+        a.reports += (c.slot1 ? 1 : 0) + (c.slot2 ? 1 : 0) + (c.slot3 ? 1 : 0);
+        a.recordings += (c.callRecording === 'received') ? 1 : 0;
+        a.toContact += Number(c.leadsToBeContacted || 0);
 
-        scoreByOfficer.set(o.id, (scoreByOfficer.get(o.id) || 0) + score);
+        agg.set(o.id, a);
       }
     }
 
     let best = null;
     for (const o of officers) {
-      const s = scoreByOfficer.get(o.id) || 0;
-      if (!best || s > best.score) best = { officer: o, score: s };
+      const a = agg.get(o.id) || { reports: 0, recordings: 0, toContact: 0 };
+      if (!best) {
+        best = { officer: o, agg: a };
+        continue;
+      }
+
+      const b = best.agg;
+      const better =
+        (a.reports > b.reports) ||
+        (a.reports === b.reports && a.recordings > b.recordings) ||
+        (a.reports === b.reports && a.recordings === b.recordings && a.toContact < b.toContact);
+
+      if (better) best = { officer: o, agg: a };
     }
 
     return best;
@@ -205,7 +218,8 @@
       throw new Error(json?.error || 'Failed to load checklist');
     }
 
-    const sections = (json.days || []).map(d => renderDaySection(d, json.officers || [], json.byDate || {})).join('');
+    const daysDesc = [...(json.days || [])].reverse();
+    const sections = daysDesc.map(d => renderDaySection(d, json.officers || [], json.byDate || {})).join('');
     if (wrap) wrap.innerHTML = sections || `<div class="dashboard-card"><p class="loading">No data.</p></div>`;
 
     // Bind per-day Record snapshot buttons
@@ -273,7 +287,8 @@
     const leaderEl = $('dailyChecklistLeader');
     const detailEl = $('dailyChecklistLeaderDetails');
     if (leaderEl) leaderEl.textContent = leader?.officer?.name ? `${leader.officer.name}` : '—';
-    if (detailEl) detailEl.textContent = leader ? `Score: ${leader.score.toFixed(2)} (reports + leads contacted − pending leads)` : '';
+    // No numeric score shown (can look negative depending on pending leads)
+    if (detailEl) detailEl.textContent = '';
 
     if (msg) msg.textContent = `Showing ${json.startISO} to ${json.endISO}`;
 
