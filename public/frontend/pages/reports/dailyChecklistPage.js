@@ -82,8 +82,7 @@
           <td>${slot2}</td>
           <td>${slot3}</td>
           <td>
-            <div style="font-size:14px; font-weight:700;">Contacted: ${contacted}</div>
-            <div style="margin-top:2px;">${leadsStatus}</div>
+            <div>${leadsStatus}</div>
           </td>
           <td>${rec}</td>
         </tr>
