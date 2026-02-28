@@ -382,63 +382,8 @@ async function loadLeads() {
         btn.style.color = active ? '#592c88' : '#344054';
       };
 
-      const renderTabs = (sheetList) => {
-        // Build tab bar
-        tabsEl.style.display = 'flex';
-        tabsEl.innerHTML = '';
-
-        const makeTab = (name) => {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'btn btn-secondary';
-          btn.style.padding = '6px 10px';
-          btn.style.borderRadius = '999px';
-          applyTabStyle(btn, name === currentSheet);
-          btn.textContent = name;
-
-          btn.addEventListener('click', () => {
-            // Instant active UI (don’t wait for loadLeads)
-            try {
-              tabsEl.querySelectorAll('button.btn').forEach(b => applyTabStyle(b, b.textContent === name));
-            } catch (_) {}
-
-            if (isOfficerView) window.officerSheetFilter = name;
-            else window.adminSheetFilter = name;
-
-            const page = isOfficerView
-              ? `leads-myLeads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`
-              : `leads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`;
-            window.location.hash = page;
-            currentPage = 1;
-            loadLeads();
-          });
-          return btn;
-        };
-
-        sheetList.forEach(s => tabsEl.appendChild(makeTab(s)));
-      };
-
-      // Render immediately from cache/default
-      renderTabs(sheets);
-
-      // Refresh sheet list async (don’t block UI)
-      (async () => {
-        try {
-          const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`, { headers: authHeaders });
-          const json = await res.json();
-          if (json.success && Array.isArray(json.sheets)) {
-            const merged = Array.from(new Set(['Main Leads', 'Extra Leads', ...json.sheets]));
-
-            // If list changed, re-render quickly
-            if (merged.join('|') !== sheets.join('|')) {
-              renderTabs(merged);
-            }
-          }
-        } catch (e) {
-          console.warn('Failed to load sheets list', e);
-        }
-      })();
-
+      // Action buttons must be re-added on every tab render, because renderTabs()
+      // clears tabsEl.innerHTML and is called multiple times (initial + async refresh).
       const addBtn = document.createElement('button');
       addBtn.type = 'button';
       addBtn.className = 'btn btn-secondary btn-sm';
@@ -449,9 +394,9 @@ async function loadLeads() {
         }
       });
 
-      // Admin-only: Sync from admin Google Sheet -> Supabase
+      let actionsWrap = null;
       if (!isOfficerView) {
-        const actionsWrap = document.createElement('div');
+        actionsWrap = document.createElement('div');
         actionsWrap.style.display = 'inline-flex';
         actionsWrap.style.gap = '6px';
         actionsWrap.style.alignItems = 'center';
@@ -496,12 +441,71 @@ async function loadLeads() {
             syncBtn.disabled = false;
           }
         });
+
         actionsWrap.appendChild(syncBtn);
         actionsWrap.appendChild(addBtn);
-        tabsEl.appendChild(actionsWrap);
-      } else {
-        tabsEl.appendChild(addBtn);
       }
+
+      const renderTabs = (sheetList) => {
+        // Build tab bar
+        tabsEl.style.display = 'flex';
+        tabsEl.innerHTML = '';
+
+        const makeTab = (name) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn btn-secondary';
+          btn.style.padding = '6px 10px';
+          btn.style.borderRadius = '999px';
+          applyTabStyle(btn, name === currentSheet);
+          btn.textContent = name;
+
+          btn.addEventListener('click', () => {
+            // Instant active UI (don’t wait for loadLeads)
+            try {
+              tabsEl.querySelectorAll('button.btn').forEach(b => applyTabStyle(b, b.textContent === name));
+            } catch (_) {}
+
+            if (isOfficerView) window.officerSheetFilter = name;
+            else window.adminSheetFilter = name;
+
+            const page = isOfficerView
+              ? `leads-myLeads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`
+              : `leads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`;
+            window.location.hash = page;
+            currentPage = 1;
+            loadLeads();
+          });
+          return btn;
+        };
+
+        sheetList.forEach(s => tabsEl.appendChild(makeTab(s)));
+
+        // Re-attach actions every time we render
+        if (actionsWrap) tabsEl.appendChild(actionsWrap);
+        else tabsEl.appendChild(addBtn);
+      };
+
+      // Render immediately from cache/default
+      renderTabs(sheets);
+
+      // Refresh sheet list async (don’t block UI)
+      (async () => {
+        try {
+          const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`, { headers: authHeaders });
+          const json = await res.json();
+          if (json.success && Array.isArray(json.sheets)) {
+            const merged = Array.from(new Set(['Main Leads', 'Extra Leads', ...json.sheets]));
+
+            // If list changed, re-render quickly
+            if (merged.join('|') !== sheets.join('|')) {
+              renderTabs(merged);
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to load sheets list', e);
+        }
+      })();
     }
 
     await renderSheetTabs();

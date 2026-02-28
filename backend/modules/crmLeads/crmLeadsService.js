@@ -960,34 +960,42 @@ async function copyLeadRowForNew({ sb, sourceRow, targetBatchName, targetSheetNa
   }
 }
 
-async function assertOfficerCanUseSheet({ sb, batchName, sheetName }) {
+async function assertOfficerCanUseSheet({ sb, batchName, sheetName, officerName }) {
   const b = cleanString(batchName);
   const s = normalizeSheetName(sheetName);
+  const off = cleanString(officerName);
   if (!b || !s) throw Object.assign(new Error('Missing batch/sheet'), { status: 400 });
 
+  // New rule: officers can only add/delete/copy leads to sheets they created.
+  // "Main Leads" and "Extra Leads" are reserved (read-only for officers).
   const low = String(s).toLowerCase();
-  if (['main leads', 'extra leads'].includes(low)) return true;
+  if (['main leads', 'extra leads'].includes(low)) {
+    throw Object.assign(new Error('Officers cannot add/delete leads in Main Leads / Extra Leads'), { status: 403 });
+  }
 
-  // Disallow officer writing into admin-created shared sheets
-  try {
-    const { data, error } = await sb
-      .from('batch_shared_sheets')
-      .select('sheet_name')
-      .eq('batch_name', b)
-      .eq('sheet_name', s)
-      .maybeSingle();
-    if (error) {
-      const msg = String(error.message || '').toLowerCase();
-      if (msg.includes('relation') || msg.includes('does not exist')) return true;
-      throw error;
+  if (!off) {
+    throw Object.assign(new Error('Missing officer name'), { status: 400 });
+  }
+
+  // Must be an officer-owned custom sheet
+  const { data: mine, error: mineErr } = await sb
+    .from('officer_custom_sheets')
+    .select('sheet_name')
+    .eq('batch_name', b)
+    .eq('officer_name', off)
+    .eq('sheet_name', s)
+    .maybeSingle();
+
+  if (mineErr) {
+    const msg = String(mineErr.message || '').toLowerCase();
+    if (msg.includes('relation') || msg.includes('does not exist')) {
+      throw Object.assign(new Error('Officer custom sheets table not found'), { status: 500 });
     }
-    if (data) {
-      throw Object.assign(new Error('Officers cannot add/copy leads into admin-created sheets'), { status: 403 });
-    }
-  } catch (e) {
-    if (e.status) throw e;
-    // If any unexpected error, fail safe by blocking
-    throw Object.assign(new Error('Cannot verify target sheet access'), { status: 403 });
+    throw mineErr;
+  }
+
+  if (!mine) {
+    throw Object.assign(new Error('Officers can only add/delete leads in sheets they created'), { status: 403 });
   }
 
   return true;
@@ -1006,7 +1014,7 @@ async function copyMyLead({ officerName, sourceBatchName, sourceSheetName, sourc
   const tgtBatch = cleanString(targetBatchName);
   if (tgtBatch && tgtBatch === srcBatch) throw Object.assign(new Error('Cannot copy to the same batch'), { status: 400 });
 
-  await assertOfficerCanUseSheet({ sb, batchName: tgtBatch, sheetName: targetSheetName });
+  await assertOfficerCanUseSheet({ sb, batchName: tgtBatch, sheetName: targetSheetName, officerName: off });
 
   const { data: src, error } = await sb
     .from('crm_leads')
@@ -1069,7 +1077,7 @@ async function copyMyLeadsBulk({ officerName, sources, targetBatchName, targetSh
   if (!off) throw Object.assign(new Error('Missing officerName'), { status: 400 });
 
   const tgtBatch = cleanString(targetBatchName);
-  await assertOfficerCanUseSheet({ sb, batchName: tgtBatch, sheetName: targetSheetName });
+  await assertOfficerCanUseSheet({ sb, batchName: tgtBatch, sheetName: targetSheetName, officerName: off });
 
   const srcs = normalizeCopySources(sources);
   if (!srcs.length) throw Object.assign(new Error('No leads selected'), { status: 400 });
@@ -1162,7 +1170,7 @@ async function createOfficerLead({ officerName, batchName, sheetName, lead }) {
     throw err;
   }
 
-  await assertOfficerCanUseSheet({ sb, batchName, sheetName });
+  await assertOfficerCanUseSheet({ sb, batchName, sheetName, officerName });
 
   const sheetLeadId = cleanString(lead?.id) || String(Date.now());
   const row = {
@@ -1218,20 +1226,42 @@ async function listAdminBatches({ assignedTo }) {
 
 async function listAdminSheets({ assignedTo, batchName }) {
   const sb = requireSupabase();
-  let q = sb.from('crm_leads').select('sheet_name');
+  const excluded = new Set(['registrations', 'registration']);
+
+  let q = sb.from('crm_leads').select('sheet_name, batch_name, assigned_to');
   if (assignedTo) q = q.eq('assigned_to', cleanString(assignedTo));
   if (batchName) q = q.eq('batch_name', cleanString(batchName));
 
   const { data, error } = await q;
   if (error) throw error;
 
-  const excluded = new Set(['registrations', 'registration']);
   const set = new Set(
     (data || [])
       .map(r => normalizeSheetName(r.sheet_name))
       .filter(Boolean)
       .filter(s => !excluded.has(String(s).toLowerCase()))
   );
+
+  // Include officer-created personal sheets too (admins can access them via lead management dropdown)
+  // If batchName is provided, include for that batch only. If assignedTo is provided, try to include only
+  // that officer’s personal sheets in the batch; otherwise include all officer personal sheets for the batch.
+  try {
+    let oq = sb.from('officer_custom_sheets').select('sheet_name, officer_name, batch_name');
+    if (batchName) oq = oq.eq('batch_name', cleanString(batchName));
+    if (assignedTo) oq = oq.eq('officer_name', cleanString(assignedTo));
+    const { data: oSheets, error: oErr } = await oq;
+    if (oErr) throw oErr;
+    (oSheets || [])
+      .map(r => normalizeSheetName(r.sheet_name))
+      .filter(Boolean)
+      .filter(s => !excluded.has(String(s).toLowerCase()))
+      .forEach(s => set.add(s));
+  } catch (e) {
+    const msg = String(e?.message || '').toLowerCase();
+    if (!(msg.includes('relation') || msg.includes('does not exist'))) {
+      console.warn('listAdminSheets officer_custom_sheets load failed:', e?.message || e);
+    }
+  }
 
   return Array.from(set).sort((a, b) => String(a).localeCompare(String(b)));
 }
@@ -1419,6 +1449,35 @@ async function updateLeadStatusByPhoneAndBatch({ canonicalPhone, batchName, next
   }
 }
 
+async function bulkDeleteMy({ officerName, batchName, sheetName, leadIds }) {
+  const sb = requireSupabase();
+  const off = cleanString(officerName);
+  const ids = normalizeLeadIds(leadIds);
+  if (!off) throw Object.assign(new Error('Missing officerName'), { status: 400 });
+  if (!batchName || !sheetName) throw Object.assign(new Error('Missing batchName/sheetName'), { status: 400 });
+
+  // Only allow deleting leads from officer-created sheets
+  await assertOfficerCanUseSheet({ sb, batchName, sheetName, officerName: off });
+
+  if (!ids.length) return { deletedCount: 0 };
+
+  // Extra safety: only delete rows assigned to this officer
+  const { data, error } = await sb
+    .from('crm_leads')
+    .delete()
+    .eq('batch_name', batchName)
+    .eq('sheet_name', sheetName)
+    .eq('assigned_to', off)
+    .in('sheet_lead_id', ids)
+    .select('id');
+
+  if (error) throw error;
+
+  clearDuplicatePhoneCache(batchName);
+
+  return { deletedCount: (data || []).length };
+}
+
 module.exports = {
   listMyLeads,
   listAdminLeads,
@@ -1430,6 +1489,7 @@ module.exports = {
   bulkAssignAdmin,
   bulkDistributeAdmin,
   bulkDeleteAdmin,
+  bulkDeleteMy,
   exportAdminCsv,
   importAdminCsv,
   listAdminBatches,

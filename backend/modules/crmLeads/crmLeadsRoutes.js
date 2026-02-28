@@ -308,6 +308,20 @@ router.post('/admin/bulk-delete', isAdmin, async (req, res) => {
   }
 });
 
+// POST /api/crm-leads/my/bulk-delete
+// Officers can delete only from sheets they created, and only their own assigned leads.
+// Body: { batchName, sheetName, leadIds:[] }
+router.post('/my/bulk-delete', isAuthenticated, async (req, res) => {
+  try {
+    const officerName = req.user?.name;
+    const { batchName, sheetName, leadIds } = req.body || {};
+    const result = await svc.bulkDeleteMy({ officerName, batchName, sheetName, leadIds });
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 // GET /api/crm-leads/admin/export.csv?batch=...&sheet=...&status=...&search=...
 router.get('/admin/export.csv', isAdmin, async (req, res) => {
   try {

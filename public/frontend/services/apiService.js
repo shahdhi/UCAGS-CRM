@@ -265,7 +265,9 @@ const leadsAPI = {
    * Bulk delete selected leads (admin)
    */
   bulkDelete: async ({ batchName, sheetName, leadIds }) => {
-    return fetchAPI('/crm-leads/admin/bulk-delete', {
+    const isAdmin = (window.currentUser && window.currentUser.role === 'admin');
+    const path = isAdmin ? '/crm-leads/admin/bulk-delete' : '/crm-leads/my/bulk-delete';
+    return fetchAPI(path, {
       method: 'POST',
       body: JSON.stringify({ batchName, sheetName, leadIds })
     });
