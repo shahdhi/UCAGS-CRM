@@ -17,6 +17,8 @@ const {
   adminUpdateReport
 } = require('./dailyReportsService');
 
+const { getDailyChecklist, upsertCallRecordingStatus } = require('./dailyChecklistService');
+
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
 
 // Ensure admin accounts never appear in officer lists
@@ -132,6 +134,49 @@ router.put('/daily/schedule', isAdmin, async (req, res) => {
     res.json({ success: true, config: saved });
   } catch (error) {
     console.error('PUT /api/reports/daily/schedule error:', error);
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/reports/daily-checklist?start=YYYY-MM-DD&days=7 (admin)
+router.get('/daily-checklist', isAdmin, async (req, res) => {
+  try {
+    const startISO = req.query?.start;
+    const days = req.query?.days || 7;
+
+    const sb = getSupabaseAdmin();
+    let officers = [];
+    if (sb) {
+      const { data: { users }, error } = await sb.auth.admin.listUsers();
+      if (error) throw error;
+      officers = (users || [])
+        .filter(u => {
+          if (isAdminAccount(u)) return false;
+          const role = u.user_metadata?.role;
+          return role === 'officer' || role === 'admission_officer';
+        })
+        .map(u => ({
+          id: u.id,
+          name: u.user_metadata?.name || u.email?.split('@')?.[0] || 'Officer'
+        }));
+    }
+
+    const data = await getDailyChecklist({ startISO, days, officers });
+    res.json({ success: true, ...data });
+  } catch (error) {
+    console.error('GET /api/reports/daily-checklist error:', error);
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
+// PUT /api/reports/daily-checklist/call-recording (admin)
+router.put('/daily-checklist/call-recording', isAdmin, async (req, res) => {
+  try {
+    const { dateISO, officerUserId, status } = req.body || {};
+    const saved = await upsertCallRecordingStatus({ dateISO, officerUserId, status });
+    res.json({ success: true, row: saved });
+  } catch (error) {
+    console.error('PUT /api/reports/daily-checklist/call-recording error:', error);
     res.status(error.status || 500).json({ success: false, error: error.message });
   }
 });

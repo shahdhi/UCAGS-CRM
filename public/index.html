@@ -187,6 +187,11 @@
                     <span>Reports</span>
                 </a>
 
+                <a href="#" class="nav-item admin-only" data-page="daily-checklist">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Daily Checklist</span>
+                </a>
+
                 <div class="nav-divider officer-only"></div>
 
                 <a href="#" class="nav-item" data-page="notifications">
@@ -1431,6 +1436,44 @@
             </div>
 
             <!-- Notifications View -->
+            <div id="daily-checklistView" class="content-view admin-only" style="display:none;">
+                <h1><i class="fas fa-clipboard-check"></i> Daily Checklist</h1>
+
+                <div class="dashboard-card" style="margin-bottom: 16px;">
+                    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:end; justify-content:space-between;">
+                        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:end;">
+                            <div>
+                                <label style="display:block; font-size:12px; color:#666;">Week start</label>
+                                <input type="date" id="dailyChecklistStart" class="form-control" style="min-width: 170px;" />
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:12px; color:#666;">Days</label>
+                                <select id="dailyChecklistDays" class="form-control" style="min-width: 90px;">
+                                    <option value="7" selected>7</option>
+                                    <option value="14">14</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary" id="dailyChecklistLoadBtn"><i class="fas fa-sync"></i> Load</button>
+                        </div>
+
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn btn-secondary" id="dailyChecklistPrevBtn"><i class="fas fa-chevron-left"></i> Prev 7</button>
+                            <button class="btn btn-secondary" id="dailyChecklistNextBtn">Next 7 <i class="fas fa-chevron-right"></i></button>
+                            <button class="btn btn-secondary" id="dailyChecklistThisWeekBtn"><i class="fas fa-calendar-day"></i> This Week</button>
+                        </div>
+                    </div>
+                    <div id="dailyChecklistMsg" style="margin-top:10px; color:#666; font-size:12px;"></div>
+                </div>
+
+                <div id="dailyChecklistWrap"></div>
+
+                <div class="dashboard-card" style="margin-top: 16px;">
+                    <h2 style="margin:0 0 10px 0;"><i class="fas fa-trophy"></i> Leader of the week</h2>
+                    <div id="dailyChecklistLeader" style="font-weight:700;"></div>
+                    <div id="dailyChecklistLeaderDetails" style="margin-top:6px; color:#666; font-size:12px;"></div>
+                </div>
+            </div>
+
             <div id="notificationsView" class="content-view">
                 <div class="page-header">
                     <h1><i class="fas fa-bell"></i> Notifications</h1>
@@ -2039,6 +2082,7 @@
     <script src="/frontend/pages/calendar/calendarTasks.js"></script>
     <script src="/frontend/pages/notifications/notificationsPage.js?v=1"></script>
     <script src="/frontend/pages/reports/reportsPage.js?v=1"></script>
+    <script src="/frontend/pages/reports/dailyChecklistPage.js?v=1"></script>
     <script src="/frontend/pages/students/studentsPage.js?v=1"></script>
     
     <!-- Supabase Client (must load after Supabase JS) -->

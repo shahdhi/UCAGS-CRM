@@ -872,6 +872,12 @@ async function navigateToPage(page) {
             return;
         }
     }
+
+    // Ensure admin-only views are visible when activated (some use inline style display:none)
+    try {
+        const viewElement = document.getElementById(`${page}View`);
+        if (viewElement) viewElement.style.display = '';
+    } catch (e) {}
     
     // Update page title
     const pageTitle = document.getElementById('pageTitle');
@@ -994,6 +1000,11 @@ async function navigateToPage(page) {
             break;
         case 'reports':
             loadReports();
+            break;
+        case 'daily-checklist':
+            if (window.initDailyChecklistPage) {
+                await window.initDailyChecklistPage();
+            }
             break;
         case 'demo-sessions':
             if (window.initDemoSessionsPage) {

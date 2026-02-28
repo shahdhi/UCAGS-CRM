@@ -1,0 +1,290 @@
+/**
+ * Daily Checklist Page (Admin)
+ */
+
+(function () {
+  const $ = (id) => document.getElementById(id);
+
+  const SL_OFFSET_MIN = 330;
+
+  function slTodayISO() {
+    const d = new Date(Date.now() + SL_OFFSET_MIN * 60 * 1000);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function addDaysISO(dateISO, delta) {
+    const d = new Date(`${dateISO}T00:00:00Z`);
+    if (isNaN(d)) return null;
+    d.setUTCDate(d.getUTCDate() + delta);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  async function authHeaders() {
+    if (window.getAuthHeadersWithRetry) return await window.getAuthHeadersWithRetry();
+    // fallback
+    if (window.supabaseClient) {
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      if (session?.access_token) return { Authorization: `Bearer ${session.access_token}` };
+    }
+    return {};
+  }
+
+  function badge(ok) {
+    const bg = ok ? '#dcfce7' : '#fee2e2';
+    const fg = ok ? '#166534' : '#991b1b';
+    const text = ok ? 'Submitted' : 'Not submitted';
+    return `<span class="badge" style="background:${bg}; color:${fg}; border:1px solid ${ok ? '#bbf7d0' : '#fecaca'};">${text}</span>`;
+  }
+
+  function recordingSelect(value, dateISO, officerUserId) {
+    const v = (value || 'na');
+    const options = [
+      { value: 'na', label: '—' },
+      { value: 'received', label: 'Received' },
+      { value: 'not_received', label: 'Not received' }
+    ];
+    return `
+      <select class="form-control daily-checklist-recording" data-date="${escapeHtml(dateISO)}" data-officer="${escapeHtml(officerUserId)}" style="min-width:140px;">
+        ${options.map(o => `<option value="${o.value}" ${o.value === v ? 'selected' : ''}>${o.label}</option>`).join('')}
+      </select>
+    `;
+  }
+
+  function renderDaySection(dateISO, officers, matrix) {
+    const rows = officers.map(o => {
+      const c = matrix?.[dateISO]?.[o.id] || null;
+      const slot1 = c ? badge(!!c.slot1) : badge(false);
+      const slot2 = c ? badge(!!c.slot2) : badge(false);
+      const slot3 = c ? badge(!!c.slot3) : badge(false);
+      const contacted = c ? Number(c.leadsContacted || 0) : 0;
+      const todo = c ? Number(c.leadsToBeContacted || 0) : 0;
+      const rec = recordingSelect(c?.callRecording || 'na', dateISO, o.id);
+
+      return `
+        <tr>
+          <td style="font-weight:700;">${escapeHtml(o.name)}</td>
+          <td>${slot1}</td>
+          <td>${slot2}</td>
+          <td>${slot3}</td>
+          <td><span class="badge" style="background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe;">${contacted}</span></td>
+          <td><span class="badge" style="background:#fffbeb; color:#92400e; border:1px solid #fde68a;">${todo}</span></td>
+          <td>${rec}</td>
+        </tr>
+      `;
+    }).join('');
+
+    return `
+      <div class="dashboard-card" style="margin-bottom: 16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+          <h2 style="margin:0;"><i class="fas fa-calendar-day"></i> ${escapeHtml(dateISO)}</h2>
+        </div>
+        <div style="overflow:auto; margin-top: 10px;">
+          <table class="data-table" style="min-width: 900px;">
+            <thead>
+              <tr>
+                <th>Officer</th>
+                <th>Slot 1 report</th>
+                <th>Slot 2 report</th>
+                <th>Slot 3 report</th>
+                <th>Leads contacted</th>
+                <th>To be contacted</th>
+                <th>Call recordings</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || `<tr><td colspan="7" class="loading">No officers found.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  function computeLeader(data) {
+    const officers = data?.officers || [];
+    const days = data?.days || [];
+    const byDate = data?.byDate || {};
+
+    const scoreByOfficer = new Map();
+
+    for (const d of days) {
+      for (const o of officers) {
+        const c = byDate?.[d]?.[o.id];
+        if (!c) continue;
+
+        // Simple scoring:
+        //  +1 per submitted slot
+        //  + contacted count
+        //  -0.25 per to-be-contacted (to reward clearing queue)
+        const score =
+          (c.slot1 ? 1 : 0) +
+          (c.slot2 ? 1 : 0) +
+          (c.slot3 ? 1 : 0) +
+          Number(c.leadsContacted || 0) -
+          0.25 * Number(c.leadsToBeContacted || 0);
+
+        scoreByOfficer.set(o.id, (scoreByOfficer.get(o.id) || 0) + score);
+      }
+    }
+
+    let best = null;
+    for (const o of officers) {
+      const s = scoreByOfficer.get(o.id) || 0;
+      if (!best || s > best.score) best = { officer: o, score: s };
+    }
+
+    return best;
+  }
+
+  async function saveRecordingStatus({ dateISO, officerUserId, status }) {
+    const headers = { ...(await authHeaders()), 'Content-Type': 'application/json' };
+    const res = await fetch('/api/reports/daily-checklist/call-recording', {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ dateISO, officerUserId, status })
+    });
+    const json = await res.json();
+    if (!json?.success) throw new Error(json?.error || 'Failed to save');
+    return json.row;
+  }
+
+  async function loadChecklist() {
+    const start = $('dailyChecklistStart')?.value;
+    const days = $('dailyChecklistDays')?.value || 7;
+    const wrap = $('dailyChecklistWrap');
+    const msg = $('dailyChecklistMsg');
+
+    if (!start) {
+      if (msg) msg.textContent = 'Please pick a week start date.';
+      return;
+    }
+
+    if (wrap) wrap.innerHTML = `<div class="dashboard-card"><p class="loading">Loading checklist…</p></div>`;
+    if (msg) msg.textContent = '';
+
+    const headers = await authHeaders();
+    const url = `/api/reports/daily-checklist?start=${encodeURIComponent(start)}&days=${encodeURIComponent(days)}`;
+    const res = await fetch(url, { headers });
+    const json = await res.json();
+
+    if (!json?.success) {
+      throw new Error(json?.error || 'Failed to load checklist');
+    }
+
+    const sections = (json.days || []).map(d => renderDaySection(d, json.officers || [], json.byDate || {})).join('');
+    if (wrap) wrap.innerHTML = sections || `<div class="dashboard-card"><p class="loading">No data.</p></div>`;
+
+    // Bind dropdown change
+    wrap?.querySelectorAll('select.daily-checklist-recording')?.forEach(sel => {
+      if (sel.__bound) return;
+      sel.__bound = true;
+
+      // Track previous value so we can revert on save failure
+      sel.dataset.prevValue = sel.value;
+
+      sel.addEventListener('focus', () => {
+        sel.dataset.prevValue = sel.value;
+      });
+
+      sel.addEventListener('change', async () => {
+        const dateISO = sel.getAttribute('data-date');
+        const officerUserId = sel.getAttribute('data-officer');
+        const status = sel.value;
+        const prev = sel.dataset.prevValue;
+
+        sel.disabled = true;
+        try {
+          await saveRecordingStatus({ dateISO, officerUserId, status });
+          sel.dataset.prevValue = status;
+          if (window.showToast) showToast('Saved', 'success');
+        } catch (e) {
+          console.error(e);
+          if (window.showToast) showToast(e.message || 'Failed to save', 'error');
+          sel.value = prev;
+        } finally {
+          sel.disabled = false;
+        }
+      });
+    });
+
+    const leader = computeLeader(json);
+    const leaderEl = $('dailyChecklistLeader');
+    const detailEl = $('dailyChecklistLeaderDetails');
+    if (leaderEl) leaderEl.textContent = leader?.officer?.name ? `${leader.officer.name}` : '—';
+    if (detailEl) detailEl.textContent = leader ? `Score: ${leader.score.toFixed(2)} (reports + leads contacted − pending leads)` : '';
+
+    if (msg) msg.textContent = `Showing ${json.startISO} to ${json.endISO}`;
+
+    // keep last payload
+    window.__dailyChecklistLast = json;
+  }
+
+  function bindControlsOnce() {
+    const loadBtn = $('dailyChecklistLoadBtn');
+    const prevBtn = $('dailyChecklistPrevBtn');
+    const nextBtn = $('dailyChecklistNextBtn');
+    const thisWeekBtn = $('dailyChecklistThisWeekBtn');
+
+    if (loadBtn && !loadBtn.__bound) {
+      loadBtn.__bound = true;
+      loadBtn.addEventListener('click', () => loadChecklist().catch(e => {
+        console.error(e);
+        if (window.showToast) showToast(e.message || 'Failed to load', 'error');
+      }));
+    }
+
+    const shift = (delta) => {
+      const startEl = $('dailyChecklistStart');
+      if (!startEl?.value) return;
+      const next = addDaysISO(startEl.value, delta);
+      if (next) startEl.value = next;
+      loadChecklist().catch(console.error);
+    };
+
+    if (prevBtn && !prevBtn.__bound) {
+      prevBtn.__bound = true;
+      prevBtn.addEventListener('click', () => shift(-7));
+    }
+    if (nextBtn && !nextBtn.__bound) {
+      nextBtn.__bound = true;
+      nextBtn.addEventListener('click', () => shift(7));
+    }
+
+    if (thisWeekBtn && !thisWeekBtn.__bound) {
+      thisWeekBtn.__bound = true;
+      thisWeekBtn.addEventListener('click', () => {
+        const t = slTodayISO();
+        // start = today-6 so we show past 7 days ending today
+        const start = addDaysISO(t, -6);
+        const startEl = $('dailyChecklistStart');
+        if (startEl) startEl.value = start;
+        loadChecklist().catch(console.error);
+      });
+    }
+  }
+
+  async function init() {
+    const isAdminUser = (window.currentUser?.role === 'admin') || document.body.classList.contains('admin');
+    if (!isAdminUser) {
+      const wrap = $('dailyChecklistWrap');
+      if (wrap) wrap.innerHTML = '<div class="dashboard-card"><p class="loading">Admin only.</p></div>';
+      return;
+    }
+
+    bindControlsOnce();
+
+    // Default load: last 7 days ending today
+    const today = slTodayISO();
+    const start = addDaysISO(today, -6);
+    const startEl = $('dailyChecklistStart');
+    if (startEl && !startEl.value) startEl.value = start;
+
+    await loadChecklist();
+  }
+
+  window.initDailyChecklistPage = init;
+})();
