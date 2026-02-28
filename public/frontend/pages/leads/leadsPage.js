@@ -376,6 +376,22 @@ async function loadLeads() {
       let sheets = ['Main Leads', 'Extra Leads'];
       sheets = Array.from(new Set(sheets));
 
+      // Officer-only: meta/sheets returns only the officer-created sheets (excluding defaults)
+      let officerCreatedSheets = [];
+
+      const updateOfficerNewLeadBtnVisibility = () => {
+        if (!isOfficerView) return;
+        const addLeadBtn = document.getElementById('addLeadBtn');
+        if (!addLeadBtn) return;
+
+        const sheetNow = (window.officerSheetFilter || currentSheet || 'Main Leads');
+        const isDefault = ['main leads', 'extra leads'].includes(String(sheetNow).toLowerCase());
+        const isPersonal = officerCreatedSheets.some(s => String(s) === String(sheetNow));
+
+        // Only allow New Lead on officer-created sheets
+        addLeadBtn.style.display = (!isDefault && isPersonal) ? '' : 'none';
+      };
+
       const applyTabStyle = (btn, active) => {
         btn.style.border = active ? '1px solid #592c88' : '1px solid #eaecf0';
         btn.style.background = active ? '#f4ebff' : '#fff';
@@ -469,6 +485,8 @@ async function loadLeads() {
             if (isOfficerView) window.officerSheetFilter = name;
             else window.adminSheetFilter = name;
 
+            updateOfficerNewLeadBtnVisibility();
+
             const page = isOfficerView
               ? `leads-myLeads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`
               : `leads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`;
@@ -484,6 +502,8 @@ async function loadLeads() {
         // Re-attach actions every time we render
         if (actionsWrap) tabsEl.appendChild(actionsWrap);
         else tabsEl.appendChild(addBtn);
+
+        updateOfficerNewLeadBtnVisibility();
       };
 
       // Render immediately from cache/default
@@ -496,6 +516,11 @@ async function loadLeads() {
           const json = await res.json();
           if (json.success && Array.isArray(json.sheets)) {
             const merged = Array.from(new Set(['Main Leads', 'Extra Leads', ...json.sheets]));
+
+            if (isOfficerView) {
+              officerCreatedSheets = (json.sheets || []).slice();
+              updateOfficerNewLeadBtnVisibility();
+            }
 
             // If list changed, re-render quickly
             if (merged.join('|') !== sheets.join('|')) {
@@ -522,6 +547,9 @@ async function loadLeads() {
             if (isOfficerView) window.officerSheetFilter = d.sheetName;
             else window.adminSheetFilter = d.sheetName;
           }
+
+          try { updateOfficerNewLeadBtnVisibility(); } catch (_) {}
+
           // reload
           loadLeads();
         } catch (_) {}

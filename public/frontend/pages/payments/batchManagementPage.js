@@ -31,6 +31,7 @@
     selectedProgramId: '',
     selectedStatus: 'all',
     selectedType: '',
+    search: '',
     limit: 200,
     lastSummary: []
   };
@@ -331,6 +332,28 @@
     });
   }
 
+  function filterRows(rows) {
+    const term = String(state.search || '').trim().toLowerCase();
+    if (!term) return rows || [];
+    return (rows || []).filter(r => {
+      const hay = [
+        r.name,
+        r.email,
+        r.phone,
+        r.receipt_no,
+        r.payment_method,
+        r.payment_plan,
+        r.installment_type,
+        r.installment_label,
+        r.notes
+      ]
+        .filter(Boolean)
+        .join(' | ')
+        .toLowerCase();
+      return hay.includes(term);
+    });
+  }
+
   async function loadPayments() {
     const tbody = qs('batchMgmtTableBody');
     if (tbody) tbody.innerHTML = `<tr><td colspan="12" class="loading">Loading payments...</td></tr>`;
@@ -352,7 +375,7 @@
     // store for modal usage if needed
     window.__paymentsLastSummary = rows;
 
-    renderRows(rows);
+    renderRows(filterRows(rows));
   }
 
   async function initBatchManagementPage() {
@@ -392,6 +415,16 @@
         if (state.selectedType) state.selectedStatus = 'all';
         renderStatusTabs();
         loadPayments().catch(console.error);
+      };
+    }
+
+    const searchEl = qs('batchMgmtSearchInput');
+    if (searchEl && !searchEl.__bound) {
+      searchEl.__bound = true;
+      searchEl.oninput = () => {
+        state.search = searchEl.value || '';
+        // Filter client-side using the already loaded rows
+        renderRows(filterRows(state.lastSummary));
       };
     }
 
