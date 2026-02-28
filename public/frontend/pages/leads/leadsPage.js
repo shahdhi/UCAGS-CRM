@@ -1122,6 +1122,7 @@ function editLeadDetails(leadId) {
 async function saveLeadChanges(event, leadId) {
   event.preventDefault();
   
+  const assignedEl = document.getElementById('editAssignedTo');
   const updates = {
     name: document.getElementById('editName').value,
     email: document.getElementById('editEmail').value,
@@ -1129,9 +1130,14 @@ async function saveLeadChanges(event, leadId) {
     course: document.getElementById('editCourse').value,
     source: document.getElementById('editSource').value,
     status: document.getElementById('editStatus').value,
-    assignedTo: document.getElementById('editAssignedTo').value,
     notes: document.getElementById('editNotes').value
   };
+
+  // For duplicate leads, assigned field is readonly and may contain the literal string "Duplicate".
+  // Don’t send assignedTo updates in that case.
+  if (assignedEl && !assignedEl.readOnly) {
+    updates.assignedTo = assignedEl.value;
+  }
   
   try {
     // Show loading state
@@ -1842,7 +1848,16 @@ async function fetchOfficers() {
   const res = await fetch('/api/batches/officers', { headers: authHeaders });
   const json = await res.json();
   if (!json.success) return [];
-  return (json.officers || []).map(String).filter(Boolean);
+  const raw = (json.officers || []);
+  return raw
+    .map(o => {
+      if (o == null) return '';
+      if (typeof o === 'string') return o;
+      // support { name }, { officer_name }, { email }
+      return o.name || o.officer_name || o.officerName || o.email || '';
+    })
+    .map(x => String(x || '').trim())
+    .filter(Boolean);
 }
 
 // -------------------------

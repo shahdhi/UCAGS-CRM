@@ -13,14 +13,18 @@ const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
 const { normalizePhoneToSL } = require('../batches/duplicatePhoneResolver');
 
 // Duplicate-by-phone cache (per batch)
+// IMPORTANT: Business rule: when phone duplicates exist, only the *newer* leads are marked Duplicate.
+// The earliest/primary lead for each phone remains normal/assignable.
 const DUP_TTL_MS = 5 * 60 * 1000;
-let __dupPhoneCache = new Map(); // batchName -> { expiresAt, counts: Map, duplicates: Set }
+let __dupPhoneCache = new Map(); // batchName -> { expiresAt, duplicateLeadIds: Set<string> }
 
-async function buildDuplicatePhoneIndexForBatch(sb, batchName) {
+async function buildDuplicateLeadIdSetForBatch(sb, batchName) {
   const batch = cleanString(batchName);
-  if (!batch) return { counts: new Map(), duplicates: new Set() };
+  if (!batch) return new Set();
 
-  const counts = new Map(); // canonical -> count
+  // canonicalPhone -> { primaryId, primaryCreatedAt, primarySheetLeadId }
+  const primary = new Map();
+  const duplicateLeadIds = new Set();
 
   // Supabase selects are paginated; use range() to fetch all
   const PAGE = 1000;
@@ -28,41 +32,66 @@ async function buildDuplicatePhoneIndexForBatch(sb, batchName) {
   while (true) {
     const { data, error } = await sb
       .from('crm_leads')
-      .select('phone')
+      .select('sheet_lead_id, phone, created_at')
       .eq('batch_name', batch)
       .range(from, from + PAGE - 1);
     if (error) throw error;
 
     (data || []).forEach(r => {
       const canon = normalizePhoneToSL(r?.phone);
-      if (!canon) return;
-      counts.set(canon, (counts.get(canon) || 0) + 1);
+      const id = String(r?.sheet_lead_id || '');
+      if (!canon || !id) return;
+
+      const createdAt = r?.created_at ? new Date(r.created_at).getTime() : 0;
+      const sheetId = String(r?.sheet_lead_id || '');
+
+      const prev = primary.get(canon);
+      if (!prev) {
+        primary.set(canon, { id, createdAt, sheetId });
+        return;
+      }
+
+      // Compare which one is earlier (primary)
+      const prevCreatedAt = prev.createdAt || 0;
+      const earlier = (createdAt && prevCreatedAt)
+        ? (createdAt < prevCreatedAt)
+        : (createdAt ? true : false); // if prev has no createdAt but current does, prefer current as earlier
+
+      let currentIsEarlier = earlier;
+      if (createdAt === prevCreatedAt) {
+        // tie-breaker: smaller sheet_lead_id is earlier (deterministic)
+        currentIsEarlier = sheetId.localeCompare(prev.sheetId, undefined, { numeric: true, sensitivity: 'base' }) < 0;
+      }
+
+      if (currentIsEarlier) {
+        // Previous primary becomes duplicate (newer), current becomes primary
+        duplicateLeadIds.add(String(prev.id));
+        primary.set(canon, { id, createdAt, sheetId });
+      } else {
+        // Current is newer -> duplicate
+        duplicateLeadIds.add(id);
+      }
     });
 
     if (!data || data.length < PAGE) break;
     from += PAGE;
   }
 
-  const duplicates = new Set();
-  for (const [canon, n] of counts.entries()) {
-    if (n > 1) duplicates.add(canon);
-  }
-
-  return { counts, duplicates };
+  return duplicateLeadIds;
 }
 
-async function getDuplicatePhoneSetForBatch(sb, batchName) {
+async function getDuplicateLeadIdSetForBatch(sb, batchName) {
   const batch = cleanString(batchName);
   if (!batch) return new Set();
 
   const cached = __dupPhoneCache.get(batch);
   if (cached && cached.expiresAt > Date.now()) {
-    return cached.duplicates;
+    return cached.duplicateLeadIds;
   }
 
-  const idx = await buildDuplicatePhoneIndexForBatch(sb, batch);
-  __dupPhoneCache.set(batch, { ...idx, expiresAt: Date.now() + DUP_TTL_MS });
-  return idx.duplicates;
+  const dupIds = await buildDuplicateLeadIdSetForBatch(sb, batch);
+  __dupPhoneCache.set(batch, { duplicateLeadIds: dupIds, expiresAt: Date.now() + DUP_TTL_MS });
+  return dupIds;
 }
 
 function clearDuplicatePhoneCache(batchName) {
@@ -70,44 +99,19 @@ function clearDuplicatePhoneCache(batchName) {
   else __dupPhoneCache = new Map();
 }
 
-async function isDuplicatePhoneInBatch(sb, batchName, phone, { excludeSheetLeadId } = {}) {
+async function isDuplicateLeadInBatch(sb, batchName, sheetLeadId) {
   const batch = cleanString(batchName);
-  const canon = normalizePhoneToSL(phone);
-  if (!batch || !canon) return false;
-
-  // Fast path using cached duplicate set (if it says not duplicate, we're done)
-  try {
-    const dupSet = await getDuplicatePhoneSetForBatch(sb, batch);
-    if (!dupSet.has(canon)) return false;
-  } catch (_) {
-    // ignore cache/index errors; fall back to direct query below
-  }
-
-  // Confirm by querying a small candidate set and comparing canonical form
-  const last9 = canon.slice(-9);
-  const { data, error } = await sb
-    .from('crm_leads')
-    .select('sheet_lead_id, phone')
-    .eq('batch_name', batch)
-    .ilike('phone', `%${last9}`)
-    .limit(50);
-  if (error) throw error;
-
-  let matches = 0;
-  for (const r of data || []) {
-    if (excludeSheetLeadId && String(r.sheet_lead_id) === String(excludeSheetLeadId)) continue;
-    if (normalizePhoneToSL(r.phone) === canon) matches++;
-    if (matches >= 1) return true;
-  }
-
-  return false;
+  const id = String(sheetLeadId || '');
+  if (!batch || !id) return false;
+  const dupIds = await getDuplicateLeadIdSetForBatch(sb, batch);
+  return dupIds.has(id);
 }
 
-function applyDuplicateDisplay({ lead, dupSet }) {
-  if (!lead || !dupSet || !(dupSet instanceof Set)) return lead;
-  const canon = normalizePhoneToSL(lead.phone);
-  if (!canon) return lead;
-  if (!dupSet.has(canon)) return lead;
+function applyDuplicateDisplay({ lead, dupLeadIdSet }) {
+  if (!lead || !dupLeadIdSet || !(dupLeadIdSet instanceof Set)) return lead;
+  const id = String(lead.id || lead.sheetLeadId || '');
+  if (!id) return lead;
+  if (!dupLeadIdSet.has(id)) return lead;
   return { ...lead, isDuplicate: true, assignedTo: 'Duplicate' };
 }
 
@@ -255,8 +259,8 @@ async function listMyLeads({ officerName, batchName, sheetName, search, status }
   // Duplicate marking is batch-scoped; only apply when batch is specified.
   if (batchName && batchName !== 'all') {
     try {
-      const dupSet = await getDuplicatePhoneSetForBatch(sb, batchName);
-      return leads.map(l => applyDuplicateDisplay({ lead: l, dupSet }));
+      const dupLeadIdSet = await getDuplicateLeadIdSetForBatch(sb, batchName);
+      return leads.map(l => applyDuplicateDisplay({ lead: l, dupLeadIdSet }));
     } catch (_) {
       // ignore
     }
@@ -295,8 +299,8 @@ async function listAdminLeads({ batchName, sheetName, search, status, assignedTo
   // Duplicate marking is batch-scoped; only apply when batch is specified.
   if (batchName && batchName !== 'all') {
     try {
-      const dupSet = await getDuplicatePhoneSetForBatch(sb, batchName);
-      return leads.map(l => applyDuplicateDisplay({ lead: l, dupSet }));
+      const dupLeadIdSet = await getDuplicateLeadIdSetForBatch(sb, batchName);
+      return leads.map(l => applyDuplicateDisplay({ lead: l, dupLeadIdSet }));
     } catch (_) {
       // ignore
     }
@@ -478,7 +482,7 @@ async function updateAdminLead({ batchName, sheetName, sheetLeadId, updates }) {
     // Duplicates should stay unassigned and be surfaced as "Duplicate" in UI.
     if (next) {
       const phoneForCheck = (updates.phone !== undefined) ? updates.phone : existing?.phone;
-      const isDup = await isDuplicatePhoneInBatch(sb, batchName, phoneForCheck, { excludeSheetLeadId: sheetLeadId });
+      const isDup = await isDuplicateLeadInBatch(sb, batchName, sheetLeadId);
       if (isDup) {
         const err = new Error('Cannot assign this lead because the phone number is duplicated in this batch');
         err.status = 409;
@@ -579,8 +583,8 @@ async function createAdminLead({ batchName, sheetName, lead }) {
   // Map to API shape
   const apiLead = mapLeadRowToApi(data);
   try {
-    const dupSet = await getDuplicatePhoneSetForBatch(sb, batchName);
-    return applyDuplicateDisplay({ lead: apiLead, dupSet });
+    const dupLeadIdSet = await getDuplicateLeadIdSetForBatch(sb, batchName);
+    return applyDuplicateDisplay({ lead: apiLead, dupLeadIdSet });
   } catch (_) {
     return apiLead;
   }
@@ -635,13 +639,12 @@ async function bulkAssignAdmin({ batchName, sheetName, leadIds, assignedTo }) {
     .in('sheet_lead_id', ids);
   if (phErr) throw phErr;
 
-  const dupSet = await getDuplicatePhoneSetForBatch(sb, batchName);
+  const dupLeadIdSet = await getDuplicateLeadIdSetForBatch(sb, batchName);
   const assignable = [];
   const skipped = [];
   (phones || []).forEach(r => {
     const id = String(r.sheet_lead_id);
-    const canon = normalizePhoneToSL(r.phone);
-    if (canon && dupSet.has(canon)) skipped.push(id);
+    if (dupLeadIdSet.has(id)) skipped.push(id);
     else assignable.push(id);
   });
 
@@ -697,13 +700,12 @@ async function bulkDistributeAdmin({ batchName, sheetName, leadIds, officers }) 
     .in('sheet_lead_id', ids);
   if (phErr) throw phErr;
 
-  const dupSet = await getDuplicatePhoneSetForBatch(sb, batchName);
+  const dupLeadIdSet = await getDuplicateLeadIdSetForBatch(sb, batchName);
   const distributable = [];
   const skipped = [];
   (phones || []).forEach(r => {
     const id = String(r.sheet_lead_id);
-    const canon = normalizePhoneToSL(r.phone);
-    if (canon && dupSet.has(canon)) skipped.push(id);
+    if (dupLeadIdSet.has(id)) skipped.push(id);
     else distributable.push(id);
   });
 
@@ -951,8 +953,8 @@ async function copyLeadRowForNew({ sb, sourceRow, targetBatchName, targetSheetNa
 
   const apiLead = mapLeadRowToApi(data);
   try {
-    const dupSet = await getDuplicatePhoneSetForBatch(sb, targetBatchName);
-    return applyDuplicateDisplay({ lead: apiLead, dupSet });
+    const dupLeadIdSet = await getDuplicateLeadIdSetForBatch(sb, targetBatchName);
+    return applyDuplicateDisplay({ lead: apiLead, dupLeadIdSet });
   } catch (_) {
     return apiLead;
   }
@@ -1195,8 +1197,8 @@ async function createOfficerLead({ officerName, batchName, sheetName, lead }) {
 
   const apiLead = mapLeadRowToApi(data);
   try {
-    const dupSet = await getDuplicatePhoneSetForBatch(sb, batchName);
-    return applyDuplicateDisplay({ lead: apiLead, dupSet });
+    const dupLeadIdSet = await getDuplicateLeadIdSetForBatch(sb, batchName);
+    return applyDuplicateDisplay({ lead: apiLead, dupLeadIdSet });
   } catch (_) {
     return apiLead;
   }
