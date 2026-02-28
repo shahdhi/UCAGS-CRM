@@ -1035,6 +1035,11 @@ async function navigateToPage(page) {
                 await window.initPaymentsPage();
             }
             break;
+        case 'batch-management':
+            if (window.initBatchManagementPage) {
+                await window.initBatchManagementPage();
+            }
+            break;
         case 'receipts':
             loadReceipts();
             break;

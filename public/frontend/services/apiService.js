@@ -268,6 +268,28 @@ const leadsAPI = {
  * Registrations API (admin)
  */
 const paymentsAPI = {
+  coordinatorBatches: async () => {
+    return fetchAPI('/programs/coordinator-batches');
+  },
+  coordinatorSummary: async (limit, { programId = '', batchName = '', status = 'all', type = '' } = {}) => {
+    const qs = new URLSearchParams();
+    qs.set('limit', String(limit || 200));
+    if (programId) qs.set('programId', programId);
+    if (batchName) qs.set('batchName', batchName);
+    if (status) qs.set('status', status);
+    if (type) qs.set('type', type);
+    return fetchAPI(`/payments/coordinator/summary?${qs.toString()}`);
+  },
+  coordinatorListForRegistration: async (registrationId) => {
+    return fetchAPI(`/payments/coordinator/registration/${encodeURIComponent(registrationId)}`);
+  },
+  coordinatorUpdate: async (paymentId, payload) => {
+    return fetchAPI(`/payments/coordinator/${encodeURIComponent(paymentId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload || {})
+    });
+  },
+
   adminList: async (limit = 200, { programId = '', batchName = '' } = {}) => {
     const params = new URLSearchParams();
     params.set('limit', String(limit));

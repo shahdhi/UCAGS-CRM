@@ -35,6 +35,34 @@ router.get('/public', async (req, res) => {
   }
 });
 
+// Coordinator batches for logged-in officer
+// GET /api/programs/coordinator-batches
+router.get('/coordinator-batches', require('../../../server/middleware/auth').isAdminOrOfficer, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    // Admins can see all coordinator batches; officers see only their own
+    let q = sb
+      .from('program_batches')
+      .select('*')
+      .eq('is_active', true)
+      .not('coordinator_user_id', 'is', null)
+      .order('created_at', { ascending: false });
+
+    if (req.user?.role !== 'admin') {
+      q = q.eq('coordinator_user_id', userId);
+    }
+
+    const { data, error } = await q;
+    if (error) throw error;
+    res.json({ success: true, batches: data || [] });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 // Sidebar/CRM: list programs + batches (admin/officer)
 router.get('/sidebar', require('../../../server/middleware/auth').isAdminOrOfficer, async (req, res) => {
   try {
