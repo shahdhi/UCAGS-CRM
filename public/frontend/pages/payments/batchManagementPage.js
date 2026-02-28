@@ -41,32 +41,92 @@
     return state.batches;
   }
 
-  function pickDefaultBatch() {
+  function getProgramsFromBatches(batches) {
+    const map = new Map();
+    (batches || []).forEach(b => {
+      const pid = String(b.program_id || '').trim();
+      if (!pid) return;
+      if (!map.has(pid)) {
+        map.set(pid, {
+          id: pid,
+          name: b.program_name || pid,
+          created_at: b.program_created_at || b.created_at || null
+        });
+      }
+    });
+    return Array.from(map.values());
+  }
+
+  function pickLatestProgram(programs) {
+    const arr = (programs || []).slice();
+    arr.sort((a, b) => {
+      const ad = a?.created_at ? new Date(a.created_at).getTime() : 0;
+      const bd = b?.created_at ? new Date(b.created_at).getTime() : 0;
+      if (bd !== ad) return bd - ad;
+      return String(a?.name || '').localeCompare(String(b?.name || ''));
+    });
+    return arr[0] || null;
+  }
+
+  function getBatchesForSelectedProgram() {
+    const pid = String(state.selectedProgramId || '').trim();
+    const arr = (state.batches || []).filter(b => String(b.program_id) === pid);
+    // latest first
+    arr.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return arr;
+  }
+
+  function pickDefaultProgramAndBatch() {
     const batches = state.batches || [];
     if (!batches.length) return;
 
-    // Prefer current batch among assigned, else latest created
-    const current = batches.find(b => b.is_current);
-    const chosen = current || batches[0];
-    state.selectedBatchName = chosen.batch_name;
-    state.selectedProgramId = chosen.program_id;
+    const programs = getProgramsFromBatches(batches);
+    if (!state.selectedProgramId) {
+      const latest = pickLatestProgram(programs);
+      state.selectedProgramId = latest?.id || programs[0]?.id || '';
+    }
+
+    const batchesFor = getBatchesForSelectedProgram();
+    const current = batchesFor.find(b => b.is_current);
+    const chosen = current || batchesFor[0] || batches[0];
+    state.selectedBatchName = chosen?.batch_name || '';
+  }
+
+  function renderProgramSelect() {
+    const sel = qs('batchMgmtProgramSelect');
+    if (!sel) return;
+
+    const programs = getProgramsFromBatches(state.batches);
+    sel.innerHTML = programs.map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name || p.id)}</option>`).join('');
+
+    if (!state.selectedProgramId) {
+      const latest = pickLatestProgram(programs);
+      state.selectedProgramId = latest?.id || programs[0]?.id || '';
+    }
+    sel.value = state.selectedProgramId;
+
+    sel.onchange = async () => {
+      state.selectedProgramId = sel.value;
+      pickDefaultProgramAndBatch();
+      renderBatchSelect();
+      await loadPayments();
+    };
   }
 
   function renderBatchSelect() {
     const sel = qs('batchMgmtBatchSelect');
     if (!sel) return;
 
-    sel.innerHTML = (state.batches || []).map(b => {
+    const batchesFor = getBatchesForSelectedProgram();
+    sel.innerHTML = batchesFor.map(b => {
       const label = `${b.batch_name}${b.is_current ? ' (Current)' : ''}`;
-      return `<option value="${escapeHtml(b.batch_name)}" data-program-id="${escapeHtml(b.program_id)}">${escapeHtml(label)}</option>`;
+      return `<option value="${escapeHtml(b.batch_name)}">${escapeHtml(label)}</option>`;
     }).join('');
 
     sel.value = state.selectedBatchName;
 
     sel.onchange = async () => {
-      const opt = sel.selectedOptions?.[0];
       state.selectedBatchName = sel.value;
-      state.selectedProgramId = opt?.getAttribute('data-program-id') || state.selectedProgramId;
       await loadPayments();
     };
   }
@@ -275,6 +335,11 @@
     const tbody = qs('batchMgmtTableBody');
     if (tbody) tbody.innerHTML = `<tr><td colspan="12" class="loading">Loading payments...</td></tr>`;
 
+    if (!state.selectedProgramId || !state.selectedBatchName) {
+      if (tbody) tbody.innerHTML = `<tr><td colspan="12" class="empty">Select a program and batch</td></tr>`;
+      return;
+    }
+
     const res = await window.API.payments.coordinatorSummary(state.limit, {
       programId: state.selectedProgramId,
       batchName: state.selectedBatchName,
@@ -298,7 +363,8 @@
     if (!view) return;
 
     await loadCoordinatorBatches();
-    pickDefaultBatch();
+    pickDefaultProgramAndBatch();
+    renderProgramSelect();
     renderBatchSelect();
     renderStatusTabs();
 

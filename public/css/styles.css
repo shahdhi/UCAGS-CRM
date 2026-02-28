@@ -302,6 +302,22 @@ body {
     font-weight: 600;
 }
 
+/* Status tabs: keep button width stable (don’t stretch active tab) */
+#paymentsStatusTabs .btn,
+#paymentsProgramTabs .btn,
+#batchMgmtStatusTabs .btn {
+    width: auto !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#paymentsStatusTabs .btn-primary,
+#paymentsProgramTabs .btn-primary,
+#batchMgmtStatusTabs .btn-primary {
+    border: 1px solid transparent; /* match .btn-secondary border width to avoid layout shift */
+}
+
 .btn-primary:hover {
     background: var(--primary-purple-dark);
     transform: translateY(-1px);
