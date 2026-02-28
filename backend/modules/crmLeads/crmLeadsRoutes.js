@@ -158,6 +158,23 @@ router.put('/admin/:batchName/:sheetName/:leadId', isAdmin, async (req, res) => 
   }
 });
 
+// POST /api/crm-leads/admin/copy-bulk
+// Body: { sources: [{ batchName, sheetName, leadId }], target: { batchName, sheetName } }
+router.post('/admin/copy-bulk', isAdmin, async (req, res) => {
+  try {
+    const sources = req.body?.sources || [];
+    const target = req.body?.target || {};
+    const result = await svc.copyAdminLeadsBulk({
+      sources,
+      targetBatchName: target.batchName,
+      targetSheetName: target.sheetName
+    });
+    res.status(201).json({ success: true, ...result });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 // POST /api/crm-leads/admin/copy
 // Body: { source: { batchName, sheetName, leadId }, target: { batchName, sheetName } }
 router.post('/admin/copy', isAdmin, async (req, res) => {
@@ -184,6 +201,25 @@ router.post('/admin/create', isAdmin, async (req, res) => {
     const { batchName, sheetName, lead } = req.body || {};
     const created = await svc.createAdminLead({ batchName, sheetName, lead: lead || {} });
     res.status(201).json({ success: true, lead: created });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// POST /api/crm-leads/my/copy-bulk
+// Body: { sources: [{ batchName, sheetName, leadId }], target: { batchName, sheetName } }
+router.post('/my/copy-bulk', isAuthenticated, async (req, res) => {
+  try {
+    const officerName = req.user?.name;
+    const sources = req.body?.sources || [];
+    const target = req.body?.target || {};
+    const result = await svc.copyMyLeadsBulk({
+      officerName,
+      sources,
+      targetBatchName: target.batchName,
+      targetSheetName: target.sheetName
+    });
+    res.status(201).json({ success: true, ...result });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }

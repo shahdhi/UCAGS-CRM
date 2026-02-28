@@ -10,6 +10,106 @@
  */
 
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
+const { normalizePhoneToSL } = require('../batches/duplicatePhoneResolver');
+
+// Duplicate-by-phone cache (per batch)
+const DUP_TTL_MS = 5 * 60 * 1000;
+let __dupPhoneCache = new Map(); // batchName -> { expiresAt, counts: Map, duplicates: Set }
+
+async function buildDuplicatePhoneIndexForBatch(sb, batchName) {
+  const batch = cleanString(batchName);
+  if (!batch) return { counts: new Map(), duplicates: new Set() };
+
+  const counts = new Map(); // canonical -> count
+
+  // Supabase selects are paginated; use range() to fetch all
+  const PAGE = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error } = await sb
+      .from('crm_leads')
+      .select('phone')
+      .eq('batch_name', batch)
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+
+    (data || []).forEach(r => {
+      const canon = normalizePhoneToSL(r?.phone);
+      if (!canon) return;
+      counts.set(canon, (counts.get(canon) || 0) + 1);
+    });
+
+    if (!data || data.length < PAGE) break;
+    from += PAGE;
+  }
+
+  const duplicates = new Set();
+  for (const [canon, n] of counts.entries()) {
+    if (n > 1) duplicates.add(canon);
+  }
+
+  return { counts, duplicates };
+}
+
+async function getDuplicatePhoneSetForBatch(sb, batchName) {
+  const batch = cleanString(batchName);
+  if (!batch) return new Set();
+
+  const cached = __dupPhoneCache.get(batch);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.duplicates;
+  }
+
+  const idx = await buildDuplicatePhoneIndexForBatch(sb, batch);
+  __dupPhoneCache.set(batch, { ...idx, expiresAt: Date.now() + DUP_TTL_MS });
+  return idx.duplicates;
+}
+
+function clearDuplicatePhoneCache(batchName) {
+  if (batchName) __dupPhoneCache.delete(cleanString(batchName));
+  else __dupPhoneCache = new Map();
+}
+
+async function isDuplicatePhoneInBatch(sb, batchName, phone, { excludeSheetLeadId } = {}) {
+  const batch = cleanString(batchName);
+  const canon = normalizePhoneToSL(phone);
+  if (!batch || !canon) return false;
+
+  // Fast path using cached duplicate set (if it says not duplicate, we're done)
+  try {
+    const dupSet = await getDuplicatePhoneSetForBatch(sb, batch);
+    if (!dupSet.has(canon)) return false;
+  } catch (_) {
+    // ignore cache/index errors; fall back to direct query below
+  }
+
+  // Confirm by querying a small candidate set and comparing canonical form
+  const last9 = canon.slice(-9);
+  const { data, error } = await sb
+    .from('crm_leads')
+    .select('sheet_lead_id, phone')
+    .eq('batch_name', batch)
+    .ilike('phone', `%${last9}`)
+    .limit(50);
+  if (error) throw error;
+
+  let matches = 0;
+  for (const r of data || []) {
+    if (excludeSheetLeadId && String(r.sheet_lead_id) === String(excludeSheetLeadId)) continue;
+    if (normalizePhoneToSL(r.phone) === canon) matches++;
+    if (matches >= 1) return true;
+  }
+
+  return false;
+}
+
+function applyDuplicateDisplay({ lead, dupSet }) {
+  if (!lead || !dupSet || !(dupSet instanceof Set)) return lead;
+  const canon = normalizePhoneToSL(lead.phone);
+  if (!canon) return lead;
+  if (!dupSet.has(canon)) return lead;
+  return { ...lead, isDuplicate: true, assignedTo: 'Duplicate' };
+}
 
 // Resolve officer display name -> Supabase Auth user id (best effort)
 // We keep a short-lived cache because listUsers can be expensive.
@@ -150,7 +250,19 @@ async function listMyLeads({ officerName, batchName, sheetName, search, status }
     .order('sheet_lead_id', { ascending: true });
   if (error) throw error;
 
-  return (data || []).map(rowToLead);
+  const leads = (data || []).map(rowToLead);
+
+  // Duplicate marking is batch-scoped; only apply when batch is specified.
+  if (batchName && batchName !== 'all') {
+    try {
+      const dupSet = await getDuplicatePhoneSetForBatch(sb, batchName);
+      return leads.map(l => applyDuplicateDisplay({ lead: l, dupSet }));
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  return leads;
 }
 
 // Admin: list all leads (no officer filter)
@@ -178,7 +290,19 @@ async function listAdminLeads({ batchName, sheetName, search, status, assignedTo
     .order('sheet_lead_id', { ascending: true });
   if (error) throw error;
 
-  return (data || []).map(rowToLead);
+  const leads = (data || []).map(rowToLead);
+
+  // Duplicate marking is batch-scoped; only apply when batch is specified.
+  if (batchName && batchName !== 'all') {
+    try {
+      const dupSet = await getDuplicatePhoneSetForBatch(sb, batchName);
+      return leads.map(l => applyDuplicateDisplay({ lead: l, dupSet }));
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  return leads;
 }
 
 function rowToLead(r) {
@@ -325,7 +449,7 @@ async function updateAdminLead({ batchName, sheetName, sheetLeadId, updates }) {
   // Find the lead
   const { data: existing, error: exErr } = await sb
     .from('crm_leads')
-    .select('id, management_json, assigned_to')
+    .select('id, management_json, assigned_to, phone')
     .eq('batch_name', batchName)
     .eq('sheet_name', sheetName)
     .eq('sheet_lead_id', sheetLeadId)
@@ -348,7 +472,21 @@ async function updateAdminLead({ batchName, sheetName, sheetLeadId, updates }) {
 
   // Handle assignment updates specially
   if (updates.assignedTo !== undefined) {
-    patch.assigned_to = cleanString(updates.assignedTo);
+    const next = cleanString(updates.assignedTo);
+
+    // Prevent assigning duplicates to an officer (or any non-empty assignee).
+    // Duplicates should stay unassigned and be surfaced as "Duplicate" in UI.
+    if (next) {
+      const phoneForCheck = (updates.phone !== undefined) ? updates.phone : existing?.phone;
+      const isDup = await isDuplicatePhoneInBatch(sb, batchName, phoneForCheck, { excludeSheetLeadId: sheetLeadId });
+      if (isDup) {
+        const err = new Error('Cannot assign this lead because the phone number is duplicated in this batch');
+        err.status = 409;
+        throw err;
+      }
+    }
+
+    patch.assigned_to = next;
   }
 
   // Persist core lead fields
@@ -374,6 +512,9 @@ async function updateAdminLead({ batchName, sheetName, sheetLeadId, updates }) {
     .single();
 
   if (error) throw error;
+
+  // Assignment/phone changes can affect dup status; clear cache
+  clearDuplicatePhoneCache(batchName);
 
   // Notify on assignment change (best effort)
   try {
@@ -432,8 +573,17 @@ async function createAdminLead({ batchName, sheetName, lead }) {
 
   if (error) throw error;
 
+  // Invalidate duplicate cache for this batch (phone set may have changed)
+  clearDuplicatePhoneCache(batchName);
+
   // Map to API shape
-  return mapLeadRowToApi(data);
+  const apiLead = mapLeadRowToApi(data);
+  try {
+    const dupSet = await getDuplicatePhoneSetForBatch(sb, batchName);
+    return applyDuplicateDisplay({ lead: apiLead, dupSet });
+  } catch (_) {
+    return apiLead;
+  }
 }
 
 async function distributeUnassignedAdmin({ batchName, sheetName, officers }) {
@@ -475,17 +625,41 @@ async function bulkAssignAdmin({ batchName, sheetName, leadIds, assignedTo }) {
     err.status = 400;
     throw err;
   }
-  if (!ids.length) return { updatedCount: 0 };
+  if (!ids.length) return { updatedCount: 0, skippedDuplicateCount: 0, skippedDuplicateLeadIds: [] };
+
+  // Prevent assigning duplicates: skip any lead whose phone is duplicated within the batch
+  const { data: phones, error: phErr } = await sb
+    .from('crm_leads')
+    .select('sheet_lead_id, phone')
+    .eq('batch_name', batchName)
+    .in('sheet_lead_id', ids);
+  if (phErr) throw phErr;
+
+  const dupSet = await getDuplicatePhoneSetForBatch(sb, batchName);
+  const assignable = [];
+  const skipped = [];
+  (phones || []).forEach(r => {
+    const id = String(r.sheet_lead_id);
+    const canon = normalizePhoneToSL(r.phone);
+    if (canon && dupSet.has(canon)) skipped.push(id);
+    else assignable.push(id);
+  });
+
+  if (!assignable.length) {
+    return { updatedCount: 0, skippedDuplicateCount: skipped.length, skippedDuplicateLeadIds: skipped };
+  }
 
   const { data, error } = await sb
     .from('crm_leads')
     .update({ assigned_to: cleanString(assignedTo), updated_at: new Date().toISOString() })
     .eq('batch_name', batchName)
     .eq('sheet_name', sheetName)
-    .in('sheet_lead_id', ids)
+    .in('sheet_lead_id', assignable)
     .select('id');
 
   if (error) throw error;
+
+  clearDuplicatePhoneCache(batchName);
 
   // Notify new assignee once (best effort)
   try {
@@ -495,7 +669,7 @@ async function bulkAssignAdmin({ batchName, sheetName, leadIds, assignedTo }) {
     }
   } catch (_) {}
 
-  return { updatedCount: (data || []).length };
+  return { updatedCount: (data || []).length, skippedDuplicateCount: skipped.length, skippedDuplicateLeadIds: skipped };
 }
 
 async function bulkDistributeAdmin({ batchName, sheetName, leadIds, officers }) {
@@ -508,15 +682,37 @@ async function bulkDistributeAdmin({ batchName, sheetName, leadIds, officers }) 
     err.status = 400;
     throw err;
   }
-  if (!ids.length) return { updatedCount: 0 };
+  if (!ids.length) return { updatedCount: 0, skippedDuplicateCount: 0, skippedDuplicateLeadIds: [] };
   if (!offs.length) {
     const err = new Error('Missing officers list');
     err.status = 400;
     throw err;
   }
 
+  // Skip duplicates during distribution
+  const { data: phones, error: phErr } = await sb
+    .from('crm_leads')
+    .select('sheet_lead_id, phone')
+    .eq('batch_name', batchName)
+    .in('sheet_lead_id', ids);
+  if (phErr) throw phErr;
+
+  const dupSet = await getDuplicatePhoneSetForBatch(sb, batchName);
+  const distributable = [];
+  const skipped = [];
+  (phones || []).forEach(r => {
+    const id = String(r.sheet_lead_id);
+    const canon = normalizePhoneToSL(r.phone);
+    if (canon && dupSet.has(canon)) skipped.push(id);
+    else distributable.push(id);
+  });
+
+  if (!distributable.length) {
+    return { updatedCount: 0, skippedDuplicateCount: skipped.length, skippedDuplicateLeadIds: skipped };
+  }
+
   // round-robin distribution
-  const patches = ids.map((id, idx) => ({
+  const patches = distributable.map((id, idx) => ({
     batch_name: batchName,
     sheet_name: sheetName,
     sheet_lead_id: id,
@@ -528,6 +724,8 @@ async function bulkDistributeAdmin({ batchName, sheetName, leadIds, officers }) 
   const { error: upsertErr } = await sb
     .from('crm_leads')
     .upsert(patches, { onConflict: 'batch_name,sheet_name,sheet_lead_id', ignoreDuplicates: false });
+
+  clearDuplicatePhoneCache(batchName);
 
   if (upsertErr) {
     // fallback: sequential updates
@@ -546,7 +744,7 @@ async function bulkDistributeAdmin({ batchName, sheetName, leadIds, officers }) 
     return { updatedCount, fallback: true };
   }
 
-  return { updatedCount: ids.length };
+  return { updatedCount: distributable.length, skippedDuplicateCount: skipped.length, skippedDuplicateLeadIds: skipped };
 }
 
 async function bulkDeleteAdmin({ batchName, sheetName, leadIds }) {
@@ -705,6 +903,9 @@ async function importAdminCsv({ batchName, sheetName, csvText }) {
     .upsert(patches, { onConflict: 'batch_name,sheet_name,sheet_lead_id', ignoreDuplicates: false });
 
   if (error) throw error;
+
+  clearDuplicatePhoneCache(batchName);
+
   return { importedCount: patches.length };
 }
 
@@ -745,7 +946,49 @@ async function copyLeadRowForNew({ sb, sourceRow, targetBatchName, targetSheetNa
     .select('*')
     .single();
   if (error) throw error;
-  return mapLeadRowToApi(data);
+
+  clearDuplicatePhoneCache(targetBatchName);
+
+  const apiLead = mapLeadRowToApi(data);
+  try {
+    const dupSet = await getDuplicatePhoneSetForBatch(sb, targetBatchName);
+    return applyDuplicateDisplay({ lead: apiLead, dupSet });
+  } catch (_) {
+    return apiLead;
+  }
+}
+
+async function assertOfficerCanUseSheet({ sb, batchName, sheetName }) {
+  const b = cleanString(batchName);
+  const s = normalizeSheetName(sheetName);
+  if (!b || !s) throw Object.assign(new Error('Missing batch/sheet'), { status: 400 });
+
+  const low = String(s).toLowerCase();
+  if (['main leads', 'extra leads'].includes(low)) return true;
+
+  // Disallow officer writing into admin-created shared sheets
+  try {
+    const { data, error } = await sb
+      .from('batch_shared_sheets')
+      .select('sheet_name')
+      .eq('batch_name', b)
+      .eq('sheet_name', s)
+      .maybeSingle();
+    if (error) {
+      const msg = String(error.message || '').toLowerCase();
+      if (msg.includes('relation') || msg.includes('does not exist')) return true;
+      throw error;
+    }
+    if (data) {
+      throw Object.assign(new Error('Officers cannot add/copy leads into admin-created sheets'), { status: 403 });
+    }
+  } catch (e) {
+    if (e.status) throw e;
+    // If any unexpected error, fail safe by blocking
+    throw Object.assign(new Error('Cannot verify target sheet access'), { status: 403 });
+  }
+
+  return true;
 }
 
 async function copyMyLead({ officerName, sourceBatchName, sourceSheetName, sourceLeadId, targetBatchName, targetSheetName }) {
@@ -757,6 +1000,11 @@ async function copyMyLead({ officerName, sourceBatchName, sourceSheetName, sourc
   const srcSheet = normalizeSheetName(sourceSheetName);
   const srcId = cleanString(sourceLeadId);
   if (!srcBatch || !srcSheet || !srcId) throw Object.assign(new Error('Missing source lead'), { status: 400 });
+
+  const tgtBatch = cleanString(targetBatchName);
+  if (tgtBatch && tgtBatch === srcBatch) throw Object.assign(new Error('Cannot copy to the same batch'), { status: 400 });
+
+  await assertOfficerCanUseSheet({ sb, batchName: tgtBatch, sheetName: targetSheetName });
 
   const { data: src, error } = await sb
     .from('crm_leads')
@@ -784,6 +1032,8 @@ async function copyMyLead({ officerName, sourceBatchName, sourceSheetName, sourc
 async function copyAdminLead({ sourceBatchName, sourceSheetName, sourceLeadId, targetBatchName, targetSheetName }) {
   const sb = requireSupabase();
   const srcBatch = cleanString(sourceBatchName);
+  const tgtBatch = cleanString(targetBatchName);
+  if (tgtBatch && tgtBatch === srcBatch) throw Object.assign(new Error('Cannot copy to the same batch'), { status: 400 });
   const srcSheet = normalizeSheetName(sourceSheetName);
   const srcId = cleanString(sourceLeadId);
   if (!srcBatch || !srcSheet || !srcId) throw Object.assign(new Error('Missing source lead'), { status: 400 });
@@ -800,6 +1050,103 @@ async function copyAdminLead({ sourceBatchName, sourceSheetName, sourceLeadId, t
   return copyLeadRowForNew({ sb, sourceRow: src, targetBatchName, targetSheetName });
 }
 
+function normalizeCopySources(sources) {
+  const arr = Array.isArray(sources) ? sources : [];
+  return arr
+    .map(s => ({
+      batchName: cleanString(s?.batchName),
+      sheetName: normalizeSheetName(s?.sheetName || 'Main Leads'),
+      leadId: cleanString(s?.leadId)
+    }))
+    .filter(s => s.batchName && s.sheetName && s.leadId);
+}
+
+async function copyMyLeadsBulk({ officerName, sources, targetBatchName, targetSheetName }) {
+  const sb = requireSupabase();
+  const off = cleanString(officerName);
+  if (!off) throw Object.assign(new Error('Missing officerName'), { status: 400 });
+
+  const tgtBatch = cleanString(targetBatchName);
+  await assertOfficerCanUseSheet({ sb, batchName: tgtBatch, sheetName: targetSheetName });
+
+  const srcs = normalizeCopySources(sources);
+  if (!srcs.length) throw Object.assign(new Error('No leads selected'), { status: 400 });
+
+  if (srcs.some(s => String(s.batchName) === String(tgtBatch))) {
+    throw Object.assign(new Error('Cannot copy to the same batch'), { status: 400 });
+  }
+
+  // Fetch all source rows
+  const leadIds = srcs.map(s => s.leadId);
+  const batches = Array.from(new Set(srcs.map(s => s.batchName)));
+
+  // We can't do a composite IN easily; load by lead id and then filter
+  const { data: rows, error } = await sb
+    .from('crm_leads')
+    .select('*')
+    .in('sheet_lead_id', leadIds)
+    .in('batch_name', batches);
+  if (error) throw error;
+
+  const rowKey = (r) => `${r.batch_name}||${normalizeSheetName(r.sheet_name)}||${String(r.sheet_lead_id)}`;
+  const map = new Map((rows || []).map(r => [rowKey(r), r]));
+
+  const created = [];
+  for (const s of srcs) {
+    const key = `${s.batchName}||${s.sheetName}||${s.leadId}`;
+    const src = map.get(key);
+    if (!src) continue;
+    if (String(src.assigned_to || '') !== String(off)) {
+      throw Object.assign(new Error('Forbidden: one or more leads are not assigned to you'), { status: 403 });
+    }
+    const newLead = await copyLeadRowForNew({
+      sb,
+      sourceRow: src,
+      targetBatchName,
+      targetSheetName,
+      assignedToOverride: off
+    });
+    created.push(newLead);
+  }
+
+  return { createdCount: created.length, leads: created };
+}
+
+async function copyAdminLeadsBulk({ sources, targetBatchName, targetSheetName }) {
+  const sb = requireSupabase();
+  const tgtBatch = cleanString(targetBatchName);
+  const srcs = normalizeCopySources(sources);
+  if (!srcs.length) throw Object.assign(new Error('No leads selected'), { status: 400 });
+
+  if (srcs.some(s => String(s.batchName) === String(tgtBatch))) {
+    throw Object.assign(new Error('Cannot copy to the same batch'), { status: 400 });
+  }
+
+  const leadIds = srcs.map(s => s.leadId);
+  const batches = Array.from(new Set(srcs.map(s => s.batchName)));
+
+  const { data: rows, error } = await sb
+    .from('crm_leads')
+    .select('*')
+    .in('sheet_lead_id', leadIds)
+    .in('batch_name', batches);
+  if (error) throw error;
+
+  const rowKey = (r) => `${r.batch_name}||${normalizeSheetName(r.sheet_name)}||${String(r.sheet_lead_id)}`;
+  const map = new Map((rows || []).map(r => [rowKey(r), r]));
+
+  const created = [];
+  for (const s of srcs) {
+    const key = `${s.batchName}||${s.sheetName}||${s.leadId}`;
+    const src = map.get(key);
+    if (!src) continue;
+    const newLead = await copyLeadRowForNew({ sb, sourceRow: src, targetBatchName, targetSheetName });
+    created.push(newLead);
+  }
+
+  return { createdCount: created.length, leads: created };
+}
+
 async function createOfficerLead({ officerName, batchName, sheetName, lead }) {
   const sb = requireSupabase();
   if (!officerName) {
@@ -812,6 +1159,8 @@ async function createOfficerLead({ officerName, batchName, sheetName, lead }) {
     err.status = 400;
     throw err;
   }
+
+  await assertOfficerCanUseSheet({ sb, batchName, sheetName });
 
   const sheetLeadId = cleanString(lead?.id) || String(Date.now());
   const row = {
@@ -841,7 +1190,16 @@ async function createOfficerLead({ officerName, batchName, sheetName, lead }) {
     .single();
 
   if (error) throw error;
-  return mapLeadRowToApi(data);
+
+  clearDuplicatePhoneCache(batchName);
+
+  const apiLead = mapLeadRowToApi(data);
+  try {
+    const dupSet = await getDuplicatePhoneSetForBatch(sb, batchName);
+    return applyDuplicateDisplay({ lead: apiLead, dupSet });
+  } catch (_) {
+    return apiLead;
+  }
 }
 
 async function listAdminBatches({ assignedTo }) {
@@ -1015,6 +1373,39 @@ async function createSheetForBatch({ batchName, sheetName, scope, user }) {
   return { sheetName: s, scope: 'officer' };
 }
 
+async function updateLeadStatusByPhoneAndBatch({ canonicalPhone, batchName, nextStatus }) {
+  const sb = requireSupabase();
+  const phone = cleanString(canonicalPhone);
+  const batch = cleanString(batchName);
+  const status = cleanString(nextStatus);
+  if (!phone || !batch || !status) return { updatedCount: 0 };
+
+  // Match by last 9 digits (fast), then update by batch + phone ilike
+  const last9 = String(phone).replace(/\D/g, '').slice(-9);
+  if (!last9) return { updatedCount: 0 };
+
+  try {
+    // Update any leads in this batch where phone ends with last9
+    const { data, error } = await sb
+      .from('crm_leads')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('batch_name', batch)
+      .ilike('phone', `%${last9}`)
+      .select('id');
+
+    if (error) {
+      const msg = String(error.message || '').toLowerCase();
+      if (msg.includes('relation') || msg.includes('does not exist')) return { updatedCount: 0 };
+      throw error;
+    }
+
+    return { updatedCount: (data || []).length };
+  } catch (e) {
+    console.warn('Lead status sync failed:', e.message || e);
+    return { updatedCount: 0, error: e.message || String(e) };
+  }
+}
+
 module.exports = {
   listMyLeads,
   listAdminLeads,
@@ -1034,5 +1425,8 @@ module.exports = {
   createSheetForBatch,
   deleteSheetForBatch,
   copyMyLead,
-  copyAdminLead
+  copyAdminLead,
+  copyMyLeadsBulk,
+  copyAdminLeadsBulk,
+  updateLeadStatusByPhoneAndBatch
 };

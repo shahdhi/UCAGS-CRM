@@ -592,7 +592,7 @@ function renderLeadsTable() {
         <td><strong>${escapeHtml(lead.name)}</strong></td>
         <td>${escapeHtml(lead.email)}</td>
         <td>${lead.phone ? `<a href="tel:${lead.phone}" class="lead-phone-link">${escapeHtml(lead.phone)}</a>` : '-'}</td>
-        <td>${escapeHtml(lead.assignedTo) || '-'}</td>
+        <td>${(String(lead.assignedTo||'').toLowerCase()==='duplicate' || lead.isDuplicate) ? '<span style="color:#d92d20; font-weight:700;">Duplicate</span>' : (escapeHtml(lead.assignedTo) || '-') }</td>
         <td>${escapeHtml(formatDate(lead.createdDate)) || '-'}</td>
       </tr>
     `;
@@ -912,7 +912,6 @@ async function openCopyLeadModal(lead) {
             <div class="form-group" style="margin:0;">
               <label>Target Sheet</label>
               <select id="${modalId}_sheet" class="form-control"></select>
-              <small style="color:#667085; display:block; margin-top:6px;">Officers will also see their personal sheets for the selected batch.</small>
             </div>
           </div>
 
@@ -942,10 +941,18 @@ async function openCopyLeadModal(lead) {
   const j = await r.json();
   const batches = (j.batches || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-  batchSel.innerHTML = batches.map(b => `<option value="${escapeHtml(b.batch_name)}">${escapeHtml(b.batch_name)}</option>`).join('');
+  const srcBatch = String(lead.batch || '').trim();
+  batchSel.innerHTML = batches.map(b => {
+    const bn = String(b.batch_name || '');
+    const disabled = srcBatch && bn === srcBatch;
+    const label = disabled ? `${bn} (Not allowed)` : bn;
+    return `<option value="${escapeHtml(bn)}" ${disabled ? 'disabled' : ''}>${escapeHtml(label)}</option>`;
+  }).join('');
 
-  const defaultBatch = batches.find(b => b.is_current)?.batch_name || batches[0]?.batch_name || '';
-  batchSel.value = defaultBatch;
+  // pick default: current batch unless disabled, else first enabled
+  const preferred = batches.find(b => b.is_current)?.batch_name || batches[0]?.batch_name || '';
+  const firstEnabled = (batches.find(b => String(b.batch_name) !== srcBatch)?.batch_name) || '';
+  batchSel.value = (preferred && preferred !== srcBatch) ? preferred : firstEnabled;
 
   async function loadSheetsForBatch(batchName) {
     if (!batchName) {
@@ -1080,7 +1087,7 @@ function editLeadDetails(leadId) {
               
               <div class="form-group">
                 <label for="editAssignedTo"><i class="fas fa-user-tie"></i> Assigned To</label>
-                <input type="text" id="editAssignedTo" class="form-control" value="${escapeHtml(lead.assignedTo)}">
+                <input type="text" id="editAssignedTo" class="form-control" value="${escapeHtml(lead.assignedTo)}" ${((String(lead.assignedTo||'').toLowerCase()==='duplicate') || lead.isDuplicate) ? 'readonly title="Duplicate lead (cannot assign)" style="background:#fef3f2; border-color:#fecdca; color:#d92d20;"' : ''}>
               </div>
               
               <div class="form-group full-width">
@@ -1378,10 +1385,17 @@ function updateSelectionUI() {
   const toolbar = document.getElementById('bulkActionsToolbar');
   const label = document.getElementById('selectedCount');
   const header = document.getElementById('selectAllCheckbox');
+  const commonActions = document.getElementById('bulkCommonActions');
   const adminActions = document.getElementById('bulkAdminActions');
 
   if (label) label.textContent = `${count} selected`;
   if (toolbar) toolbar.style.display = count > 0 ? 'block' : 'none';
+
+  // Show common bulk actions for both admin and officers
+  if (commonActions) {
+    commonActions.style.display = count > 0 ? 'flex' : 'none';
+    commonActions.style.alignItems = 'center';
+  }
 
   // Show assign/distribute/delete only for admins
   const isAdmin = Boolean(window.currentUser && window.currentUser.role === 'admin');
@@ -1408,6 +1422,141 @@ function updateSelectionUI() {
 }
 
 // Bulk actions (admin-only buttons are hidden by CSS, but keep functions defined to avoid console errors)
+async function bulkCopyLeads() {
+  ensureSelectionState();
+  const ids = Array.from(window.__selectedLeadIds || []);
+  if (!ids.length) return;
+
+  // Convert selected ids to copy sources
+  const sources = ids.map(id => {
+    const lead = currentLeads.find(l => String(l.id) === String(id));
+    if (!lead) return null;
+    return {
+      batchName: lead.batch,
+      sheetName: lead.sheet || 'Main Leads',
+      leadId: lead.id
+    };
+  }).filter(Boolean);
+
+  if (!sources.length) {
+    showToast('No leads selected', 'error');
+    return;
+  }
+
+  // Open same modal but with a slightly different message and bulk API call
+  const modalId = 'copyLeadModal';
+  document.getElementById(modalId)?.remove();
+
+  const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+
+  const html = `
+    <div class="modal-overlay" id="${modalId}" onclick="closeLeadsActionModalOnOverlayClick(event, '${modalId}')">
+      <div class="modal-dialog" onclick="event.stopPropagation()" style="max-width: 620px;">
+        <div class="modal-header">
+          <h2><i class="fas fa-copy"></i> Copy ${sources.length} Leads</h2>
+          <button class="modal-close" onclick="closeLeadsActionModal('${modalId}')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <div style="color:#667085; font-size:13px; margin-bottom:12px;">
+            Copy selected leads to another batch/sheet. Copied leads will be treated as new leads.
+          </div>
+
+          <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group" style="margin:0;">
+              <label>Target Batch</label>
+              <select id="${modalId}_batch" class="form-control"></select>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label>Target Sheet</label>
+              <select id="${modalId}_sheet" class="form-control"></select>
+            </div>
+          </div>
+
+          <div id="${modalId}_msg" style="margin-top:10px; font-size:13px; color:#667085;"></div>
+        </div>
+        <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #eaecf0; padding-top:12px;">
+          <button type="button" class="btn btn-secondary" onclick="closeLeadsActionModal('${modalId}')">Cancel</button>
+          <button type="button" class="btn btn-primary" id="${modalId}_ok"><i class="fas fa-copy"></i> Copy</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.body.style.overflow = 'hidden';
+
+  const batchSel = document.getElementById(`${modalId}_batch`);
+  const sheetSel = document.getElementById(`${modalId}_sheet`);
+  const msgEl = document.getElementById(`${modalId}_msg`);
+  const okBtn = document.getElementById(`${modalId}_ok`);
+
+  msgEl.textContent = 'Loading batches...';
+
+  const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+  const r = await fetch('/api/programs/sidebar', { headers: authHeaders });
+  const j = await r.json();
+  const batches = (j.batches || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const sourceBatches = new Set(sources.map(s => String(s.batchName || '').trim()).filter(Boolean));
+  batchSel.innerHTML = batches.map(b => {
+    const bn = String(b.batch_name || '');
+    const disabled = sourceBatches.has(bn);
+    const label = disabled ? `${bn} (Not allowed)` : bn;
+    return `<option value=\"${escapeHtml(bn)}\" ${disabled ? 'disabled' : ''}>${escapeHtml(label)}</option>`;
+  }).join('');
+  const preferred = batches.find(b => b.is_current)?.batch_name || batches[0]?.batch_name || '';
+  const firstEnabled = (batches.find(b => !sourceBatches.has(String(b.batch_name)))?.batch_name) || '';
+  batchSel.value = (!sourceBatches.has(preferred)) ? preferred : firstEnabled;
+
+  async function loadSheetsForBatch(batchName) {
+    if (!batchName) {
+      sheetSel.innerHTML = '';
+      return;
+    }
+    msgEl.textContent = 'Loading sheets...';
+    const sr = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batchName)}`, { headers: authHeaders });
+    const sj = await sr.json();
+    const sheets = (sj.sheets || []).slice();
+    sheetSel.innerHTML = sheets.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    sheetSel.value = 'Main Leads';
+    msgEl.textContent = '';
+  }
+
+  await loadSheetsForBatch(batchSel.value);
+  batchSel.onchange = async () => loadSheetsForBatch(batchSel.value);
+
+  okBtn.onclick = async () => {
+    const targetBatchName = batchSel.value;
+    const targetSheetName = sheetSel.value;
+    if (!targetBatchName || !targetSheetName) {
+      msgEl.textContent = 'Please choose batch and sheet';
+      return;
+    }
+
+    okBtn.disabled = true;
+    msgEl.textContent = 'Copying...';
+
+    try {
+      const target = { batchName: targetBatchName, sheetName: targetSheetName };
+      const resp = isAdmin
+        ? await API.leads.copyAdminBulk({ sources, target })
+        : await API.leads.copyMyBulk({ sources, target });
+
+      const createdCount = resp.createdCount || resp.created_count || (resp.leads ? resp.leads.length : 0);
+      if (window.UI?.showToast) UI.showToast(`Copied ${createdCount} lead(s)`, 'success');
+
+      closeLeadsActionModal(modalId);
+      window.__selectedLeadIds?.clear();
+      await loadLeads();
+      updateSelectionUI();
+    } catch (e) {
+      msgEl.textContent = e.message || 'Copy failed';
+      if (window.UI?.showToast) UI.showToast(msgEl.textContent, 'error');
+    } finally {
+      okBtn.disabled = false;
+    }
+  };
+}
+
 async function bulkAssignLeads() {
   ensureSelectionState();
   const ids = Array.from(window.__selectedLeadIds || []);

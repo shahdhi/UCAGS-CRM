@@ -187,6 +187,16 @@ router.post('/intake', async (req, res) => {
       // ignore notification failures
     }
 
+    // Best-effort: sync lead status in crm_leads
+    try {
+      const { updateLeadStatusByPhoneAndBatch } = require('../crmLeads/crmLeadsService');
+      await updateLeadStatusByPhoneAndBatch({
+        canonicalPhone: row.phone_number,
+        batchName: registrationBatchName,
+        nextStatus: 'Registered'
+      });
+    } catch (_) {}
+
     res.json({ success: true, registration: data });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
@@ -360,7 +370,7 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
     // Snapshot registration info for payments
     const { data: regRow, error: regErr } = await sb
       .from('registrations')
-      .select('name,batch_name,program_id,program_name')
+      .select('name,phone_number,batch_name,program_id,program_name')
       .eq('id', id)
       .maybeSingle();
     if (regErr) throw regErr;
@@ -484,6 +494,16 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
         if (iErr) throw iErr;
       }
     }
+
+    // Best-effort: sync lead status in crm_leads when payment is saved
+    try {
+      const { updateLeadStatusByPhoneAndBatch } = require('../crmLeads/crmLeadsService');
+      await updateLeadStatusByPhoneAndBatch({
+        canonicalPhone: regRow?.phone_number,
+        batchName: batchName,
+        nextStatus: 'Enrolled'
+      });
+    } catch (_) {}
 
     res.json({ success: true, payments: saved ? [saved] : [] });
   } catch (e) {

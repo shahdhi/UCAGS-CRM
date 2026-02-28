@@ -212,6 +212,26 @@ const leadsAPI = {
   },
 
   /**
+   * Bulk copy leads (admin)
+   */
+  copyAdminBulk: async ({ sources, target }) => {
+    return fetchAPI('/crm-leads/admin/copy-bulk', {
+      method: 'POST',
+      body: JSON.stringify({ sources, target })
+    });
+  },
+
+  /**
+   * Bulk copy leads (officer)
+   */
+  copyMyBulk: async ({ sources, target }) => {
+    return fetchAPI('/crm-leads/my/copy-bulk', {
+      method: 'POST',
+      body: JSON.stringify({ sources, target })
+    });
+  },
+
+  /**
    * Distribute all unassigned leads (admin)
    */
   distributeUnassigned: async ({ batchName, sheetName, officers }) => {
