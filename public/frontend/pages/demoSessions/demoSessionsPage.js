@@ -47,12 +47,16 @@
   }
 
   let state = {
+    programId: '',
     batchName: '',
     sessions: [],
     selectedSessionId: '',
     invites: [],
     remindersByInvite: new Map(),
-    reminderInviteId: ''
+    reminderInviteId: '',
+    officerId: '',
+    _programs: [],
+    _batches: []
   };
 
   function toDatetimeLocalValue(d) {
@@ -118,6 +122,26 @@
     });
   }
 
+  function applyAttendanceSelectStyle(selEl) {
+    if (!selEl) return;
+    const v = (selEl.value || selEl.getAttribute('data-value') || '').toLowerCase();
+    selEl.style.fontWeight = '700';
+    if (v === 'attended') {
+      selEl.style.color = '#027a48';
+      selEl.style.borderColor = '#a6f4c5';
+      selEl.style.background = '#ecfdf3';
+    } else if (v === 'not attended') {
+      selEl.style.color = '#b42318';
+      selEl.style.borderColor = '#fecdca';
+      selEl.style.background = '#fef3f2';
+    } else {
+      selEl.style.color = '';
+      selEl.style.borderColor = '';
+      selEl.style.background = '';
+      selEl.style.fontWeight = '';
+    }
+  }
+
   function renderInvites() {
     const tbody = qs('demoInvitesTbody');
     if (!tbody) return;
@@ -147,7 +171,7 @@
           </td>
           <td style="min-width:160px;">${remHtml}</td>
           <td>
-            <select class="form-control" data-act="attendance" data-id="${escapeHtml(inv.id)}" style="min-width:140px;">
+            <select class="form-control demo-attendance-select" data-act="attendance" data-id="${escapeHtml(inv.id)}" data-value="${escapeHtml(inv.attendance || '')}" style="min-width:140px;">
               ${sel(inv.attendance, ['Unknown','Attended','Not attended'])}
             </select>
           </td>
@@ -164,6 +188,9 @@
     }).join('');
 
     tbody.innerHTML = rows || '<tr><td colspan="7" style="padding:14px; color:#667085;">No invites yet</td></tr>';
+
+    // Apply attendance colors
+    tbody.querySelectorAll('select[data-act="attendance"]').forEach(applyAttendanceSelectStyle);
 
     // Bind change handlers
     tbody.querySelectorAll('[data-act]').forEach(el => {
@@ -183,6 +210,7 @@
           patch[act] = el.value;
           try {
             await apiPatch(`/api/demo-sessions/invites/${encodeURIComponent(id)}`, patch);
+            if (act === 'attendance') applyAttendanceSelectStyle(el);
           } catch (e) {
             if (window.UI?.showToast) UI.showToast(e.message, 'error');
           }
@@ -228,8 +256,15 @@
   }
 
   async function loadInvites() {
-    if (!state.selectedSessionId) return;
-    const j = await apiGet(`/api/demo-sessions/invites?sessionId=${encodeURIComponent(state.selectedSessionId)}`);
+    if (!state.selectedSessionId) {
+      state.invites = [];
+      state.remindersByInvite = new Map();
+      renderInvites();
+      return;
+    }
+
+    const officerQ = state.officerId ? `&officerId=${encodeURIComponent(state.officerId)}` : '';
+    const j = await apiGet(`/api/demo-sessions/invites?sessionId=${encodeURIComponent(state.selectedSessionId)}${officerQ}`);
     state.invites = j.invites || [];
 
     state.remindersByInvite = new Map();
@@ -245,23 +280,108 @@
     renderInvites();
   }
 
-  async function loadBatchesIntoSelect() {
-    const sel = qs('demoBatchSelect');
+  async function loadOfficersIntoSelect() {
+    const sel = qs('demoOfficerSelect');
+    const isAdmin = window.currentUser?.role === 'admin' || document.body.classList.contains('admin');
     if (!sel) return;
 
+    if (!isAdmin) {
+      sel.style.display = 'none';
+      state.officerId = '';
+      return;
+    }
+
+    sel.style.display = '';
+
+    try {
+      const j = await apiGet('/api/users/officers');
+      const officers = j.officers || [];
+      // "All officers" option
+      const opts = [`<option value="">All officers</option>`].concat(
+        officers.map(o => `<option value="${escapeHtml(o.id)}">${escapeHtml(o.name || o.email || o.id)}</option>`)
+      );
+      sel.innerHTML = opts.join('');
+      sel.value = state.officerId || '';
+
+      sel.onchange = async () => {
+        state.officerId = sel.value || '';
+        await loadInvites();
+      };
+    } catch (e) {
+      // If officers endpoint fails, hide the control but keep page functional
+      sel.style.display = 'none';
+      state.officerId = '';
+    }
+  }
+
+  function pickLatestProgram(programs) {
+    const arr = (programs || []).slice();
+    // Prefer created_at desc when available; otherwise fall back to name
+    arr.sort((a, b) => {
+      const ad = a?.created_at ? new Date(a.created_at).getTime() : 0;
+      const bd = b?.created_at ? new Date(b.created_at).getTime() : 0;
+      if (bd !== ad) return bd - ad;
+      return String(a?.name || '').localeCompare(String(b?.name || ''));
+    });
+    return arr[0] || null;
+  }
+
+  function getBatchesForProgram(batches, programId) {
+    return (batches || []).filter(b => String(b.program_id) === String(programId));
+  }
+
+  function sortBatchesDesc(batches) {
+    return (batches || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+
+  async function loadProgramsAndBatches() {
     const auth = await authHeaders();
     const r = await fetch('/api/programs/sidebar', { headers: auth });
     const j = await r.json();
-    const batches = (j.batches || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    if (!j?.success) throw new Error(j?.error || 'Failed to load programs');
+    state._programs = j.programs || [];
+    state._batches = j.batches || [];
+  }
 
-    sel.innerHTML = batches.map(b => `<option value="${escapeHtml(b.batch_name)}">${escapeHtml(b.batch_name)}</option>`).join('');
+  async function loadProgramAndBatchSelects() {
+    const progSel = qs('demoProgramSelect');
+    const batchSel = qs('demoBatchSelect');
+    if (!progSel || !batchSel) return;
 
-    const current = batches.find(b => b.is_current);
-    state.batchName = current?.batch_name || (batches[0]?.batch_name || '');
-    sel.value = state.batchName;
+    await loadProgramsAndBatches();
 
-    sel.onchange = async () => {
-      state.batchName = sel.value;
+    const programs = state._programs || [];
+    progSel.innerHTML = programs.map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name || p.id)}</option>`).join('');
+
+    // Default program: latest program
+    if (!state.programId) {
+      const latest = pickLatestProgram(programs);
+      state.programId = latest?.id || (programs[0]?.id || '');
+    }
+    progSel.value = state.programId;
+
+    const rebuildBatches = () => {
+      const batchesFor = sortBatchesDesc(getBatchesForProgram(state._batches, state.programId));
+      batchSel.innerHTML = batchesFor.map(b => `<option value="${escapeHtml(b.batch_name)}">${escapeHtml(b.batch_name)}</option>`).join('');
+
+      const current = batchesFor.find(b => b.is_current);
+      state.batchName = current?.batch_name || (batchesFor[0]?.batch_name || '');
+      batchSel.value = state.batchName;
+    };
+
+    rebuildBatches();
+
+    progSel.onchange = async () => {
+      state.programId = progSel.value;
+      rebuildBatches();
+      state.selectedSessionId = '';
+      state.sessions = [];
+      state.invites = [];
+      await refreshAll();
+    };
+
+    batchSel.onchange = async () => {
+      state.batchName = batchSel.value;
       state.selectedSessionId = '';
       state.sessions = [];
       state.invites = [];
@@ -302,7 +422,8 @@
       window.__demoSessionsCurrentBatchListenerBound = true;
       window.addEventListener('currentBatchChanged', async () => {
         try {
-          await loadBatchesIntoSelect();
+          await loadProgramAndBatchSelects();
+          await loadOfficersIntoSelect();
           await refreshAll();
         } catch (e) {
           // ignore
@@ -310,7 +431,8 @@
       });
     }
 
-    await loadBatchesIntoSelect();
+    await loadProgramAndBatchSelects();
+    await loadOfficersIntoSelect();
 
     const refreshBtn = qs('demoSessionsRefreshBtn');
     if (refreshBtn && !refreshBtn.__bound) {

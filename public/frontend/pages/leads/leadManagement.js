@@ -796,6 +796,33 @@ async function openManageLeadModal(leadId) {
   document.body.insertAdjacentHTML('beforeend', modalHTML);
   document.body.style.overflow = 'hidden';
 
+  // Demo session tracking actions (remove invite)
+  const demoWrap = document.getElementById('demoSessionDetails');
+  if (demoWrap && !demoWrap.__bound) {
+    demoWrap.__bound = true;
+    demoWrap.onclick = async (ev) => {
+      const btn = ev.target.closest('[data-act="demo-remove-invite"]');
+      if (!btn) return;
+      const inviteId = btn.getAttribute('data-invite-id');
+      if (!inviteId) return;
+      if (!confirm('Remove this participant from the demo session?')) return;
+
+      try {
+        const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+        const res = await fetch(`/api/demo-sessions/invites/${encodeURIComponent(inviteId)}`, {
+          method: 'DELETE',
+          headers: authHeaders
+        });
+        const json = await res.json();
+        if (!json?.success) throw new Error(json?.error || 'Failed to remove demo invite');
+        if (window.UI?.showToast) UI.showToast('Removed from demo session', 'success');
+        await loadDemoSessionDetailsIntoModal(lead);
+      } catch (e) {
+        if (window.UI?.showToast) UI.showToast(e.message, 'error');
+      }
+    };
+  }
+
   // Load demo session details (read-only)
   try { await loadDemoSessionDetailsIntoModal(lead); } catch (_) { /* ignore */ }
 
@@ -1284,7 +1311,12 @@ async function loadDemoSessionDetailsIntoModal(lead) {
 
       return `
         <div style="padding:10px; border:1px solid #eaecf0; border-radius:12px; margin-top:8px;">
-          <div style="font-weight:800; color:#101828; margin-bottom:8px;">${hdr}</div>
+          <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; margin-bottom:8px;">
+            <div style="font-weight:800; color:#101828;">${hdr}</div>
+            <button type="button" class="btn btn-danger btn-sm" data-act="demo-remove-invite" data-invite-id="${escapeHtml(it.invite?.id || '')}" title="Remove from demo session">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
           <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
             ${badge('Status', it.invite?.invite_status)}
             ${badge('Attendance', it.invite?.attendance)}

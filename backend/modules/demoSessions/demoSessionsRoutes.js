@@ -43,7 +43,12 @@ router.get('/leads/:crmLeadId', isAdminOrOfficer, async (req, res) => {
 router.get('/invites', isAdminOrOfficer, async (req, res) => {
   try {
     const demoSessionId = req.query?.sessionId;
-    const invites = await svc.listInvites({ demoSessionId });
+
+    // Admin can optionally filter by officerId; officers are always forced to themselves
+    const isAdmin = req.user?.role === 'admin';
+    const officerId = isAdmin ? (req.query?.officerId || '') : (req.user?.id || '');
+
+    const invites = await svc.listInvites({ demoSessionId, officerId });
     res.json({ success: true, invites });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
@@ -69,6 +74,17 @@ router.patch('/invites/:id', isAdminOrOfficer, async (req, res) => {
     const inviteId = req.params.id;
     const actorUserId = req.user?.id;
     const invite = await svc.updateInvite({ inviteId, patch: req.body || {}, actorUserId });
+    res.json({ success: true, invite });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// DELETE /api/demo-sessions/invites/:id
+router.delete('/invites/:id', isAdminOrOfficer, async (req, res) => {
+  try {
+    const inviteId = req.params.id;
+    const invite = await svc.deleteInvite({ inviteId });
     res.json({ success: true, invite });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });

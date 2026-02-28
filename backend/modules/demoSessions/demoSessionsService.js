@@ -68,7 +68,25 @@ async function listSessions({ batchName }) {
   return data || [];
 }
 
-async function listInvites({ demoSessionId }) {
+async function listInvites({ demoSessionId, officerId }) {
+  const sb = requireSupabase();
+  const id = clean(demoSessionId);
+  if (!id) throw Object.assign(new Error('demoSessionId is required'), { status: 400 });
+
+  let q = sb
+    .from('demo_session_invites')
+    .select('*')
+    .eq('demo_session_id', id);
+
+  const oid = clean(officerId);
+  if (oid) q = q.eq('created_by', oid);
+
+  const { data, error } = await q.order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+async function inviteLeadToDemo({ batchName, demoNumber, lead, actorUserId, link }) {
   const sb = requireSupabase();
   const id = clean(demoSessionId);
   if (!id) throw Object.assign(new Error('demoSessionId is required'), { status: 400 });
@@ -183,6 +201,28 @@ async function addReminder({ inviteId, remindAt, note, actorUserId }) {
   return data;
 }
 
+async function deleteInvite({ inviteId }) {
+  const sb = requireSupabase();
+  const id = clean(inviteId);
+  if (!id) throw Object.assign(new Error('inviteId is required'), { status: 400 });
+
+  // Remove reminders first (in case FK cascade is not configured)
+  const { error: rerr } = await sb
+    .from('demo_invite_reminders')
+    .delete()
+    .eq('invite_id', id);
+  if (rerr) throw rerr;
+
+  const { data, error } = await sb
+    .from('demo_session_invites')
+    .delete()
+    .eq('id', id)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 async function listReminders({ inviteId }) {
   const sb = requireSupabase();
   const id = clean(inviteId);
@@ -244,5 +284,6 @@ module.exports = {
   updateInvite,
   addReminder,
   listReminders,
-  listLeadDemoInvites
+  listLeadDemoInvites,
+  deleteInvite
 };
