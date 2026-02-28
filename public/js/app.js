@@ -2556,9 +2556,18 @@ async function loadDashboard() {
                         if (better) best = { officer: o, agg: a };
                     }
 
-                    perfEl.textContent = best?.officer?.name
-                        ? `Performer of the week (overall tasks): ${best.officer.name}`
-                        : '';
+                    if (best?.officer?.name) {
+                        perfEl.innerHTML = `
+                          <div class="officer-stat leaderboard-row" style="margin:0; padding:8px 6px;">
+                            <div class="officer-name">
+                              <span class="leaderboard-rank"><i class=\"fas fa-trophy\" style=\"color:#d4af37;\"></i></span>
+                              <span class="leaderboard-name" title="${best.officer.name}">Performer of the week (overall tasks): ${best.officer.name}</span>
+                            </div>
+                          </div>
+                        `;
+                    } else {
+                        perfEl.innerHTML = '';
+                    }
                 } else {
                     if (perfEl) perfEl.textContent = '';
                 }
