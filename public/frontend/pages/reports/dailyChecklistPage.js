@@ -127,11 +127,10 @@
     const days = data?.days || [];
     const byDate = data?.byDate || {};
 
-    // We avoid a subtractive "score" (can go negative and look odd).
-    // Instead, we pick the leader by sorting using the requested priorities:
-    // 1) Highest number of reports submitted
-    // 2) Highest number of times call recordings received
-    // 3) Lowest leads to be contacted
+    // Pick leader by priority:
+    // 1) Highest reports submitted
+    // 2) Highest recordings received
+    // 3) Lowest leads-to-be-contacted ("not contacted on time")
     const agg = new Map();
     for (const o of officers) {
       agg.set(o.id, { reports: 0, recordings: 0, toContact: 0 });
@@ -168,7 +167,13 @@
       if (better) best = { officer: o, agg: a };
     }
 
-    return best;
+    const totals = {
+      reportsTotal: (days.length || 0) * 3,
+      recordingsTotal: (days.length || 0),
+      daysCount: days.length || 0
+    };
+
+    return best ? { ...best, totals } : null;
   }
 
   async function saveRecordingStatus({ dateISO, officerUserId, status }) {
@@ -287,8 +292,22 @@
     const leaderEl = $('dailyChecklistLeader');
     const detailEl = $('dailyChecklistLeaderDetails');
     if (leaderEl) leaderEl.textContent = leader?.officer?.name ? `${leader.officer.name}` : '—';
-    // No numeric score shown (can look negative depending on pending leads)
-    if (detailEl) detailEl.textContent = '';
+
+    if (detailEl) {
+      if (!leader?.agg || !leader?.totals) {
+        detailEl.textContent = '';
+      } else {
+        const r = leader.agg;
+        const t = leader.totals;
+        detailEl.innerHTML = `
+          <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:center;">
+            <div><strong>Reports submitted:</strong> ${r.reports}/${t.reportsTotal}</div>
+            <div><strong>Not contacted on time:</strong> ${r.toContact}</div>
+            <div><strong>Recordings received:</strong> ${r.recordings}/${t.recordingsTotal}</div>
+          </div>
+        `;
+      }
+    }
 
     if (msg) msg.textContent = `Showing ${json.startISO} to ${json.endISO}`;
 

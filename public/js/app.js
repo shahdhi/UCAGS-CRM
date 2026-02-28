@@ -2511,6 +2511,63 @@ async function loadDashboard() {
             }
         }
 
+        // Performer of the week (overall tasks) - derived from Daily Checklist leader
+        try {
+            const perfEl = document.getElementById('homePerformerOfWeek');
+            if (perfEl) {
+                const offsetMin = 330;
+                const today = new Date(Date.now() + offsetMin * 60 * 1000).toISOString().slice(0, 10);
+                const start = new Date(`${today}T00:00:00Z`);
+                start.setUTCDate(start.getUTCDate() - 6);
+                const startISO = start.toISOString().slice(0, 10);
+
+                const headers = await getAuthHeadersWithRetry();
+                const res = await fetch(`/api/reports/daily-checklist?start=${encodeURIComponent(startISO)}&days=7`, { headers });
+                const j = await res.json();
+                if (j?.success && Array.isArray(j.officers) && j.byDate) {
+                    // Compute leader using same priority logic (mirror of dailyChecklistPage)
+                    const officers = j.officers || [];
+                    const days = j.days || [];
+                    const byDate = j.byDate || {};
+
+                    const agg = new Map();
+                    for (const o of officers) agg.set(o.id, { reports: 0, recordings: 0, toContact: 0 });
+
+                    for (const d of days) {
+                        for (const o of officers) {
+                            const c = byDate?.[d]?.[o.id];
+                            if (!c) continue;
+                            const a = agg.get(o.id);
+                            a.reports += (c.slot1 ? 1 : 0) + (c.slot2 ? 1 : 0) + (c.slot3 ? 1 : 0);
+                            a.recordings += (c.callRecording === 'received') ? 1 : 0;
+                            a.toContact += Number(c.leadsToBeContacted || 0);
+                        }
+                    }
+
+                    let best = null;
+                    for (const o of officers) {
+                        const a = agg.get(o.id) || { reports: 0, recordings: 0, toContact: 0 };
+                        if (!best) { best = { officer: o, agg: a }; continue; }
+                        const b = best.agg;
+                        const better =
+                            (a.reports > b.reports) ||
+                            (a.reports === b.reports && a.recordings > b.recordings) ||
+                            (a.reports === b.reports && a.recordings === b.recordings && a.toContact < b.toContact);
+                        if (better) best = { officer: o, agg: a };
+                    }
+
+                    perfEl.textContent = best?.officer?.name
+                        ? `Performer of the week (overall tasks): ${best.officer.name}`
+                        : '';
+                } else {
+                    if (perfEl) perfEl.textContent = '';
+                }
+            }
+        } catch (e) {
+            const perfEl = document.getElementById('homePerformerOfWeek');
+            if (perfEl) perfEl.textContent = '';
+        }
+
         // Action center (Admin)
         const ac = analytics.actionCenter || null;
         const acEl = document.getElementById('homeActionCenter');
