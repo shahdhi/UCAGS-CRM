@@ -57,7 +57,30 @@ router.get('/coordinator-batches', require('../../../server/middleware/auth').is
 
     const { data, error } = await q;
     if (error) throw error;
-    res.json({ success: true, batches: data || [] });
+
+    const batches = data || [];
+    const programIds = Array.from(new Set(batches.map(b => b.program_id).filter(Boolean)));
+
+    let programsById = new Map();
+    if (programIds.length) {
+      const { data: programs, error: pErr } = await sb
+        .from('programs')
+        .select('id,name,created_at')
+        .in('id', programIds);
+      if (pErr) throw pErr;
+      programsById = new Map((programs || []).map(p => [String(p.id), p]));
+    }
+
+    const enriched = batches.map(b => {
+      const p = programsById.get(String(b.program_id)) || null;
+      return {
+        ...b,
+        program_name: p?.name || null,
+        program_created_at: p?.created_at || null
+      };
+    });
+
+    res.json({ success: true, batches: enriched });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }
