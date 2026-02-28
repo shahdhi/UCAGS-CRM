@@ -164,6 +164,12 @@ async function loadLeadManagement() {
   // Cache key depends on officer + batch + sheet
   const batchFilter = window.officerBatchFilter;
   const sheet = window.officerSheetFilter || 'Main Leads';
+
+  // Update page title to show current sheet
+  try {
+    const titleEl = document.getElementById('leadManagementViewTitle');
+    if (titleEl) titleEl.textContent = sheet;
+  } catch (_) {}
   const officerKey = window.currentUser?.id || window.currentUser?.email || window.currentUser?.name || 'me';
   const cacheKey = `leads:management:${encodeURIComponent(officerKey)}:${encodeURIComponent(batchFilter||'all')}:${encodeURIComponent(sheet)}`;
 
@@ -302,6 +308,16 @@ async function loadLeadManagement() {
         btn.style.color = (name === currentSheet) ? '#592c88' : '#344054';
         btn.textContent = name;
         btn.addEventListener('click', () => {
+          // Instant active UI (don't wait for reload)
+          try {
+            tabsEl.querySelectorAll('button.btn').forEach(b => {
+              const active = (b.textContent === name);
+              b.style.border = active ? '1px solid #592c88' : '1px solid #eaecf0';
+              b.style.background = active ? '#f4ebff' : '#fff';
+              b.style.color = active ? '#592c88' : '#344054';
+            });
+          } catch (_) {}
+
           window.officerSheetFilter = name;
           window.location.hash = `lead-management-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`;
           initLeadManagementPage();
