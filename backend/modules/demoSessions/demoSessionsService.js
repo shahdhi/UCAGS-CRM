@@ -197,6 +197,45 @@ async function listReminders({ inviteId }) {
   return data || [];
 }
 
+async function listLeadDemoInvites({ crmLeadId }) {
+  const sb = requireSupabase();
+  const id = clean(crmLeadId);
+  if (!id) throw Object.assign(new Error('crmLeadId is required'), { status: 400 });
+
+  // Fetch invites + session details
+  const { data: invites, error } = await sb
+    .from('demo_session_invites')
+    .select('*, demo_sessions (*)')
+    .eq('crm_lead_id', id)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+
+  const rows = invites || [];
+  if (!rows.length) return [];
+
+  // Fetch reminders for all invite ids in one query
+  const inviteIds = rows.map(r => r.id);
+  const { data: rems, error: rerr } = await sb
+    .from('demo_invite_reminders')
+    .select('*')
+    .in('invite_id', inviteIds)
+    .order('reminder_number', { ascending: true });
+  if (rerr) throw rerr;
+
+  const byInvite = new Map();
+  (rems || []).forEach(r => {
+    const arr = byInvite.get(r.invite_id) || [];
+    arr.push(r);
+    byInvite.set(r.invite_id, arr);
+  });
+
+  return rows.map(inv => ({
+    invite: inv,
+    session: inv.demo_sessions || null,
+    reminders: byInvite.get(inv.id) || []
+  }));
+}
+
 module.exports = {
   ensureSession,
   listSessions,
@@ -204,5 +243,6 @@ module.exports = {
   inviteLeadToDemo,
   updateInvite,
   addReminder,
-  listReminders
+  listReminders,
+  listLeadDemoInvites
 };

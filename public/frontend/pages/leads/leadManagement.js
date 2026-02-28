@@ -743,6 +743,12 @@ async function openManageLeadModal(leadId) {
               </div>
             </div>
 
+            <!-- Demo Session Details (read-only; reflects Demo Sessions page updates) -->
+            <div style="background:#ffffff; padding: 12px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #eaecf0;">
+              <div style="font-weight:900; color:#101828; margin-bottom:6px;"><i class=\"fas fa-bell\"></i> Demo Session Tracking</div>
+              <div id="demoSessionDetails" style="font-size:12px; color:#667085;">Loading demo session details...</div>
+            </div>
+
             <!-- Contact Information (Read-only reference) -->
             <div style="background: #f5f5f5; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
               <strong>Contact:</strong> 
@@ -790,6 +796,9 @@ async function openManageLeadModal(leadId) {
   document.body.insertAdjacentHTML('beforeend', modalHTML);
   document.body.style.overflow = 'hidden';
 
+  // Load demo session details (read-only)
+  try { await loadDemoSessionDetailsIntoModal(lead); } catch (_) { /* ignore */ }
+
   // Demo invite actions
   try {
     const goBtn = document.getElementById('demoGoToPageBtn');
@@ -831,6 +840,9 @@ async function openManageLeadModal(leadId) {
 
           if (msgEl) msgEl.textContent = `Invited to Demo ${demoNumber}`;
           if (window.UI?.showToast) UI.showToast(`Invited ${lead.name} to Demo ${demoNumber}`, 'success');
+
+          // Refresh tracking block so Lead Management reflects latest Demo Sessions page values
+          try { await loadDemoSessionDetailsIntoModal(lead); } catch (_) { /* ignore */ }
         } catch (e) {
           if (msgEl) msgEl.textContent = e.message;
           if (window.UI?.showToast) UI.showToast(e.message, 'error');
@@ -1222,6 +1234,74 @@ function updateFollowUpCounter() {
 /**
  * Show toast notification
  */
+async function loadDemoSessionDetailsIntoModal(lead) {
+  const wrap = document.getElementById('demoSessionDetails');
+  if (!wrap) return;
+
+  const crmLeadId = lead?.supabaseId;
+  if (!crmLeadId) {
+    wrap.textContent = 'Demo session details not available (missing lead id).';
+    return;
+  }
+
+  try {
+    wrap.textContent = 'Loading demo session details...';
+    const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+    const res = await fetch(`/api/demo-sessions/leads/${encodeURIComponent(crmLeadId)}`, { headers: authHeaders });
+    const json = await res.json();
+    if (!json?.success) throw new Error(json?.error || 'Failed to load demo session details');
+
+    const items = json.items || [];
+    if (!items.length) {
+      wrap.innerHTML = '<span style="color:#667085;">No demo session invites yet.</span>';
+      return;
+    }
+
+    const badge = (label, value) => {
+      if (!value) return '';
+      return `<span class="badge" style="background:#f2f4f7; color:#344054; border:1px solid #eaecf0; margin-right:6px;">${escapeHtml(label)}: ${escapeHtml(value)}</span>`;
+    };
+
+    const renderReminders = (rems) => {
+      const arr = rems || [];
+      if (!arr.length) return '<span style="color:#98a2b3;">No reminders</span>';
+      return arr.map(r => {
+        const when = r.sent_at ? new Date(r.sent_at).toLocaleString() : '';
+        const note = (r.note || '').trim();
+        const tip = [when ? `Time: ${when}` : '', note ? `Note: ${note}` : ''].filter(Boolean).join('\n');
+        const titleAttr = tip ? ` title="${escapeHtml(tip)}"` : '';
+        const aria = tip ? ` aria-label="${escapeHtml(tip)}"` : '';
+        return `<span class="badge"${titleAttr}${aria} tabindex="0" style="background:#f2f4f7; color:#344054; border:1px solid #eaecf0; margin-right:6px; cursor:help;">R${escapeHtml(r.reminder_number || '')}</span>`;
+      }).join('');
+    };
+
+    wrap.innerHTML = items.map(it => {
+      const inv = it.invite || it.invite; // compatibility
+      const session = it.session || it.demo_session || null;
+      const title = session?.title || (session?.demo_number ? `Demo ${session.demo_number}` : 'Demo session');
+      const sched = session?.scheduled_at ? new Date(session.scheduled_at).toLocaleString() : '';
+      const hdr = `${escapeHtml(title)}${sched ? ` <span style=\"color:#667085;\">(${escapeHtml(sched)})</span>` : ''}`;
+
+      return `
+        <div style="padding:10px; border:1px solid #eaecf0; border-radius:12px; margin-top:8px;">
+          <div style="font-weight:800; color:#101828; margin-bottom:8px;">${hdr}</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+            ${badge('Status', it.invite?.invite_status)}
+            ${badge('Attendance', it.invite?.attendance)}
+            ${badge('Response', it.invite?.response)}
+          </div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+            <span style="color:#667085;">Reminders:</span>
+            ${renderReminders(it.reminders)}
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    wrap.textContent = e.message || 'Failed to load demo session details';
+  }
+}
+
 function showToast(message, type = 'info') {
   // Use global toast function if available
   if (window.UI && window.UI.showToast) {

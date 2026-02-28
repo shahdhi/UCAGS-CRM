@@ -28,6 +28,17 @@ router.post('/sessions', isAdminOrOfficer, async (req, res) => {
   }
 });
 
+// GET /api/demo-sessions/leads/:crmLeadId
+router.get('/leads/:crmLeadId', isAdminOrOfficer, async (req, res) => {
+  try {
+    const crmLeadId = req.params.crmLeadId;
+    const items = await svc.listLeadDemoInvites({ crmLeadId });
+    res.json({ success: true, items });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 // GET /api/demo-sessions/invites?sessionId=...
 router.get('/invites', isAdminOrOfficer, async (req, res) => {
   try {
