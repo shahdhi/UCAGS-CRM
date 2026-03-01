@@ -197,15 +197,27 @@
         }
         const r = await fetch(`/api/payment-setup/batches/${encodeURIComponent(batchName)}`, { headers: authHeaders });
         const j = await r.json();
+
+        const methodSel = qs('registrationPaymentMethod');
+        const planSel = qs('registrationPaymentPlan');
+
         if (j.success) {
-          const methodSel = qs('registrationPaymentMethod');
-          const planSel = qs('registrationPaymentPlan');
           if (methodSel) {
             methodSel.innerHTML = '<option value="">Select</option>' + (j.methods || []).map(m => `<option value="${escapeHtml(m.method_name)}">${escapeHtml(m.method_name)}</option>`).join('');
             methodSel.disabled = false;
           }
           if (planSel) {
             planSel.innerHTML = '<option value="">Select</option>' + (j.plans || []).map(p => `<option value="${escapeHtml(p.plan_name)}">${escapeHtml(p.plan_name)}</option>`).join('');
+            planSel.disabled = false;
+          }
+        } else {
+          // Fall back to manual entry (do not block UI)
+          if (methodSel) {
+            methodSel.innerHTML = '<option value="">Select</option>';
+            methodSel.disabled = false;
+          }
+          if (planSel) {
+            planSel.innerHTML = '<option value="">Select</option>';
             planSel.disabled = false;
           }
         }
@@ -216,8 +228,32 @@
         const payRes = await window.API.registrations.listPayments(reg.id);
         const p = (payRes.payments || [])[0];
         if (p) {
-          if (qs('registrationPaymentMethod')) qs('registrationPaymentMethod').value = p.payment_method || '';
-          if (qs('registrationPaymentPlan')) qs('registrationPaymentPlan').value = p.payment_plan || '';
+          const methodSel = qs('registrationPaymentMethod');
+          const planSel = qs('registrationPaymentPlan');
+
+          // If the saved value isn't present in the dropdown (common when setup list is missing/outdated), inject it.
+          if (methodSel && p.payment_method) {
+            const val = String(p.payment_method);
+            if (![...methodSel.options].some(o => o.value === val)) {
+              const opt = document.createElement('option');
+              opt.value = val;
+              opt.textContent = val;
+              methodSel.appendChild(opt);
+            }
+            methodSel.value = val;
+          }
+
+          if (planSel && p.payment_plan) {
+            const val = String(p.payment_plan);
+            if (![...planSel.options].some(o => o.value === val)) {
+              const opt = document.createElement('option');
+              opt.value = val;
+              opt.textContent = val;
+              planSel.appendChild(opt);
+            }
+            planSel.value = val;
+          }
+
           if (qs('registrationPaymentDate')) qs('registrationPaymentDate').value = p.payment_date || '';
           if (qs('registrationPaymentAmount')) qs('registrationPaymentAmount').value = String(p.amount ?? '');
           if (qs('registrationReceiptReceived')) qs('registrationReceiptReceived').checked = !!(p.slip_received || p.receipt_received);
