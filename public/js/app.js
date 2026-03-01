@@ -2328,6 +2328,44 @@ function setupEventListeners() {
 let __homeFunnelChart = null;
 let __homeConfirmedLineChart = null;
 
+// Standardized 3-state loading pattern for Home dashboard
+window.__homeDashboardState = window.__homeDashboardState || {
+    data: null,
+    loading: false,
+    error: ''
+};
+
+function renderHomeDashboard(state) {
+    const acEl = document.getElementById('homeActionCenter');
+    const officerAcEl = document.getElementById('homeOfficerActionCenter');
+    const lbEl = document.getElementById('homeLeaderboard');
+    const perfEl = document.getElementById('homePerformerOfWeek');
+
+    const skelLines = (n = 5) => Array.from({ length: n }).map(() =>
+        `<div class="table-skel-line" style="height:14px; width:${40 + Math.floor(Math.random()*50)}%; margin:10px 0;"></div>`
+    ).join('');
+
+    if (state.loading) {
+        if (acEl) acEl.innerHTML = `<div class="home-skel">${skelLines(6)}</div>`;
+        if (officerAcEl) officerAcEl.innerHTML = `<div class="home-skel">${skelLines(6)}</div>`;
+        if (lbEl) lbEl.innerHTML = `<div class="home-skel">${skelLines(6)}</div>`;
+        if (perfEl) perfEl.innerHTML = '';
+        return;
+    }
+
+    if (state.error) {
+        const errHtml = `<p class="loading" style="color:#b42318;">${escapeHtml(state.error)}</p>`;
+        if (acEl) acEl.innerHTML = errHtml;
+        if (officerAcEl) officerAcEl.innerHTML = errHtml;
+        if (lbEl) lbEl.innerHTML = errHtml;
+        if (perfEl) perfEl.innerHTML = '';
+        return;
+    }
+
+    // Success: rendering is handled by loadDashboard() using state.data
+}
+
+
 function fmtPct(x) {
     const n = Number(x || 0);
     if (!Number.isFinite(n)) return '0%';
@@ -2348,60 +2386,62 @@ function setDefaultHomeRange() {
 }
 
 async function loadDashboard() {
+    // Always keep the "new enquiries" badge working (do not block UI)
     try {
-        // Always keep the "new enquiries" badge working
-        try {
-            const statsResponse = await API.dashboard.getStats();
-            const badgeEl = document.getElementById('newEnquiriesCount');
-            if (badgeEl) badgeEl.textContent = statsResponse.stats?.new || 0;
-        } catch (e) {
-            // ignore badge failures
-        }
+        const statsResponse = await API.dashboard.getStats();
+        const badgeEl = document.getElementById('newEnquiriesCount');
+        if (badgeEl) badgeEl.textContent = statsResponse.stats?.new || 0;
+    } catch (e) {
+        // ignore badge failures
+    }
 
-        if (!currentUser) {
-            return;
-        }
+    if (!currentUser) return;
 
-        const fromInputEl = document.getElementById('homeFromDate');
-        const toInputEl = document.getElementById('homeToDate');
+    // Initialize range (equivalent to "on mount")
+    setDefaultHomeRange();
 
-        const from = fromInputEl?.value || '';
-        const to = toInputEl?.value || '';
+    // Bind buttons once
+    const applyBtn = document.getElementById('homeApplyRangeBtn');
+    if (applyBtn && !applyBtn.__bound) {
+        applyBtn.__bound = true;
+        applyBtn.addEventListener('click', () => loadDashboard().catch(console.error));
+    }
+    const last30Btn = document.getElementById('homeThisMonthBtn');
+    if (last30Btn && !last30Btn.__bound) {
+        last30Btn.__bound = true;
+        last30Btn.addEventListener('click', () => {
+            const toD = new Date();
+            const fromD = new Date(Date.now() - 29 * 24 * 3600 * 1000);
+            const fromEl = document.getElementById('homeFromDate');
+            const toEl = document.getElementById('homeToDate');
+            if (fromEl) fromEl.value = isoDate(fromD);
+            if (toEl) toEl.value = isoDate(toD);
+            loadDashboard().catch(console.error);
+        });
+    }
 
-        // Bind buttons once
-        const applyBtn = document.getElementById('homeApplyRangeBtn');
-        if (applyBtn && !applyBtn.__bound) {
-            applyBtn.__bound = true;
-            applyBtn.addEventListener('click', () => loadDashboard().catch(console.error));
-        }
-        const last30Btn = document.getElementById('homeThisMonthBtn');
-        if (last30Btn && !last30Btn.__bound) {
-            last30Btn.__bound = true;
-            last30Btn.addEventListener('click', () => {
-                const toD = new Date();
-                const fromD = new Date(Date.now() - 29 * 24 * 3600 * 1000);
-                const fromEl = document.getElementById('homeFromDate');
-                const toEl = document.getElementById('homeToDate');
-                if (fromEl) fromEl.value = isoDate(fromD);
-                if (toEl) toEl.value = isoDate(toD);
-                loadDashboard().catch(console.error);
-            });
-        }
+    const fromInputEl = document.getElementById('homeFromDate');
+    const toInputEl = document.getElementById('homeToDate');
+    const from = fromInputEl?.value || '';
+    const to = toInputEl?.value || '';
 
-        // Stable loading placeholders (avoid layout jumps)
-        const acLoadingEl = document.getElementById('homeActionCenter');
-        const officerAcLoadingEl = document.getElementById('homeOfficerActionCenter');
-        const lbLoadingEl = document.getElementById('homeLeaderboard');
+    // 3-state pattern
+    const state = window.__homeDashboardState;
+    state.loading = true;
+    state.error = '';
+    renderHomeDashboard(state);
 
-        const skelLines = (n = 5) => Array.from({ length: n }).map(() =>
-          `<div class="table-skel-line" style="height:14px; width:${40 + Math.floor(Math.random()*50)}%; margin:10px 0;"></div>`
-        ).join('');
-
-        if (acLoadingEl) acLoadingEl.innerHTML = `<div class="home-skel">${skelLines(6)}</div>`;
-        if (officerAcLoadingEl) officerAcLoadingEl.innerHTML = `<div class="home-skel">${skelLines(6)}</div>`;
-        if (lbLoadingEl) lbLoadingEl.innerHTML = `<div class="home-skel">${skelLines(6)}</div>`;
-
+    try {
         const analytics = await API.dashboard.getAnalytics({ from, to });
+        state.data = analytics;
+
+        // If range inputs are empty, default them to server-chosen range (current batch start -> today)
+        if (fromInputEl && !fromInputEl.value && analytics?.range?.from) fromInputEl.value = analytics.range.from;
+        if (toInputEl && !toInputEl.value && analytics?.range?.to) toInputEl.value = analytics.range.to;
+
+        // Proceed to render below (success path)
+
+
 
         // If range inputs are empty, default them to server-chosen range (current batch start -> today)
         if (fromInputEl && !fromInputEl.value && analytics?.range?.from) fromInputEl.value = analytics.range.from;
@@ -2825,7 +2865,12 @@ async function loadDashboard() {
 
     } catch (error) {
         console.error('Error loading dashboard:', error);
-        UI.showToast('Failed to load dashboard data', 'error');
+        state.error = error?.message || 'Failed to load dashboard data';
+        if (window.UI?.showToast) UI.showToast(state.error, 'error');
+    } finally {
+        state.loading = false;
+        // On error, render error placeholders; on success, rendering already happened below.
+        if (state.error) renderHomeDashboard(state);
     }
 }
 
