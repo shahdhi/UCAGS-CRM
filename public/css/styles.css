@@ -1581,6 +1581,26 @@ body {
   }
 }
 
+/* Demo Sessions + Batch Management (Officer): stable UI (no hover lift/floating) */
+#demoSessionsView .dashboard-card,
+#demoSessionsView .dashboard-card:hover,
+#demoSessionsView .dashboard-card:active,
+#batchManagementView .dashboard-card,
+#batchManagementView .dashboard-card:hover,
+#batchManagementView .dashboard-card:active {
+    transition: none !important;
+    transform: none !important;
+    animation: none !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+#demoSessionsView .btn:hover,
+#demoSessionsView .btn:active,
+#batchManagementView .btn:hover,
+#batchManagementView .btn:active {
+    transform: none !important;
+}
+
 /* Demo Sessions tables: prevent hover scaling from overlapping the card */
 #demoSessionsView .table-container {
     overflow-x: auto;
