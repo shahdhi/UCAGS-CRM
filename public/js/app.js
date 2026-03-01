@@ -2558,12 +2558,12 @@ async function loadDashboard() {
 
                     if (best?.officer?.name) {
                         perfEl.innerHTML = `
-                          <div class="officer-stat leaderboard-row" style="margin:0; padding:8px 6px;">
-                            <div class="officer-name">
-                              <span class="leaderboard-rank"><i class=\"fas fa-trophy\" style=\"color:#d4af37;\"></i></span>
-                              <span class="leaderboard-name" title="Performer of the week">Performer of the week (overall tasks)</span>
+                          <div class="officer-stat leaderboard-row" style="margin:0; padding:8px 6px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:nowrap;">
+                            <div class="officer-name" style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
+                              <span class="leaderboard-rank" style="flex:0 0 auto;"><i class=\"fas fa-trophy\" style=\"color:#d4af37;\"></i></span>
+                              <span class="leaderboard-name" title="Performer of the week" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Performer of the week (overall tasks)</span>
                             </div>
-                            <div class="leaderboard-metrics" style="justify-content:flex-end;">
+                            <div class="leaderboard-metrics" style="display:flex; justify-content:flex-end; flex:0 0 auto; white-space:nowrap;">
                               <div class="officer-count" style="font-weight:800;">${best.officer.name}</div>
                             </div>
                           </div>
