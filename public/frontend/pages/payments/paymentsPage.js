@@ -49,7 +49,10 @@
 
     openModal('paymentDetailsModal');
 
-    const res = await window.API.payments.adminListForRegistration(registrationId);
+    const isAdmin = String(window.currentUser?.role || '').toLowerCase() === 'admin';
+    const res = isAdmin
+      ? await window.API.payments.adminListForRegistration(registrationId)
+      : await window.API.payments.coordinatorListForRegistration(registrationId);
     const rawRows = res.payments || [];
 
     // De-duplicate rows by plan+installment_no (keep latest), to avoid showing duplicates
@@ -893,14 +896,26 @@
 
     openModal('paymentUpdateModal');
 
+    const showModalError = (msg) => {
+      if (body) {
+        body.innerHTML = `<div style="padding:10px 12px; border:1px solid #fecdca; background:#fffbfa; border-radius:12px; color:#b42318; font-weight:700;">${escapeHtml(msg || 'Failed to load payment')}</div>`;
+      }
+      if (saveBtn) saveBtn.disabled = true;
+    };
+
     // Find registrationId from currently loaded summary (fast path)
     const sumRow = (window.__paymentsLastSummary || []).find(r => String(r.id) === String(pid));
     const registrationId = sumRow?.registration_id;
     if (!registrationId) {
-      throw new Error('Unable to resolve registration for this payment');
+      showModalError('Unable to resolve registration for this payment');
+      return;
     }
 
-    const res = await window.API.payments.adminListForRegistration(registrationId);
+    const isAdmin = String(window.currentUser?.role || '').toLowerCase() === 'admin';
+    const res = isAdmin
+      ? await window.API.payments.adminListForRegistration(registrationId)
+      : await window.API.payments.coordinatorListForRegistration(registrationId);
+
     const payments = res.payments || [];
     const selected = payments.find(p => String(p.id) === String(pid)) || payments[0];
 
@@ -1112,7 +1127,12 @@
               email_sent: !!qs('upPayEmail')?.checked,
               whatsapp_sent: !!qs('upPayWa')?.checked
             };
-            await window.API.payments.adminUpdate(selected.id, payload);
+            const isAdmin = String(window.currentUser?.role || '').toLowerCase() === 'admin';
+            if (isAdmin) {
+              await window.API.payments.adminUpdate(selected.id, payload);
+            } else {
+              await window.API.payments.coordinatorUpdate(selected.id, payload);
+            }
 
             const isUndo = !!selected?.is_confirmed;
             let r = null;
@@ -1173,9 +1193,18 @@
             whatsapp_sent: !!qs('upPayWa')?.checked
           };
 
-          await window.API.payments.adminUpdate(selected.id, payload);
-          if (window.Cache) window.Cache.invalidatePrefix('payments:adminSummary');
-          await loadPayments();
+          const isAdmin = String(window.currentUser?.role || '').toLowerCase() === 'admin';
+          if (isAdmin) {
+            await window.API.payments.adminUpdate(selected.id, payload);
+            if (window.Cache) window.Cache.invalidatePrefix('payments:adminSummary');
+            await loadPayments();
+          } else {
+            await window.API.payments.coordinatorUpdate(selected.id, payload);
+            // Refresh coordinator table if present
+            if (window.initBatchManagementPage) {
+              // no-op; batchManagementPage manages its own refresh
+            }
+          }
           if (window.UI && UI.showToast) UI.showToast('Saved', 'success');
           // keep modal open so admin can confirm & download receipt
           // closeModal('paymentUpdateModal');
