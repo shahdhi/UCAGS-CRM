@@ -324,7 +324,20 @@
 
   async function loadPayments() {
     const tbody = qs('batchMgmtTableBody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="loading">Loading payments...</td></tr>`;
+    if (tbody) {
+      const skelRow = () => `
+        <tr class="table-skel-row">
+          <td><div class="table-skel-line" style="width:60%"></div></td>
+          <td><div class="table-skel-line" style="width:50%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:30%"></div></td>
+          <td><div class="table-skel-line" style="width:25%"></div></td>
+          <td><div class="table-skel-line" style="width:40%"></div></td>
+        </tr>
+      `;
+      tbody.innerHTML = Array.from({ length: 8 }).map(skelRow).join('');
+    }
 
     if (!state.selectedProgramId || !state.selectedBatchName) {
       if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="empty">Select a program and batch</td></tr>`;

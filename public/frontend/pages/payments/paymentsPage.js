@@ -386,7 +386,7 @@
       btn.onclick = async () => {
         selectedProgramId = p.id;
         await renderProgramTabs();
-        await loadPayments();
+        await loadPayments({ showSkeleton: true });
       };
       tabs.appendChild(btn);
     });
@@ -416,7 +416,7 @@
 
     sel.addEventListener('change', () => {
       selectedStatus = sel.value || 'all';
-      loadPayments().catch(console.error);
+      loadPayments({ showSkeleton: true }).catch(console.error);
     });
   }
 
@@ -457,7 +457,7 @@
           if (statusSel) statusSel.value = 'all';
         }
 
-        loadPayments().catch(console.error);
+        loadPayments({ showSkeleton: true }).catch(console.error);
       };
       wrap.appendChild(btn);
     });
@@ -832,7 +832,7 @@
       batchSel.__bound = true;
       batchSel.addEventListener('change', () => {
         selectedBatchName = batchSel.value;
-        loadPayments().catch(console.error);
+        loadPayments({ showSkeleton: true }).catch(console.error);
       });
     }
 
@@ -840,7 +840,7 @@
       statusSel.__bound = true;
       statusSel.addEventListener('change', () => {
         selectedStatus = statusSel.value || 'all';
-        loadPayments().catch(console.error);
+        loadPayments({ showSkeleton: true }).catch(console.error);
       });
     }
 
@@ -1115,7 +1115,7 @@
         btn.addEventListener('click', async () => {
           try {
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Working';
+            btn.textContent = 'Working...';
 
             // Save latest edits first
             const payload = {
@@ -1181,7 +1181,7 @@
       saveBtn.onclick = async () => {
         try {
           saveBtn.disabled = true;
-          saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving';
+          saveBtn.textContent = 'Saving...';
 
           const payload = {
             payment_method: qs('upPayMethod')?.value || null,

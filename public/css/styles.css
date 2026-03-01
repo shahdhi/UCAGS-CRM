@@ -1589,6 +1589,34 @@ body {
     box-shadow: var(--shadow-sm) !important;
 }
 
+/* Batch management table hover: highlight only (no lift/scale) */
+#batchManagementView .data-table tbody tr,
+#batchManagementView .data-table tbody tr:hover,
+#batchManagementView .data-table tbody tr:active {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Batch management: align Confirmed column header and values */
+#batchManagementView #batchMgmtTable th:nth-child(6),
+#batchManagementView #batchMgmtTable td:nth-child(6) {
+    text-align: center;
+}
+
+#batchManagementView #batchMgmtTable td:nth-child(6) {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+/* Keep batch management confirm text perfectly centered */
+#batchManagementView #batchMgmtTable td:nth-child(6) > span {
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+}
+
+
+
 #demoSessionsView .btn:hover,
 #demoSessionsView .btn:active,
 #batchManagementView .btn:hover,
