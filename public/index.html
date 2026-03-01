@@ -64,7 +64,6 @@
             </div>
 
             <nav class="sidebar-nav">
-                <!-- Main -->
                 <a href="#" class="nav-item active" data-page="home">
                     <i class="fas fa-home"></i>
                     <span>Home</span>
@@ -80,7 +79,7 @@
                     <span>Contacts</span>
                 </a>
 
-                <!-- Leads (Admin + Officer) -->
+                <!-- Leads -->
                 <div class="nav-section officer-only" id="officerLeadsSection">
                     <div class="nav-section-header">
                         <i class="fas fa-users"></i>
@@ -141,14 +140,14 @@
                     <span>Registrations</span>
                 </a>
 
-                <a href="#" class="nav-item officer-only" data-page="batch-management">
-                    <i class="fas fa-money-check-dollar"></i>
-                    <span>Batch management</span>
-                </a>
-
                 <a href="#" class="nav-item admin-only" data-page="payments">
                     <i class="fas fa-money-check-dollar"></i>
                     <span>Payments</span>
+                </a>
+
+                <a href="#" class="nav-item officer-only" data-page="batch-management">
+                    <i class="fas fa-money-check-dollar"></i>
+                    <span>Batch management</span>
                 </a>
 
                 <a href="#" class="nav-item admin-only" data-page="students">
@@ -156,6 +155,7 @@
                     <span>Students</span>
                 </a>
 
+                <div class="nav-divider admin-only"></div>
                 <div class="nav-divider officer-only"></div>
 
                 <a href="#" class="nav-item" data-page="whatsapp">
@@ -175,9 +175,15 @@
                     <span class="badge badge-secondary">Soon</span>
                 </a>
 
+                <div class="nav-divider admin-only"></div>
                 <div class="nav-divider officer-only"></div>
 
                 <a href="#" class="nav-item officer-only" data-page="attendance">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Staff Attendance</span>
+                </a>
+
+                <a href="#" class="nav-item admin-only" data-page="attendance">
                     <i class="fas fa-clipboard-check"></i>
                     <span>Staff Attendance</span>
                 </a>
@@ -192,29 +198,12 @@
                     <span>Daily Checklist</span>
                 </a>
 
-                <div class="nav-divider officer-only"></div>
-
-                <a href="#" class="nav-item" data-page="notifications">
-                    <i class="fas fa-bell"></i>
-                    <span>Notifications</span>
-                </a>
-
-                <a href="#" class="nav-item" data-page="settings">
-                    <i class="fas fa-cog"></i>
-                    <span>Settings</span>
-                </a>
-
-                <!-- Admin-only items (ordering here doesn't affect officer sidebar) -->
                 <div class="nav-divider admin-only"></div>
+                <div class="nav-divider officer-only"></div>
 
                 <a href="#" class="nav-item admin-only" data-page="users">
                     <i class="fas fa-users-cog"></i>
                     <span>Staff Management</span>
-                </a>
-
-                <a href="#" class="nav-item admin-only" data-page="attendance">
-                    <i class="fas fa-clipboard-check"></i>
-                    <span>Staff Attendance</span>
                 </a>
 
                 <a href="#" class="nav-item admin-only" data-page="programs">
@@ -225,6 +214,16 @@
                 <a href="#" class="nav-item admin-only" data-page="receipts">
                     <i class="fas fa-receipt"></i>
                     <span>Receipts</span>
+                </a>
+
+                <a href="#" class="nav-item" data-page="notifications">
+                    <i class="fas fa-bell"></i>
+                    <span>Notifications</span>
+                </a>
+
+                <a href="#" class="nav-item" data-page="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
                 </a>
 
             </nav>
