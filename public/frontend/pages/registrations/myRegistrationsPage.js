@@ -226,7 +226,9 @@
       // Load latest saved payment and prefill
       if (reg?.id && window.API?.registrations?.listPayments) {
         const payRes = await window.API.registrations.listPayments(reg.id);
-        const p = (payRes.payments || [])[0];
+        const ps = (payRes.payments || []);
+        // Always prefer installment #1 for the Registration modal
+        const p = ps.find(x => Number(x.installment_no || 1) === 1) || ps[0];
         if (p) {
           const methodSel = qs('registrationPaymentMethod');
           const planSel = qs('registrationPaymentPlan');
