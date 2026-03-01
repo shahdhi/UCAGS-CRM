@@ -927,6 +927,28 @@ body {
     transform: none !important;
 }
 
+/* Notifications view: keep UI stable (no floating motion on hover) */
+#notificationsView .dashboard-card,
+#notificationsView .dashboard-card:hover,
+#notificationsView .dashboard-card:active {
+    transition: none !important;
+    transform: none !important;
+    animation: none !important;
+    box-shadow: var(--shadow-sm) !important;
+    border-color: var(--separator) !important;
+}
+
+#notificationsView .notification-item:hover,
+#notificationsView .notification-item:active {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+#notificationsView .btn:hover,
+#notificationsView .btn:active {
+    transform: none !important;
+}
+
 /* Prevent layout jumping while charts load */
 #homeView #homeFunnelChart,
 #homeView #homeConfirmedLineChart {

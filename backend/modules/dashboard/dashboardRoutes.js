@@ -11,6 +11,25 @@ const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
 const { isAdmin, isAuthenticated } = require('../../../server/middleware/auth');
 const sheetsService = require('../../../server/integrations/sheets');
 
+// Simple in-memory caches to speed up Home (Action Center + Leaderboard)
+// Note: per-process cache (resets on deploy). Keeps UI snappy without adding infra.
+const __analyticsCache = new Map();
+const __officerNamesCache = { at: 0, ttlMs: 5 * 60 * 1000, value: [] };
+
+function cacheGet(map, key) {
+  const hit = map.get(key);
+  if (!hit) return null;
+  if (Date.now() > hit.expiresAt) {
+    map.delete(key);
+    return null;
+  }
+  return hit.value;
+}
+
+function cacheSet(map, key, value, ttlMs) {
+  map.set(key, { value, expiresAt: Date.now() + ttlMs });
+}
+
 async function getCurrentBatchNames(sb) {
   const { data, error } = await sb
     .from('program_batches')
@@ -177,6 +196,17 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
     const user = req.user || req.session?.user || {};
     const isAdminUser = user?.role === 'admin';
     const officerName = String(user?.name || '').trim();
+
+    // Short-lived cache: dramatically speeds up repeated dashboard loads
+    const cacheKey = JSON.stringify({
+      v: 1,
+      role: isAdminUser ? 'admin' : 'officer',
+      officerName: isAdminUser ? '' : officerName,
+      from: String(req.query.from || ''),
+      to: String(req.query.to || '')
+    });
+    const cached = cacheGet(__analyticsCache, cacheKey);
+    if (cached) return res.json(cached);
 
     const from = parseISODateOnly(req.query.from) || null;
     const to = parseISODateOnly(req.query.to) || null;
@@ -441,16 +471,24 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
     // Always include all officers, even if 0.
     const officerNames = [];
     try {
-      const { data: uData, error: uErr } = await sb.auth.admin.listUsers({ page: 1, perPage: 2000 });
-      if (uErr) throw uErr;
-      (uData?.users || []).forEach(u => {
-        const role = u.user_metadata?.role || 'officer';
-        const isOfficer = role === 'officer' || role === 'admission_officer';
-        if (!isOfficer) return;
-        if (role === 'admin') return;
-        const name = u.user_metadata?.name || u.email?.split('@')?.[0] || '';
-        if (name) officerNames.push(String(name));
-      });
+      if (Date.now() < (__officerNamesCache.at + __officerNamesCache.ttlMs) && Array.isArray(__officerNamesCache.value)) {
+        officerNames.push(...__officerNamesCache.value);
+      } else {
+        const { data: uData, error: uErr } = await sb.auth.admin.listUsers({ page: 1, perPage: 2000 });
+        if (uErr) throw uErr;
+        const names = [];
+        (uData?.users || []).forEach(u => {
+          const role = u.user_metadata?.role || 'officer';
+          const isOfficer = role === 'officer' || role === 'admission_officer';
+          if (!isOfficer) return;
+          if (role === 'admin') return;
+          const name = u.user_metadata?.name || u.email?.split('@')?.[0] || '';
+          if (name) names.push(String(name));
+        });
+        __officerNamesCache.value = names;
+        __officerNamesCache.at = Date.now();
+        officerNames.push(...names);
+      }
     } catch (e) {
       // If auth admin not available, just fall back to officers discovered from data
     }
@@ -574,7 +612,7 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
       }
     }
 
-    res.json({
+    const payload = {
       success: true,
       range: { from: toISODate(fromEff), to: toISODate(toEff) },
       currentBatches,
@@ -597,7 +635,12 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
         toBeEnrolled,
         registrationsMissingAssignedTo: missingAssignedTo
       } : null
-    });
+    };
+
+    // Cache the full payload briefly (keeps it fresh, but makes UI feel instant)
+    cacheSet(__analyticsCache, cacheKey, payload, 45 * 1000);
+
+    res.json(payload);
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }
