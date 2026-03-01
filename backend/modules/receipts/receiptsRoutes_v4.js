@@ -310,7 +310,7 @@ router.post('/generate', isAdmin, async (req, res) => {
       width: doc.page.width - 40
     });
 
-    doc.text('Hotline: +94 76 331 3333    Email: study@ucags.com    Website: https://ucags.edu.lk/', 20, contactTextY + 12, {
+    doc.text('Hotline: +94 76 331 3333    Email: study@ucags.edu.lk    Website: https://ucags.edu.lk/', 20, contactTextY + 12, {
       align: 'center',
       width: doc.page.width - 40
     });

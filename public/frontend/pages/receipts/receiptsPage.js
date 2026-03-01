@@ -352,7 +352,7 @@ function previewReceipt() {
       
       <div style="background: #5B2C6F; color: white; padding: 15px 20px; text-align: center; border-bottom-left-radius: 15px;">
         <p style="font-size: 11px; margin: 5px 0;"><strong>Corporate Office:</strong> 190 A Anagarika Dharmapala Mawatha (Allen Avenue), Dehiwala, Sri Lanka</p>
-        <p style="font-size: 11px; margin: 5px 0;"><strong>Hotline:</strong> +94 76 331 3333 | <strong>Email:</strong> study@ucags.com | <strong>Website:</strong> https://ucags.edu.lk/</p>
+        <p style="font-size: 11px; margin: 5px 0;"><strong>Hotline:</strong> +94 76 331 3333 | <strong>Email:</strong> study@ucags.edu.lk | <strong>Website:</strong> https://ucags.edu.lk/</p>
       </div>
     </div>
   `;
