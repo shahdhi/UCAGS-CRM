@@ -28,6 +28,19 @@
     return d.toLocaleDateString();
   }
 
+  function fmtLkr(amount) {
+    if (amount === undefined || amount === null || amount === '') return '';
+    const n = Number(amount);
+    if (!Number.isFinite(n)) return String(amount);
+    try {
+      const formatted = new Intl.NumberFormat('en-LK', { maximumFractionDigits: 0 }).format(n);
+      return `LKR ${formatted}`;
+    } catch (_) {
+      // Fallback
+      return `LKR ${Math.round(n)}`;
+    }
+  }
+
   async function openPaymentDetails(registrationId, registrationName) {
     // legacy (kept for now, but no longer used)
 
@@ -616,7 +629,7 @@
         <tr class="pay-row" data-id="${escapeHtml(p.id)}" data-registration-id="${escapeHtml(p.registration_id || '')}" style="cursor:pointer;">
           <td style="font-weight:600; color:#101828;">${escapeHtml(p.registration_name || '')}</td>
           <td style="color:#475467; font-weight:600;">${escapeHtml(installmentText || '-')}</td>
-          <td style="color:#101828; font-weight:600;">${escapeHtml(p.amount ?? '')}</td>
+          <td style="color:#101828; font-weight:600;">${escapeHtml(fmtLkr(p.amount ?? ''))}</td>
           <td style="color:#475467;">${escapeHtml(p.payment_date || '')}</td>
           <td>${statusBadge}</td>
           <td style="text-align:center;">
@@ -718,7 +731,6 @@
               btn.disabled = true;
 
               const isUndo = btn.textContent.trim().toLowerCase() === 'undo';
-              await (isUndo ? window.API.payments.adminUnconfirm(id) : window.API.payments.adminConfirm(id));
 
               if (!isUndo) {
                 const r = await window.API.payments.adminConfirm(id);
@@ -875,6 +887,21 @@
     const payments = res.payments || [];
     const selected = payments.find(p => String(p.id) === String(pid)) || payments[0];
 
+    // Load batch payment setup (methods + plans) for dropdowns
+    const batchNameForSetup = String(selected?.batch_name || sumRow?.batch_name || '').trim();
+    let paymentSetup = { methods: [], plans: [] };
+    try {
+      if (batchNameForSetup) {
+        const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+        const r = await fetch(`/api/payment-setup/batches/${encodeURIComponent(batchNameForSetup)}`, { headers: authHeaders, credentials: 'include' });
+        const j = await r.json().catch(() => null);
+        if (r.ok && j?.success) paymentSetup = j;
+      }
+    } catch (e) {
+      // Non-fatal: fallback to allowing manual selection from current value
+      console.warn('Payment setup load failed:', e?.message || e);
+    }
+
     // Registration/student details (from summary if available)
     const reg = (window.__paymentsLastSummary || []).find(r => String(r.registration_id) === String(registrationId)) || sumRow || {};
 
@@ -909,7 +936,7 @@
                 <div style="font-weight:800; color:#101828;">Payment details</div>
                 <div style="color:#667085; font-size:12px; margin-top:2px;">${escapeHtml(planName)} ${escapeHtml(installmentNo)}</div>
               </div>
-              <div>
+              <div data-up-receipt-host>
                 ${selected?.receipt_no
                   ? `<a href="#" class="pay-receipt-link" data-payment-id="${escapeHtml(selected.id)}" style="color:#175CD3; text-decoration:none; font-weight:800;">Receipt: ${escapeHtml(selected.receipt_no)}</a>`
                   : `<span style="color:#98a2b3; font-size:12px;">No receipt yet</span>`
@@ -920,18 +947,19 @@
             <div style="display:grid; gap:12px; margin-top:12px;">
               <div class="form-group">
                 <label>Payment Method</label>
-                <input id="upPayMethod" class="form-control" type="text" value="${escapeHtml(selected?.payment_method || '')}" placeholder="e.g., Online Transfer" />
+                <select id="upPayMethod" class="form-control"></select>
               </div>
 
               <div class="form-group">
                 <label>Payment Plan</label>
-                <input id="upPayPlan" class="form-control" type="text" value="${escapeHtml(selected?.payment_plan || '')}" placeholder="e.g., Installment" />
+                <select id="upPayPlan" class="form-control"></select>
               </div>
 
               <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
                 <div class="form-group">
                   <label>Amount</label>
                   <input id="upPayAmount" class="form-control" type="number" value="${escapeHtml(selected?.amount ?? '')}" />
+                  <div style="margin-top:6px; font-size:12px; color:#667085; font-weight:700;">${escapeHtml(fmtLkr(selected?.amount ?? ''))}</div>
                 </div>
                 <div class="form-group">
                   <label>Payment date</label>
@@ -939,38 +967,37 @@
                 </div>
               </div>
 
-              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-                <div class="form-group" style="flex-direction:row; align-items:center; gap:10px;">
+              <div style="display:grid; gap:8px;">
+                <div style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid #eaecf0; border-radius:10px; background:#fcfcfd;">
                   <input id="upPaySlip" type="checkbox" ${selected?.slip_received ? 'checked' : ''} />
-                  <label style="margin:0; font-weight:700;">Receipt/Slip received</label>
+                  <label style="margin:0; font-weight:700; color:#101828;">Receipt/Slip received</label>
                 </div>
-                <div class="form-group" style="flex-direction:row; align-items:center; gap:10px;">
+
+                <div style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid #eaecf0; border-radius:10px; background:#fcfcfd;">
                   <input id="upPayEmail" type="checkbox" ${selected?.email_sent ? 'checked' : ''} />
-                  <label style="margin:0; font-weight:700;">Email sent</label>
+                  <label style="margin:0; font-weight:700; color:#101828;">Email sent</label>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid #eaecf0; border-radius:10px; background:#fcfcfd;">
+                  <input id="upPayWa" type="checkbox" ${selected?.whatsapp_sent ? 'checked' : ''} />
+                  <label style="margin:0; font-weight:700; color:#101828;">Whatsapp sent</label>
                 </div>
               </div>
 
-              <div class="form-group" style="flex-direction:row; align-items:center; gap:10px;">
-                <input id="upPayWa" type="checkbox" ${selected?.whatsapp_sent ? 'checked' : ''} />
-                <label style="margin:0; font-weight:700;">Whatsapp sent</label>
-              </div>
-
-              <div class="form-group">
-                <label>Receipt No</label>
-                <input id="upPayReceiptNo" class="form-control" type="text" value="${escapeHtml(selected?.receipt_no || '')}" placeholder="Receipt number" />
-              </div>
+              <div id="upPayConfirmWrap" style="display:flex; gap:10px; align-items:center; justify-content:flex-end; margin-top:4px;"></div>
             </div>
           </div>
         </div>
       `;
 
-      // bind receipt download
-      const link = body.querySelector('a.pay-receipt-link');
-      if (link) {
-        link.addEventListener('click', (e) => {
+      const receiptHost = body.querySelector('[data-up-receipt-host]') || body;
+
+      const bindReceiptDownload = (anchorEl, receiptNo) => {
+        if (!anchorEl) return;
+        anchorEl.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          const pid2 = link.getAttribute('data-payment-id');
+          const pid2 = anchorEl.getAttribute('data-payment-id');
           (async () => {
             try {
               const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
@@ -979,11 +1006,14 @@
                 const j = await resp.json().catch(() => null);
                 throw new Error(j?.error || 'Failed to download receipt');
               }
+              const ct = resp.headers.get('content-type') || '';
+              if (!ct.toLowerCase().includes('application/pdf')) throw new Error('Download failed (server did not return a PDF).');
+
               const blob = await resp.blob();
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
-              a.download = `receipt-${(selected?.receipt_no || 'receipt')}.pdf`;
+              a.download = `receipt-${(receiptNo || 'receipt')}.pdf`;
               document.body.appendChild(a);
               a.click();
               URL.revokeObjectURL(url);
@@ -993,6 +1023,118 @@
               if (window.UI && UI.showToast) UI.showToast(err.message || 'Failed to download receipt', 'error');
             }
           })();
+        });
+      };
+
+      const renderReceiptHeader = (receiptNo) => {
+        const header = body.querySelector('[data-up-receipt-host]');
+        if (!header) return;
+        if (receiptNo) {
+          header.innerHTML = `<a href="#" class="pay-receipt-link" data-payment-id="${escapeHtml(selected.id)}" style="color:#175CD3; text-decoration:none; font-weight:800;">Receipt: ${escapeHtml(receiptNo)}</a>`;
+          bindReceiptDownload(header.querySelector('a.pay-receipt-link'), receiptNo);
+        } else {
+          header.innerHTML = `<span style="color:#98a2b3; font-size:12px;">No receipt yet</span>`;
+        }
+      };
+
+      // Populate dropdowns from batch setup
+      const methodSel = qs('upPayMethod');
+      const planSel = qs('upPayPlan');
+
+      const fillSelect = (sel, values, currentValue, placeholder = 'Select') => {
+        if (!sel) return;
+        const uniq = Array.from(new Set((values || []).filter(Boolean)));
+        const cur = String(currentValue || '');
+
+        sel.innerHTML = [`<option value="">${escapeHtml(placeholder)}</option>`]
+          .concat(uniq.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`))
+          .join('');
+
+        // Ensure current value exists even if batch setup doesn't have it
+        if (cur && !uniq.includes(cur)) {
+          const opt = document.createElement('option');
+          opt.value = cur;
+          opt.textContent = cur;
+          sel.appendChild(opt);
+        }
+        sel.value = cur;
+      };
+
+      const methodValues = (paymentSetup?.methods || []).map(m => m.method_name);
+      const planValues = (paymentSetup?.plans || []).map(p => p.plan_name);
+      fillSelect(methodSel, methodValues, selected?.payment_method, 'Select method');
+      fillSelect(planSel, planValues, selected?.payment_plan, 'Select plan');
+
+      // Initial receipt link binding
+      renderReceiptHeader(selected?.receipt_no || null);
+
+      // Confirm/Undo payment button (Admin only)
+      const confirmWrap = qs('upPayConfirmWrap');
+      if (confirmWrap && window.currentUser?.role === 'admin') {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-success';
+        btn.style.minWidth = '170px';
+        btn.textContent = selected?.is_confirmed ? 'Undo Payment' : 'Confirm Payment';
+
+        confirmWrap.innerHTML = '';
+        confirmWrap.appendChild(btn);
+
+        btn.addEventListener('click', async () => {
+          try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Working';
+
+            // Save latest edits first
+            const payload = {
+              payment_method: qs('upPayMethod')?.value || null,
+              payment_plan: qs('upPayPlan')?.value || null,
+              amount: Number(qs('upPayAmount')?.value),
+              payment_date: qs('upPayDate')?.value || null,
+              slip_received: !!qs('upPaySlip')?.checked,
+              email_sent: !!qs('upPayEmail')?.checked,
+              whatsapp_sent: !!qs('upPayWa')?.checked
+            };
+            await window.API.payments.adminUpdate(selected.id, payload);
+
+            const isUndo = !!selected?.is_confirmed;
+            let r = null;
+            if (!isUndo) {
+              // validate required fields for confirm
+              const method = payload.payment_method;
+              const plan = payload.payment_plan;
+              const amt = payload.amount;
+              const date = payload.payment_date;
+              const slip = payload.slip_received;
+              if (!(method && plan && Number.isFinite(amt) && amt > 0 && date && slip)) {
+                throw new Error('Fill payment method, plan, amount, date and slip received before confirming.');
+              }
+              r = await window.API.payments.adminConfirm(selected.id);
+              const rn = r?.payment?.receipt_no || r?.receipt_no;
+              selected.is_confirmed = true;
+              selected.receipt_no = rn || selected.receipt_no;
+              if (window.UI && UI.showToast) UI.showToast(rn ? `Payment confirmed (${rn})` : 'Payment confirmed', 'success');
+            } else {
+              await window.API.payments.adminUnconfirm(selected.id);
+              selected.is_confirmed = false;
+              selected.receipt_no = null;
+              if (window.UI && UI.showToast) UI.showToast('Payment unconfirmed', 'success');
+            }
+
+            // Refresh table
+            if (window.Cache) window.Cache.invalidatePrefix('payments:adminSummary');
+            await loadPayments();
+
+            // Refresh header + button label
+            renderReceiptHeader(selected?.receipt_no || null);
+            btn.textContent = selected?.is_confirmed ? 'Undo Payment' : 'Confirm Payment';
+          } catch (e) {
+            console.error(e);
+            if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to confirm payment', 'error');
+          } finally {
+            btn.disabled = false;
+            btn.innerHTML = selected?.is_confirmed ? 'Undo Payment' : 'Confirm Payment';
+          }
         });
       }
     }
@@ -1011,15 +1153,15 @@
             payment_date: qs('upPayDate')?.value || null,
             slip_received: !!qs('upPaySlip')?.checked,
             email_sent: !!qs('upPayEmail')?.checked,
-            whatsapp_sent: !!qs('upPayWa')?.checked,
-            receipt_no: qs('upPayReceiptNo')?.value || null
+            whatsapp_sent: !!qs('upPayWa')?.checked
           };
 
           await window.API.payments.adminUpdate(selected.id, payload);
           if (window.Cache) window.Cache.invalidatePrefix('payments:adminSummary');
           await loadPayments();
           if (window.UI && UI.showToast) UI.showToast('Saved', 'success');
-          closeModal('paymentUpdateModal');
+          // keep modal open so admin can confirm & download receipt
+          // closeModal('paymentUpdateModal');
         } catch (e) {
           console.error(e);
           if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to save', 'error');

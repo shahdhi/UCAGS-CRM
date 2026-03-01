@@ -1397,7 +1397,16 @@ body {
 
 #paymentsView .data-table {
     table-layout: auto;
-    min-width: 1320px; /* wide table with many columns */
+    width: max-content; /* shrink-to-fit columns */
+    min-width: 100%; /* but never smaller than container */
+}
+
+/* Payments table hover: highlight only (no lift/scale) */
+#paymentsView .data-table tbody tr,
+#paymentsView .data-table tbody tr:hover,
+#paymentsView .data-table tbody tr:active {
+    transform: none !important;
+    box-shadow: none !important;
 }
 
 /* Freeze first column (Name) in payments table */
@@ -1437,41 +1446,20 @@ body {
     white-space: nowrap;
 }
 
-/* Keep first column (Name) a bit wider */
-#paymentsView .data-table th:nth-child(1),
+/* Payments columns: fit content and keep Name readable */
+#paymentsView .data-table th,
+#paymentsView .data-table td {
+    white-space: nowrap;
+}
+
 #paymentsView .data-table td:nth-child(1) {
-    min-width: 220px;
+    max-width: 340px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* Keep first column (Name) a bit wider */
-#paymentsView .data-table th:nth-child(1),
-#paymentsView .data-table td:nth-child(1) {
-    min-width: 220px;
-}
-
-/* Student ID */
-#paymentsView .data-table th:nth-child(2),
-#paymentsView .data-table td:nth-child(2) {
-    min-width: 120px;
-}
-
-/* Status + Installment */
-#paymentsView .data-table th:nth-child(3),
-#paymentsView .data-table td:nth-child(3) {
-    min-width: 120px;
-}
-#paymentsView .data-table th:nth-child(4),
-#paymentsView .data-table td:nth-child(4) {
-    min-width: 180px;
-}
-
-/* Email/Whatsapp checkbox columns */
-#paymentsView .data-table th:nth-child(5),
-#paymentsView .data-table td:nth-child(5),
 #paymentsView .data-table th:nth-child(6),
-#paymentsView .data-table td:nth-child(6),
-#paymentsView .data-table th:nth-child(11),
-#paymentsView .data-table td:nth-child(11) {
+#paymentsView .data-table td:nth-child(6) {
     text-align: center;
 }
 
