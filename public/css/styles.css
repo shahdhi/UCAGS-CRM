@@ -1534,6 +1534,12 @@ body {
   }
 }
 
+@media (min-width: 981px) {
+  #demoSessionsView #demoSessionsCards .demo-session-card {
+    width: 100%;
+  }
+}
+
 /* Demo Sessions tables: prevent hover scaling from overlapping the card */
 #demoSessionsView .table-container {
     overflow-x: auto;
