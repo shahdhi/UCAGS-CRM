@@ -983,7 +983,7 @@
                     <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom: 10px;">
                         <div style="display:flex; flex-direction:column; gap:8px;">
                             <div style="color:#667085; font-size: 13px;">Payments for batches where you are the coordinator. You can add/edit payments. Only Admin can confirm.</div>
-                            <div id="batchMgmtStatusTabs" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+                            <div id="batchMgmtInstallmentTabs" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
                         </div>
                         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                             <label for="batchMgmtProgramSelect" style="font-size:13px; color:#667085;">Program</label>
@@ -992,14 +992,14 @@
                             <label for="batchMgmtBatchSelect" style="font-size:13px; color:#667085;">Batch</label>
                             <select id="batchMgmtBatchSelect" class="form-control" style="width:180px;"></select>
 
-                            <label for="batchMgmtInstallmentFilter" style="font-size:13px; color:#667085;">Type</label>
-                            <select id="batchMgmtInstallmentFilter" class="form-control" style="width:190px;">
-                                <option value="">All</option>
-                                <option value="installment_1">1st Installment</option>
-                                <option value="installment_2">2nd Installment</option>
-                                <option value="installment_3">3rd Installment</option>
-                                <option value="installment_4">4th Installment</option>
-                                <option value="full_payment">Full payment</option>
+                            <label for="batchMgmtStatusSelect" style="font-size:13px; color:#667085;">Type</label>
+                            <select id="batchMgmtStatusSelect" class="form-control" style="width:190px;">
+                                <option value="due_overdue">Due + Overdue</option>
+                                <option value="due">Due</option>
+                                <option value="overdue">Overdue</option>
+                                <option value="upcoming">Upcoming</option>
+                                <option value="completed">Completed</option>
+                                <option value="all" selected>All</option>
                             </select>
 
                             <label for="batchMgmtSearchInput" style="font-size:13px; color:#667085;">Search</label>
@@ -1020,21 +1020,16 @@
                             <thead>
                                 <tr>
                                     <th>Name</th>
-                                    <th>Status</th>
                                     <th>Installment</th>
-                                    <th>Email sent</th>
-                                    <th>Whatsapp sent</th>
-                                    <th>Payment Method</th>
-                                    <th>Payment Plan</th>
-                                    <th>Payment Amount</th>
-                                    <th>Payment Date</th>
-                                    <th>Slip Received</th>
-                                    <th>Payment Received</th>
+                                    <th>Amount</th>
+                                    <th>Payment date</th>
+                                    <th>Status</th>
+                                    <th>Confirmed</th>
                                     <th>Receipt No</th>
                                 </tr>
                             </thead>
                             <tbody id="batchMgmtTableBody">
-                                <tr><td colspan="12" class="loading">Loading payments...</td></tr>
+                                <tr><td colspan="7" class="loading">Loading payments...</td></tr>
                             </tbody>
                         </table>
                     </div>

@@ -19,6 +19,18 @@
     return d.toLocaleDateString();
   }
 
+  function fmtLkr(amount) {
+    if (amount === undefined || amount === null || amount === '') return '';
+    const n = Number(amount);
+    if (!Number.isFinite(n)) return String(amount);
+    try {
+      const formatted = new Intl.NumberFormat('en-LK', { maximumFractionDigits: 0 }).format(n);
+      return `LKR ${formatted}`;
+    } catch (_) {
+      return `LKR ${Math.round(n)}`;
+    }
+  }
+
   function computeRowStatus(p) {
     const s = String(p.computed_status || '').toLowerCase();
     if (s) return s;
@@ -30,7 +42,7 @@
     selectedBatchName: '',
     selectedProgramId: '',
     selectedStatus: 'all',
-    selectedType: '',
+    selectedInstallmentFilter: '',
     search: '',
     limit: 200,
     lastSummary: []
@@ -132,29 +144,54 @@
     };
   }
 
-  function renderStatusTabs() {
-    const wrap = qs('batchMgmtStatusTabs');
+  function bindStatusDropdown() {
+    const sel = qs('batchMgmtStatusSelect');
+    if (!sel || sel.__bound) return;
+    sel.__bound = true;
+
+    sel.value = state.selectedStatus || 'all';
+    sel.addEventListener('change', async () => {
+      state.selectedStatus = sel.value || 'all';
+      await loadPayments();
+    });
+  }
+
+  function renderInstallmentTabs() {
+    const wrap = qs('batchMgmtInstallmentTabs');
     if (!wrap) return;
 
     const tabs = [
-      { key: 'all', label: 'All' },
-      { key: 'overdue', label: 'Overdue' },
-      { key: 'due', label: 'Due' },
-      { key: 'upcoming', label: 'Upcoming' },
-      { key: 'completed', label: 'Completed' }
+      { key: '', label: 'All' },
+      { key: 'installment_1', label: '1st Installment' },
+      { key: 'installment_2', label: '2nd Installment' },
+      { key: 'installment_3', label: '3rd Installment' },
+      { key: 'installment_4', label: '4th Installment' },
+      { key: 'full_payment', label: 'Full payment' }
     ];
 
-    wrap.innerHTML = tabs.map(t => {
-      const active = t.key === state.selectedStatus ? 'btn-primary' : 'btn-secondary';
-      return `<button type="button" class="btn ${active} btn-sm" data-status="${escapeHtml(t.key)}">${escapeHtml(t.label)}</button>`;
-    }).join('');
-
-    wrap.querySelectorAll('button[data-status]').forEach(btn => {
+    wrap.innerHTML = '';
+    tabs.forEach(t => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-secondary';
+      btn.style.padding = '6px 10px';
+      btn.style.borderRadius = '999px';
+      const active = String(t.key) === String(state.selectedInstallmentFilter || '');
+      btn.style.border = active ? '1px solid #592c88' : '1px solid #eaecf0';
+      btn.style.background = active ? '#f4ebff' : '#fff';
+      btn.style.color = active ? '#592c88' : '#344054';
+      btn.textContent = t.label;
       btn.onclick = async () => {
-        state.selectedStatus = btn.getAttribute('data-status');
-        renderStatusTabs();
+        state.selectedInstallmentFilter = t.key;
+        renderInstallmentTabs();
+        if (state.selectedInstallmentFilter) {
+          state.selectedStatus = 'all';
+          const statusSel = qs('batchMgmtStatusSelect');
+          if (statusSel) statusSel.value = 'all';
+        }
         await loadPayments();
       };
+      wrap.appendChild(btn);
     });
   }
 
@@ -163,173 +200,104 @@
     if (!tbody) return;
 
     if (!rows.length) {
-      tbody.innerHTML = `<tr><td colspan="12" class="empty">No payments found</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" class="empty">No payments found</td></tr>`;
       return;
     }
 
     tbody.innerHTML = rows.map(p => {
       const status = computeRowStatus(p);
-      const statusBadge = `<span class="badge" style="background:#f2f4f7; border:1px solid #eaecf0; color:#344054;">${escapeHtml(status)}</span>`;
-      const receipt = p.receipt_no ? `<span style="font-weight:800;">${escapeHtml(p.receipt_no)}</span>` : '<span style="color:#98a2b3;">-</span>';
-      const confirmed = p.is_confirmed ? '<span style="color:#027a48; font-weight:800;">Confirmed</span>' : '<span style="color:#b42318; font-weight:800;">Not confirmed</span>';
+      const statusBadge = (() => {
+        if (status === 'overdue') return '<span class="badge" style="background:#fef3f2; color:#b42318; border:1px solid #fecdca;">Overdue</span>';
+        if (status === 'due') return '<span class="badge" style="background:#fffaeb; color:#b54708; border:1px solid #fedf89;">Due</span>';
+        if (status === 'upcoming') return '<span class="badge" style="background:#eff8ff; color:#175cd3; border:1px solid #b2ddff;">Upcoming</span>';
+        if (status === 'completed') return '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Completed</span>';
+        return '<span style="color:#98a2b3;">-</span>';
+      })();
+
+      const installmentText = (() => {
+        const n = Number(p.installment_no || 0);
+        if (!n) return '';
+        const ord = n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
+        const label = status ? (status.charAt(0).toUpperCase() + status.slice(1)) : '';
+        return label ? `${ord} installment (${label})` : `${ord} installment`;
+      })();
+
+      const confirmed = p.is_confirmed
+        ? '<span style="color:#027a48; font-weight:800;">Confirmed</span>'
+        : '<span style="color:#b42318; font-weight:800;">Not confirmed</span>';
+
+      const receipt = p.receipt_no
+        ? `<a href="#" class="pay-receipt-link" data-payment-id="${escapeHtml(p.id)}" style="color:#175CD3; text-decoration:none; font-weight:700;">${escapeHtml(p.receipt_no)}</a>`
+        : '<span style="color:#98a2b3;">-</span>';
 
       return `
-        <tr data-id="${escapeHtml(p.id)}" data-reg-id="${escapeHtml(p.registration_id)}" data-reg-name="${escapeHtml(p.registration_name || '')}">
-          <td>
-            <a href="#" class="batchMgmtOpenDetails" style="color:#175CD3; text-decoration:none; font-weight:700;">${escapeHtml(p.registration_name || '-')}</a>
-            <div style="font-size:12px; color:#667085;">${escapeHtml(p.registration_phone_number || '')}</div>
+        <tr class="pay-row" data-id="${escapeHtml(p.id)}" data-registration-id="${escapeHtml(p.registration_id || '')}" style="cursor:pointer;">
+          <td style="font-weight:600; color:#101828;">${escapeHtml(p.registration_name || '-')}
+            <div style="font-size:12px; color:#667085; font-weight:600;">${escapeHtml(p.registration_phone_number || '')}</div>
           </td>
+          <td style="color:#475467; font-weight:600;">${escapeHtml(installmentText || '-')}</td>
+          <td style="color:#101828; font-weight:600;">${escapeHtml(fmtLkr(p.amount ?? ''))}</td>
+          <td style="color:#475467;">${escapeHtml(p.payment_date || '')}</td>
           <td>${statusBadge}</td>
-          <td>${escapeHtml(p.installment_no ? `#${p.installment_no}` : '')}</td>
-          <td style="text-align:center;"><input type="checkbox" class="pay-email" ${p.email_sent ? 'checked' : ''} /></td>
-          <td style="text-align:center;"><input type="checkbox" class="pay-wa" ${p.whatsapp_sent ? 'checked' : ''} /></td>
-          <td>
-            <select class="pay-method form-control" style="min-width:160px;">
-              ${['', 'Online Transfer', 'Bank Deposit'].map(m => `<option value="${escapeHtml(m)}" ${m=== (p.payment_method||'') ? 'selected' : ''}>${escapeHtml(m||'Select')}</option>`).join('')}
-            </select>
-          </td>
-          <td>
-            <select class="pay-plan form-control" style="min-width:220px;">
-              ${['', 'Installment', 'Installment with early bird', 'Full payment', 'Full payment with early bird', 'registration fee only']
-                .map(m => `<option value="${escapeHtml(m)}" ${m=== (p.payment_plan||'') ? 'selected' : ''}>${escapeHtml(m||'Select')}</option>`).join('')}
-            </select>
-          </td>
-          <td><input type="number" class="form-control pay-amount" value="${escapeHtml(p.amount ?? '')}" style="width:120px;" /></td>
-          <td><input type="date" class="form-control pay-date" value="${escapeHtml(p.payment_date || '')}" style="width:160px;" /></td>
-          <td style="text-align:center;"><input type="checkbox" class="pay-slip" ${p.slip_received ? 'checked' : ''} /></td>
           <td style="text-align:center;">${confirmed}</td>
           <td>${receipt}</td>
         </tr>
       `;
     }).join('');
 
-    // bind patch updates
-    tbody.querySelectorAll('tr[data-id]').forEach(tr => {
-      const id = tr.getAttribute('data-id');
-      let t = null;
-      const patch = async () => {
-        const payload = {
-          email_sent: tr.querySelector('.pay-email')?.checked,
-          whatsapp_sent: tr.querySelector('.pay-wa')?.checked,
-          payment_method: tr.querySelector('.pay-method')?.value,
-          payment_plan: tr.querySelector('.pay-plan')?.value,
-          amount: Number(tr.querySelector('.pay-amount')?.value),
-          payment_date: tr.querySelector('.pay-date')?.value || null,
-          slip_received: tr.querySelector('.pay-slip')?.checked
-        };
-        await window.API.payments.coordinatorUpdate(id, payload);
-      };
-      const debounce = () => {
-        if (t) clearTimeout(t);
-        t = setTimeout(() => patch().catch(console.error), 600);
-      };
-      tr.querySelectorAll('input,select').forEach(el => {
-        el.addEventListener('change', debounce);
-        el.addEventListener('input', debounce);
-      });
-    });
+    // delegate click handling once
+    if (!tbody.__delegated) {
+      tbody.__delegated = true;
 
-    // details modal
-    tbody.querySelectorAll('.batchMgmtOpenDetails').forEach(a => {
-      a.onclick = async (e) => {
-        e.preventDefault();
-        const tr = a.closest('tr');
-        const regId = tr?.getAttribute('data-reg-id');
-        const regName = tr?.getAttribute('data-reg-name');
-        if (!regId) return;
+      tbody.addEventListener('click', (e) => {
+        const receiptLink = e.target?.closest?.('.pay-receipt-link');
+        if (receiptLink) {
+          e.preventDefault();
+          e.stopPropagation();
+          const pid = receiptLink.getAttribute('data-payment-id');
+          if (!pid) return;
 
-        // Use same modal but coordinator list endpoint and without confirm button
-        const body = qs('paymentDetailsModalBody');
-        if (body) body.innerHTML = '<p class="loading">Loading payment history...</p>';
-        openModal('paymentDetailsModal');
+          (async () => {
+            try {
+              const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+              const resp = await fetch(`/api/receipts/payment/${encodeURIComponent(pid)}`, { headers: authHeaders, credentials: 'include' });
+              if (!resp.ok) {
+                const j = await resp.json().catch(() => null);
+                throw new Error(j?.error || 'Failed to download receipt');
+              }
+              const ct = resp.headers.get('content-type') || '';
+              if (!ct.toLowerCase().includes('application/pdf')) throw new Error('Download failed (server did not return a PDF).');
 
-        const res = await window.API.payments.coordinatorListForRegistration(regId);
-        const rows = res.payments || [];
-        if (!rows.length) {
-          if (body) body.innerHTML = '<p class="empty">No payments found</p>';
+              const blob = await resp.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `receipt-${receiptLink.textContent.trim()}.pdf`;
+              document.body.appendChild(a);
+              a.click();
+              URL.revokeObjectURL(url);
+              a.remove();
+            } catch (err) {
+              console.error(err);
+              if (window.UI && UI.showToast) UI.showToast(err.message || 'Failed to download receipt', 'error');
+            }
+          })();
+
           return;
         }
 
-        if (body) {
-          body.innerHTML = `
-            <div style="margin-bottom:10px; color:#475467;">
-              <div style="font-weight:700; color:#101828;">${escapeHtml(regName || '')}</div>
-              <div style="font-size:12px; color:#667085; margin-top:6px;">Confirmed payments show receipt number. Only Admin can confirm.</div>
-            </div>
-            <div style="overflow-x:auto; width:100%;">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Plan</th>
-                    <th>Amount</th>
-                    <th>Date</th>
-                    <th>Slip</th>
-                    <th>Email</th>
-                    <th>Whatsapp</th>
-                    <th>Method</th>
-                    <th>Receipt No</th>
-                    <th>Confirmed</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${rows.map(p => {
-                    const instLabel = p.installment_no ? `Installment ${Number(p.installment_no)}` : '';
-                    return `
-                      <tr data-id="${escapeHtml(p.id)}">
-                        <td>
-                          <select class="pay-plan form-control" style="min-width:220px;">
-                            ${['', 'Installment', 'Installment with early bird', 'Full payment', 'Full payment with early bird', 'registration fee only']
-                              .map(m => `<option value="${escapeHtml(m)}" ${m=== (p.payment_plan||'') ? 'selected' : ''}>${escapeHtml(m||'Select')}</option>`).join('')}
-                          </select>
-                          <div style="font-size:12px; color:#667085; margin-top:4px;">${escapeHtml(instLabel)}</div>
-                        </td>
-                        <td><input type="number" class="form-control pay-amount" value="${escapeHtml(p.amount ?? '')}" style="width:120px;" /></td>
-                        <td><input type="date" class="form-control pay-date" value="${escapeHtml(p.payment_date || '')}" style="width:160px;" /></td>
-                        <td><input type="checkbox" class="pay-slip" ${p.slip_received ? 'checked' : ''} /></td>
-                        <td><input type="checkbox" class="pay-email" ${p.email_sent ? 'checked' : ''} /></td>
-                        <td><input type="checkbox" class="pay-wa" ${p.whatsapp_sent ? 'checked' : ''} /></td>
-                        <td>
-                          <select class="pay-method form-control" style="min-width:160px;">
-                            ${['', 'Online Transfer', 'Bank Deposit'].map(m => `<option value="${escapeHtml(m)}" ${m=== (p.payment_method||'') ? 'selected' : ''}>${escapeHtml(m||'Select')}</option>`).join('')}
-                          </select>
-                        </td>
-                        <td>${p.receipt_no ? `<span style=\"font-weight:800;\">${escapeHtml(p.receipt_no)}</span>` : '<span style="color:#98a2b3;">-</span>'}</td>
-                        <td>${p.is_confirmed ? '<span style="color:#027a48; font-weight:800;">Confirmed</span>' : '<span style="color:#b42318; font-weight:800;">Not confirmed</span>'}</td>
-                      </tr>
-                    `;
-                  }).join('')}
-                </tbody>
-              </table>
-            </div>
-          `;
-
-          body.querySelectorAll('tr[data-id]').forEach(tr => {
-            const pid = tr.getAttribute('data-id');
-            let t = null;
-            const patch = async () => {
-              const payload = {
-                email_sent: tr.querySelector('.pay-email')?.checked,
-                whatsapp_sent: tr.querySelector('.pay-wa')?.checked,
-                payment_method: tr.querySelector('.pay-method')?.value,
-                payment_plan: tr.querySelector('.pay-plan')?.value,
-                amount: Number(tr.querySelector('.pay-amount')?.value),
-                payment_date: tr.querySelector('.pay-date')?.value || null,
-                slip_received: tr.querySelector('.pay-slip')?.checked
-              };
-              await window.API.payments.coordinatorUpdate(pid, payload);
-            };
-            const debounce = () => {
-              if (t) clearTimeout(t);
-              t = setTimeout(() => patch().catch(console.error), 600);
-            };
-            tr.querySelectorAll('input,select').forEach(el => {
-              el.addEventListener('change', debounce);
-              el.addEventListener('input', debounce);
+        const trRow = e.target?.closest?.('tr.pay-row');
+        if (trRow) {
+          const pid = trRow.getAttribute('data-id');
+          if (pid && window.openUpdatePaymentModal) {
+            window.openUpdatePaymentModal(pid).catch(err => {
+              console.error(err);
+              if (window.UI && UI.showToast) UI.showToast(err.message || 'Failed to open payment', 'error');
             });
-          });
+          }
         }
-      };
-    });
+      });
+    }
   }
 
   function filterRows(rows) {
@@ -356,23 +324,30 @@
 
   async function loadPayments() {
     const tbody = qs('batchMgmtTableBody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="12" class="loading">Loading payments...</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="loading">Loading payments...</td></tr>`;
 
     if (!state.selectedProgramId || !state.selectedBatchName) {
-      if (tbody) tbody.innerHTML = `<tr><td colspan="12" class="empty">Select a program and batch</td></tr>`;
+      if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="empty">Select a program and batch</td></tr>`;
       return;
     }
+
+    const fetchStatus = (state.selectedStatus === 'due_overdue') ? 'all' : state.selectedStatus;
 
     const res = await window.API.payments.coordinatorSummary(state.limit, {
       programId: state.selectedProgramId,
       batchName: state.selectedBatchName,
-      status: state.selectedStatus,
-      type: state.selectedType
+      status: fetchStatus,
+      type: state.selectedInstallmentFilter
     });
 
-    const rows = res.payments || [];
+    let rows = res.payments || [];
+
+    // Support "Due + Overdue" as a UI-only option
+    if (state.selectedStatus === 'due_overdue' && !state.selectedInstallmentFilter) {
+      rows = rows.filter(r => ['due', 'overdue'].includes(String(r.computed_status || '').toLowerCase()));
+    }
+
     state.lastSummary = rows;
-    // store for modal usage if needed
     window.__paymentsLastSummary = rows;
 
     renderRows(filterRows(rows));
@@ -389,7 +364,8 @@
     pickDefaultProgramAndBatch();
     renderProgramSelect();
     renderBatchSelect();
-    renderStatusTabs();
+    bindStatusDropdown();
+    renderInstallmentTabs();
 
     const refreshBtn = qs('batchMgmtRefreshBtn');
     if (refreshBtn && !refreshBtn.__bound) {
@@ -402,18 +378,6 @@
       limitEl.__bound = true;
       limitEl.onchange = () => {
         state.limit = parseInt(limitEl.value || '200', 10) || 200;
-        loadPayments().catch(console.error);
-      };
-    }
-
-    const typeSel = qs('batchMgmtInstallmentFilter');
-    if (typeSel && !typeSel.__bound) {
-      typeSel.__bound = true;
-      typeSel.onchange = () => {
-        state.selectedType = typeSel.value || '';
-        // if filtering by installment, show all statuses
-        if (state.selectedType) state.selectedStatus = 'all';
-        renderStatusTabs();
         loadPayments().catch(console.error);
       };
     }
