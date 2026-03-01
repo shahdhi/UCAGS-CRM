@@ -386,6 +386,14 @@
       refreshBtn.onclick = () => loadPayments().catch(console.error);
     }
 
+    // Cross-view refresh: when admin confirms/unconfirms in the modal, update this table
+    if (!window.__batchMgmtPaymentsUpdatedBound) {
+      window.__batchMgmtPaymentsUpdatedBound = true;
+      window.addEventListener('payments:updated', () => {
+        loadPayments().catch(console.error);
+      });
+    }
+
     const limitEl = qs('batchMgmtLimit');
     if (limitEl && !limitEl.__bound) {
       limitEl.__bound = true;

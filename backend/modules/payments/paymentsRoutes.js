@@ -3,6 +3,7 @@ const router = express.Router();
 
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
 const { isAdmin, isAdminOrOfficer } = require('../../../server/middleware/auth');
+const { updateLeadStatusByPhoneAndBatch } = require('../crmLeads/crmLeadsService');
 
 function cleanString(v) {
   if (v === undefined || v === null) return null;
@@ -620,7 +621,84 @@ router.post('/admin/:id/unconfirm', isAdmin, async (req, res) => {
       }
     }
 
-    res.json({ success: true, payment: data });
+    // If this registration has no other confirmed payments, revert enrolled flag
+    let registrationUpdated = false;
+    try {
+      if (existing?.registration_id) {
+        const { data: stillConfirmed, error: cErr } = await sb
+          .from('payments')
+          .select('id')
+          .eq('registration_id', existing.registration_id)
+          .eq('is_confirmed', true)
+          .limit(1);
+        if (cErr) throw cErr;
+
+        const hasAnyConfirmed = (stillConfirmed || []).length > 0;
+        if (!hasAnyConfirmed) {
+          // Try common dedicated columns first
+          const nowIso = new Date().toISOString();
+          const tryUpdate = async (patch) => {
+            const { data: u, error: uErr } = await sb
+              .from('registrations')
+              .update(patch)
+              .eq('id', existing.registration_id)
+              .select('*')
+              .single();
+            if (uErr) throw uErr;
+            registrationUpdated = true;
+            return u;
+          };
+
+          // Load registration info for syncing lead status
+          let regPhone = existing?.registration_phone_number || null;
+          let regBatch = existing?.batch_name || null;
+          try {
+            const { data: regInfo, error: iErr } = await sb
+              .from('registrations')
+              .select('phone_number,batch_name,payload')
+              .eq('id', existing.registration_id)
+              .single();
+            if (!iErr && regInfo) {
+              const payload = regInfo?.payload && typeof regInfo.payload === 'object' ? regInfo.payload : {};
+              regPhone = regInfo.phone_number || payload.phone_number || payload.phone || regPhone;
+              regBatch = regInfo.batch_name || payload.batch_name || regBatch;
+            }
+          } catch (_) {}
+
+          try {
+            await tryUpdate({ enrolled: false, enrolled_at: null, unenrolled_at: nowIso });
+          } catch (_) {
+            try {
+              await tryUpdate({ is_enrolled: false, enrolled_at: null, unenrolled_at: nowIso });
+            } catch (e3) {
+              // Fallback: patch payload
+              const { data: reg, error: rErr } = await sb
+                .from('registrations')
+                .select('id,payload')
+                .eq('id', existing.registration_id)
+                .single();
+              if (rErr) throw rErr;
+              const payload = reg?.payload && typeof reg.payload === 'object' ? reg.payload : {};
+              const nextPayload = { ...payload, enrolled: false, enrolled_at: null, unenrolled_at: nowIso };
+              await tryUpdate({ payload: nextPayload });
+            }
+          }
+
+          // Ensure Lead Management reflects the rollback
+          try {
+            await updateLeadStatusByPhoneAndBatch({
+              canonicalPhone: regPhone,
+              batchName: regBatch,
+              nextStatus: 'Registered'
+            });
+          } catch (_) {}
+        }
+      }
+    } catch (e4) {
+      console.warn('Unconfirm: failed to revert registration enrolled flag:', e4.message || e4);
+    }
+
+    res.json({ success: true, payment: data, registrationUpdated });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }

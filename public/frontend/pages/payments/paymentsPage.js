@@ -1158,9 +1158,10 @@
               if (window.UI && UI.showToast) UI.showToast('Payment unconfirmed', 'success');
             }
 
-            // Refresh table
+            // Refresh tables
             if (window.Cache) window.Cache.invalidatePrefix('payments:adminSummary');
             await loadPayments();
+            window.dispatchEvent(new CustomEvent('payments:updated', { detail: { paymentId: selected.id, registrationId: selected.registration_id } }));
 
             // Refresh header + button label
             renderReceiptHeader(selected?.receipt_no || null);
@@ -1200,11 +1201,10 @@
             await loadPayments();
           } else {
             await window.API.payments.coordinatorUpdate(selected.id, payload);
-            // Refresh coordinator table if present
-            if (window.initBatchManagementPage) {
-              // no-op; batchManagementPage manages its own refresh
-            }
           }
+
+          // Notify any other open views (e.g., Batch Management) to refresh
+          window.dispatchEvent(new CustomEvent('payments:updated', { detail: { paymentId: selected.id, registrationId: selected.registration_id } }));
           if (window.UI && UI.showToast) UI.showToast('Saved', 'success');
           // keep modal open so admin can confirm & download receipt
           // closeModal('paymentUpdateModal');
