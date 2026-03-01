@@ -1461,6 +1461,13 @@ body {
 #paymentsView .data-table th:nth-child(6),
 #paymentsView .data-table td:nth-child(6) {
     text-align: center;
+    width: 90px;
+}
+
+/* Payments: make the Confirm/Undo button compact so the column stays narrow */
+#paymentsView .data-table td:nth-child(6) .btn.btn-sm {
+    padding: 5px 8px;
+    font-size: 11px;
 }
 
 #paymentsView .data-table .form-control {

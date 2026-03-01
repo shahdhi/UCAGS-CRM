@@ -403,17 +403,31 @@
     batchSel.value = selectedBatchName;
   }
 
-  function renderStatusTabs() {
-    const wrap = qs('paymentsStatusTabs');
+  function bindStatusDropdown() {
+    const sel = qs('paymentsStatusSelect');
+    if (!sel || sel.__bound) return;
+    sel.__bound = true;
+
+    // Initialize dropdown to current selectedStatus
+    sel.value = selectedStatus || 'all';
+
+    sel.addEventListener('change', () => {
+      selectedStatus = sel.value || 'all';
+      loadPayments().catch(console.error);
+    });
+  }
+
+  function renderInstallmentTabs() {
+    const wrap = qs('paymentsInstallmentTabs');
     if (!wrap) return;
 
     const tabs = [
-      { key: 'due_overdue', label: 'Due + Overdue' },
-      { key: 'due', label: 'Due' },
-      { key: 'overdue', label: 'Overdue' },
-      { key: 'upcoming', label: 'Upcoming' },
-      { key: 'completed', label: 'Completed' },
-      { key: 'all', label: 'All' }
+      { key: '', label: 'All' },
+      { key: 'installment_1', label: '1st Installment' },
+      { key: 'installment_2', label: '2nd Installment' },
+      { key: 'installment_3', label: '3rd Installment' },
+      { key: 'installment_4', label: '4th Installment' },
+      { key: 'full_payment', label: 'Full payment' }
     ];
 
     wrap.innerHTML = '';
@@ -423,14 +437,23 @@
       btn.className = 'btn btn-secondary';
       btn.style.padding = '6px 10px';
       btn.style.borderRadius = '999px';
-      const active = t.key === selectedStatus;
+      const active = String(t.key) === String(selectedInstallmentFilter || '');
       btn.style.border = active ? '1px solid #592c88' : '1px solid #eaecf0';
       btn.style.background = active ? '#f4ebff' : '#fff';
       btn.style.color = active ? '#592c88' : '#344054';
       btn.textContent = t.label;
       btn.onclick = () => {
-        selectedStatus = t.key;
-        renderStatusTabs();
+        selectedInstallmentFilter = t.key;
+        renderInstallmentTabs();
+
+        // Requirement: when filtering by installment, also show confirmed/paid payments.
+        // Switch status to "All" automatically.
+        const statusSel = qs('paymentsStatusSelect');
+        if (selectedInstallmentFilter) {
+          selectedStatus = 'all';
+          if (statusSel) statusSel.value = 'all';
+        }
+
         loadPayments().catch(console.error);
       };
       wrap.appendChild(btn);
@@ -520,11 +543,12 @@
           selectedInstallmentFilter = `installment_${n}`;
           __autoDefaultedInstallment = true;
 
-          const typeSel = qs('paymentsInstallmentFilter');
-          if (typeSel) typeSel.value = selectedInstallmentFilter;
+          // keep UI in sync with new installment tabs
+          renderInstallmentTabs();
 
           selectedStatus = 'all';
-          renderStatusTabs();
+          const statusSel = qs('paymentsStatusSelect');
+          if (statusSel) statusSel.value = 'all';
 
           // Reload once with type filter applied
           await loadPayments({ showSkeleton: false });
@@ -798,7 +822,7 @@
     const refreshBtn = qs('paymentsRefreshBtn');
     const limitEl = qs('paymentsLimit');
     const batchSel = qs('paymentsBatchSelect');
-    const typeSel = qs('paymentsInstallmentFilter');
+    const statusSel = qs('paymentsStatusSelect');
     const searchInput = qs('paymentsSearchInput');
 
     if (batchSel && !batchSel.__bound) {
@@ -809,18 +833,10 @@
       });
     }
 
-    if (typeSel && !typeSel.__bound) {
-      typeSel.__bound = true;
-      typeSel.addEventListener('change', () => {
-        selectedInstallmentFilter = typeSel.value;
-
-        // Requirement: when filtering by installment, also show confirmed/paid payments.
-        // The easiest UX is to switch status to "All" automatically.
-        if (selectedInstallmentFilter) {
-          selectedStatus = 'all';
-          renderStatusTabs();
-        }
-
+    if (statusSel && !statusSel.__bound) {
+      statusSel.__bound = true;
+      statusSel.addEventListener('change', () => {
+        selectedStatus = statusSel.value || 'all';
         loadPayments().catch(console.error);
       });
     }
@@ -847,7 +863,8 @@
       limitEl.addEventListener('change', () => loadPayments().catch(console.error));
     }
 
-    renderStatusTabs();
+    bindStatusDropdown();
+    renderInstallmentTabs();
     await renderProgramTabs();
     const hasRows = !!qs('paymentsTableBody')?.querySelector('tr[data-row-key]');
     await loadPayments({ showSkeleton: !hasRows });

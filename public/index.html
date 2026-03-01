@@ -919,7 +919,7 @@
                                 <div style="color:#667085; font-size: 13px;">Payments captured from registrations</div>
                                 <div id="paymentsProgramTabs" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
                             </div>
-                            <div id="paymentsStatusTabs" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+                            <div id="paymentsInstallmentTabs" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
                         </div>
                         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                             <input id="paymentsSearchInput" type="text" class="form-control" placeholder="Search name / phone / email / receipt..." style="width:260px;" />
@@ -927,14 +927,14 @@
                             <label for="paymentsBatchSelect" style="font-size:13px; color:#667085;">Batch</label>
                             <select id="paymentsBatchSelect" class="form-control" style="width:160px;"></select>
 
-                            <label for="paymentsInstallmentFilter" style="font-size:13px; color:#667085;">Type</label>
-                            <select id="paymentsInstallmentFilter" class="form-control" style="width:190px;">
-                                <option value="">All</option>
-                                <option value="installment_1">1st Installment</option>
-                                <option value="installment_2">2nd Installment</option>
-                                <option value="installment_3">3rd Installment</option>
-                                <option value="installment_4">4th Installment</option>
-                                <option value="full_payment">Full payment</option>
+                            <label for="paymentsStatusSelect" style="font-size:13px; color:#667085;">Type</label>
+                            <select id="paymentsStatusSelect" class="form-control" style="width:190px;">
+                                <option value="due_overdue">Due + Overdue</option>
+                                <option value="due">Due</option>
+                                <option value="overdue">Overdue</option>
+                                <option value="upcoming">Upcoming</option>
+                                <option value="completed">Completed</option>
+                                <option value="all" selected>All</option>
                             </select>
 
                             <label for="paymentsLimit" style="font-size:13px; color:#667085;">Show</label>
@@ -956,7 +956,7 @@
                                     <th>Amount</th>
                                     <th>Payment date</th>
                                     <th>Status</th>
-                                    <th>Payment Received</th>
+                                    <th>Confirmed</th>
                                     <th>Receipt No</th>
                                 </tr>
                             </thead>
