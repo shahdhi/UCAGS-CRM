@@ -29,6 +29,8 @@
   }
 
   async function openPaymentDetails(registrationId, registrationName) {
+    // legacy (kept for now, but no longer used)
+
     const body = qs('paymentDetailsModalBody');
     if (body) body.innerHTML = '<p class="loading">Loading payment history...</p>';
 
@@ -422,29 +424,15 @@
     });
   }
 
-  function isRequiredFieldsFilled(tr) {
-    const method = tr.querySelector('.pay-method')?.value;
-    const plan = tr.querySelector('.pay-plan')?.value;
-    const amt = Number(tr.querySelector('.pay-amount')?.value);
-    const date = tr.querySelector('.pay-date')?.value;
-    const slip = !!tr.querySelector('.pay-slip')?.checked;
-
-    // Email sent + Whatsapp sent are NOT mandatory
-    return !!(method && plan && Number.isFinite(amt) && amt > 0 && date && slip);
+  // Inline fields were removed from the payments table; confirmation is handled independently.
+  function isRequiredFieldsFilled(_) {
+    return true;
   }
 
   function updateConfirmButtonState(tr) {
     const confirmBtn = tr.querySelector('.pay-confirm');
     if (!confirmBtn) return;
-
-    // Undo should always be possible
-    const isUndo = confirmBtn.textContent.trim().toLowerCase() === 'undo';
-    if (isUndo) {
-      confirmBtn.disabled = false;
-      return;
-    }
-
-    confirmBtn.disabled = !isRequiredFieldsFilled(tr);
+    confirmBtn.disabled = false;
   }
 
   let __autoDefaultedInstallment = false;
@@ -483,15 +471,10 @@
       const skelRow = () => `
         <tr class="table-skel-row">
           <td><div class="table-skel-line" style="width:60%"></div></td>
-          <td><div class="table-skel-line" style="width:45%"></div></td>
-          <td><div class="table-skel-line" style="width:40%"></div></td>
-          <td><div class="table-skel-line" style="width:25%"></div></td>
-          <td><div class="table-skel-line" style="width:25%"></div></td>
-          <td><div class="table-skel-line" style="width:30%"></div></td>
-          <td><div class="table-skel-line" style="width:30%"></div></td>
-          <td><div class="table-skel-line" style="width:30%"></div></td>
+          <td><div class="table-skel-line" style="width:50%"></div></td>
           <td><div class="table-skel-line" style="width:35%"></div></td>
-          <td><div class="table-skel-line" style="width:25%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:30%"></div></td>
           <td><div class="table-skel-line" style="width:25%"></div></td>
           <td><div class="table-skel-line" style="width:40%"></div></td>
         </tr>
@@ -600,7 +583,7 @@
   function renderPaymentsRows(rows, tbody) {
     if (!tbody) return;
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="12" class="empty">No payments found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">No payments found</td></tr>';
       return;
     }
 
@@ -630,34 +613,12 @@
       })();
 
       return `
-        <tr data-id="${escapeHtml(p.id)}" data-registration-id="${escapeHtml(p.registration_id || '')}">
-          <td>
-            <a href="#" class="pay-view" style="color:#175CD3; text-decoration:none; font-weight:600;">${escapeHtml(p.registration_name || '')}</a>
-          </td>
-          <td>${statusBadge}</td>
+        <tr class="pay-row" data-id="${escapeHtml(p.id)}" data-registration-id="${escapeHtml(p.registration_id || '')}" style="cursor:pointer;">
+          <td style="font-weight:600; color:#101828;">${escapeHtml(p.registration_name || '')}</td>
           <td style="color:#475467; font-weight:600;">${escapeHtml(installmentText || '-')}</td>
-          <td><input type="checkbox" class="pay-email" ${p.email_sent ? 'checked' : ''} /></td>
-          <td><input type="checkbox" class="pay-wa" ${p.whatsapp_sent ? 'checked' : ''} /></td>
-          <td>
-            <select class="pay-method form-control" style="min-width:160px;">
-              ${['', 'Online Transfer', 'Bank Deposit'].map(m => `<option value="${escapeHtml(m)}" ${m=== (p.payment_method||'') ? 'selected' : ''}>${escapeHtml(m||'Select')}</option>`).join('')}
-            </select>
-          </td>
-          <td>
-            <select class="pay-plan form-control" style="min-width:220px;">
-              ${[
-                '',
-                'Installment',
-                'Installment with early bird',
-                'Full payment',
-                'Full payment with early bird',
-                'registration fee only'
-              ].map(m => `<option value="${escapeHtml(m)}" ${m=== (p.payment_plan||'') ? 'selected' : ''}>${escapeHtml(m||'Select')}</option>`).join('')}
-            </select>
-          </td>
-          <td><input type="number" class="pay-amount form-control" value="${escapeHtml(p.amount ?? '')}" /></td>
-          <td><input type="date" class="pay-date form-control" value="${escapeHtml(p.payment_date || '')}" /></td>
-          <td><input type="checkbox" class="pay-slip" ${p.slip_received ? 'checked' : ''} /></td>
+          <td style="color:#101828; font-weight:600;">${escapeHtml(p.amount ?? '')}</td>
+          <td style="color:#475467;">${escapeHtml(p.payment_date || '')}</td>
+          <td>${statusBadge}</td>
           <td style="text-align:center;">
             <button type="button" class="btn btn-success btn-sm pay-confirm">
               ${p.is_confirmed ? 'Undo' : 'Confirm'}
@@ -666,7 +627,7 @@
           <td>
             ${p.receipt_no
               ? `<a href="#" class="pay-receipt-link" data-payment-id="${escapeHtml(p.id)}" style="color:#175CD3; text-decoration:none; font-weight:700;">${escapeHtml(p.receipt_no)}</a>`
-              : `<input type="text" class="pay-receipt form-control" value="" style="min-width:120px;" />`
+              : `<span style="color:#98a2b3;">-</span>`
             }
           </td>
         </tr>
@@ -688,31 +649,8 @@
     if (!tbody.__delegated) {
       tbody.__delegated = true;
 
-      const patchFromTr = async (tr) => {
-        const id = tr.getAttribute('data-id');
-        const body = {
-          email_sent: tr.querySelector('.pay-email')?.checked,
-          whatsapp_sent: tr.querySelector('.pay-wa')?.checked,
-          payment_method: tr.querySelector('.pay-method')?.value,
-          payment_plan: tr.querySelector('.pay-plan')?.value,
-          amount: Number(tr.querySelector('.pay-amount')?.value),
-          payment_date: tr.querySelector('.pay-date')?.value || null,
-          slip_received: tr.querySelector('.pay-slip')?.checked,
-          receipt_no: tr.querySelector('.pay-receipt')?.value
-        };
-        await window.API.payments.adminUpdate(id, body);
-      };
-
-      let t = null;
-      const debouncePatch = (tr) => {
-        if (t) clearTimeout(t);
-        t = setTimeout(() => {
-          patchFromTr(tr).catch(e => {
-            console.error(e);
-            if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to save payment', 'error');
-          });
-        }, 600);
-      };
+      // Inline editing removed (updates happen via Update Payment modal)
+      const debouncePatch = () => {};
 
       tbody.addEventListener('click', (e) => {
         const receiptLink = e.target?.closest?.('.pay-receipt-link');
@@ -756,13 +694,16 @@
           return;
         }
 
-        const view = e.target?.closest?.('.pay-view');
-        if (view) {
-          e.preventDefault();
-          const tr = view.closest('tr[data-id]');
-          const registrationId = tr?.getAttribute('data-registration-id');
-          const registrationName = view.textContent;
-          if (registrationId) openPaymentDetails(registrationId, registrationName).catch(console.error);
+        const trRow = e.target?.closest?.('tr.pay-row');
+        if (trRow) {
+          // Row click -> Update Payment modal
+          const pid = trRow.getAttribute('data-id');
+          if (pid && window.openUpdatePaymentModal) {
+            window.openUpdatePaymentModal(pid).catch(err => {
+              console.error(err);
+              if (window.UI && UI.showToast) UI.showToast(err.message || 'Failed to open payment', 'error');
+            });
+          }
           return;
         }
 
@@ -775,12 +716,11 @@
           (async () => {
             try {
               btn.disabled = true;
-              await patchFromTr(tr);
 
-              if (btn.textContent.trim().toLowerCase() !== 'undo') {
-                if (!isRequiredFieldsFilled(tr)) {
-                  throw new Error('Fill payment method, plan, amount, date and slip received before confirming.');
-                }
+              const isUndo = btn.textContent.trim().toLowerCase() === 'undo';
+              await (isUndo ? window.API.payments.adminUnconfirm(id) : window.API.payments.adminConfirm(id));
+
+              if (!isUndo) {
                 const r = await window.API.payments.adminConfirm(id);
                 const rn = r?.payment?.receipt_no || r?.receipt_no;
                 if (window.UI && UI.showToast) UI.showToast(rn ? `Payment confirmed (${rn})` : 'Payment confirmed', 'success');
@@ -788,6 +728,9 @@
                 await window.API.payments.adminUnconfirm(id);
                 if (window.UI && UI.showToast) UI.showToast('Payment unconfirmed', 'success');
               }
+
+              // Toggle label immediately
+              btn.textContent = isUndo ? 'Confirm' : 'Undo';
 
               if (window.Cache) window.Cache.invalidatePrefix('payments:adminSummary');
               await loadPayments();
@@ -820,93 +763,7 @@
     // initial state for confirm buttons
     tbody.querySelectorAll('tr[data-id]').forEach(tr => updateConfirmButtonState(tr));
 
-    return;
-
     // legacy per-row binding removed
-    tbody.querySelectorAll('tr[data-id]').forEach(tr => {
-      const id = tr.getAttribute('data-id');
-      const registrationId = tr.getAttribute('data-registration-id');
-      const registrationName = tr.querySelector('.pay-view')?.textContent;
-
-      const viewLink = tr.querySelector('.pay-view');
-      if (viewLink) {
-        viewLink.addEventListener('click', (e) => {
-          e.preventDefault();
-          if (registrationId) openPaymentDetails(registrationId, registrationName).catch(console.error);
-        });
-      }
-
-      const patch = async () => {
-        const body = {
-          email_sent: tr.querySelector('.pay-email')?.checked,
-          whatsapp_sent: tr.querySelector('.pay-wa')?.checked,
-          payment_method: tr.querySelector('.pay-method')?.value,
-          payment_plan: tr.querySelector('.pay-plan')?.value,
-          amount: Number(tr.querySelector('.pay-amount')?.value),
-          payment_date: tr.querySelector('.pay-date')?.value || null,
-          slip_received: tr.querySelector('.pay-slip')?.checked,
-          receipt_no: tr.querySelector('.pay-receipt')?.value
-        };
-        await window.API.payments.adminUpdate(id, body);
-      };
-
-      // auto-save on change (debounced)
-      let t = null;
-      const debounce = () => {
-        if (t) clearTimeout(t);
-        t = setTimeout(() => {
-          patch().catch(e => {
-            console.error(e);
-            if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to save payment', 'error');
-          });
-        }, 600);
-      };
-
-      tr.querySelectorAll('input,select').forEach(el => {
-        el.addEventListener('change', () => {
-          updateConfirmButtonState(tr);
-          debounce();
-        });
-        el.addEventListener('input', () => {
-          updateConfirmButtonState(tr);
-          debounce();
-        });
-      });
-
-      // initial state
-      updateConfirmButtonState(tr);
-
-      const confirmBtn = tr.querySelector('.pay-confirm');
-      if (confirmBtn) {
-        confirmBtn.addEventListener('click', async () => {
-          try {
-            confirmBtn.disabled = true;
-            await patch();
-
-            // Validate required fields before confirm (Undo allowed anytime)
-            if (confirmBtn.textContent.trim().toLowerCase() !== 'undo') {
-              if (!isRequiredFieldsFilled(tr)) {
-                throw new Error('Fill payment method, plan, amount, date and slip received before confirming.');
-              }
-              await window.API.payments.adminConfirm(id);
-              if (window.UI && UI.showToast) UI.showToast('Payment confirmed', 'success');
-            } else {
-              await window.API.payments.adminUnconfirm(id);
-              if (window.UI && UI.showToast) UI.showToast('Payment unconfirmed', 'success');
-            }
-
-            if (window.Cache) window.Cache.invalidatePrefix('payments:adminSummary');
-            await loadPayments();
-          } catch (e) {
-            console.error(e);
-            if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to update payment status', 'error');
-          } finally {
-            // after confirm/undo, recalc current row state (in case loadPayments() fails)
-            updateConfirmButtonState(tr);
-          }
-        });
-      }
-    });
   }
 
   async function initPaymentsPage() {
@@ -983,6 +840,198 @@
     const hasRows = !!qs('paymentsTableBody')?.querySelector('tr[data-row-key]');
     await loadPayments({ showSkeleton: !hasRows });
   }
+
+  // Update Payment modal
+  async function openUpdatePaymentModal(paymentId) {
+    const pid = String(paymentId || '').trim();
+    if (!pid) throw new Error('Missing payment id');
+
+    const body = qs('paymentUpdateModalBody');
+    const saveBtn = qs('paymentUpdateSaveBtn');
+
+    if (body) {
+      body.innerHTML = `
+        <div class="home-skel">
+          <div class="table-skel-line" style="width:60%; height:16px; margin:10px 0;"></div>
+          <div class="table-skel-line" style="width:45%; height:12px; margin:10px 0;"></div>
+          <div class="table-skel-line" style="width:75%; height:12px; margin:10px 0;"></div>
+          <div class="table-skel-line" style="width:50%; height:12px; margin:10px 0;"></div>
+          <div class="table-skel-line" style="width:70%; height:12px; margin:10px 0;"></div>
+        </div>
+      `;
+    }
+    if (saveBtn) saveBtn.disabled = true;
+
+    openModal('paymentUpdateModal');
+
+    // Find registrationId from currently loaded summary (fast path)
+    const sumRow = (window.__paymentsLastSummary || []).find(r => String(r.id) === String(pid));
+    const registrationId = sumRow?.registration_id;
+    if (!registrationId) {
+      throw new Error('Unable to resolve registration for this payment');
+    }
+
+    const res = await window.API.payments.adminListForRegistration(registrationId);
+    const payments = res.payments || [];
+    const selected = payments.find(p => String(p.id) === String(pid)) || payments[0];
+
+    // Registration/student details (from summary if available)
+    const reg = (window.__paymentsLastSummary || []).find(r => String(r.registration_id) === String(registrationId)) || sumRow || {};
+
+    const detailRow = (label, value) => `
+      <div style="display:flex; justify-content:space-between; gap:10px;">
+        <div style="color:#667085; font-size:12px; font-weight:700; text-transform:uppercase;">${escapeHtml(label)}</div>
+        <div style="color:#101828; font-weight:700; font-size:13px; text-align:right;">${escapeHtml(value || '-')}</div>
+      </div>
+    `;
+
+    const planName = selected?.payment_plan || '';
+    const installmentNo = selected?.installment_no ? `Installment ${Number(selected.installment_no)}` : '';
+
+    if (body) {
+      body.innerHTML = `
+        <div style="display:grid; gap:12px;">
+          <div style="border:1px solid #eaecf0; background:#fcfcfd; border-radius:12px; padding:12px;">
+            <div style="font-weight:800; color:#101828; margin-bottom:8px;">Student details</div>
+            <div style="display:grid; gap:6px;">
+              ${detailRow('Name', reg.registration_name)}
+              ${detailRow('Email', reg.registration_email)}
+              ${detailRow('Phone', reg.registration_phone_number)}
+              ${detailRow('Whatsapp', reg.registration_wa_number || reg.registration_phone_number)}
+              ${detailRow('Student ID', formatStudentId(reg.student_id || ''))}
+              ${detailRow('Assigned to', reg.assigned_to || '')}
+            </div>
+          </div>
+
+          <div style="border:1px solid #eaecf0; border-radius:12px; padding:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+              <div>
+                <div style="font-weight:800; color:#101828;">Payment details</div>
+                <div style="color:#667085; font-size:12px; margin-top:2px;">${escapeHtml(planName)} ${escapeHtml(installmentNo)}</div>
+              </div>
+              <div>
+                ${selected?.receipt_no
+                  ? `<a href="#" class="pay-receipt-link" data-payment-id="${escapeHtml(selected.id)}" style="color:#175CD3; text-decoration:none; font-weight:800;">Receipt: ${escapeHtml(selected.receipt_no)}</a>`
+                  : `<span style="color:#98a2b3; font-size:12px;">No receipt yet</span>`
+                }
+              </div>
+            </div>
+
+            <div style="display:grid; gap:12px; margin-top:12px;">
+              <div class="form-group">
+                <label>Payment Method</label>
+                <input id="upPayMethod" class="form-control" type="text" value="${escapeHtml(selected?.payment_method || '')}" placeholder="e.g., Online Transfer" />
+              </div>
+
+              <div class="form-group">
+                <label>Payment Plan</label>
+                <input id="upPayPlan" class="form-control" type="text" value="${escapeHtml(selected?.payment_plan || '')}" placeholder="e.g., Installment" />
+              </div>
+
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                <div class="form-group">
+                  <label>Amount</label>
+                  <input id="upPayAmount" class="form-control" type="number" value="${escapeHtml(selected?.amount ?? '')}" />
+                </div>
+                <div class="form-group">
+                  <label>Payment date</label>
+                  <input id="upPayDate" class="form-control" type="date" value="${escapeHtml(selected?.payment_date || '')}" />
+                </div>
+              </div>
+
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                <div class="form-group" style="flex-direction:row; align-items:center; gap:10px;">
+                  <input id="upPaySlip" type="checkbox" ${selected?.slip_received ? 'checked' : ''} />
+                  <label style="margin:0; font-weight:700;">Receipt/Slip received</label>
+                </div>
+                <div class="form-group" style="flex-direction:row; align-items:center; gap:10px;">
+                  <input id="upPayEmail" type="checkbox" ${selected?.email_sent ? 'checked' : ''} />
+                  <label style="margin:0; font-weight:700;">Email sent</label>
+                </div>
+              </div>
+
+              <div class="form-group" style="flex-direction:row; align-items:center; gap:10px;">
+                <input id="upPayWa" type="checkbox" ${selected?.whatsapp_sent ? 'checked' : ''} />
+                <label style="margin:0; font-weight:700;">Whatsapp sent</label>
+              </div>
+
+              <div class="form-group">
+                <label>Receipt No</label>
+                <input id="upPayReceiptNo" class="form-control" type="text" value="${escapeHtml(selected?.receipt_no || '')}" placeholder="Receipt number" />
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // bind receipt download
+      const link = body.querySelector('a.pay-receipt-link');
+      if (link) {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const pid2 = link.getAttribute('data-payment-id');
+          (async () => {
+            try {
+              const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+              const resp = await fetch(`/api/receipts/payment/${encodeURIComponent(pid2)}`, { headers: authHeaders, credentials: 'include' });
+              if (!resp.ok) {
+                const j = await resp.json().catch(() => null);
+                throw new Error(j?.error || 'Failed to download receipt');
+              }
+              const blob = await resp.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `receipt-${(selected?.receipt_no || 'receipt')}.pdf`;
+              document.body.appendChild(a);
+              a.click();
+              URL.revokeObjectURL(url);
+              a.remove();
+            } catch (err) {
+              console.error(err);
+              if (window.UI && UI.showToast) UI.showToast(err.message || 'Failed to download receipt', 'error');
+            }
+          })();
+        });
+      }
+    }
+
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.onclick = async () => {
+        try {
+          saveBtn.disabled = true;
+          saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving';
+
+          const payload = {
+            payment_method: qs('upPayMethod')?.value || null,
+            payment_plan: qs('upPayPlan')?.value || null,
+            amount: Number(qs('upPayAmount')?.value),
+            payment_date: qs('upPayDate')?.value || null,
+            slip_received: !!qs('upPaySlip')?.checked,
+            email_sent: !!qs('upPayEmail')?.checked,
+            whatsapp_sent: !!qs('upPayWa')?.checked,
+            receipt_no: qs('upPayReceiptNo')?.value || null
+          };
+
+          await window.API.payments.adminUpdate(selected.id, payload);
+          if (window.Cache) window.Cache.invalidatePrefix('payments:adminSummary');
+          await loadPayments();
+          if (window.UI && UI.showToast) UI.showToast('Saved', 'success');
+          closeModal('paymentUpdateModal');
+        } catch (e) {
+          console.error(e);
+          if (window.UI && UI.showToast) UI.showToast(e.message || 'Failed to save', 'error');
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '<i class="fas fa-save"></i> Save';
+        }
+      };
+    }
+  }
+
+  window.openUpdatePaymentModal = openUpdatePaymentModal;
 
   window.initPaymentsPage = initPaymentsPage;
 })();

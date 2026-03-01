@@ -952,21 +952,16 @@
                             <thead>
                                 <tr>
                                     <th>Name</th>
-                                    <th>Status</th>
                                     <th>Installment</th>
-                                    <th>Email sent</th>
-                                    <th>Whatsapp sent</th>
-                                    <th>Payment Method</th>
-                                    <th>Payment Plan</th>
-                                    <th>Payment Amount</th>
-                                    <th>Payment Date</th>
-                                    <th>Slip Received</th>
+                                    <th>Amount</th>
+                                    <th>Payment date</th>
+                                    <th>Status</th>
                                     <th>Payment Received</th>
                                     <th>Receipt No</th>
                                 </tr>
                             </thead>
                             <tbody id="paymentsTableBody">
-                                <tr><td colspan="12" class="loading">Loading payments...</td></tr>
+                                <tr><td colspan="7" class="loading">Loading payments...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1884,6 +1879,24 @@
                 <div style="display:flex; gap:10px;">
                     <button type="button" class="btn btn-secondary" onclick="closeModal('batchPaymentSetupModal')">Cancel</button>
                     <button type="button" class="btn btn-primary" id="paymentSetupSaveBtn"><i class="fas fa-save"></i> Save Setup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="paymentUpdateModal" class="modal">
+        <div class="modal-content" style="max-width: 720px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-pen"></i> Update Payment</h2>
+                <button class="modal-close" onclick="closeModal('paymentUpdateModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="paymentUpdateModalBody">
+                <p class="loading">Loading...</p>
+            </div>
+            <div class="modal-actions" style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('paymentUpdateModal')">Close</button>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="btn btn-primary" id="paymentUpdateSaveBtn"><i class="fas fa-save"></i> Save</button>
                 </div>
             </div>
         </div>
