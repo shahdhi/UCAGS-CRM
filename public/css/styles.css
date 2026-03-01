@@ -1522,6 +1522,31 @@ body {
     line-height: 1.1;
 }
 
+/* Demo Sessions tables: prevent hover scaling from overlapping the card */
+#demoSessionsView .table-container {
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+#demoSessionsView .data-table tbody tr,
+#demoSessionsView .data-table tbody tr:hover,
+#demoSessionsView .data-table tbody tr:active {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+#demoSessionsView .data-table td {
+    vertical-align: middle;
+}
+
+#demoSessionsView .data-table td input.form-control {
+    min-width: 220px;
+}
+
+#demoSessionsView .data-table td select.form-control {
+    min-width: 140px;
+}
+
 /* Attendance tables: prevent hover from causing horizontal scrollbar/reflow */
 #attendanceView .table-container {
     overflow-x: hidden; /* no horizontal scrollbar on hover */
