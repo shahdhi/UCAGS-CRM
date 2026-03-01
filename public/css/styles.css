@@ -1522,6 +1522,12 @@ body {
     line-height: 1.1;
 }
 
+/* Demo Sessions: ensure grid children can shrink so tables don't overflow the card */
+#demoSessionsView .demo-sessions-layout > div,
+#demoSessionsView .demo-participants {
+    min-width: 0;
+}
+
 /* Demo Sessions tables: prevent hover scaling from overlapping the card */
 #demoSessionsView .table-container {
     overflow-x: auto;
