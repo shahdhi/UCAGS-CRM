@@ -677,6 +677,22 @@
     }
   }
 
+  let __adminDayModalState = { date: '', status: 'present' };
+
+  function openAdminDayModal({ date, currentStatus }) {
+    __adminDayModalState = { date: String(date || ''), status: String(currentStatus || 'present') };
+
+    const subtitle = document.getElementById('attendanceAdminDayModalSubtitle');
+    const sel = document.getElementById('attendanceAdminDayStatus');
+    const saveBtn = document.getElementById('attendanceAdminDaySaveBtn');
+
+    if (subtitle) subtitle.textContent = `${adminOfficerName || ''} • ${__adminDayModalState.date}`;
+    if (sel) sel.value = __adminDayModalState.status;
+    if (saveBtn) saveBtn.disabled = false;
+
+    openModal('attendanceAdminDayModal');
+  }
+
   async function initAdminCalendar() {
     const sec = document.getElementById('attendanceAdminCalendarSection');
     if (!sec) return;
@@ -709,19 +725,31 @@
         const current = cell.getAttribute('data-status') || '';
         if (!date) return;
 
-        const status = prompt(`Set status for ${date} (present / absent / leave):`, current || 'present');
-        if (!status) return;
-        const s = String(status).trim().toLowerCase();
-        if (!['present', 'absent', 'leave'].includes(s)) {
-          if (window.UI?.showToast) UI.showToast('Invalid status. Use present / absent / leave', 'error');
-          return;
-        }
+        openAdminDayModal({ date, currentStatus: current || 'present' });
+      });
+    }
 
-        // optimistic UI
-        cell.setAttribute('data-status', s);
-        await API.attendance.adminSetDayStatus({ officerName: adminOfficerName, date, status: s });
-        await loadAdminCalendar({ showSkeleton: false });
-        if (window.UI?.showToast) UI.showToast('Updated', 'success');
+    const saveBtn = document.getElementById('attendanceAdminDaySaveBtn');
+    const statusSel = document.getElementById('attendanceAdminDayStatus');
+    if (saveBtn && !saveBtn.__bound) {
+      saveBtn.__bound = true;
+      saveBtn.addEventListener('click', async () => {
+        try {
+          const date = __adminDayModalState.date;
+          const status = statusSel?.value || 'present';
+          if (!date) throw new Error('Missing date');
+
+          saveBtn.disabled = true;
+          await API.attendance.adminSetDayStatus({ officerName: adminOfficerName, date, status });
+          closeModal('attendanceAdminDayModal');
+          await loadAdminCalendar({ showSkeleton: false });
+          if (window.UI?.showToast) UI.showToast('Updated', 'success');
+        } catch (e) {
+          console.error(e);
+          if (window.UI?.showToast) UI.showToast(e.message || 'Failed to update', 'error');
+        } finally {
+          saveBtn.disabled = false;
+        }
       });
     }
 

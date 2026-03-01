@@ -501,32 +501,6 @@
                     </div>
                 </div>
 
-                <!-- Admin: Staff Attendance Calendar -->
-                <div id="attendanceAdminCalendarSection" class="dashboard-card admin-only hidden" style="margin-bottom: 20px;">
-                    <div style="display:flex; justify-content: space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-                        <h3 style="margin:0;">Staff Attendance Calendar</h3>
-                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                            <label for="attendanceAdminOfficerSelect" style="font-size:13px; color:#667085;">Officer</label>
-                            <select id="attendanceAdminOfficerSelect" class="form-control" style="min-width:220px;"></select>
-                            <button id="attendanceAdminCalPrevBtn" class="btn btn-secondary" type="button"><i class="fas fa-chevron-left"></i></button>
-                            <button id="attendanceAdminCalThisBtn" class="btn btn-secondary" type="button">This Month</button>
-                            <button id="attendanceAdminCalNextBtn" class="btn btn-secondary" type="button"><i class="fas fa-chevron-right"></i></button>
-                        </div>
-                    </div>
-                    <div style="display:flex; justify-content: space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:8px;">
-                        <div id="attendanceAdminMonthLabel" style="color:#666;"></div>
-                        <div id="attendanceAdminCalHint" style="color:#111; font-weight:600; font-size:12px;">Click a day to change status</div>
-                    </div>
-                    <div id="attendanceAdminCalendarGrid" class="followup-calendar-grid" style="margin-top: 10px;"></div>
-                    <div style="display:flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; font-size: 12px; color:#666;">
-                        <div><span style="display:inline-block; width:10px; height:10px; background:#22c55e; border-radius:2px; margin-right:6px;"></span>Present</div>
-                        <div><span style="display:inline-block; width:10px; height:10px; background:#ef4444; border-radius:2px; margin-right:6px;"></span>Absent</div>
-                        <div><span style="display:inline-block; width:10px; height:10px; background:#3b82f6; border-radius:2px; margin-right:6px;"></span>Leave</div>
-                        <div><span style="display:inline-block; width:10px; height:10px; background:#e5e7eb; border-radius:2px; margin-right:6px;"></span>Future</div>
-                    </div>
-                    <div style="margin-top:10px; font-size:12px; color:#667085;">Note: Admin changes are saved as overrides and will reflect here immediately.</div>
-                </div>
-
                 <!-- Admin Leave Approvals -->
                 <div id="attendanceAdminLeaveSection" class="dashboard-card admin-only hidden" style="margin-bottom: 20px;">
                     <h3>Leave Requests</h3>
@@ -583,6 +557,32 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+
+                <!-- Admin: Staff Attendance Calendar -->
+                <div id="attendanceAdminCalendarSection" class="dashboard-card admin-only hidden" style="margin-bottom: 20px;">
+                    <div style="display:flex; justify-content: space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <h3 style="margin:0;">Staff Attendance Calendar</h3>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <label for="attendanceAdminOfficerSelect" style="font-size:13px; color:#667085;">Officer</label>
+                            <select id="attendanceAdminOfficerSelect" class="form-control" style="min-width:220px;"></select>
+                            <button id="attendanceAdminCalPrevBtn" class="btn btn-secondary" type="button"><i class="fas fa-chevron-left"></i></button>
+                            <button id="attendanceAdminCalThisBtn" class="btn btn-secondary" type="button">This Month</button>
+                            <button id="attendanceAdminCalNextBtn" class="btn btn-secondary" type="button"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content: space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:8px;">
+                        <div id="attendanceAdminMonthLabel" style="color:#666;"></div>
+                        <div id="attendanceAdminCalHint" style="color:#111; font-weight:600; font-size:12px;">Click a day to change status</div>
+                    </div>
+                    <div id="attendanceAdminCalendarGrid" class="followup-calendar-grid" style="margin-top: 10px;"></div>
+                    <div style="display:flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; font-size: 12px; color:#666;">
+                        <div><span style="display:inline-block; width:10px; height:10px; background:#22c55e; border-radius:2px; margin-right:6px;"></span>Present</div>
+                        <div><span style="display:inline-block; width:10px; height:10px; background:#ef4444; border-radius:2px; margin-right:6px;"></span>Absent</div>
+                        <div><span style="display:inline-block; width:10px; height:10px; background:#3b82f6; border-radius:2px; margin-right:6px;"></span>Leave</div>
+                        <div><span style="display:inline-block; width:10px; height:10px; background:#e5e7eb; border-radius:2px; margin-right:6px;"></span>Future</div>
+                    </div>
+                    <div style="margin-top:10px; font-size:12px; color:#667085;">Note: Admin changes are saved as overrides and will reflect here immediately.</div>
                 </div>
             </div>
 
@@ -1901,6 +1901,31 @@
                     <button type="button" class="btn btn-secondary" onclick="closeModal('batchPaymentSetupModal')">Cancel</button>
                     <button type="button" class="btn btn-primary" id="paymentSetupSaveBtn"><i class="fas fa-save"></i> Save Setup</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Attendance Day Status Modal -->
+    <div id="attendanceAdminDayModal" class="modal">
+        <div class="modal-content" style="max-width: 420px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-calendar-day"></i> Update Day Status</h2>
+                <button class="modal-close" onclick="closeModal('attendanceAdminDayModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="font-size:12px; color:#667085; font-weight:700; margin-bottom:10px;" id="attendanceAdminDayModalSubtitle"></div>
+                <div class="form-group">
+                    <label for="attendanceAdminDayStatus">Status</label>
+                    <select id="attendanceAdminDayStatus" class="form-control">
+                        <option value="present">Present</option>
+                        <option value="absent">Absent</option>
+                        <option value="leave">Leave</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top:10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('attendanceAdminDayModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" id="attendanceAdminDaySaveBtn"><i class="fas fa-save"></i> Save</button>
             </div>
         </div>
     </div>
