@@ -587,6 +587,167 @@
     }
   }
 
+  // ---- Admin calendar (staff attendance) ----
+  let adminCalMonth = ymToday();
+  let adminOfficerName = '';
+
+  function renderAdminCalendarSkeleton() {
+    const grid = document.getElementById('attendanceAdminCalendarGrid');
+    const label = document.getElementById('attendanceAdminMonthLabel');
+    if (label) label.textContent = 'Loading…';
+    if (!grid) return;
+
+    const headers = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const cells = [];
+    for (const h of headers) {
+      cells.push(`<div class="followup-calendar-cell" style="font-weight:600; background:#f9fafb;">${h}</div>`);
+    }
+    for (let i = 0; i < 42; i++) {
+      cells.push(`
+        <div class="followup-calendar-cell loading-shimmer" style="min-height:78px; background-color:#f3f4f6; border:1px solid #e5e7eb;">
+          <div style="height:12px; width:40%; background:rgba(255,255,255,0.35); border-radius:6px;"></div>
+          <div style="height:10px; width:60%; margin-top:10px; background:rgba(255,255,255,0.25); border-radius:6px;"></div>
+        </div>
+      `);
+    }
+    grid.innerHTML = cells.join('');
+  }
+
+  function renderAdminCalendar(days) {
+    const grid = document.getElementById('attendanceAdminCalendarGrid');
+    const label = document.getElementById('attendanceAdminMonthLabel');
+    if (label) label.textContent = monthLabel(adminCalMonth);
+    if (!grid) return;
+
+    const [y, m] = adminCalMonth.split('-').map(Number);
+    const first = new Date(y, m - 1, 1);
+    const startDow = first.getDay();
+
+    const statusByDate = new Map((days || []).map(d => [d.date, d.status]));
+
+    const cells = [];
+    const headers = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    for (const h of headers) {
+      cells.push(`<div class="followup-calendar-cell header" style="font-weight:600; background:#f9fafb;">${h}</div>`);
+    }
+
+    for (let i = 0; i < startDow; i++) {
+      cells.push(`<div class="followup-calendar-cell" style="background:#fff; border:1px solid #f0f0f0;"></div>`);
+    }
+
+    const daysInThisMonth = new Date(y, m, 0).getDate();
+    for (let d = 1; d <= daysInThisMonth; d++) {
+      const date = `${adminCalMonth}-${pad2(d)}`;
+      const status = statusByDate.get(date) || 'absent';
+
+      let bg = '#fff';
+      let border = '#e5e7eb';
+      if (status === 'present') bg = '#dcfce7';
+      else if (status === 'absent') bg = '#fee2e2';
+      else if (status === 'leave') bg = '#dbeafe';
+      else if (status === 'future') bg = '#f3f4f6';
+
+      const labelText = status === 'leave' ? 'Leave' : status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : '';
+
+      cells.push(
+        `<div class="followup-calendar-cell" data-date="${date}" data-status="${escapeHtml(status)}" style="background:${bg}; border:1px solid ${border}; cursor:pointer;">` +
+          `<div style="display:flex; justify-content: space-between; align-items:center;">` +
+            `<span style="font-weight:600;">${d}</span>` +
+            `<span style="font-size:11px; color:#555;">${labelText}</span>` +
+          `</div>` +
+        `</div>`
+      );
+    }
+
+    grid.innerHTML = cells.join('');
+  }
+
+  async function loadAdminCalendar({ showSkeleton = true } = {}) {
+    try {
+      const sec = document.getElementById('attendanceAdminCalendarSection');
+      if (!sec || sec.classList.contains('hidden')) return;
+      if (!adminOfficerName) return;
+
+      if (showSkeleton) renderAdminCalendarSkeleton();
+      const res = await API.attendance.adminGetOfficerCalendar({ officerName: adminOfficerName, month: adminCalMonth });
+      renderAdminCalendar(res.days || []);
+    } catch (e) {
+      console.error(e);
+      if (window.UI?.showToast) UI.showToast(e.message || 'Failed to load calendar', 'error');
+    }
+  }
+
+  async function initAdminCalendar() {
+    const sec = document.getElementById('attendanceAdminCalendarSection');
+    if (!sec) return;
+
+    const officerSel = document.getElementById('attendanceAdminOfficerSelect');
+    const prevBtn = document.getElementById('attendanceAdminCalPrevBtn');
+    const nextBtn = document.getElementById('attendanceAdminCalNextBtn');
+    const thisBtn = document.getElementById('attendanceAdminCalThisBtn');
+    const grid = document.getElementById('attendanceAdminCalendarGrid');
+
+    if (prevBtn && !prevBtn.__bound) {
+      prevBtn.__bound = true;
+      prevBtn.addEventListener('click', () => { adminCalMonth = monthAdd(adminCalMonth, -1); loadAdminCalendar({ showSkeleton: false }); });
+    }
+    if (nextBtn && !nextBtn.__bound) {
+      nextBtn.__bound = true;
+      nextBtn.addEventListener('click', () => { adminCalMonth = monthAdd(adminCalMonth, 1); loadAdminCalendar({ showSkeleton: false }); });
+    }
+    if (thisBtn && !thisBtn.__bound) {
+      thisBtn.__bound = true;
+      thisBtn.addEventListener('click', () => { adminCalMonth = ymToday(); loadAdminCalendar({ showSkeleton: false }); });
+    }
+
+    if (grid && !grid.__delegated) {
+      grid.__delegated = true;
+      grid.addEventListener('click', async (e) => {
+        const cell = e.target?.closest?.('.followup-calendar-cell[data-date]');
+        if (!cell) return;
+        const date = cell.getAttribute('data-date');
+        const current = cell.getAttribute('data-status') || '';
+        if (!date) return;
+
+        const status = prompt(`Set status for ${date} (present / absent / leave):`, current || 'present');
+        if (!status) return;
+        const s = String(status).trim().toLowerCase();
+        if (!['present', 'absent', 'leave'].includes(s)) {
+          if (window.UI?.showToast) UI.showToast('Invalid status. Use present / absent / leave', 'error');
+          return;
+        }
+
+        // optimistic UI
+        cell.setAttribute('data-status', s);
+        await API.attendance.adminSetDayStatus({ officerName: adminOfficerName, date, status: s });
+        await loadAdminCalendar({ showSkeleton: false });
+        if (window.UI?.showToast) UI.showToast('Updated', 'success');
+      });
+    }
+
+    if (officerSel && !officerSel.__bound) {
+      officerSel.__bound = true;
+      officerSel.addEventListener('change', () => {
+        adminOfficerName = officerSel.value;
+        loadAdminCalendar({ showSkeleton: true }).catch(console.error);
+      });
+
+      // load officers list
+      officerSel.innerHTML = '<option value="">Loading…</option>';
+      const res = await API.attendance.adminListOfficers();
+      const officers = (res.officers || []).slice().sort((a, b) => String(a).localeCompare(String(b)));
+      officerSel.innerHTML = ['<option value="">Select officer</option>']
+        .concat(officers.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`))
+        .join('');
+
+      if (officers.length) {
+        adminOfficerName = adminOfficerName || officers[0];
+        officerSel.value = adminOfficerName;
+        await loadAdminCalendar({ showSkeleton: true });
+      }
+    }
+  }
+
   // ---- Admin leave approvals ----
   async function loadAdminLeaveRequests({ showSkeleton = true } = {}) {
     const tbody = document.getElementById('attendanceAdminLeaveTableBody');
@@ -789,6 +950,10 @@
 
       const officerSection = document.getElementById('attendanceOfficerSection');
       if (officerSection) officerSection.classList.add('hidden');
+
+      const adminCal = document.getElementById('attendanceAdminCalendarSection');
+      if (adminCal) adminCal.classList.remove('hidden');
+      await initAdminCalendar();
 
       const adminLeave = document.getElementById('attendanceAdminLeaveSection');
       if (adminLeave) adminLeave.classList.remove('hidden');

@@ -730,6 +730,23 @@ const attendanceAPI = {
     const sp = new URLSearchParams(params);
     const qs = sp.toString();
     return fetchAPI(`/attendance/records${qs ? `?${qs}` : ''}`);
+  },
+
+  // Admin calendar grid
+  adminListOfficers: async () => {
+    return fetchAPI('/attendance/admin/officers');
+  },
+  adminGetOfficerCalendar: async ({ officerName, month }) => {
+    const sp = new URLSearchParams();
+    if (officerName) sp.set('officerName', String(officerName));
+    if (month) sp.set('month', String(month));
+    return fetchAPI(`/attendance/admin/calendar?${sp.toString()}`);
+  },
+  adminSetDayStatus: async ({ officerName, date, status }) => {
+    return fetchAPI('/attendance/admin/calendar', {
+      method: 'PUT',
+      body: JSON.stringify({ officerName, date, status })
+    });
   }
 };
 

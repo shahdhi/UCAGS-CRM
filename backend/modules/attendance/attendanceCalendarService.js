@@ -10,6 +10,7 @@
 
 const { getStaffRecords } = require('./attendanceService');
 const { listLeaveRequests } = require('./leaveRequestsService');
+const { listOverrides } = require('./adminAttendanceOverridesService');
 
 function pad2(n) {
   return String(n).padStart(2, '0');
@@ -68,6 +69,15 @@ async function getOfficerMonthCalendar({ officerName, month }) {
 
   const today = todayYmdSriLanka(new Date());
 
+  // Manual overrides (admin-adjusted statuses)
+  let overrideMap = new Map();
+  try {
+    const overrides = await listOverrides({ officerName, fromDate: from, toDate: to });
+    overrideMap = new Map((overrides || []).map(o => [o.date, o.status]));
+  } catch (e) {
+    // Non-fatal (if sheet tab missing etc.)
+  }
+
   const days = [];
   for (let d = 1; d <= count; d++) {
     const date = `${month}-${pad2(d)}`;
@@ -76,6 +86,11 @@ async function getOfficerMonthCalendar({ officerName, month }) {
     if (date > today) status = 'future';
     else if (presentSet.has(date)) status = 'present';
     else if (leaveSet.has(date)) status = 'leave';
+
+    const o = overrideMap.get(date);
+    if (o && ['present', 'absent', 'leave'].includes(String(o))) {
+      status = String(o);
+    }
 
     days.push({ date, status });
   }

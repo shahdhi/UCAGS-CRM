@@ -74,6 +74,17 @@ router.post('/me/confirm-location', isAuthenticated, async (req, res) => {
 });
 
 const { getOfficerMonthCalendar } = require('./attendanceCalendarService');
+const { getSpreadsheetInfo } = require('../../core/sheets/sheetsClient');
+const { getAttendanceSheetId } = require('../../core/config/appSettings');
+const { upsertOverride } = require('./adminAttendanceOverridesService');
+
+async function listOfficerSheets() {
+  const spreadsheetId = await getAttendanceSheetId();
+  if (!spreadsheetId) return [];
+  const info = await getSpreadsheetInfo(spreadsheetId);
+  const titles = (info.sheets || []).map(s => s.properties.title).filter(Boolean);
+  return titles.filter(t => t !== 'LeaveRequests' && t !== 'AttendanceOverrides' && t !== 'Sheet1' && !t.startsWith('_'));
+}
 
 // Officer: check out
 router.post('/me/checkout', isAuthenticated, async (req, res) => {
@@ -263,6 +274,50 @@ router.get('/records', isAdmin, async (req, res) => {
     res.json({ success: true, count: records.length, records });
   } catch (error) {
     console.error('GET /api/attendance/records error:', error);
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
+// Admin: list officers (sheet names)
+router.get('/admin/officers', isAdmin, async (req, res) => {
+  try {
+    const officers = await listOfficerSheets();
+    res.json({ success: true, officers });
+  } catch (error) {
+    console.error('GET /api/attendance/admin/officers error:', error);
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
+// Admin: calendar for an officer + month
+// Query params: officerName=..., month=YYYY-MM
+router.get('/admin/calendar', isAdmin, async (req, res) => {
+  try {
+    const officerName = String(req.query.officerName || '').trim();
+    const month = String(req.query.month || '').trim();
+    if (!officerName) return res.status(400).json({ success: false, error: 'officerName is required' });
+    if (!month) return res.status(400).json({ success: false, error: 'month is required (YYYY-MM)' });
+
+    const data = await getOfficerMonthCalendar({ officerName, month });
+    res.json({ success: true, ...data });
+  } catch (error) {
+    console.error('GET /api/attendance/admin/calendar error:', error);
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
+// Admin: set a day status override
+router.put('/admin/calendar', isAdmin, async (req, res) => {
+  try {
+    const adminName = req.user?.name || 'Admin';
+    const officerName = String(req.body?.officerName || '').trim();
+    const date = String(req.body?.date || '').trim();
+    const status = String(req.body?.status || '').trim();
+
+    const result = await upsertOverride({ officerName, date, status, updatedBy: adminName });
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('PUT /api/attendance/admin/calendar error:', error);
     res.status(error.status || 500).json({ success: false, error: error.message });
   }
 });
