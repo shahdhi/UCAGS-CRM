@@ -2561,7 +2561,10 @@ async function loadDashboard() {
                           <div class="officer-stat leaderboard-row" style="margin:0; padding:8px 6px;">
                             <div class="officer-name">
                               <span class="leaderboard-rank"><i class=\"fas fa-trophy\" style=\"color:#d4af37;\"></i></span>
-                              <span class="leaderboard-name" title="${best.officer.name}">Performer of the week (overall tasks): ${best.officer.name}</span>
+                              <span class="leaderboard-name" title="Performer of the week">Performer of the week (overall tasks)</span>
+                            </div>
+                            <div class="leaderboard-metrics" style="justify-content:flex-end;">
+                              <div class="officer-count" style="font-weight:800;">${best.officer.name}</div>
                             </div>
                           </div>
                         `;
