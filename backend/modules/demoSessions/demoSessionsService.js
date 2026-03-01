@@ -79,7 +79,11 @@ async function listInvites({ demoSessionId, officerId }) {
     .eq('demo_session_id', id);
 
   const oid = clean(officerId);
-  if (oid) q = q.eq('created_by', oid);
+  if (oid) {
+    // Prefer officer_user_id (new schema). For older rows that don't have officer_user_id populated,
+    // created_by acted as a rough proxy.
+    q = q.or(`officer_user_id.eq.${oid},created_by.eq.${oid}`);
+  }
 
   const { data, error } = await q.order('created_at', { ascending: true });
   if (error) throw error;
@@ -100,15 +104,43 @@ async function inviteLeadToDemo({ batchName, demoNumber, lead, actorUserId, link
   return data || [];
 }
 
-async function inviteLeadToDemo({ batchName, demoNumber, lead, actorUserId, link }) {
+async function inviteLeadToDemo({ batchName, demoNumber, lead, actorUserId, link, officerUserId }) {
   const sb = requireSupabase();
   const session = await ensureSession({ batchName, demoNumber, patch: {}, actorUserId });
 
   const crmLeadId = clean(lead?.crm_lead_id || lead?.crmLeadId || lead?.supabaseId || lead?.id);
   if (!crmLeadId) throw Object.assign(new Error('lead.supabaseId (crm lead id) is required'), { status: 400 });
 
+  let officerId = clean(officerUserId) || (actorUserId || null);
+
+  // If officer wasn't explicitly provided (common when invited from Lead Management),
+  // try to assign to the lead's assigned officer.
+  if (!officerId && crmLeadId) {
+    try {
+      const { data: leadRow } = await sb
+        .from('crm_leads')
+        .select('assigned_to')
+        .eq('id', crmLeadId)
+        .maybeSingle();
+
+      const officerName = clean(leadRow?.assigned_to);
+      if (officerName) {
+        const { data: { users } } = await sb.auth.admin.listUsers();
+        const match = (users || []).find(u => {
+          const name = clean(u.user_metadata?.name);
+          const emailPrefix = clean(u.email || '').split('@')[0];
+          return name === officerName || emailPrefix === officerName;
+        });
+        if (match?.id) officerId = match.id;
+      }
+    } catch (_) {
+      // ignore mapping failures
+    }
+  }
+
   const row = {
     demo_session_id: session.id,
+    officer_user_id: officerId,
     crm_lead_id: crmLeadId,
     batch_name: clean(lead?.batch_name || lead?.batch || batchName),
     sheet_name: clean(lead?.sheet_name || lead?.sheet || ''),

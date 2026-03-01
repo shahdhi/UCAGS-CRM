@@ -56,12 +56,12 @@ router.get('/invites', isAdminOrOfficer, async (req, res) => {
 });
 
 // POST /api/demo-sessions/invite
-// Body: { batchName, demoNumber, lead, link }
+// Body: { batchName, demoNumber, lead, link, officerUserId? }
 router.post('/invite', isAdminOrOfficer, async (req, res) => {
   try {
-    const { batchName, demoNumber, lead, link } = req.body || {};
+    const { batchName, demoNumber, lead, link, officerUserId } = req.body || {};
     const actorUserId = req.user?.id;
-    const out = await svc.inviteLeadToDemo({ batchName, demoNumber, lead, actorUserId, link });
+    const out = await svc.inviteLeadToDemo({ batchName, demoNumber, lead, actorUserId, link, officerUserId });
     res.status(201).json({ success: true, ...out });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });

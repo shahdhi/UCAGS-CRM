@@ -32,6 +32,9 @@ create table if not exists public.demo_session_invites (
   id uuid primary key default gen_random_uuid(),
   demo_session_id uuid not null references public.demo_sessions(id) on delete cascade,
 
+  -- Assigned officer (so admin/officer filtering works like leads)
+  officer_user_id uuid,
+
   -- Reference crm_leads row (Supabase internal id)
   crm_lead_id uuid,
 
@@ -58,7 +61,11 @@ create table if not exists public.demo_session_invites (
   unique (demo_session_id, crm_lead_id)
 );
 
+-- If the table already existed from a previous deployment, ensure new columns exist
+alter table public.demo_session_invites add column if not exists officer_user_id uuid;
+
 create index if not exists demo_invites_session_idx on public.demo_session_invites(demo_session_id);
+create index if not exists demo_invites_officer_idx on public.demo_session_invites(officer_user_id);
 create index if not exists demo_invites_batch_idx on public.demo_session_invites(batch_name);
 
 -- =========================
