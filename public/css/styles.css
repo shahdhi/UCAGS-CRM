@@ -18,7 +18,47 @@ button.demo-card {
     box-sizing: border-box;
 }
 
+/* Tailwind-like typography utilities (optional use in markup) */
+.text-xs { font-size: 0.75rem !important; line-height: 1rem !important; }
+.text-sm { font-size: 0.875rem !important; line-height: 1.25rem !important; }
+.text-base { font-size: 1rem !important; line-height: 1.5rem !important; }
+.text-lg { font-size: 1.125rem !important; line-height: 1.75rem !important; }
+.text-xl { font-size: 1.25rem !important; line-height: 1.75rem !important; }
+.text-2xl { font-size: 1.5rem !important; line-height: 2rem !important; }
+.text-3xl { font-size: 1.875rem !important; line-height: 2.25rem !important; }
+
+.font-medium { font-weight: 500 !important; }
+.font-semibold { font-weight: 600 !important; }
+.font-bold { font-weight: 700 !important; }
+
+.text-gray-900 { color: var(--tw-gray-900) !important; }
+.text-gray-700 { color: var(--tw-gray-700) !important; }
+.text-gray-600 { color: var(--tw-gray-600) !important; }
+.text-gray-500 { color: var(--tw-gray-500) !important; }
+.text-gray-400 { color: var(--tw-gray-400) !important; }
+.text-blue-600 { color: var(--tw-blue-600) !important; }
+.text-white { color: var(--tw-white) !important; }
+.text-green-600 { color: var(--tw-green-600) !important; }
+.text-red-600 { color: var(--tw-red-600) !important; }
+.text-yellow-600 { color: var(--tw-yellow-600) !important; }
+
+
 :root {
+    /* Typography (Tailwind-like) */
+    --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+    /* Text colors (Tailwind-like) */
+    --tw-gray-900: #111827;
+    --tw-gray-700: #374151;
+    --tw-gray-600: #4B5563;
+    --tw-gray-500: #6B7280;
+    --tw-gray-400: #9CA3AF;
+    --tw-blue-600: #2563EB;
+    --tw-white: #FFFFFF;
+    --tw-green-600: #16A34A;
+    --tw-red-600: #DC2626;
+    --tw-yellow-600: #CA8A04;
+
     /* Purple Theme Colors - Apple-calibrated */
     --primary-purple: #8B5CF6;
     --primary-purple-dark: #7C3AED;
@@ -80,7 +120,8 @@ button.demo-card {
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    /* Tailwind CSS default font stack (system fonts, no imports) */
+    font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     background: var(--bg-secondary);
     color: var(--text-primary);
     line-height: 1.5;
