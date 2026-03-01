@@ -1528,6 +1528,12 @@ body {
     min-width: 0;
 }
 
+@media (max-width: 980px) {
+  #demoSessionsView .demo-sessions-layout {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 /* Demo Sessions tables: prevent hover scaling from overlapping the card */
 #demoSessionsView .table-container {
     overflow-x: auto;
