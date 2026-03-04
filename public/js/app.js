@@ -843,14 +843,16 @@ async function navigateToPage(page) {
             if (page === 'leads-myLeads' || page.startsWith('leads-myLeads-batch-')) {
                 // Officer view
                 if (window.initLeadsPage) {
-                    console.log('🔄 Initializing officer leads page...');
+                    console.log('[LEADS] Initializing officer leads page...');
                     window.initLeadsPage('myLeads');
+                } else {
+                    console.error('[LEADS] ERROR: initLeadsPage not found on window object!');
                 }
             } else if (page.startsWith('leads-batch-')) {
                 // Admin batch view
                 const batchName = window.adminBatchFilter || page.replace('leads-batch-', '').split('__')[0];
                 if (window.initLeadsPage) {
-                    console.log('🔄 Initializing admin leads page for batch:', batchName);
+                    console.log('[LEADS] Initializing admin leads page for batch:', batchName);
                     window.initLeadsPage(batchName);
                 }
             }
@@ -874,8 +876,10 @@ async function navigateToPage(page) {
             
             // Initialize lead management page
             if (window.initLeadManagementPage) {
-                console.log('🔄 Initializing lead management page...');
+                console.log('[LEAD-MGMT] Initializing lead management page...');
                 window.initLeadManagementPage();
+            } else {
+                console.error('[LEAD-MGMT] ERROR: initLeadManagementPage not found on window object!');
             }
         }
     } else if (page === 'demo-sessions') {

@@ -55,6 +55,11 @@ function crmConfirm({ title = 'Confirm', message = '', confirmText = 'OK', cance
  * @param {string} modeOrBatch - For officers this is usually 'myLeads'. For admins it can be a batch name.
  */
 async function initLeadsPage(modeOrBatch) {
+  console.log('[INIT-LEADS] ===== initLeadsPage called with:', modeOrBatch);
+  console.log('[INIT-LEADS] Current user:', window.currentUser);
+  console.log('[INIT-LEADS] Officer batch filter:', window.officerBatchFilter);
+  console.log('[INIT-LEADS] Officer sheet filter:', window.officerSheetFilter);
+  
   // Remember current mode/batch (used by loadLeads)
   window.leadsModeOrBatch = modeOrBatch;
 
@@ -580,7 +585,7 @@ async function loadLeads() {
 
     renderLeadsTable();
     
-    console.log(`✓ Loaded ${currentLeads.length} leads`);
+    console.log('[LOAD-LEADS] ✓ Loaded ' + currentLeads.length + ' leads');
   } catch (error) {
     console.error('Error loading leads:', error);
     
@@ -2080,7 +2085,6 @@ async function openNewLeadModal() {
           btn.innerHTML = old;
           btn.disabled = false;
         }
-      }
       }
     });
   }
