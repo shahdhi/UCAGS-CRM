@@ -935,10 +935,8 @@ async function navigateToPage(page) {
             break;
         case 'leads-myLeads':
             // Officer's personal leads page (all batches)
-            window.officerBatchFilter = 'all';
-            if (window.initLeadsPage) {
-                window.initLeadsPage('myLeads');
-            }
+            // Initialization already handled in leads view setup (line ~843)
+            // Removed duplicate initLeadsPage() call to prevent double loading
             break;
         case 'leads-batch14':
             if (window.initLeadsPage) {
@@ -946,10 +944,8 @@ async function navigateToPage(page) {
             }
             break;
         case 'lead-management':
-            window.officerBatchFilter = 'all';
-            if (window.initLeadManagementPage) {
-                await window.initLeadManagementPage();
-            }
+            // Initialization already handled in lead-management view setup (line ~878)
+            // Removed duplicate initLeadManagementPage() call to prevent double loading
             break;
         case 'staff-lead-management':
             if (window.initStaffLeadManagementPage) {
@@ -959,37 +955,21 @@ async function navigateToPage(page) {
         default:
             // Officer: handle per-batch pages (filtering personal leads)
             if (page.startsWith('leads-myLeads-batch-')) {
-                const slug = page.replace('leads-myLeads-batch-', '');
-                const parts = slug.split('__sheet__');
-                window.officerBatchFilter = decodeURIComponent(parts[0] || 'all');
-                window.officerSheetFilter = decodeURIComponent(parts[1] || 'Main Leads');
-                if (window.initLeadsPage) {
-                    window.initLeadsPage('myLeads');
-                }
+                // Initialization already handled in leads view setup (line ~843)
+                // Removed duplicate initLeadsPage() call to prevent double loading
                 break;
             }
 
             if (page.startsWith('lead-management-batch-')) {
-                const slug = page.replace('lead-management-batch-', '');
-                const parts = slug.split('__sheet__');
-                window.officerBatchFilter = decodeURIComponent(parts[0] || 'all');
-                window.officerSheetFilter = decodeURIComponent(parts[1] || 'Main Leads');
-                if (window.initLeadManagementPage) {
-                    await window.initLeadManagementPage();
-                }
+                // Initialization already handled in lead-management view setup (line ~878)
+                // Removed duplicate initLeadManagementPage() call to prevent double loading
                 break;
             }
 
             // Admin: handle dynamic batch+sheet pages
             if (page.startsWith('leads-batch-')) {
-                const slug = page.replace('leads-batch-', '');
-                const parts = slug.split('__sheet__');
-                window.adminBatchFilter = decodeURIComponent(parts[0] || 'all');
-                window.adminSheetFilter = decodeURIComponent(parts[1] || 'Main Leads');
-
-                if (window.initLeadsPage) {
-                    window.initLeadsPage(window.adminBatchFilter);
-                }
+                // Initialization already handled in leads view setup (line ~851)
+                // Removed duplicate initLeadsPage() call to prevent double loading
                 break;
             }
 
