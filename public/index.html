@@ -648,8 +648,8 @@
                 </div>
             </div>
 
-            <!-- Lead Management View (Officers Only) -->
-            <div id="lead-managementView" class="content-view officer-only" style="display: none;">
+            <!-- Lead Management View (Officers and Admin) -->
+            <div id="lead-managementView" class="content-view" style="display: none;">
                 <div class="page-header">
                     <div>
                         <h1 id="leadManagementViewTitle" style="margin:0;"><i class="fas fa-tasks"></i> Lead Management</h1>
@@ -669,6 +669,7 @@
 
                 <div class="filters-bar">
                     <input type="text" id="managementSearchInput" placeholder="Search by name, email, phone..." class="form-control" oninput="filterManagementLeads()">
+                    <select id="managementProgramSelect" class="form-control admin-only" style="min-width: 200px; display:none;"></select>
                     <select id="managementProgramBatchSelect" class="form-control" style="display:none; min-width: 160px;"></select>
                     <select id="managementStatusFilter" class="form-control" onchange="filterManagementLeads()">
                         <option value="">All Status</option>
@@ -2157,7 +2158,7 @@
     
     <!-- Page Modules -->
     <script src="/frontend/pages/leads/leadsPage.js?v=9"></script>
-    <script src="/frontend/pages/leads/leadManagement.js?v=4"></script>
+    <script src="/frontend/pages/leads/leadManagement.js?v=5"></script>
     <script src="/frontend/pages/leads/staffLeadManagement.js?v=1"></script>
     <script src="/frontend/pages/registrations/registrationsPage.js?v=2"></script>
     <script src="/frontend/pages/registrations/myRegistrationsPage.js?v=1"></script>

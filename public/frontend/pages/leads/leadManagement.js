@@ -308,11 +308,61 @@ async function loadLeadManagement() {
       }
     }
     
-    // Supabase CRM: load officer leads (fast)
-    // Program context batch dropdown (officer)
+    // Supabase CRM: load leads
+    const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+    
+    // Program selector (admin only)
+    const programSelect = document.getElementById('managementProgramSelect');
+    if (programSelect && !programSelect.__bound) {
+      programSelect.__bound = true;
+
+      if (!isAdmin) {
+        programSelect.style.display = 'none';
+      } else {
+        programSelect.style.display = '';
+        // Load programs and default to latest program
+        (async () => {
+          try {
+            const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+            const r = await fetch('/api/programs/sidebar', { headers: authHeaders });
+            const j = await r.json();
+            const programs = (j.programs || []).slice();
+            programs.sort((a, b) => {
+              const ad = a?.created_at ? new Date(a.created_at).getTime() : 0;
+              const bd = b?.created_at ? new Date(b.created_at).getTime() : 0;
+              if (bd !== ad) return bd - ad;
+              return String(a?.name || '').localeCompare(String(b?.name || ''));
+            });
+
+            programSelect.innerHTML = programs.map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name || p.id)}</option>`).join('');
+
+            if (!window.adminProgramId) window.adminProgramId = programs[0]?.id || '';
+            programSelect.value = window.adminProgramId || '';
+
+            programSelect.addEventListener('change', () => {
+              window.adminProgramId = programSelect.value;
+              // Reset batch filter so it auto-selects current batch for this program
+              window.adminBatchFilter = '';
+              window.adminSheetFilter = 'Main Leads';
+              initLeadManagementPage();
+            });
+
+            // Ensure leads load respects the selected program
+            if (window.adminProgramId) {
+              initLeadManagementPage();
+            }
+          } catch (e) {
+            console.warn('Failed to load programs for management program filter', e);
+            programSelect.style.display = 'none';
+          }
+        })();
+      }
+    }
+    
+    // Program context batch dropdown (admin + officer)
     const sel = document.getElementById('managementProgramBatchSelect');
     if (sel) {
-      const programId = window.officerProgramId;
+      const programId = isAdmin ? window.adminProgramId : window.officerProgramId;
       if (programId) {
         sel.style.display = '';
         if (!sel.__bound) {
@@ -320,8 +370,13 @@ async function loadLeadManagement() {
           sel.addEventListener('change', () => {
             const v = sel.value;
             if (v) {
-              window.officerBatchFilter = v;
-              window.officerSheetFilter = 'Main Leads';
+              if (isAdmin) {
+                window.adminBatchFilter = v;
+                window.adminSheetFilter = 'Main Leads';
+              } else {
+                window.officerBatchFilter = v;
+                window.officerSheetFilter = 'Main Leads';
+              }
               // navigate to keep URL in sync
               window.location.hash = `lead-management-batch-${encodeURIComponent(v)}__sheet__${encodeURIComponent('Main Leads')}`;
               initLeadManagementPage();
@@ -348,13 +403,17 @@ async function loadLeadManagement() {
               opt.textContent = b.batch_name;
               sel.appendChild(opt);
             });
-            const active = window.officerBatchFilter;
+            const active = isAdmin ? window.adminBatchFilter : window.officerBatchFilter;
             if (active && active !== 'all') {
               sel.value = active;
             } else if (current?.batch_name) {
               sel.value = current.batch_name;
               // Keep filter in sync when auto-selecting current batch
-              window.officerBatchFilter = current.batch_name;
+              if (isAdmin) {
+                window.adminBatchFilter = current.batch_name;
+              } else {
+                window.officerBatchFilter = current.batch_name;
+              }
             }
           } catch (e) {
             console.warn('Failed to load batches for management dropdown', e);
@@ -365,14 +424,16 @@ async function loadLeadManagement() {
       }
     }
 
-    const batchFilter = window.officerBatchFilter;
-    const sheet = window.officerSheetFilter || 'Main Leads';
+    const batchFilter = isAdmin ? window.adminBatchFilter : window.officerBatchFilter;
+    const sheet = isAdmin ? (window.adminSheetFilter || 'Main Leads') : (window.officerSheetFilter || 'Main Leads');
 
     const params = new URLSearchParams();
     if (batchFilter && batchFilter !== 'all') params.set('batch', decodeURIComponent(batchFilter));
     if (sheet) params.set('sheet', sheet);
 
-    const res = await fetch(`/api/crm-leads/my?${params.toString()}`, { headers: authHeaders });
+    // Admin uses /all endpoint, officers use /my endpoint
+    const endpoint = isAdmin ? '/api/crm-leads' : '/api/crm-leads/my';
+    const res = await fetch(`${endpoint}?${params.toString()}`, { headers: authHeaders });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Failed to load leads');
     managementLeads = (data.leads || []).map(l => ({ ...l, status: normalizeLeadStatus(l.status) }));
