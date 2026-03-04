@@ -559,7 +559,10 @@ async function loadLeads() {
     let response;
     if (isOfficerView) {
       // Apply officer batch/sheet filters if set by router
-      if (window.officerBatchFilter) filters.batch = window.officerBatchFilter;
+      // NOTE: Don't send 'all' as batch filter - let backend return all batches when no batch filter
+      if (window.officerBatchFilter && window.officerBatchFilter !== 'all') {
+        filters.batch = window.officerBatchFilter;
+      }
       if (window.officerSheetFilter) filters.sheet = window.officerSheetFilter;
       
       console.log('🔍 Loading officer leads with filters:', filters);
