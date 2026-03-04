@@ -967,8 +967,11 @@ async function navigateToPage(page) {
                 break;
             }
 
-            // Backward compatibility: other leads-* pages
-            if (page.startsWith('leads-')) {
+            // Backward compatibility: other leads-* pages (but NOT the new format with batch/sheet params)
+            // Skip if it's myLeads format or lead-management format (handled in switch default case)
+            if (page.startsWith('leads-') && 
+                !page.startsWith('leads-myLeads') && 
+                !page.startsWith('leads-batch-')) {
                 const batchName = page.replace('leads-', '');
                 const formattedName = batchName.charAt(0).toUpperCase() + batchName.slice(1);
                 if (window.initLeadsPage) {
