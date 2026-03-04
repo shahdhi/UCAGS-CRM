@@ -1417,22 +1417,68 @@ async function deleteSheetForBatch({ batchName, sheetName, scope, user }) {
   const sc = String(scope || '').toLowerCase();
 
   if (String(user?.role || '') === 'admin' && sc === 'admin') {
+    // Delete all leads from this sheet (for all officers)
+    await sb.from('crm_leads')
+      .delete()
+      .eq('batch_name', b)
+      .eq('sheet_name', sheet);
+
+    // Delete the sheet metadata
     await sb.from('batch_shared_sheets')
       .delete()
       .eq('batch_name', b)
       .eq('sheet_name', sheet);
+
+    // Also delete any officer custom sheet entries (in case officers created sheets with same name)
+    await sb.from('officer_custom_sheets')
+      .delete()
+      .eq('batch_name', b)
+      .eq('sheet_name', sheet);
+
+    clearDuplicatePhoneCache(b);
+
     return { deleted: true, scope: 'admin', sheetName: sheet };
   }
 
   const officerName = cleanString(user?.name);
   if (!officerName) throw Object.assign(new Error('Missing officer name'), { status: 400 });
 
-  // Only allow deletion if it's the officer's own sheet
+  // Verify the officer owns this sheet before deleting
+  const { data: ownerCheck, error: ownerErr } = await sb
+    .from('officer_custom_sheets')
+    .select('sheet_name')
+    .eq('batch_name', b)
+    .eq('officer_name', officerName)
+    .eq('sheet_name', sheet)
+    .maybeSingle();
+
+  if (ownerErr) {
+    const msg = String(ownerErr.message || '').toLowerCase();
+    if (msg.includes('relation') || msg.includes('does not exist')) {
+      throw Object.assign(new Error('Officer custom sheets table not found'), { status: 500 });
+    }
+    throw ownerErr;
+  }
+
+  if (!ownerCheck) {
+    throw Object.assign(new Error('You can only delete sheets that you created'), { status: 403 });
+  }
+
+  // Delete the leads from this sheet that belong to this officer
+  await sb.from('crm_leads')
+    .delete()
+    .eq('batch_name', b)
+    .eq('sheet_name', sheet)
+    .eq('assigned_to', officerName);
+
+  // Delete the sheet metadata
   await sb.from('officer_custom_sheets')
     .delete()
     .eq('batch_name', b)
     .eq('officer_name', officerName)
     .eq('sheet_name', sheet);
+
+  clearDuplicatePhoneCache(b);
 
   return { deleted: true, scope: 'officer', sheetName: sheet };
 }
