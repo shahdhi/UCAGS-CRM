@@ -7,10 +7,10 @@
   'use strict';
   
   // State
-  let managementLeads = [];
-  let filteredManagementLeads = [];
+  let managementLeads = []; // Original data from server (immutable)
+  let filteredManagementLeads = []; // Filtered/sorted data for display
   let isInitialized = false;
-  let isLoading = false;
+  let isLoading = false; // Prevent concurrent loads
 
   // Optional context override (used by admin Staff Lead Management view)
   // window.__leadManagementContext = {
@@ -234,7 +234,12 @@ async function loadLeadManagement() {
 
         window.officerSheetFilter = name;
         window.location.hash = `lead-management-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`;
-        initLeadManagementPage();
+        
+        // Set flag to skip tab re-rendering during load
+        window.__skipManagementTabRender = true;
+        initLeadManagementPage().finally(() => {
+          window.__skipManagementTabRender = false;
+        });
       });
       return btn;
     };
@@ -265,8 +270,10 @@ async function loadLeadManagement() {
     }
   }
 
-  // Render tabs up-front so they appear even when leads are served from cache
-  try { await renderManagementSheetTabs(); } catch (_) { /* ignore */ }
+  // Render tabs only if not triggered by a tab click (prevents re-render loop and flickering)
+  if (!window.__skipManagementTabRender) {
+    try { await renderManagementSheetTabs(); } catch (_) { /* ignore */ }
+  }
 
   // Fast path: use cache and skip fetch.
   // NOTE: if batchFilter is empty we are about to auto-select program's current batch,
@@ -399,7 +406,7 @@ async function loadLeadManagement() {
       }
     }));
 
-    console.log('📦 Raw leads data:', managementLeads);
+    console.log('[MGMT-LEADS] 📦 Raw leads data:', managementLeads.length, 'leads');
 
 
     // If no leads exist, keep empty list (do NOT inject mock leads in production)
@@ -407,10 +414,10 @@ async function loadLeadManagement() {
       console.log('ℹ️ No leads assigned to this officer');
     }
 
-    filteredManagementLeads = [...managementLeads];
-    console.log('📊 Filtered leads:', filteredManagementLeads);
+    // Apply filters to populate filteredManagementLeads
+    filterManagementLeads();
     
-    console.log(`✓ Loaded ${managementLeads.length} leads for management`);
+    console.log('[MGMT-LEADS] ✓ Loaded ' + managementLeads.length + ' leads for management');
 
     // cache hydrated leads for faster reloads
     if (window.Cache) window.Cache.setWithTs(cacheKey, managementLeads);
@@ -460,28 +467,29 @@ function filterManagementLeads() {
  * Render management table
  */
 function renderManagementTable() {
-  console.log('📋 Rendering management table...');
+  console.log('[MGMT-LEADS] Rendering management table...');
   const tbody = document.getElementById('managementTableBody');
   if (!tbody) {
-    console.error('❌ managementTableBody element not found!');
+    console.error('[MGMT-LEADS] ERROR: managementTableBody element not found!');
     return;
   }
-  console.log(`📊 Rendering ${filteredManagementLeads.length} leads`);
+  console.log('[MGMT-LEADS] Rendering ' + filteredManagementLeads.length + ' leads');
   
   if (filteredManagementLeads.length === 0) {
-    console.log('ℹ️ No leads to display');
+    console.log('[MGMT-LEADS] No leads to display');
     tbody.innerHTML = `
       <tr>
         <td colspan="9" style="text-align: center; padding: 40px;">
           <i class="fas fa-inbox" style="font-size: 48px; color: #ccc; margin-bottom: 10px;"></i>
           <p style="color: #666;">No leads found</p>
+          <p style="color: #999; font-size: 14px;">Try adjusting your search or filters</p>
         </td>
       </tr>
     `;
     return;
   }
   
-  console.log('✓ Rendering table rows...');
+  console.log('[MGMT-LEADS] Rendering table rows...');
   
   tbody.innerHTML = filteredManagementLeads.map(lead => `
     <tr data-lead-id="${escapeHtml(String(lead.id))}">
