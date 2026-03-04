@@ -333,8 +333,9 @@ async function loadLeads() {
           }
         } else {
           // If user refreshed directly on a leads-batch-* route, infer program from batch
-          if (window.adminBatchFilter) {
+          if (window.adminBatchFilter && !window.__programInferredFromBatch) {
             try {
+              window.__programInferredFromBatch = true; // Prevent infinite loop
               const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
               const r = await fetch('/api/programs/sidebar', { headers: authHeaders });
               const j = await r.json();
@@ -343,9 +344,8 @@ async function loadLeads() {
               if (match?.program_id) {
                 window.adminProgramId = window.adminProgramId || match.program_id;
                 window.officerProgramId = window.officerProgramId || match.program_id;
-                // re-run load once program context exists
-                await loadLeads();
-                return;
+                // Don't call loadLeads() again - just continue with current execution
+                console.log('[LEADS] Inferred program from batch:', match.program_id);
               }
             } catch (e) {
               console.warn('Failed to infer program from batch', e);
@@ -511,31 +511,29 @@ async function loadLeads() {
         updateOfficerNewLeadBtnVisibility();
       };
 
-      // Render immediately from cache/default
-      renderTabs(sheets);
+      // Fetch sheets from server first, then render once
+      try {
+        const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`, { headers: authHeaders });
+        const json = await res.json();
+        if (json.success && Array.isArray(json.sheets)) {
+          const merged = Array.from(new Set(['Main Leads', 'Extra Leads', ...json.sheets]));
 
-      // Refresh sheet list async (don’t block UI)
-      (async () => {
-        try {
-          const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`, { headers: authHeaders });
-          const json = await res.json();
-          if (json.success && Array.isArray(json.sheets)) {
-            const merged = Array.from(new Set(['Main Leads', 'Extra Leads', ...json.sheets]));
-
-            if (isOfficerView) {
-              officerCreatedSheets = (json.sheets || []).slice();
-              updateOfficerNewLeadBtnVisibility();
-            }
-
-            // If list changed, re-render quickly
-            if (merged.join('|') !== sheets.join('|')) {
-              renderTabs(merged);
-            }
+          if (isOfficerView) {
+            officerCreatedSheets = (json.sheets || []).slice();
           }
-        } catch (e) {
-          console.warn('Failed to load sheets list', e);
+
+          // Render once with fetched data
+          renderTabs(merged);
+          updateOfficerNewLeadBtnVisibility();
+        } else {
+          // Fallback: render with defaults if fetch failed
+          renderTabs(sheets);
         }
-      })();
+      } catch (e) {
+        console.warn('Failed to load sheets list', e);
+        // Fallback: render with defaults
+        renderTabs(sheets);
+      }
     }
 
     await renderSheetTabs();
