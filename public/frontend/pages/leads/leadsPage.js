@@ -2036,14 +2036,23 @@ async function openNewLeadModal() {
 
   const form = document.getElementById('newLeadForm');
   if (form) {
+    let isSubmitting = false; // Flag to prevent double submission
+    
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
+      
+      // Prevent double submission using flag
+      if (isSubmitting) {
+        console.warn('[NEW-LEAD] Prevented double submission');
+        return;
+      }
+      isSubmitting = true;
+      
       const btn = form.querySelector('button[type="submit"]');
       const old = btn ? btn.innerHTML : '';
       
-      // Prevent double-click by immediately disabling
+      // Disable button for visual feedback
       if (btn) {
-        if (btn.disabled) return; // Already submitting
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
         btn.disabled = true;
       }
@@ -2073,19 +2082,27 @@ async function openNewLeadModal() {
           showToast('Lead created successfully', 'success');
         }
         
-        // Close modal after showing toast
-        closeLeadsActionModal(modalId);
+        // Invalidate cache so new lead appears immediately
+        if (window.Cache) {
+          window.Cache.invalidatePrefix('leads:');
+        }
         
+        // Close modal and reload leads
+        closeLeadsActionModal(modalId);
         await loadLeads();
+        
+        // Button stays disabled - modal is closed so user can't click again
       } catch (err) {
         console.error(err);
         showToast(err.message || 'Failed to create lead', 'error');
-        // Re-enable button on error so user can retry
+        // Re-enable button ONLY on error so user can retry
+        isSubmitting = false; // Reset flag on error
         if (btn) {
           btn.innerHTML = old;
           btn.disabled = false;
         }
       }
+      // Note: On success, we don't reset isSubmitting because modal is closed
     });
   }
 
