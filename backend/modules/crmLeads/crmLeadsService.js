@@ -1441,14 +1441,15 @@ async function deleteSheetForBatch({ batchName, sheetName, scope, user }) {
   }
 
   const officerName = cleanString(user?.name);
-  if (!officerName) throw Object.assign(new Error('Missing officer name'), { status: 400 });
+  const userId = user?.id;
+  if (!officerName && !userId) throw Object.assign(new Error('Missing officer identification'), { status: 400 });
 
   // Verify the officer owns this sheet before deleting
+  // First try to match by officer_name, but also check by user_id if available
   const { data: ownerCheck, error: ownerErr } = await sb
     .from('officer_custom_sheets')
-    .select('sheet_name')
+    .select('sheet_name, officer_name, created_by_user_id')
     .eq('batch_name', b)
-    .eq('officer_name', officerName)
     .eq('sheet_name', sheet)
     .maybeSingle();
 
@@ -1461,6 +1462,29 @@ async function deleteSheetForBatch({ batchName, sheetName, scope, user }) {
   }
 
   if (!ownerCheck) {
+    throw Object.assign(new Error('Sheet not found'), { status: 404 });
+  }
+
+  // Check ownership: match by officer_name OR by user_id (if available)
+  const nameMatch = ownerCheck.officer_name === officerName;
+  const userIdMatch = userId && ownerCheck.created_by_user_id === userId;
+  
+  console.log('🔍 Delete sheet check:', { 
+    batchName: b, 
+    sheetName: sheet, 
+    currentUser: { name: officerName, id: userId },
+    storedSheet: { officer_name: ownerCheck.officer_name, created_by_user_id: ownerCheck.created_by_user_id },
+    nameMatch,
+    userIdMatch
+  });
+
+  if (!nameMatch && !userIdMatch) {
+    console.error('❌ Ownership check failed:', { 
+      expectedOfficer: officerName,
+      expectedUserId: userId,
+      foundSheet: ownerCheck,
+      user: { id: user?.id, name: user?.name, email: user?.email }
+    });
     throw Object.assign(new Error('You can only delete sheets that you created'), { status: 403 });
   }
 
