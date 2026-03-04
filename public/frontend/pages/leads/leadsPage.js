@@ -2037,9 +2037,6 @@ async function openNewLeadModal() {
           ? await API.leads.createMy({ batchName, sheetName, lead })
           : await API.leads.create({ batchName, sheetName, lead });
         
-        // Success: close modal first, then show toast and reload
-        closeLeadsActionModal(modalId);
-        
         // Check if the created lead is marked as duplicate
         const createdLead = result?.lead;
         if (createdLead && (createdLead.isDuplicate || String(createdLead.assignedTo || '').toLowerCase() === 'duplicate')) {
@@ -2047,6 +2044,9 @@ async function openNewLeadModal() {
         } else {
           showToast('Lead created successfully', 'success');
         }
+        
+        // Close modal after showing toast
+        closeLeadsActionModal(modalId);
         
         await loadLeads();
       } catch (err) {

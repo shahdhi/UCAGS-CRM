@@ -667,23 +667,28 @@ function updateDeleteSheetButtons(page) {
 
         btnLeads.onclick = async () => {
             if (!confirm(`Delete sheet "${sheet}" (only for you)? This cannot be undone.`)) return;
-            let authHeaders = {};
-            if (window.supabaseClient) {
-                const { data: { session } } = await window.supabaseClient.auth.getSession();
-                if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
-            }
-            const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}&sheet=${encodeURIComponent(sheet)}&scope=officer`, { method: 'DELETE', headers: authHeaders });
-            const json = await res.json();
-            if (!json.success) throw new Error(json.error || 'Failed to delete sheet');
-            if (window.showToast) showToast('Sheet deleted', 'success');
-            await loadOfficerLeadsBatchesMenu();
+            try {
+                let authHeaders = {};
+                if (window.supabaseClient) {
+                    const { data: { session } } = await window.supabaseClient.auth.getSession();
+                    if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+                }
+                const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}&sheet=${encodeURIComponent(sheet)}&scope=officer`, { method: 'DELETE', headers: authHeaders });
+                const json = await res.json();
+                if (!json.success) throw new Error(json.error || 'Failed to delete sheet');
+                if (window.showToast) showToast('Sheet deleted', 'success');
+                await loadOfficerLeadsBatchesMenu();
 
-            // Fall back to Main Leads within same batch
-            const fallbackSheet = 'Main Leads';
-            window.officerSheetFilter = fallbackSheet;
-            const page2 = `leads-myLeads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(fallbackSheet)}`;
-            window.location.hash = page2;
-            navigateToPage(page2);
+                // Fall back to Main Leads within same batch
+                const fallbackSheet = 'Main Leads';
+                window.officerSheetFilter = fallbackSheet;
+                const page2 = `leads-myLeads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(fallbackSheet)}`;
+                window.location.hash = page2;
+                navigateToPage(page2);
+            } catch (error) {
+                console.error('Delete sheet error:', error);
+                if (window.showToast) showToast(error.message || 'Failed to delete sheet', 'error');
+            }
         };
         return;
     }
@@ -701,23 +706,28 @@ function updateDeleteSheetButtons(page) {
 
         btnMgmt.onclick = async () => {
             if (!confirm(`Delete sheet "${sheet}" (only for you)? This cannot be undone.`)) return;
-            let authHeaders = {};
-            if (window.supabaseClient) {
-                const { data: { session } } = await window.supabaseClient.auth.getSession();
-                if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
-            }
-            const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}&sheet=${encodeURIComponent(sheet)}&scope=officer`, { method: 'DELETE', headers: authHeaders });
-            const json = await res.json();
-            if (!json.success) throw new Error(json.error || 'Failed to delete sheet');
-            if (window.showToast) showToast('Sheet deleted', 'success');
-            await loadOfficerLeadsBatchesMenu();
+            try {
+                let authHeaders = {};
+                if (window.supabaseClient) {
+                    const { data: { session } } = await window.supabaseClient.auth.getSession();
+                    if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+                }
+                const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}&sheet=${encodeURIComponent(sheet)}&scope=officer`, { method: 'DELETE', headers: authHeaders });
+                const json = await res.json();
+                if (!json.success) throw new Error(json.error || 'Failed to delete sheet');
+                if (window.showToast) showToast('Sheet deleted', 'success');
+                await loadOfficerLeadsBatchesMenu();
 
-            // Fall back to Main Leads within same batch
-            const fallbackSheet = 'Main Leads';
-            window.officerSheetFilter = fallbackSheet;
-            const page2 = `lead-management-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(fallbackSheet)}`;
-            window.location.hash = page2;
-            navigateToPage(page2);
+                // Fall back to Main Leads within same batch
+                const fallbackSheet = 'Main Leads';
+                window.officerSheetFilter = fallbackSheet;
+                const page2 = `lead-management-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(fallbackSheet)}`;
+                window.location.hash = page2;
+                navigateToPage(page2);
+            } catch (error) {
+                console.error('Delete sheet error:', error);
+                if (window.showToast) showToast(error.message || 'Failed to delete sheet', 'error');
+            }
         };
         return;
     }
