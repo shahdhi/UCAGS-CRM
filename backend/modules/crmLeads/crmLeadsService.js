@@ -1538,12 +1538,14 @@ async function createSheetForBatch({ batchName, sheetName, scope, user }) {
 
   // officer scope (or default)
   const officerName = cleanString(user?.name);
+  const userId = user?.id;  // Supabase Auth user ID
   if (!officerName) throw Object.assign(new Error('Missing officer name'), { status: 400 });
 
   await sb.from('officer_custom_sheets').upsert({
     batch_name: b,
     officer_name: officerName,
     sheet_name: s,
+    created_by_user_id: userId || null,
     created_at: new Date().toISOString()
   }, { onConflict: 'batch_name,officer_name,sheet_name' });
 

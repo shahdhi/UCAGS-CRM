@@ -46,7 +46,7 @@ async function listOfficerSheets(batchName, officerName) {
   return (data || []).map(r => r.sheet_name).filter(Boolean);
 }
 
-async function createOfficerOnlySheet(batchName, officerName, sheetName) {
+async function createOfficerOnlySheet(batchName, officerName, sheetName, userId = null) {
   validateSheetName(sheetName);
 
   const sb = getSupabaseAdmin();
@@ -60,6 +60,7 @@ async function createOfficerOnlySheet(batchName, officerName, sheetName) {
     batch_name: batchName,
     officer_name: officerName,
     sheet_name: sheetName,
+    created_by_user_id: userId || null,
     created_at: new Date().toISOString()
   }, { onConflict: 'batch_name,officer_name,sheet_name' });
 

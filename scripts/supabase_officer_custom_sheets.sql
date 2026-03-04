@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS officer_custom_sheets (
   batch_name TEXT NOT NULL,
   officer_name TEXT NOT NULL,
   sheet_name TEXT NOT NULL,
+  created_by_user_id UUID,  -- Supabase Auth user ID of the creator
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   
@@ -97,3 +98,4 @@ COMMENT ON TABLE officer_custom_sheets IS 'Stores custom sheets created by indiv
 COMMENT ON COLUMN officer_custom_sheets.batch_name IS 'The batch this sheet belongs to (e.g., "Batch-14")';
 COMMENT ON COLUMN officer_custom_sheets.officer_name IS 'Display name of the officer who created this sheet';
 COMMENT ON COLUMN officer_custom_sheets.sheet_name IS 'Name of the custom sheet (normalized, e.g., "My Follow-ups")';
+COMMENT ON COLUMN officer_custom_sheets.created_by_user_id IS 'Supabase Auth UUID of the user who created this sheet (for robust ownership verification)';
