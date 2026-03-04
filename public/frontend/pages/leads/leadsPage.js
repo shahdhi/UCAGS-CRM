@@ -1715,6 +1715,12 @@ async function bulkAssignLeads() {
         showToast(`Distributed ${ids.length} leads among ${selectedOfficers.length} officers`, 'success');
       }
 
+      // Invalidate cache for all officers so they see the new assignments immediately
+      if (window.Cache) {
+        window.Cache.invalidatePrefix('leads:');
+        console.log('✓ Invalidated leads cache after assignment');
+      }
+      
       closeLeadsActionModal(modalId);
       clearSelection();
       await loadLeads();
@@ -2149,6 +2155,13 @@ async function openDistributeUnassignedModal() {
       btn.disabled = true;
       try {
         const result = await API.leads.distributeUnassigned({ batchName, sheetName, officers: selected });
+        
+        // Invalidate cache for all officers so they see the new assignments immediately
+        if (window.Cache) {
+          window.Cache.invalidatePrefix('leads:');
+          console.log('✓ Invalidated leads cache after distribution');
+        }
+        
         closeLeadsActionModal(modalId);
         showToast(`Distributed ${result.updatedCount || 0} unassigned leads`, 'success');
         await loadLeads();
