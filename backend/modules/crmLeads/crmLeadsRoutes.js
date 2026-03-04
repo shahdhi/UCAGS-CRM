@@ -113,9 +113,36 @@ router.get('/my', isAuthenticated, async (req, res) => {
     const search = req.query.search;
     const status = req.query.status;
 
+    // Debug logging
+    console.log('📋 GET /api/crm-leads/my - Request details:', {
+      officerName,
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      userRole: req.user?.role,
+      batchName,
+      sheetName,
+      search,
+      status
+    });
+
+    if (!officerName) {
+      console.warn('⚠️  Officer name is missing from req.user');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Officer name not found in user profile. Please contact administrator.',
+        debug: {
+          userId: req.user?.id,
+          email: req.user?.email,
+          userObject: req.user
+        }
+      });
+    }
+
     const leads = await svc.listMyLeads({ officerName, batchName, sheetName, search, status });
+    console.log(`✓ Returned ${leads.length} leads for ${officerName}`);
     res.json({ success: true, count: leads.length, leads });
   } catch (e) {
+    console.error('❌ Error in GET /api/crm-leads/my:', e);
     res.status(e.status || 500).json({ success: false, error: e.message });
   }
 });

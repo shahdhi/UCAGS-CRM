@@ -561,6 +561,10 @@ async function loadLeads() {
       // Apply officer batch/sheet filters if set by router
       if (window.officerBatchFilter) filters.batch = window.officerBatchFilter;
       if (window.officerSheetFilter) filters.sheet = window.officerSheetFilter;
+      
+      console.log('🔍 Loading officer leads with filters:', filters);
+      console.log('Current user:', window.currentUser);
+      
       response = await API.leads.getMyLeads(filters);
     } else {
       // Admin view: may use batch/sheet filters
@@ -576,7 +580,17 @@ async function loadLeads() {
     console.log(`✓ Loaded ${currentLeads.length} leads`);
   } catch (error) {
     console.error('Error loading leads:', error);
-    showLeadsError(error.message);
+    
+    // Show more detailed error message
+    let errorMsg = error.message || 'Unknown error occurred';
+    
+    // If the error contains debug info, show it
+    if (error.debug) {
+      console.error('Debug info:', error.debug);
+      errorMsg += '\n\nDebug info: ' + JSON.stringify(error.debug, null, 2);
+    }
+    
+    showLeadsError(errorMsg);
   }
 }
 
