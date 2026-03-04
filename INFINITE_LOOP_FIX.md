@@ -117,8 +117,36 @@ try {
 
 ---
 
+### Issue 3: Tab Switching Causes Repeated Loading 🔄
+**Symptom:** Clicking sheet tabs causes multiple reloads, tabs flicker back and forth
+
+**Root Cause:** When clicking a tab:
+1. Tab click calls `loadLeads()` (line 499)
+2. `loadLeads()` calls `renderSheetTabs()` (line 540)
+3. `renderSheetTabs()` rebuilds all tabs from scratch
+4. This causes visual flicker as tabs are destroyed and recreated
+5. Multiple renders = unstable UI
+
+**Fix Applied:**
+```javascript
+// In tab click handler:
+window.__skipTabRender = true;  // ← Skip tab re-render
+loadLeads().finally(() => {
+  window.__skipTabRender = false;
+});
+
+// In loadLeads():
+if (!window.__skipTabRender) {  // ← Only render if not from tab click
+  await renderSheetTabs();
+}
+```
+
+Tab styling is applied **immediately** on click (line 486), so the visual feedback is instant without waiting for re-render.
+
+---
+
 ## Status
-✅ **FIXED** - Both issues resolved
+✅ **FIXED** - All three issues resolved
 
 ## Related Issues
 - Double-submit fix (v6)
@@ -128,4 +156,4 @@ try {
 ---
 
 **Date:** 2026-03-04
-**Version:** v7
+**Version:** v8

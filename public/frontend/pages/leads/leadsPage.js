@@ -3,12 +3,14 @@
  * Handles leads page functionality
  */
 
-let currentLeads = [];
+let currentLeads = []; // Original data from server (never modified)
+let filteredLeads = []; // Filtered/sorted data for display
 let currentPage = 1;
 let rowsPerPage = 1000000; // Show all leads on one page
 let totalPages = 1;
 let sortColumn = ''; // empty = use backend default order
 let sortDirection = 'asc';
+let isLoading = false; // Prevent concurrent loads
 
 function crmConfirm({ title = 'Confirm', message = '', confirmText = 'OK', cancelText = 'Cancel' } = {}) {
   return new Promise((resolve) => {
@@ -134,7 +136,7 @@ function setupLeadsEventListeners() {
     });
   }
 
-  // Search input
+  // Search input - filter locally without reloading
   const searchInput = document.getElementById('leadsSearchInput');
   if (searchInput) {
     let searchTimeout;
@@ -142,8 +144,8 @@ function setupLeadsEventListeners() {
       clearTimeout(searchTimeout);
       searchTimeout = setTimeout(() => {
         currentPage = 1;
-        loadLeads();
-      }, 500);
+        applyFiltersAndRender(); // Client-side filter only
+      }, 300); // Faster response
     });
   }
 
@@ -223,12 +225,12 @@ function setupLeadsEventListeners() {
     });
   }
 
-  // Status filter
+  // Status filter - filter locally without reloading
   const statusFilter = document.getElementById('leadsStatusFilter');
   if (statusFilter) {
     statusFilter.addEventListener('change', () => {
       currentPage = 1;
-      loadLeads();
+      applyFiltersAndRender(); // Client-side filter only
     });
   }
 
@@ -269,9 +271,57 @@ function setupLeadsEventListeners() {
 }
 
 /**
- * Load leads from API
+ * Apply filters and re-render (client-side only, no API call)
+ */
+function applyFiltersAndRender() {
+  const searchInput = document.getElementById('leadsSearchInput');
+  const statusFilter = document.getElementById('leadsStatusFilter');
+  
+  const searchTerm = (searchInput?.value || '').toLowerCase().trim();
+  const statusValue = statusFilter?.value || '';
+  
+  // Filter from original data (never modify currentLeads)
+  filteredLeads = currentLeads.filter(lead => {
+    // Search filter
+    if (searchTerm) {
+      const searchableText = [
+        lead.name,
+        lead.email,
+        lead.phone,
+        lead.course,
+        lead.assignedTo,
+        lead.source
+      ].filter(Boolean).join(' ').toLowerCase();
+      
+      if (!searchableText.includes(searchTerm)) {
+        return false;
+      }
+    }
+    
+    // Status filter
+    if (statusValue && lead.status !== statusValue) {
+      return false;
+    }
+    
+    return true;
+  });
+  
+  // Re-render with filtered data
+  renderLeadsTable();
+}
+
+/**
+ * Load leads from API (only when necessary)
  */
 async function loadLeads() {
+  // Prevent concurrent loads
+  if (isLoading) {
+    console.log('[LOAD-LEADS] Already loading, skipping...');
+    return;
+  }
+  
+  isLoading = true;
+  
   try {
     const searchInput = document.getElementById('leadsSearchInput');
     const statusFilter = document.getElementById('leadsStatusFilter');
@@ -482,7 +532,7 @@ async function loadLeads() {
           btn.textContent = name;
 
           btn.addEventListener('click', () => {
-            // Instant active UI (don’t wait for loadLeads)
+            // Instant active UI (don't wait for loadLeads)
             try {
               tabsEl.querySelectorAll('button.btn').forEach(b => applyTabStyle(b, b.textContent === name));
             } catch (_) {}
@@ -497,7 +547,12 @@ async function loadLeads() {
               : `leads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`;
             window.location.hash = page;
             currentPage = 1;
-            loadLeads();
+            
+            // Set flag to skip tab re-rendering during this load
+            window.__skipTabRender = true;
+            loadLeads().finally(() => {
+              window.__skipTabRender = false;
+            });
           });
           return btn;
         };
@@ -536,7 +591,10 @@ async function loadLeads() {
       }
     }
 
-    await renderSheetTabs();
+    // Only render tabs if not triggered by a tab click (prevents re-render loop and flickering)
+    if (!window.__skipTabRender) {
+      await renderSheetTabs();
+    }
 
     // If a sheet is created via modal, refresh tabs + switch to it
     if (!window.__leadsSheetCreatedBound) {
@@ -580,8 +638,9 @@ async function loadLeads() {
     }
 
     currentLeads = response.leads || [];
-
-    renderLeadsTable();
+    
+    // Apply filters to populate filteredLeads
+    applyFiltersAndRender();
     
     console.log('[LOAD-LEADS] ✓ Loaded ' + currentLeads.length + ' leads');
   } catch (error) {
@@ -597,16 +656,19 @@ async function loadLeads() {
     }
     
     showLeadsError(errorMsg);
+  } finally {
+    isLoading = false;
   }
 }
 
 /**
- * Render leads table
+ * Render leads table (uses filteredLeads for display)
  */
 function renderLeadsTable() {
   const tbody = document.getElementById('leadsTableBody');
   if (!tbody) return;
 
+  // Show empty state if no data loaded yet OR no results after filtering
   if (currentLeads.length === 0) {
     tbody.innerHTML = `
       <tr>
@@ -619,11 +681,24 @@ function renderLeadsTable() {
     return;
   }
 
-  // Default: keep backend order (added order).
+  if (filteredLeads.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align: center; padding: 40px;">
+          <i class="fas fa-search" style="font-size: 48px; color: #ccc; margin-bottom: 10px;"></i>
+          <p style="color: #666;">No leads match your filters</p>
+          <p style="color: #999; font-size: 14px;">Try adjusting your search or filters</p>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  // Use filteredLeads for display, not currentLeads
   // If user clicked a header, apply client-side sorting.
-  let leadsToDisplay = currentLeads;
+  let leadsToDisplay = filteredLeads;
   if (sortColumn) {
-    leadsToDisplay = [...currentLeads].sort((a, b) => compareLeads(a, b, sortColumn, sortDirection));
+    leadsToDisplay = [...filteredLeads].sort((a, b) => compareLeads(a, b, sortColumn, sortDirection));
   }
 
   // Pagination
