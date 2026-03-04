@@ -1,7 +1,7 @@
 # Lead Management - Filter Order Changed
 
 ## Change Made
-Swapped the positions of **Search Bar** and **Priority Filter** in the Lead Management page filters.
+Swapped the positions of **Search Bar** and **Priority Filter** in both Lead Management pages.
 
 ---
 

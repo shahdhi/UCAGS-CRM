@@ -604,7 +604,12 @@
                     <select id="staffLeadMgmtOfficerSelect" class="form-control" style="min-width: 220px;"></select>
                     <select id="staffLeadMgmtBatchSelect" class="form-control" style="min-width: 160px;"></select>
                     <select id="staffLeadMgmtSheetSelect" class="form-control" style="min-width: 180px;"></select>
-                    <input id="staffLeadMgmtSearchInput" type="text" class="form-control" placeholder="Search by name, email, phone..." style="min-width: 240px;" />
+                    <select id="staffLeadMgmtPriorityFilter" class="form-control" style="min-width: 160px;">
+                        <option value="">All Priorities</option>
+                        <option value="High">High Priority</option>
+                        <option value="Medium">Medium Priority</option>
+                        <option value="Low">Low Priority</option>
+                    </select>
                     <select id="staffLeadMgmtStatusFilter" class="form-control" style="min-width: 140px;">
                         <option value="">All Status</option>
                         <option value="New">New</option>
@@ -619,12 +624,7 @@
                         <option value="No Response">No Response</option>
                         <option value="Next Batch">Next Batch</option>
                     </select>
-                    <select id="staffLeadMgmtPriorityFilter" class="form-control" style="min-width: 160px;">
-                        <option value="">All Priorities</option>
-                        <option value="High">High Priority</option>
-                        <option value="Medium">Medium Priority</option>
-                        <option value="Low">Low Priority</option>
-                    </select>
+                    <input id="staffLeadMgmtSearchInput" type="text" class="form-control" placeholder="Search by name, email, phone..." style="min-width: 240px;" />
                 </div>
 
                 <div class="table-container">
