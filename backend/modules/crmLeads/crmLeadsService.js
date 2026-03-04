@@ -547,18 +547,50 @@ async function createAdminLead({ batchName, sheetName, lead }) {
 
   // Sheet lead id: use timestamp-like unique string if not provided
   const sheetLeadId = cleanString(lead?.id) || String(Date.now());
+  const phone = cleanString(lead?.phone);
+  
+  // Check for duplicate phone in the batch BEFORE creating
+  let assignedTo = cleanString(lead?.assignedTo);
+  if (phone && assignedTo) {
+    const canonical = normalizePhoneToSL(phone);
+    if (canonical && canonical.length >= 9) {
+      const last9 = canonical.slice(-9);
+      
+      // Query for existing leads with same phone in this batch
+      const { data: existing, error: dupErr } = await sb
+        .from('crm_leads')
+        .select('sheet_lead_id, phone, assigned_to, created_at')
+        .eq('batch_name', batchName)
+        .ilike('phone', `%${last9}`)
+        .order('created_at', { ascending: true })
+        .limit(10);
+      
+      if (!dupErr && existing && existing.length > 0) {
+        // Check if any match the canonical phone
+        for (const r of existing) {
+          const existingCanon = normalizePhoneToSL(r.phone);
+          if (existingCanon === canonical) {
+            // Duplicate found - mark this new lead as "Duplicate" instead of assigning
+            assignedTo = 'Duplicate';
+            break;
+          }
+        }
+      }
+    }
+  }
+  
   const row = {
     batch_name: batchName,
     sheet_name: sheetName,
     sheet_lead_id: sheetLeadId,
     name: cleanString(lead?.name),
     email: cleanString(lead?.email),
-    phone: cleanString(lead?.phone),
+    phone: phone,
     source: cleanString(lead?.source),
     status: cleanString(lead?.status) || 'New',
     priority: cleanString(lead?.priority),
     notes: cleanString(lead?.notes),
-    assigned_to: cleanString(lead?.assignedTo),
+    assigned_to: assignedTo,
     created_at: new Date().toISOString(),
     // Keep legacy-compatible created_date (used by UI)
     created_date: new Date().toISOString(),
@@ -1173,18 +1205,50 @@ async function createOfficerLead({ officerName, batchName, sheetName, lead }) {
   await assertOfficerCanUseSheet({ sb, batchName, sheetName, officerName });
 
   const sheetLeadId = cleanString(lead?.id) || String(Date.now());
+  const phone = cleanString(lead?.phone);
+  
+  // Check for duplicate phone in the batch BEFORE creating
+  let assignedTo = officerName;
+  if (phone) {
+    const canonical = normalizePhoneToSL(phone);
+    if (canonical && canonical.length >= 9) {
+      const last9 = canonical.slice(-9);
+      
+      // Query for existing leads with same phone in this batch
+      const { data: existing, error: dupErr } = await sb
+        .from('crm_leads')
+        .select('sheet_lead_id, phone, assigned_to, created_at')
+        .eq('batch_name', batchName)
+        .ilike('phone', `%${last9}`)
+        .order('created_at', { ascending: true })
+        .limit(10);
+      
+      if (!dupErr && existing && existing.length > 0) {
+        // Check if any match the canonical phone
+        for (const r of existing) {
+          const existingCanon = normalizePhoneToSL(r.phone);
+          if (existingCanon === canonical) {
+            // Duplicate found - mark this new lead as "Duplicate"
+            assignedTo = 'Duplicate';
+            break;
+          }
+        }
+      }
+    }
+  }
+  
   const row = {
     batch_name: batchName,
     sheet_name: sheetName,
     sheet_lead_id: sheetLeadId,
     name: cleanString(lead?.name),
     email: cleanString(lead?.email),
-    phone: cleanString(lead?.phone),
+    phone: phone,
     source: cleanString(lead?.source),
     status: cleanString(lead?.status) || 'New',
     priority: cleanString(lead?.priority),
     notes: cleanString(lead?.notes),
-    assigned_to: officerName,
+    assigned_to: assignedTo,
     created_at: new Date().toISOString(),
     created_date: new Date().toISOString(),
     updated_at: new Date().toISOString()

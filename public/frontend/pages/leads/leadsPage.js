@@ -2012,7 +2012,10 @@ async function openNewLeadModal() {
       ev.preventDefault();
       const btn = form.querySelector('button[type="submit"]');
       const old = btn ? btn.innerHTML : '';
+      
+      // Prevent double-click by immediately disabling
       if (btn) {
+        if (btn.disabled) return; // Already submitting
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
         btn.disabled = true;
       }
@@ -2030,18 +2033,26 @@ async function openNewLeadModal() {
           status: 'New'
         };
 
-        if (isOfficerView) {
-          await API.leads.createMy({ batchName, sheetName, lead });
-        } else {
-          await API.leads.create({ batchName, sheetName, lead });
-        }
+        const result = isOfficerView 
+          ? await API.leads.createMy({ batchName, sheetName, lead })
+          : await API.leads.create({ batchName, sheetName, lead });
+        
+        // Success: close modal first, then show toast and reload
         closeLeadsActionModal(modalId);
-        showToast('Lead created', 'success');
+        
+        // Check if the created lead is marked as duplicate
+        const createdLead = result?.lead;
+        if (createdLead && (createdLead.isDuplicate || String(createdLead.assignedTo || '').toLowerCase() === 'duplicate')) {
+          showToast('Lead created but marked as Duplicate (phone number already exists in this batch)', 'warning');
+        } else {
+          showToast('Lead created successfully', 'success');
+        }
+        
         await loadLeads();
       } catch (err) {
         console.error(err);
         showToast(err.message || 'Failed to create lead', 'error');
-      } finally {
+        // Re-enable button on error so user can retry
         if (btn) {
           btn.innerHTML = old;
           btn.disabled = false;
