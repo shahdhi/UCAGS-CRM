@@ -838,6 +838,22 @@ async function navigateToPage(page) {
                     titleElement.textContent = `${formattedName} - ${s || 'Main Leads'}`;
                 }
             }
+            
+            // Initialize the leads page
+            if (page === 'leads-myLeads' || page.startsWith('leads-myLeads-batch-')) {
+                // Officer view
+                if (window.initLeadsPage) {
+                    console.log('🔄 Initializing officer leads page...');
+                    window.initLeadsPage('myLeads');
+                }
+            } else if (page.startsWith('leads-batch-')) {
+                // Admin batch view
+                const batchName = window.adminBatchFilter || page.replace('leads-batch-', '').split('__')[0];
+                if (window.initLeadsPage) {
+                    console.log('🔄 Initializing admin leads page for batch:', batchName);
+                    window.initLeadsPage(batchName);
+                }
+            }
         }
     } else if (page === 'lead-management' || page.startsWith('lead-management-batch-')) {
         // Officer Lead Management uses a shared view container
@@ -851,9 +867,15 @@ async function navigateToPage(page) {
                 titleEl.innerHTML = `<i class="fas fa-tasks"></i> Lead Management`;
             }
             // Subtitle below Lead Management title is optional; currently keep it empty
-            // (requested: remove e.g. “(Batch-14) - Main Leads”)
+            // (requested: remove e.g. "(Batch-14) - Main Leads")
             if (subEl) {
                 subEl.textContent = '';
+            }
+            
+            // Initialize lead management page
+            if (window.initLeadManagementPage) {
+                console.log('🔄 Initializing lead management page...');
+                window.initLeadManagementPage();
             }
         }
     } else if (page === 'demo-sessions') {

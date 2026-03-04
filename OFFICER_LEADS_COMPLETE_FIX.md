@@ -2,23 +2,27 @@
 
 ## Issues Fixed
 
-### Issue 1: My Leads Page Not Initializing
+### Issue 1: My Leads Page Not Initializing ⭐ CRITICAL
 **Symptom:** Officers click "My Leads" from sidebar → page shows "Loading leads..." forever with no console output
 
-**Root Cause:** Route handling bug in `public/js/app.js`
-- Backward compatibility code was intercepting ALL `leads-*` routes
-- Called `initLeadsPage()` with malformed parameters before the proper handler could run
-- Caused silent failure
+**Root Cause:** The view container was being shown, but `initLeadsPage()` was NEVER being called for officer routes!
+- The code showed the `leadsView` container
+- Set the page title
+- But never called `initLeadsPage('myLeads')` to actually load the data
+- The switch statement's default case had the initialization code, but it was never reached
 
-**Fix:** Modified route handler to skip new formats:
+**Fix:** Added initialization code directly after showing the view:
 ```javascript
-// Line ~970 in public/js/app.js
-if (page.startsWith('leads-') && 
-    !page.startsWith('leads-myLeads') && 
-    !page.startsWith('leads-batch-')) {
-    // Only handle old-style routes
+// In public/js/app.js, after showing leadsView:
+if (page === 'leads-myLeads' || page.startsWith('leads-myLeads-batch-')) {
+    if (window.initLeadsPage) {
+        console.log('🔄 Initializing officer leads page...');
+        window.initLeadsPage('myLeads');
+    }
 }
 ```
+
+Same fix applied to lead-management page initialization.
 
 ### Issue 2: Officers Can't See Newly Assigned Leads
 **Symptom:** Admin assigns leads → officer doesn't see them until 2 minutes later or manual refresh
