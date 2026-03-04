@@ -1446,22 +1446,47 @@ async function deleteSheetForBatch({ batchName, sheetName, scope, user }) {
 
   // Verify the officer owns this sheet before deleting
   // First try to match by officer_name, but also check by user_id if available
-  const { data: ownerCheck, error: ownerErr } = await sb
+  // Query all sheets for this batch to check for normalization mismatches
+  const { data: allSheets, error: listErr } = await sb
     .from('officer_custom_sheets')
     .select('sheet_name, officer_name, created_by_user_id')
-    .eq('batch_name', b)
-    .eq('sheet_name', sheet)
-    .maybeSingle();
+    .eq('batch_name', b);
 
-  if (ownerErr) {
-    const msg = String(ownerErr.message || '').toLowerCase();
+  if (listErr) {
+    const msg = String(listErr.message || '').toLowerCase();
     if (msg.includes('relation') || msg.includes('does not exist')) {
       throw Object.assign(new Error('Officer custom sheets table not found'), { status: 500 });
     }
-    throw ownerErr;
+    throw listErr;
   }
 
+  console.log('🔍 Sheet delete attempt:', {
+    lookingFor: sheet,
+    batchName: b,
+    requestingOfficer: officerName,
+    requestingUserId: userId,
+    totalSheetsInBatch: (allSheets || []).length
+  });
+
+  // Find the sheet by normalized name (case-insensitive, whitespace-normalized)
+  const ownerCheck = (allSheets || []).find(s => {
+    const normalized = normalizeSheetName(s.sheet_name);
+    return normalized === sheet;
+  });
+
   if (!ownerCheck) {
+    console.error('❌ Sheet not found. Debug info:', {
+      lookingFor: sheet,
+      batchName: b,
+      officerName,
+      userId,
+      availableSheets: (allSheets || []).map(s => ({
+        raw: s.sheet_name,
+        normalized: normalizeSheetName(s.sheet_name),
+        officer: s.officer_name,
+        created_by: s.created_by_user_id
+      }))
+    });
     throw Object.assign(new Error('Sheet not found'), { status: 404 });
   }
 
