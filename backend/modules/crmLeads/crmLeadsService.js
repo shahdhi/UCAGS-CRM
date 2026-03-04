@@ -1207,35 +1207,11 @@ async function createOfficerLead({ officerName, batchName, sheetName, lead }) {
   const sheetLeadId = cleanString(lead?.id) || String(Date.now());
   const phone = cleanString(lead?.phone);
   
-  // Check for duplicate phone in the batch BEFORE creating
-  let assignedTo = officerName;
-  if (phone) {
-    const canonical = normalizePhoneToSL(phone);
-    if (canonical && canonical.length >= 9) {
-      const last9 = canonical.slice(-9);
-      
-      // Query for existing leads with same phone in this batch
-      const { data: existing, error: dupErr } = await sb
-        .from('crm_leads')
-        .select('sheet_lead_id, phone, assigned_to, created_at')
-        .eq('batch_name', batchName)
-        .ilike('phone', `%${last9}`)
-        .order('created_at', { ascending: true })
-        .limit(10);
-      
-      if (!dupErr && existing && existing.length > 0) {
-        // Check if any match the canonical phone
-        for (const r of existing) {
-          const existingCanon = normalizePhoneToSL(r.phone);
-          if (existingCanon === canonical) {
-            // Duplicate found - mark this new lead as "Duplicate"
-            assignedTo = 'Duplicate';
-            break;
-          }
-        }
-      }
-    }
-  }
+  // IMPORTANT: Officers should still see leads they create in their custom sheets,
+  // even if the phone is a duplicate. The duplicate will still be MARKED as duplicate
+  // in the UI via applyDuplicateDisplay(), but it remains assigned to the officer
+  // so it shows up in their "My Leads" view.
+  const assignedTo = officerName;
   
   const row = {
     batch_name: batchName,
