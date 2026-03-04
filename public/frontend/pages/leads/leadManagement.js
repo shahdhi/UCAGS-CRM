@@ -344,13 +344,8 @@ async function loadLeadManagement() {
               // Reset batch filter so it auto-selects current batch for this program
               window.adminBatchFilter = '';
               window.adminSheetFilter = 'Main Leads';
-              initLeadManagementPage();
+              loadLeadManagement();
             });
-
-            // Ensure leads load respects the selected program
-            if (window.adminProgramId) {
-              initLeadManagementPage();
-            }
           } catch (e) {
             console.warn('Failed to load programs for management program filter', e);
             programSelect.style.display = 'none';
