@@ -2058,6 +2058,7 @@ async function openNewLeadModal() {
           btn.disabled = false;
         }
       }
+      }
     });
   }
 

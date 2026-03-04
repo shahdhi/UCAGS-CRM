@@ -1379,7 +1379,7 @@ async function listSheetsForBatch({ batchName, user }) {
     (shared || []).map(r => normalizeSheetName(r.sheet_name)).filter(Boolean).forEach(s => set.add(s));
   } catch (_) {}
 
-  // officer personal sheets
+  // officer personal sheets - only include for the officer who created them, NOT for admins
   if (String(user?.role || '') !== 'admin') {
     const officerName = cleanString(user?.name);
     if (officerName) {
@@ -1393,6 +1393,8 @@ async function listSheetsForBatch({ batchName, user }) {
       } catch (_) {}
     }
   }
+  // Note: Admins should NOT see officer custom sheets in the main leads page dropdown.
+  // Officer custom sheets are only visible to the officer who created them in their own view.
 
   // Exclude exported registrations sheet (comes from Registrations page export)
   const excluded = new Set(['registrations', 'registration']);
