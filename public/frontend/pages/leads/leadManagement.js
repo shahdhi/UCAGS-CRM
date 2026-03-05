@@ -552,7 +552,6 @@ function renderManagementTable() {
   const isAdmin = window.currentUser && window.currentUser.role === 'admin';
   const currentSheet = (isAdmin ? window.adminSheetFilter : window.officerSheetFilter) || 'Main Leads';
   const isCustomOfficerSheet = !isAdmin && !['main leads', 'extra leads'].includes(currentSheet.toLowerCase());
-  const currentOfficerName = window.currentUser?.name || '';
 
   // Render bulk delete bar if on a custom officer sheet
   const tableContainer = tbody.closest('.table-container') || tbody.parentElement;
@@ -589,7 +588,7 @@ function renderManagementTable() {
 
   tbody.innerHTML = filteredManagementLeads.map(lead => {
     // Show checkbox + delete button only when officer is viewing their own custom sheet AND lead is assigned to them
-    const canDelete = isCustomOfficerSheet && String(lead.assignedTo || '') === String(currentOfficerName);
+    const canDelete = isCustomOfficerSheet;
     return `
     <tr data-lead-id="${escapeHtml(String(lead.id))}">
       <td style="width:36px; text-align:center;">
@@ -1038,8 +1037,7 @@ async function openManageLeadModal(leadId) {
                   const isAdmin = window.currentUser && window.currentUser.role === 'admin';
                   const currentSheet = (isAdmin ? window.adminSheetFilter : window.officerSheetFilter) || 'Main Leads';
                   const isCustomOfficerSheet = !isAdmin && !['main leads', 'extra leads'].includes(currentSheet.toLowerCase());
-                  const currentOfficerName = window.currentUser?.name || '';
-                  const canDelete = isCustomOfficerSheet && String(lead.assignedTo || '') === String(currentOfficerName);
+                  const canDelete = isCustomOfficerSheet;
                   return canDelete ? `<button type="button" class="btn btn-danger" id="modalDeleteLeadBtn" title="Delete this lead permanently">
                     <i class="fas fa-trash"></i> Delete Lead
                   </button>` : '';
