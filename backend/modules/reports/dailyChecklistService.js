@@ -135,7 +135,27 @@ async function listLeadSnapshotsRange({ startISO, endISO }) {
 async function computeNewLeadsCountsCurrent({ officers }) {
   const sb = requireSupabase();
 
-  // Current counts of leads in status=New grouped by assigned_to (officer name)
+  // Fetch all officer-created (personal) sheets so we can exclude them.
+  // Only leads on admin-created sheets (Main Leads, Extra Leads, batch-level sheets)
+  // should be counted in the daily checklist.
+  let officerCreatedSheetKeys = new Set(); // "batch_name|sheet_name" keys to exclude
+  try {
+    const { data: customSheets, error: csError } = await sb
+      .from('officer_custom_sheets')
+      .select('batch_name, sheet_name');
+    if (!csError && Array.isArray(customSheets)) {
+      for (const row of customSheets) {
+        if (row.batch_name && row.sheet_name) {
+          officerCreatedSheetKeys.add(`${String(row.batch_name).trim()}|${String(row.sheet_name).trim()}`);
+        }
+      }
+    }
+  } catch (_) {
+    // If table doesn't exist yet, continue without exclusion
+  }
+
+  // Current counts of leads in status=New grouped by assigned_to (officer name),
+  // excluding leads on officer-created personal sheets.
   const fields = 'id, batch_name, sheet_name, sheet_lead_id, assigned_to, status';
   const { data, error } = await sb
     .from('crm_leads')
@@ -148,6 +168,10 @@ async function computeNewLeadsCountsCurrent({ officers }) {
   const counts = new Map();
 
   for (const l of (data || [])) {
+    // Skip leads that belong to officer-created personal sheets
+    const sheetKey = `${String(l.batch_name || '').trim()}|${String(l.sheet_name || '').trim()}`;
+    if (officerCreatedSheetKeys.has(sheetKey)) continue;
+
     const assignee = String(l.assigned_to || '').trim();
     const officerId = officerNameToId.get(assignee);
     if (!officerId) continue;
