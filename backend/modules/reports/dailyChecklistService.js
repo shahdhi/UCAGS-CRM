@@ -248,11 +248,11 @@ async function getDailyChecklist({ startISO, days, officers }) {
 
   const end = dates[dates.length - 1];
 
-  const [reportRows, followups, leadSnapshots, recordings] = await Promise.all([
+  const [reportRows, followups, recordings, liveNewLeadCounts] = await Promise.all([
     listDailyReportsRange({ startISO: start, endISO: end }),
     listFollowupsRange({ startISO: start, endISO: end }),
-    listLeadSnapshotsRange({ startISO: start, endISO: end }),
-    listCallRecordingStatuses({ startISO: start, endISO: end })
+    listCallRecordingStatuses({ startISO: start, endISO: end }),
+    computeNewLeadsCountsCurrent({ officers })
   ]);
 
   const byDate = buildEmptyMatrix({ dates, officers });
@@ -283,21 +283,14 @@ async function getDailyChecklist({ startISO, days, officers }) {
     contactedByDayOfficer.set(k, set);
   }
 
-  // To be contacted: per-day snapshot values from daily_officer_leads_snapshot.
-  // If a snapshot row is missing, default to 0 (admin can backfill via snapshot endpoint).
-  const snapshotByDayOfficer = new Map();
-  for (const r of (leadSnapshots || [])) {
-    const d = String(r.snapshot_date).slice(0, 10);
-    const k = `${d}|${r.officer_user_id}`;
-    snapshotByDayOfficer.set(k, Number(r.new_leads_count || 0));
-  }
-
+  // To be contacted: live count of leads with status='New' assigned to each officer.
+  // This shows real-time data regardless of whether a snapshot has been recorded.
   for (const d of dates) {
     for (const o of officers) {
       const k = `${d}|${o.id}`;
       const cell = byDate[d][o.id];
       cell.leadsContacted = (contactedByDayOfficer.get(k)?.size) || 0;
-      cell.leadsToBeContacted = snapshotByDayOfficer.get(k) || 0;
+      cell.leadsToBeContacted = liveNewLeadCounts.get(o.id) || 0;
     }
   }
 
