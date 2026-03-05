@@ -183,15 +183,13 @@ function setupLeadsEventListeners() {
             // Reset batch filter so loadLeads() auto-selects current batch for this program
             window.adminBatchFilter = '';
             window.adminSheetFilter = 'Main Leads';
+            // Reset dropdown cache so it reloads for new program
+            const batchSel = document.getElementById('leadsProgramBatchSelect');
+            if (batchSel) batchSel.__loadedFor = null;
             currentPage = 1;
             loadLeads();
           });
-
-          // Ensure leads load respects the selected program
-          if (window.adminProgramId) {
-            currentPage = 1;
-            loadLeads();
-          }
+          // NOTE: Do NOT call loadLeads() here — initLeadsPage already calls it after setupLeadsEventListeners
         } catch (e) {
           console.warn('Failed to load programs for program filter', e);
           programSelect.style.display = 'none';
@@ -219,6 +217,7 @@ function setupLeadsEventListeners() {
           ? `leads-batch-${encodeURIComponent(v)}__sheet__${encodeURIComponent('Main Leads')}`
           : `leads-myLeads-batch-${encodeURIComponent(v)}__sheet__${encodeURIComponent('Main Leads')}`;
         window.location.hash = leadsPage;
+        // Sheet tabs will be re-fetched for new batch (cache miss is intentional here)
         currentPage = 1;
         loadLeads();
       }
@@ -340,50 +339,56 @@ async function loadLeads() {
     // Officer view: always use /crm-leads/my (never admin endpoint)
     const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
 
-    // Program context batch dropdown (admin + officer)
-    if (true) {
+    // Program context batch dropdown (admin + officer) — only rebuild if program changed
+    {
       const sel = document.getElementById('leadsProgramBatchSelect');
       if (sel) {
         const programId = window.adminProgramId || window.officerProgramId;
         if (programId) {
           sel.style.display = '';
-          // No caching: always fetch fresh program batches and rebuild options
-          try {
-            const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
-            const r = await fetch('/api/programs/sidebar', { headers: authHeaders });
-            const j = await r.json();
-            const batches = (j.batches || []).filter(b => String(b.program_id) === String(programId));
-            const current = batches.find(b => b.is_current);
+          // Only fetch + rebuild options when the program has changed (avoid fetching on every tab click)
+          if (!sel.__loadedFor || sel.__loadedFor !== String(programId)) {
+            sel.__loadedFor = String(programId);
+            try {
+              const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+              const r = await fetch('/api/programs/sidebar', { headers: authHeaders });
+              const j = await r.json();
+              const batches = (j.batches || []).filter(b => String(b.program_id) === String(programId));
+              const current = batches.find(b => b.is_current);
 
-            sel.innerHTML = '';
-            batches
-              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-              .forEach(b => {
-                const opt = document.createElement('option');
-                opt.value = b.batch_name;
-                opt.textContent = b.batch_name;
-                sel.appendChild(opt);
-              });
+              sel.innerHTML = '';
+              batches
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .forEach(b => {
+                  const opt = document.createElement('option');
+                  opt.value = b.batch_name;
+                  opt.textContent = b.batch_name;
+                  sel.appendChild(opt);
+                });
 
-            // Sync selection
-            const activeBatch = (window.adminBatchFilter || window.officerBatchFilter);
-            const currentBatchName = current?.batch_name;
-            const hasOption = (val) => Array.from(sel.options || []).some(o => String(o.value) === String(val));
-            if (activeBatch && activeBatch !== 'all' && hasOption(activeBatch)) {
-              sel.value = activeBatch;
-            } else if (currentBatchName && hasOption(currentBatchName)) {
-              sel.value = currentBatchName;
-              // IMPORTANT: keep internal batch filter in sync when we auto-select current batch.
-              // Otherwise the dropdown shows current batch but the API call may still be "all batches".
-              if (isOfficerView) window.officerBatchFilter = currentBatchName;
-              else window.adminBatchFilter = currentBatchName;
+              // Sync selection
+              const activeBatch = (window.adminBatchFilter || window.officerBatchFilter);
+              const currentBatchName = current?.batch_name;
+              const hasOption = (val) => Array.from(sel.options || []).some(o => String(o.value) === String(val));
+              if (activeBatch && activeBatch !== 'all' && hasOption(activeBatch)) {
+                sel.value = activeBatch;
+              } else if (currentBatchName && hasOption(currentBatchName)) {
+                sel.value = currentBatchName;
+                // IMPORTANT: keep internal batch filter in sync when we auto-select current batch.
+                if (isOfficerView) window.officerBatchFilter = currentBatchName;
+                else window.adminBatchFilter = currentBatchName;
+              }
+            } catch (e) {
+              console.warn('Failed to load program batches for dropdown', e);
             }
-          } catch (e) {
-            console.warn('Failed to load program batches for dropdown', e);
+          } else {
+            // Dropdown already populated — just sync the selected value to current filter
+            const activeBatch = isOfficerView ? window.officerBatchFilter : window.adminBatchFilter;
+            if (activeBatch && activeBatch !== 'all') sel.value = activeBatch;
           }
         } else {
           // If user refreshed directly on a leads-batch-* route, infer program from batch
-          if (window.adminBatchFilter && !window.__programInferredFromBatch) {
+          if ((window.adminBatchFilter || window.officerBatchFilter) && !window.__programInferredFromBatch) {
             try {
               window.__programInferredFromBatch = true; // Prevent infinite loop
               const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
@@ -394,8 +399,6 @@ async function loadLeads() {
               if (match?.program_id) {
                 window.adminProgramId = window.adminProgramId || match.program_id;
                 window.officerProgramId = window.officerProgramId || match.program_id;
-                // Don't call loadLeads() again - just continue with current execution
-                console.log('[LEADS] Inferred program from batch:', match.program_id);
               }
             } catch (e) {
               console.warn('Failed to infer program from batch', e);
@@ -566,28 +569,33 @@ async function loadLeads() {
         updateOfficerNewLeadBtnVisibility();
       };
 
-      // Fetch sheets from server first, then render once
-      try {
-        const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`, { headers: authHeaders });
-        const json = await res.json();
-        if (json.success && Array.isArray(json.sheets)) {
-          const merged = Array.from(new Set(['Main Leads', 'Extra Leads', ...json.sheets]));
-
-          if (isOfficerView) {
-            officerCreatedSheets = (json.sheets || []).slice();
+      // Fetch sheets from server only when batch changes (cache per batch to avoid flicker on tab click)
+      const sheetsCacheKey = `__leadsSheets_${batch}`;
+      const sheetsFromCache = window[sheetsCacheKey];
+      if (sheetsFromCache) {
+        // Use cached sheet list — instant render, no flicker
+        if (isOfficerView) officerCreatedSheets = sheetsFromCache.officer || [];
+        renderTabs(sheetsFromCache.merged);
+        updateOfficerNewLeadBtnVisibility();
+      } else {
+        // First load for this batch: fetch then cache
+        try {
+          const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`, { headers: authHeaders });
+          const json = await res.json();
+          if (json.success && Array.isArray(json.sheets)) {
+            const merged = Array.from(new Set(['Main Leads', 'Extra Leads', ...json.sheets]));
+            const officer = isOfficerView ? (json.sheets || []).slice() : [];
+            window[sheetsCacheKey] = { merged, officer };
+            if (isOfficerView) officerCreatedSheets = officer;
+            renderTabs(merged);
+            updateOfficerNewLeadBtnVisibility();
+          } else {
+            renderTabs(sheets);
           }
-
-          // Render once with fetched data
-          renderTabs(merged);
-          updateOfficerNewLeadBtnVisibility();
-        } else {
-          // Fallback: render with defaults if fetch failed
+        } catch (e) {
+          console.warn('Failed to load sheets list', e);
           renderTabs(sheets);
         }
-      } catch (e) {
-        console.warn('Failed to load sheets list', e);
-        // Fallback: render with defaults
-        renderTabs(sheets);
       }
     }
 
@@ -609,9 +617,11 @@ async function loadLeads() {
             else window.adminSheetFilter = d.sheetName;
           }
 
+          // Invalidate sheets cache so new tab appears
+          if (activeBatch) delete window[`__leadsSheets_${activeBatch}`];
+
           try { updateOfficerNewLeadBtnVisibility(); } catch (_) {}
 
-          // reload
           loadLeads();
         } catch (_) {}
       });

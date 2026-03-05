@@ -83,14 +83,12 @@
  * Initialize Lead Management page
  */
 async function initLeadManagementPage() {
-  console.log('🔄 Initializing Lead Management page...');
-  
   // Setup event listeners only once
   if (!isInitialized) {
     setupManagementEventListeners();
     isInitialized = true;
   }
-  
+
   // React to current-batch changes from Programs -> Batch Setup
   if (!window.__leadManagementCurrentBatchListenerBound) {
     window.__leadManagementCurrentBatchListenerBound = true;
@@ -142,11 +140,30 @@ async function initLeadManagementPage() {
 }
 
 /**
- * Setup event listeners
+ * Setup event listeners (called once on first init)
  */
 function setupManagementEventListeners() {
-  console.log('Setting up Lead Management event listeners');
-  // Event listeners are inline in HTML for now
+  // Search input — client-side filter only, no reload
+  const searchInput = document.getElementById('managementSearchInput');
+  if (searchInput) {
+    let searchTimeout;
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => filterManagementLeads(), 250);
+    });
+  }
+
+  // Status filter — client-side filter only, no reload
+  const statusFilter = document.getElementById('managementStatusFilter');
+  if (statusFilter) {
+    statusFilter.addEventListener('change', () => filterManagementLeads());
+  }
+
+  // Priority filter — client-side filter only, no reload
+  const priorityFilter = document.getElementById('managementPriorityFilter');
+  if (priorityFilter) {
+    priorityFilter.addEventListener('change', () => filterManagementLeads());
+  }
 }
 
 /**
@@ -198,14 +215,20 @@ async function loadLeadManagement() {
     }
 
     let sheets = ['Main Leads', 'Extra Leads'];
-    try {
-      const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`, { headers: authHeaders });
-      const json = await res.json();
-      if (json.success && Array.isArray(json.sheets)) {
-        sheets = Array.from(new Set([...sheets, ...json.sheets]));
+    const mgmtSheetsCacheKey = `__mgmtSheets_${batch}`;
+    if (window[mgmtSheetsCacheKey]) {
+      sheets = window[mgmtSheetsCacheKey];
+    } else {
+      try {
+        const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`, { headers: authHeaders });
+        const json = await res.json();
+        if (json.success && Array.isArray(json.sheets)) {
+          sheets = Array.from(new Set([...sheets, ...json.sheets]));
+          window[mgmtSheetsCacheKey] = sheets;
+        }
+      } catch (e) {
+        console.warn('Failed to load management sheets list', e);
       }
-    } catch (e) {
-      console.warn('Failed to load management sheets list', e);
     }
 
     tabsEl.style.display = 'flex';
@@ -234,10 +257,10 @@ async function loadLeadManagement() {
 
         window.officerSheetFilter = name;
         window.location.hash = `lead-management-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`;
-        
-        // Set flag to skip tab re-rendering during load
+
+        // Call loadLeadManagement directly — skip tab re-render to prevent flicker
         window.__skipManagementTabRender = true;
-        initLeadManagementPage().finally(() => {
+        loadLeadManagement().finally(() => {
           window.__skipManagementTabRender = false;
         });
       });
@@ -265,7 +288,11 @@ async function loadLeadManagement() {
         const d = ev.detail || {};
         if (String(d.batchName) !== String(batch)) return;
         if (d.sheetName) window.officerSheetFilter = d.sheetName;
-        initLeadManagementPage();
+        // Invalidate sheets cache so new tab appears
+        delete window[`__mgmtSheets_${batch}`];
+        // Reset skip flag so new sheet tab gets rendered, then load
+        window.__skipManagementTabRender = false;
+        loadLeadManagement();
       });
     }
   }
@@ -283,11 +310,13 @@ async function loadLeadManagement() {
     if (cached && Array.isArray(cached)) {
       managementLeads = cached;
       filteredManagementLeads = [...managementLeads];
+      filterManagementLeads(/* skipRender */ true);
       renderManagementTable();
       return;
     }
   }
-  
+
+  if (isLoading) return;
   isLoading = true;
   
   try {
@@ -374,7 +403,8 @@ async function loadLeadManagement() {
               }
               // navigate to keep URL in sync
               window.location.hash = `lead-management-batch-${encodeURIComponent(v)}__sheet__${encodeURIComponent('Main Leads')}`;
-              initLeadManagementPage();
+              // Sheet tabs will re-fetch for new batch (no cache for new batch key)
+              loadLeadManagement();
             }
           });
         }
@@ -470,14 +500,13 @@ async function loadLeadManagement() {
       console.log('ℹ️ No leads assigned to this officer');
     }
 
-    // Apply filters to populate filteredManagementLeads
-    filterManagementLeads();
-    
     console.log('[MGMT-LEADS] ✓ Loaded ' + managementLeads.length + ' leads for management');
 
     // cache hydrated leads for faster reloads
     if (window.Cache) window.Cache.setWithTs(cacheKey, managementLeads);
 
+    // Apply filters then render once (skipRender=true so filterManagementLeads doesn't double-render)
+    filterManagementLeads(/* skipRender */ true);
     renderManagementTable();
     
   } catch (error) {
@@ -489,34 +518,31 @@ async function loadLeadManagement() {
 }
 
 /**
- * Filter management leads
+ * Filter management leads (client-side only — no API call)
+ * @param {boolean} skipRender - if true, only update filteredManagementLeads without re-rendering
  */
-function filterManagementLeads() {
+function filterManagementLeads(skipRender) {
   const searchInput = document.getElementById('managementSearchInput');
   const statusFilter = document.getElementById('managementStatusFilter');
   const priorityFilter = document.getElementById('managementPriorityFilter');
-  
+
   const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
   const statusValue = normalizeLeadStatus(statusFilter ? statusFilter.value : '');
   const priorityValue = priorityFilter ? priorityFilter.value : '';
-  
+
   filteredManagementLeads = managementLeads.filter(lead => {
-    // Search filter
-    const matchesSearch = !searchTerm || 
+    const matchesSearch = !searchTerm ||
       lead.name?.toLowerCase().includes(searchTerm) ||
       lead.email?.toLowerCase().includes(searchTerm) ||
-      lead.phone?.includes(searchTerm);
-    
-    // Status filter
+      String(lead.phone || '').includes(searchTerm);
+
     const matchesStatus = !statusValue || normalizeLeadStatus(lead.status) === statusValue;
-    
-    // Priority filter
     const matchesPriority = !priorityValue || lead.priority === priorityValue;
-    
+
     return matchesSearch && matchesStatus && matchesPriority;
   });
-  
-  renderManagementTable();
+
+  if (!skipRender) renderManagementTable();
 }
 
 /**
