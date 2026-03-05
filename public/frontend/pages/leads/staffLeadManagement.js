@@ -164,6 +164,7 @@
 
     if (!isInitialized) {
       isInitialized = true;
+      await loadProgramsIntoSelect();
       await loadOfficersIntoSelect();
       setupEventListeners();
 
@@ -174,7 +175,8 @@
           try {
             // Clear caches so we don't show stale results
             if (window.Cache) window.Cache.invalidatePrefix('leads:');
-            // Reload batches/sheets + refresh current table
+            // Reload programs, batches/sheets + refresh current table
+            await loadProgramsIntoSelect();
             await loadBatchesAndSheetsForOfficer();
             await refreshStaffLeadManagement({ showSkeleton: true });
           } catch (e) {
@@ -193,9 +195,18 @@
   }
 
   function setupEventListeners() {
+    const programSel = $('staffLeadMgmtProgramSelect');
     const officerSel = $('staffLeadMgmtOfficerSelect');
     const batchSel = $('staffLeadMgmtBatchSelect');
     const sheetSel = $('staffLeadMgmtSheetSelect');
+
+    if (programSel) {
+      programSel.addEventListener('change', async () => {
+        await loadBatchesAndSheetsForOfficer();
+        await refreshStaffLeadManagement();
+        updateSubtitle();
+      });
+    }
 
     if (officerSel) {
       officerSel.addEventListener('change', async () => {
@@ -228,6 +239,44 @@
     if (search) search.addEventListener('input', doFilter);
     if (status) status.addEventListener('change', doFilter);
     if (priority) priority.addEventListener('change', doFilter);
+  }
+
+  async function loadProgramsIntoSelect() {
+    const sel = $('staffLeadMgmtProgramSelect');
+    if (!sel) return;
+
+    sel.innerHTML = `<option value="">Loading programs...</option>`;
+
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/programs/sidebar', { headers });
+      const json = await res.json();
+
+      const programs = (json.programs || []).slice();
+      programs.sort((a, b) => {
+        const ad = a?.created_at ? new Date(a.created_at).getTime() : 0;
+        const bd = b?.created_at ? new Date(b.created_at).getTime() : 0;
+        if (bd !== ad) return bd - ad;
+        return String(a?.name || '').localeCompare(String(b?.name || ''));
+      });
+
+      if (!programs.length) {
+        sel.innerHTML = `<option value="">No programs found</option>`;
+        return;
+      }
+
+      sel.innerHTML = `<option value="">All Programs</option>` +
+        programs.map(p => `<option value="${escapeHtml(String(p.id))}">${escapeHtml(p.name || p.id)}</option>`).join('');
+
+      // Store sidebar data for batch filtering later
+      sel.__programBatches = json.batches || [];
+
+      // Auto-select first (latest) program
+      if (programs[0]) sel.value = String(programs[0].id);
+    } catch (e) {
+      console.error('Failed to load programs:', e);
+      sel.innerHTML = `<option value="">All Programs</option>`;
+    }
   }
 
   async function loadOfficersIntoSelect() {
@@ -290,19 +339,39 @@
         return;
       }
 
+      // Check if a program is selected — if so, filter batches to only that program's batches
+      const programSel = $('staffLeadMgmtProgramSelect');
+      const selectedProgramId = programSel?.value || '';
+      const programBatches = programSel?.__programBatches || [];
+
+      let allowedBatchNames = null; // null = no restriction
+      if (selectedProgramId && programBatches.length) {
+        allowedBatchNames = new Set(
+          programBatches
+            .filter(b => String(b.program_id) === String(selectedProgramId))
+            .map(b => b.batch_name)
+            .filter(Boolean)
+        );
+      }
+
       const headers = await getAuthHeaders();
       const res = await fetch(`/api/crm-leads/admin/meta/batches?assignedTo=${encodeURIComponent(officer.officerName)}`, { headers });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Failed to load batches');
 
-      const batches = (json.batches || []).filter(Boolean);
-      batchSel.innerHTML = `<option value="">-- Select batch --</option>` + batches.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+      let batches = (json.batches || []).filter(Boolean);
 
-      // auto-select first batch if none
+      // Filter by program if one is selected
+      if (allowedBatchNames) {
+        batches = batches.filter(b => allowedBatchNames.has(b));
+      }
+
       if (!batches.length) {
-        batchSel.innerHTML = `<option value="">No batches</option>`;
+        batchSel.innerHTML = `<option value="">No batches for this program</option>`;
         return;
       }
+
+      batchSel.innerHTML = `<option value="">-- Select batch --</option>` + batches.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
 
       if (!batchSel.value && batches.length) {
         batchSel.value = batches[0];
@@ -373,11 +442,14 @@
     const el = $('staffLeadMgmtSubtitle');
     if (!el) return;
 
+    const programSel = $('staffLeadMgmtProgramSelect');
+    const programName = programSel?.options[programSel.selectedIndex]?.textContent || '';
     const officer = getSelectedOfficer();
     const batch = $('staffLeadMgmtBatchSelect')?.value;
     const sheet = $('staffLeadMgmtSheetSelect')?.value;
 
     const parts = [];
+    if (programName && programSel?.value) parts.push(programName);
     if (officer?.officerName) parts.push(officer.officerName);
     if (batch) parts.push(batch);
     if (sheet) parts.push(sheet);
