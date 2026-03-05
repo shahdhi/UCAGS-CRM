@@ -547,23 +547,189 @@ function renderManagementTable() {
   
   console.log('[MGMT-LEADS] Rendering table rows...');
   
-  tbody.innerHTML = filteredManagementLeads.map(lead => `
+  // Determine if the current sheet is an officer-created custom sheet (not Main Leads / Extra Leads)
+  // Officers can only delete leads from sheets they created.
+  const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+  const currentSheet = (isAdmin ? window.adminSheetFilter : window.officerSheetFilter) || 'Main Leads';
+  const isCustomOfficerSheet = !isAdmin && !['main leads', 'extra leads'].includes(currentSheet.toLowerCase());
+  const currentOfficerName = window.currentUser?.name || '';
+
+  // Render bulk delete bar if on a custom officer sheet
+  const tableContainer = tbody.closest('.table-container') || tbody.parentElement;
+  let bulkBar = document.getElementById('leadMgmtBulkBar');
+  if (isCustomOfficerSheet) {
+    if (!bulkBar) {
+      bulkBar = document.createElement('div');
+      bulkBar.id = 'leadMgmtBulkBar';
+      bulkBar.style.cssText = 'display:none; align-items:center; gap:12px; padding:10px 14px; background:#fff3f3; border:1px solid #fca5a5; border-radius:8px; margin-bottom:10px;';
+      bulkBar.innerHTML = `
+        <span id="leadMgmtBulkCount" style="font-weight:600; color:#b91c1c;">0 selected</span>
+        <button type="button" class="btn btn-danger btn-sm" id="leadMgmtBulkDeleteBtn">
+          <i class="fas fa-trash"></i> Delete Selected
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" id="leadMgmtBulkCancelBtn">Cancel</button>
+      `;
+      tableContainer.insertBefore(bulkBar, tbody.closest('table') || tbody);
+    }
+    // wire up bulk delete
+    const bulkDeleteBtn = document.getElementById('leadMgmtBulkDeleteBtn');
+    const bulkCancelBtn = document.getElementById('leadMgmtBulkCancelBtn');
+    if (bulkDeleteBtn) {
+      bulkDeleteBtn.onclick = () => bulkDeleteMyLeads();
+    }
+    if (bulkCancelBtn) {
+      bulkCancelBtn.onclick = () => {
+        document.querySelectorAll('.lead-mgmt-check:checked').forEach(cb => { cb.checked = false; });
+        updateBulkBar();
+      };
+    }
+  } else if (bulkBar) {
+    bulkBar.remove();
+  }
+
+  tbody.innerHTML = filteredManagementLeads.map(lead => {
+    // Show checkbox + delete button only when officer is viewing their own custom sheet AND lead is assigned to them
+    const canDelete = isCustomOfficerSheet && String(lead.assignedTo || '') === String(currentOfficerName);
+    return `
     <tr data-lead-id="${escapeHtml(String(lead.id))}">
+      <td style="width:36px; text-align:center;">
+        ${canDelete ? `<input type="checkbox" class="lead-mgmt-check" data-lead-id="${escapeHtml(String(lead.id))}" data-batch="${escapeHtml(lead.batch)}" data-sheet="${escapeHtml(lead.sheet || 'Main Leads')}" style="width:16px;height:16px;cursor:pointer;" onchange="updateBulkBar()">` : ''}
+      </td>
       <td><strong>${escapeHtml(lead.name)}</strong></td>
       <td>${lead.phone ? `<a href="tel:${lead.phone}">${escapeHtml(lead.phone)}</a>` : '-'}</td>
       <td><span class="badge badge-${getStatusColor(lead.status)}">${escapeHtml(normalizeLeadStatus(lead.status) || 'New')}</span></td>
       <td><span class="badge badge-${getPriorityColor(lead.priority)}">${escapeHtml(lead.priority || '-')}</span></td>
       <td>${escapeHtml(getLastFollowUpComment(lead)) || '-'}</td>
       <td>${getNextFollowUpSchedule(lead) ? formatDate(getNextFollowUpSchedule(lead)) : '-'}</td>
-      <td>
+      <td style="display:flex; gap:6px; align-items:center; flex-wrap:nowrap;">
         <button class="btn btn-sm btn-primary" onclick="openManageLeadModal('${lead.id}')" title="Manage Lead">
           <i class="fas fa-edit"></i>
         </button>
+        ${canDelete ? `<button class="btn btn-sm btn-danger" onclick="deleteMyLead('${escapeHtml(String(lead.id))}', '${escapeHtml(lead.batch)}', '${escapeHtml(lead.sheet || 'Main Leads')}')" title="Delete Lead">
+          <i class="fas fa-trash"></i>
+        </button>` : ''}
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
   
   console.log('✅ Table rendered successfully');
+}
+
+/**
+ * Update the bulk delete bar count and visibility based on checked checkboxes.
+ */
+function updateBulkBar() {
+  const bar = document.getElementById('leadMgmtBulkBar');
+  if (!bar) return;
+  const checked = document.querySelectorAll('.lead-mgmt-check:checked');
+  const countEl = document.getElementById('leadMgmtBulkCount');
+  if (countEl) countEl.textContent = `${checked.length} selected`;
+  bar.style.display = checked.length > 0 ? 'flex' : 'none';
+}
+
+/**
+ * Bulk delete all checked leads (officer-created sheet only).
+ */
+async function bulkDeleteMyLeads() {
+  const checked = Array.from(document.querySelectorAll('.lead-mgmt-check:checked'));
+  if (!checked.length) return;
+
+  // Group by batch+sheet (should all be same, but be safe)
+  const bySheet = new Map();
+  checked.forEach(cb => {
+    const key = `${cb.dataset.batch}||${cb.dataset.sheet}`;
+    if (!bySheet.has(key)) bySheet.set(key, { batchName: cb.dataset.batch, sheetName: cb.dataset.sheet, leadIds: [] });
+    bySheet.get(key).leadIds.push(cb.dataset.leadId);
+  });
+
+  if (!confirm(`Are you sure you want to delete ${checked.length} lead(s)? This action cannot be undone.`)) return;
+
+  try {
+    let authHeaders = { 'Content-Type': 'application/json' };
+    if (window.supabaseClient) {
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      if (session?.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
+    let totalDeleted = 0;
+    for (const { batchName, sheetName, leadIds } of bySheet.values()) {
+      const res = await fetch('/api/crm-leads/my/bulk-delete', {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({ batchName, sheetName, leadIds })
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Bulk delete failed');
+      totalDeleted += json.deletedCount || leadIds.length;
+
+      // Remove from local state
+      leadIds.forEach(id => {
+        managementLeads = managementLeads.filter(l => String(l.id) !== String(id));
+        filteredManagementLeads = filteredManagementLeads.filter(l => String(l.id) !== String(id));
+      });
+    }
+
+    if (window.Cache) window.Cache.invalidatePrefix('leads:');
+    renderManagementTable();
+
+    const toast = window.UI?.showToast || window.showToast;
+    if (toast) toast(`${totalDeleted} lead(s) deleted successfully`, 'success');
+  } catch (e) {
+    console.error('bulkDeleteMyLeads error:', e);
+    const toast = window.UI?.showToast || window.showToast;
+    if (toast) toast(e.message || 'Failed to delete leads', 'error');
+    else alert('Error: ' + (e.message || 'Failed to delete leads'));
+  }
+}
+
+/**
+ * Delete a lead from an officer-created custom sheet.
+ * Only works on sheets the officer created; backend enforces this too.
+ */
+async function deleteMyLead(leadId, batchName, sheetName) {
+  if (!leadId || !batchName || !sheetName) return;
+
+  const lead = managementLeads.find(l => String(l.id) === String(leadId));
+  const displayName = lead?.name ? `"${lead.name}"` : 'this lead';
+
+  if (!confirm(`Are you sure you want to delete ${displayName}? This action cannot be undone.`)) return;
+
+  try {
+    let authHeaders = { 'Content-Type': 'application/json' };
+    if (window.supabaseClient) {
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      if (session?.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
+    const res = await fetch('/api/crm-leads/my/bulk-delete', {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ batchName, sheetName, leadIds: [leadId] })
+    });
+    const json = await res.json();
+
+    if (!json.success) throw new Error(json.error || 'Delete failed');
+
+    // Optimistic: remove from local state
+    managementLeads = managementLeads.filter(l => String(l.id) !== String(leadId));
+    filteredManagementLeads = filteredManagementLeads.filter(l => String(l.id) !== String(leadId));
+
+    // Invalidate cache so next page load fetches fresh data
+    if (window.Cache) window.Cache.invalidatePrefix('leads:');
+
+    renderManagementTable();
+    if (window.UI?.showToast || window.showToast) {
+      (window.UI?.showToast || window.showToast)(`Lead deleted successfully`, 'success');
+    }
+  } catch (e) {
+    console.error('deleteMyLead error:', e);
+    if (window.UI?.showToast || window.showToast) {
+      (window.UI?.showToast || window.showToast)(e.message || 'Failed to delete lead', 'error');
+    } else {
+      alert('Error: ' + (e.message || 'Failed to delete lead'));
+    }
+  }
 }
 
 /**
@@ -866,11 +1032,25 @@ async function openManageLeadModal(leadId) {
               </div>
             </div>
             
-            <div class="modal-footer" style="border-top: 1px solid #e0e0e0; padding-top: 16px; display: flex; justify-content: flex-end; gap: 10px;">
-              <button type="button" class="btn btn-secondary" onclick="closeManageLeadModal()">Cancel</button>
-              <button type="submit" class="btn btn-primary">
-                <i class="fas fa-save"></i> Save Changes
-              </button>
+            <div class="modal-footer" style="border-top: 1px solid #e0e0e0; padding-top: 16px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <div>
+                ${(() => {
+                  const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+                  const currentSheet = (isAdmin ? window.adminSheetFilter : window.officerSheetFilter) || 'Main Leads';
+                  const isCustomOfficerSheet = !isAdmin && !['main leads', 'extra leads'].includes(currentSheet.toLowerCase());
+                  const currentOfficerName = window.currentUser?.name || '';
+                  const canDelete = isCustomOfficerSheet && String(lead.assignedTo || '') === String(currentOfficerName);
+                  return canDelete ? `<button type="button" class="btn btn-danger" id="modalDeleteLeadBtn" title="Delete this lead permanently">
+                    <i class="fas fa-trash"></i> Delete Lead
+                  </button>` : '';
+                })()}
+              </div>
+              <div style="display:flex; gap:10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeManageLeadModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-save"></i> Save Changes
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -971,6 +1151,15 @@ async function openManageLeadModal(leadId) {
   const form = document.getElementById('manageLeadForm');
   if (form) {
     form.addEventListener('submit', (e) => saveLeadManagement(e, String(leadId)));
+  }
+
+  // Bind modal delete button (only rendered when officer can delete)
+  const modalDeleteBtn = document.getElementById('modalDeleteLeadBtn');
+  if (modalDeleteBtn) {
+    modalDeleteBtn.addEventListener('click', async () => {
+      closeManageLeadModal();
+      await deleteMyLead(String(lead.id), lead.batch, lead.sheet || 'Main Leads');
+    });
   }
 }
 
@@ -1439,6 +1628,9 @@ window.initLeadManagementPage = initLeadManagementPage;
 window.loadLeadManagement = loadLeadManagement;
 window.filterManagementLeads = filterManagementLeads;
 window.openManageLeadModal = openManageLeadModal;
+window.deleteMyLead = deleteMyLead;
+window.bulkDeleteMyLeads = bulkDeleteMyLeads;
+window.updateBulkBar = updateBulkBar;
 window.closeManageLeadModal = closeManageLeadModal;
 window.saveLeadManagement = saveLeadManagement;
 window.addMoreFollowUp = addMoreFollowUp;
