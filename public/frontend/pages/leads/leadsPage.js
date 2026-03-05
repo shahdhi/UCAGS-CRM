@@ -708,13 +708,47 @@ function renderLeadsTable() {
   const endIndex = startIndex + rowsPerPage;
   const paginatedLeads = leadsToDisplay.slice(startIndex, endIndex);
 
+  // Determine if officer is on a custom sheet (show delete checkboxes + bulk bar)
+  const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+  const currentSheet = (isOfficerView ? window.officerSheetFilter : window.adminSheetFilter) || 'Main Leads';
+  const isCustomOfficerSheet = isOfficerView && !['main leads', 'extra leads'].includes(currentSheet.toLowerCase());
+
+  // Render or remove bulk delete bar
+  const tableWrapper = tbody.closest('.table-container') || tbody.parentElement;
+  let bulkBar = document.getElementById('leadsPageBulkBar');
+  if (isCustomOfficerSheet) {
+    if (!bulkBar) {
+      bulkBar = document.createElement('div');
+      bulkBar.id = 'leadsPageBulkBar';
+      bulkBar.style.cssText = 'display:none; align-items:center; gap:12px; padding:10px 14px; background:#fff3f3; border:1px solid #fca5a5; border-radius:8px; margin-bottom:10px;';
+      bulkBar.innerHTML = `
+        <span id="leadsPageBulkCount" style="font-weight:600; color:#b91c1c;">0 selected</span>
+        <button type="button" class="btn btn-danger btn-sm" id="leadsPageBulkDeleteBtn">
+          <i class="fas fa-trash"></i> Delete Selected
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" id="leadsPageBulkCancelBtn">Cancel</button>
+      `;
+      tableWrapper.insertBefore(bulkBar, tbody.closest('table') || tbody);
+    }
+    document.getElementById('leadsPageBulkDeleteBtn').onclick = () => bulkDeleteOfficerLeads();
+    document.getElementById('leadsPageBulkCancelBtn').onclick = () => {
+      document.querySelectorAll('.leads-page-del-check:checked').forEach(cb => { cb.checked = false; });
+      updateLeadsBulkBar();
+    };
+  } else if (bulkBar) {
+    bulkBar.remove();
+  }
+
   // Render rows - clickable rows
   tbody.innerHTML = paginatedLeads.map(lead => {
     const isSelected = Boolean(window.__selectedLeadIds && window.__selectedLeadIds.has(String(lead.id)));
     return `
       <tr class="lead-row" data-lead-id="${escapeHtml(String(lead.id))}" style="cursor: pointer;" title="Click to view details">
         <td style="width:40px;">
-          <input type="checkbox" class="lead-select-checkbox" data-lead-id="${escapeHtml(String(lead.id))}" ${isSelected ? 'checked' : ''}>
+          ${isCustomOfficerSheet
+            ? `<input type="checkbox" class="leads-page-del-check" data-lead-id="${escapeHtml(String(lead.id))}" data-batch="${escapeHtml(lead.batch || '')}" data-sheet="${escapeHtml(lead.sheet || currentSheet)}">`
+            : `<input type="checkbox" class="lead-select-checkbox" data-lead-id="${escapeHtml(String(lead.id))}" ${isSelected ? 'checked' : ''}>`
+          }
         </td>
         <td><strong>${escapeHtml(lead.name)}</strong></td>
         <td>${escapeHtml(lead.email)}</td>
@@ -742,6 +776,12 @@ function renderLeadsTable() {
     });
   });
 
+  // Delete checkboxes (officer custom sheet)
+  tbody.querySelectorAll('.leads-page-del-check').forEach(cb => {
+    cb.addEventListener('click', (e) => e.stopPropagation());
+    cb.addEventListener('change', () => updateLeadsBulkBar());
+  });
+
   // Phone link should not open modal when clicked
   tbody.querySelectorAll('.lead-phone-link').forEach(a => {
     a.addEventListener('click', (e) => e.stopPropagation());
@@ -751,6 +791,111 @@ function renderLeadsTable() {
   updateSelectionUI();
 
   // No pagination UI on this screen
+}
+
+/**
+ * Update the bulk delete bar count and visibility.
+ */
+function updateLeadsBulkBar() {
+  const bar = document.getElementById('leadsPageBulkBar');
+  if (!bar) return;
+  const checked = document.querySelectorAll('.leads-page-del-check:checked');
+  const countEl = document.getElementById('leadsPageBulkCount');
+  if (countEl) countEl.textContent = `${checked.length} selected`;
+  bar.style.display = checked.length > 0 ? 'flex' : 'none';
+}
+
+/**
+ * Delete a single lead (officer custom sheet only).
+ */
+async function deleteOfficerLead(lead) {
+  if (!lead) return;
+  const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+  const sheetName = (isOfficerView ? window.officerSheetFilter : window.adminSheetFilter) || 'Main Leads';
+  const batchName = lead.batch || (isOfficerView ? window.officerBatchFilter : window.adminBatchFilter) || '';
+  const displayName = lead.name ? `"${escapeHtml(lead.name)}"` : 'this lead';
+
+  if (!confirm(`Are you sure you want to delete ${displayName}? This action cannot be undone.`)) return;
+
+  try {
+    let authHeaders = { 'Content-Type': 'application/json' };
+    if (window.supabaseClient) {
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      if (session?.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+    }
+    const res = await fetch('/api/crm-leads/my/bulk-delete', {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ batchName, sheetName, leadIds: [String(lead.id)] })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Delete failed');
+
+    // Remove from local state
+    currentLeads = currentLeads.filter(l => String(l.id) !== String(lead.id));
+    filteredLeads = filteredLeads.filter(l => String(l.id) !== String(lead.id));
+    if (window.Cache) window.Cache.invalidatePrefix('leads:');
+    renderLeadsTable();
+    const toast = window.UI?.showToast || window.showToast;
+    if (toast) toast('Lead deleted successfully', 'success');
+  } catch (e) {
+    console.error('deleteOfficerLead error:', e);
+    const toast = window.UI?.showToast || window.showToast;
+    if (toast) toast(e.message || 'Failed to delete lead', 'error');
+    else alert('Error: ' + (e.message || 'Failed to delete lead'));
+  }
+}
+
+/**
+ * Bulk delete all checked leads (officer custom sheet only).
+ */
+async function bulkDeleteOfficerLeads() {
+  const checked = Array.from(document.querySelectorAll('.leads-page-del-check:checked'));
+  if (!checked.length) return;
+
+  if (!confirm(`Are you sure you want to delete ${checked.length} lead(s)? This action cannot be undone.`)) return;
+
+  // Group by batch+sheet
+  const bySheet = new Map();
+  checked.forEach(cb => {
+    const key = `${cb.dataset.batch}||${cb.dataset.sheet}`;
+    if (!bySheet.has(key)) bySheet.set(key, { batchName: cb.dataset.batch, sheetName: cb.dataset.sheet, leadIds: [] });
+    bySheet.get(key).leadIds.push(cb.dataset.leadId);
+  });
+
+  try {
+    let authHeaders = { 'Content-Type': 'application/json' };
+    if (window.supabaseClient) {
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      if (session?.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
+    let totalDeleted = 0;
+    for (const { batchName, sheetName, leadIds } of bySheet.values()) {
+      const res = await fetch('/api/crm-leads/my/bulk-delete', {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({ batchName, sheetName, leadIds })
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Bulk delete failed');
+      totalDeleted += json.deletedCount || leadIds.length;
+      leadIds.forEach(id => {
+        currentLeads = currentLeads.filter(l => String(l.id) !== String(id));
+        filteredLeads = filteredLeads.filter(l => String(l.id) !== String(id));
+      });
+    }
+
+    if (window.Cache) window.Cache.invalidatePrefix('leads:');
+    renderLeadsTable();
+    const toast = window.UI?.showToast || window.showToast;
+    if (toast) toast(`${totalDeleted} lead(s) deleted successfully`, 'success');
+  } catch (e) {
+    console.error('bulkDeleteOfficerLeads error:', e);
+    const toast = window.UI?.showToast || window.showToast;
+    if (toast) toast(e.message || 'Failed to delete leads', 'error');
+    else alert('Error: ' + (e.message || 'Failed to delete leads'));
+  }
 }
 
 /**
@@ -908,13 +1053,25 @@ function viewLeadDetails(leadId) {
           </div>
 
           
-          <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap;">
-            <button class="btn btn-secondary" id="saveContactBtn" onclick="saveLeadContact('${String(lead.id).replace(/'/g, "\\'")}')" style="padding: 12px 24px;">
-              <i class="fas fa-address-book"></i> Save Contact
-            </button>
-            <button class="btn btn-primary" onclick="editLeadDetails('${String(lead.id).replace(/'/g, "\\'")}')" style="padding: 12px 24px;">
-              <i class="fas fa-edit"></i> Edit Lead
-            </button>
+          <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: space-between; flex-wrap: wrap; align-items: center;">
+            <div>
+              ${(() => {
+                const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+                const currentSheet = (isOfficerView ? window.officerSheetFilter : window.adminSheetFilter) || 'Main Leads';
+                const isCustomSheet = isOfficerView && !['main leads', 'extra leads'].includes(currentSheet.toLowerCase());
+                return isCustomSheet ? `<button class="btn btn-danger" id="leadsPageDeleteLeadBtn" style="padding: 12px 24px;">
+                  <i class="fas fa-trash"></i> Delete Lead
+                </button>` : '';
+              })()}
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <button class="btn btn-secondary" id="saveContactBtn" onclick="saveLeadContact('${String(lead.id).replace(/'/g, "\\'")}')" style="padding: 12px 24px;">
+                <i class="fas fa-address-book"></i> Save Contact
+              </button>
+              <button class="btn btn-primary" onclick="editLeadDetails('${String(lead.id).replace(/'/g, "\\'")}')" style="padding: 12px 24px;">
+                <i class="fas fa-edit"></i> Edit Lead
+              </button>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -929,6 +1086,17 @@ function viewLeadDetails(leadId) {
   
   // Add modal to page
   document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+  // Delete lead button (officer custom sheet only)
+  try {
+    const deleteBtn = document.getElementById('leadsPageDeleteLeadBtn');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', async () => {
+        closeLeadModal();
+        await deleteOfficerLead(lead);
+      });
+    }
+  } catch (_) {}
 
   // Copy lead
   try {
