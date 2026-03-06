@@ -285,11 +285,132 @@ async function adminUpdateReport({ reportId, patch }) {
   return data;
 }
 
+/**
+ * sendSlotReminders
+ *
+ * Called at (or just after) each slot time. Finds all officers who have NOT yet
+ * submitted a report for the current slot and sends them an in-app reminder
+ * notification.
+ *
+ * Returns { sent: number, skipped: number, slot: string|null }
+ *
+ * Safe to call repeatedly — uses a dedupe window so officers won't be spammed
+ * if the cron fires slightly more than once per slot window.
+ */
+async function sendSlotReminders({ nowISO } = {}) {
+  const sb = requireSupabase();
+  const { config } = await getSchedule();
+
+  const now = nowISO ? new Date(nowISO) : new Date();
+  if (isNaN(now)) {
+    const err = new Error('Invalid nowISO');
+    err.status = 400;
+    throw err;
+  }
+
+  const graceMinutes = config.graceMinutes ?? 20;
+  const dateISO = getDateISOInOffset(now, SRI_LANKA_OFFSET_MINUTES);
+
+  // Find the slot whose window is currently open
+  let activeSlot = null;
+  let activeWindow = null;
+  for (const slot of (config.slots || [])) {
+    const t = parseTimeHHMM(slot.time);
+    if (!t) continue;
+    const w = computeWindowUTC({ dateISO, timeHHMM: t.hhmm, graceMinutes, offsetMinutes: SRI_LANKA_OFFSET_MINUTES });
+    if (!w) continue;
+    if (now >= w.start && now <= w.end) {
+      activeSlot = slot;
+      activeWindow = w;
+      break;
+    }
+  }
+
+  if (!activeSlot) {
+    // No slot window is open right now — nothing to do
+    return { sent: 0, skipped: 0, slot: null, reason: 'no_open_window' };
+  }
+
+  // Get all officers (non-admin users with role officer / admission_officer)
+  const ADMIN_EMAILS = ['admin@ucags.edu.lk', 'mohamedunais2018@gmail.com'];
+  const { data: { users }, error: usersErr } = await sb.auth.admin.listUsers();
+  if (usersErr) throw usersErr;
+
+  const officers = (users || []).filter(u => {
+    const email = String(u.email || '').toLowerCase();
+    if (ADMIN_EMAILS.includes(email) || email.includes('admin')) return false;
+    const role = u.user_metadata?.role;
+    return role === 'officer' || role === 'admission_officer';
+  });
+
+  if (!officers.length) {
+    return { sent: 0, skipped: 0, slot: activeSlot.key, reason: 'no_officers' };
+  }
+
+  // Find which officers have already submitted for this slot today
+  const { data: submitted, error: subErr } = await sb
+    .from('daily_officer_reports')
+    .select('officer_user_id')
+    .eq('report_date', dateISO)
+    .eq('slot_key', activeSlot.key);
+
+  if (subErr) throw subErr;
+
+  const submittedIds = new Set((submitted || []).map(r => r.officer_user_id));
+
+  // Dedupe: don't re-notify if we already sent a reminder for this slot in this window
+  const dedupeCategory = `daily_report_reminder_${activeSlot.key}`;
+  const { data: recentReminders, error: remErr } = await sb
+    .from('user_notifications')
+    .select('user_id')
+    .eq('category', dedupeCategory)
+    .gte('created_at', activeWindow.start.toISOString());
+
+  if (remErr) throw remErr;
+
+  const alreadyRemindedIds = new Set((recentReminders || []).map(r => r.user_id));
+
+  const { createNotification } = require('../notifications/notificationsService');
+
+  let sent = 0;
+  let skipped = 0;
+
+  for (const officer of officers) {
+    if (submittedIds.has(officer.id)) {
+      skipped++; // already submitted
+      continue;
+    }
+    if (alreadyRemindedIds.has(officer.id)) {
+      skipped++; // already reminded this window
+      continue;
+    }
+
+    const officerName = officer.user_metadata?.name || officer.email?.split('@')?.[0] || 'Officer';
+    const endTime = activeWindow.end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Colombo' });
+
+    try {
+      await createNotification({
+        userId: officer.id,
+        category: dedupeCategory,
+        title: `Daily report due — ${activeSlot.label || activeSlot.time}`,
+        message: `Please submit your daily report for the ${activeSlot.label || activeSlot.time} slot. Window closes at ${endTime} (SL time).`,
+        type: 'warning'
+      });
+      sent++;
+    } catch (e) {
+      console.warn(`sendSlotReminders: failed to notify officer ${officer.id}:`, e.message);
+    }
+  }
+
+  return { sent, skipped, slot: activeSlot.key, date: dateISO };
+}
+
 module.exports = {
   DEFAULT_SCHEDULE,
   getSchedule,
   updateSchedule,
   submitDailyReport,
   listDailyReports,
-  adminUpdateReport
+  adminUpdateReport,
+  sendSlotReminders
 };

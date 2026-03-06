@@ -14,7 +14,8 @@ const {
   updateSchedule,
   submitDailyReport,
   listDailyReports,
-  adminUpdateReport
+  adminUpdateReport,
+  sendSlotReminders
 } = require('./dailyReportsService');
 
 const { getDailyChecklist, upsertCallRecordingStatus, upsertLeadsSnapshot } = require('./dailyChecklistService');
@@ -228,6 +229,34 @@ router.put('/daily-checklist/call-recording', isAdmin, async (req, res) => {
     res.json({ success: true, row: saved });
   } catch (error) {
     console.error('PUT /api/reports/daily-checklist/call-recording error:', error);
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/reports/daily/remind
+// Sends in-app reminder notifications to officers who haven't submitted for the current slot.
+// Can be called from a cron job (via x-cron-secret header) OR by an authenticated officer/admin.
+// Officers calling this will trigger a reminder for themselves and peers — useful as a
+// client-side fallback when the browser detects a slot window has just opened.
+router.post('/daily/remind', async (req, res) => {
+  try {
+    // Allow cron secret access (unauthenticated cron) OR any authenticated user
+    const cronSecret = process.env.CRON_SECRET;
+    const providedSecret = req.headers['x-cron-secret'];
+    const isCron = cronSecret && providedSecret === cronSecret;
+
+    if (!isCron) {
+      // Fall back to JWT session auth
+      await new Promise((resolve, reject) => {
+        isAuthenticated(req, res, (err) => (err ? reject(err) : resolve()));
+      });
+    }
+
+    const nowISO = req.body?.nowISO || null;
+    const result = await sendSlotReminders({ nowISO });
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('POST /api/reports/daily/remind error:', error);
     res.status(error.status || 500).json({ success: false, error: error.message });
   }
 });

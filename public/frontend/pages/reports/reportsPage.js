@@ -592,9 +592,47 @@
       }
     };
 
-    // Recompute every 30 seconds to auto-disable after grace
+    // Recompute every 30 seconds to auto-disable after grace.
+    // Also trigger server-side reminder notifications when a slot window first opens
+    // (so officers who haven't submitted yet receive an in-app notification).
+    let _lastRemindedSlotKey = null;
+
+    async function maybeSendReminder() {
+      const now = new Date();
+      const graceMin = schedule.graceMinutes ?? 20;
+      const openSlot = (schedule.slots || []).find(s => {
+        const t = parseHHMM(s.time);
+        if (!t) return false;
+        return isWindowOpen({ slotTimeHHMM: t.hhmm, graceMinutes: graceMin, now });
+      });
+
+      if (openSlot && openSlot.key !== _lastRemindedSlotKey) {
+        _lastRemindedSlotKey = openSlot.key;
+        try {
+          const headers = { ...(await authHeaders()), 'Content-Type': 'application/json' };
+          await fetch('/api/reports/daily/remind', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ nowISO: now.toISOString() })
+          });
+        } catch (e) {
+          // Non-fatal — reminder is best-effort
+          console.warn('Daily report reminder trigger failed:', e);
+        }
+      } else if (!openSlot) {
+        // Reset so next slot window will fire the reminder
+        _lastRemindedSlotKey = null;
+      }
+    }
+
     if (officerHintIntervalId) clearInterval(officerHintIntervalId);
-    officerHintIntervalId = setInterval(updateHintAndDisable, 30000);
+    officerHintIntervalId = setInterval(() => {
+      updateHintAndDisable();
+      maybeSendReminder();
+    }, 30000);
+
+    // Also fire immediately on load in case the page was opened during an active window
+    maybeSendReminder();
   }
 
   async function initAdmin(schedule) {
