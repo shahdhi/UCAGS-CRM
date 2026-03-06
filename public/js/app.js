@@ -3016,8 +3016,9 @@ async function loadCalendar() {
             const data = await res.json();
             const officers = (data && data.officers) ? data.officers : [];
 
-            // Default: current admin user first
-            const opts = [currentUser.name, ...officers.filter(o => o !== currentUser.name)];
+            // Default: current admin user first (officers are objects with {id, name})
+            const officerNames = officers.map(o => (typeof o === 'object' ? o.name : o));
+            const opts = [currentUser.name, ...officerNames.filter(o => o !== currentUser.name)];
             select.innerHTML = opts.map(o => `<option value="${o}">${o}</option>`).join('');
 
             select.addEventListener('change', () => loadCalendar());

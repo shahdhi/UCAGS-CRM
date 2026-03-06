@@ -88,7 +88,9 @@
         const res = await fetch('/api/batches/officers', { headers: authHeaders });
         const data = await res.json();
         const officers = (data && data.officers) ? data.officers : [];
-        const opts = ['__ALL__', window.currentUser.name, ...officers.filter(o => o !== window.currentUser.name)];
+        // officers are objects with {id, name}
+        const officerNames = officers.map(o => (typeof o === 'object' ? o.name : o));
+        const opts = ['__ALL__', window.currentUser.name, ...officerNames.filter(o => o !== window.currentUser.name)];
         ownerSelect.innerHTML = opts.map(o => {
           const label = o === '__ALL__' ? 'Everyone' : o;
           return `<option value="${escapeHtml(o)}">${escapeHtml(label)}</option>`;

@@ -40,7 +40,7 @@
     return `<span class="badge" style="background:${bg}; color:${fg}; border:1px solid ${ok ? '#bbf7d0' : '#fecaca'};">${text}</span>`;
   }
 
-  function recordingSelect(value, dateISO, officerUserId) {
+  function recordingSelect(value, dateISO, officerUserId, disabled) {
     const v = (value || 'na');
     const options = [
       { value: 'na', label: '—' },
@@ -48,7 +48,7 @@
       { value: 'not_received', label: 'Not received' }
     ];
     return `
-      <select class="form-control daily-checklist-recording" data-date="${escapeHtml(dateISO)}" data-officer="${escapeHtml(officerUserId)}" style="min-width:110px;">
+      <select class="form-control daily-checklist-recording" data-date="${escapeHtml(dateISO)}" data-officer="${escapeHtml(officerUserId)}" style="min-width:110px;" ${disabled ? 'disabled' : ''}>
         ${options.map(o => `<option value="${o.value}" ${o.value === v ? 'selected' : ''}>${o.label}</option>`).join('')}
       </select>
     `;
@@ -62,18 +62,33 @@
   }
 
   function renderDaySection(dateISO, officers, matrix) {
+    const isPast = isPastDayInSriLanka(dateISO);
+
     const rows = officers.map(o => {
       const c = matrix?.[dateISO]?.[o.id] || null;
       const slot1 = c ? badge(!!c.slot1) : badge(false);
       const slot2 = c ? badge(!!c.slot2) : badge(false);
       const slot3 = c ? badge(!!c.slot3) : badge(false);
-      const contacted = c ? Number(c.leadsContacted || 0) : 0;
       const newLeads = c ? Number(c.leadsToBeContacted || 0) : 0;
-      const rec = recordingSelect(c?.callRecording || 'na', dateISO, o.id);
+      const hasSnapshot = c?.hasSnapshot || false;
+      const rec = recordingSelect(c?.callRecording || 'na', dateISO, o.id, isPast);
 
-      const leadsStatus = newLeads > 0
-        ? `<span style="font-size:14px; font-weight:700;">${newLeads}</span> <span style="font-size:13px;">to be contacted</span>`
-        : `<span style="font-size:13px; font-weight:700; color:#166534;">All leads contacted</span>`;
+      let leadsStatus;
+      if (hasSnapshot) {
+        // Frozen snapshot value
+        if (newLeads > 0) {
+          leadsStatus = `<span style="font-size:14px; font-weight:700;">${newLeads}</span> <span style="font-size:13px;">to be contacted</span> <span title="Frozen at time of recording" style="font-size:11px; color:#6b7280; margin-left:4px;">❄️ frozen</span>`;
+        } else {
+          leadsStatus = `<span style="font-size:13px; font-weight:700; color:#166534;">All leads contacted</span> <span title="Frozen at time of recording" style="font-size:11px; color:#6b7280; margin-left:4px;">❄️ frozen</span>`;
+        }
+      } else {
+        // Live value
+        if (newLeads > 0) {
+          leadsStatus = `<span style="font-size:14px; font-weight:700;">${newLeads}</span> <span style="font-size:13px;">to be contacted</span>`;
+        } else {
+          leadsStatus = `<span style="font-size:13px; font-weight:700; color:#166534;">All leads contacted</span>`;
+        }
+      }
 
       return `
         <tr>
@@ -89,7 +104,7 @@
       `;
     }).join('');
 
-    const recordDisabled = isPastDayInSriLanka(dateISO);
+    const recordDisabled = isPast;
 
     return `
       <div class="dashboard-card" style="margin-bottom: 16px;">
@@ -283,7 +298,10 @@
           if (window.showToast) showToast(e.message || 'Failed to save', 'error');
           sel.value = prev;
         } finally {
-          sel.disabled = false;
+          // Only re-enable if this is not a past day (past-day dropdowns stay locked)
+          if (!isPastDayInSriLanka(dateISO)) {
+            sel.disabled = false;
+          }
         }
       });
     });
