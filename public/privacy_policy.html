@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy – UCAGS</title>
+  <meta name="description" content="Privacy Policy for the UCAGS Student Management System. Learn how we collect, use, and protect your data." />
+  <link rel="icon" href="/favicon.png" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --purple: #7C3AED;
+      --purple-light: #8B5CF6;
+      --purple-dark: #6D28D9;
+      --bg: #0F0F1A;
+      --card-bg: rgba(255,255,255,0.05);
+      --border: rgba(255,255,255,0.1);
+      --text: #E5E7EB;
+      --muted: #9CA3AF;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      background-image:
+        radial-gradient(at 20% 20%, rgba(124,58,237,0.18) 0, transparent 50%),
+        radial-gradient(at 80% 80%, rgba(139,92,246,0.12) 0, transparent 50%);
+    }
+
+    /* NAV */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 48px;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(15,15,26,0.85);
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+    .nav-brand img { height: 40px; width: auto; }
+    .nav-brand span {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+    .nav-links { display: flex; gap: 24px; }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: #fff; }
+
+    /* CONTENT */
+    .container {
+      max-width: 860px;
+      margin: 60px auto;
+      padding: 0 24px 80px;
+    }
+
+    .page-header {
+      margin-bottom: 48px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+    }
+    .page-header .badge {
+      display: inline-block;
+      background: rgba(124,58,237,0.2);
+      border: 1px solid rgba(124,58,237,0.4);
+      color: var(--purple-light);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 16px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .page-header h1 {
+      font-size: clamp(28px, 5vw, 42px);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #fff 30%, #C4B5FD 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+    .page-header .meta {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .toc {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px 28px;
+      margin-bottom: 48px;
+    }
+    .toc h3 {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .toc ol {
+      margin-left: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .toc a {
+      color: var(--purple-light);
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+    .toc a:hover { color: #fff; text-decoration: underline; }
+
+    section {
+      margin-bottom: 48px;
+    }
+    section h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 16px;
+      padding-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    section h2 .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: rgba(124,58,237,0.2);
+      color: var(--purple-light);
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    section p, section li {
+      font-size: 15px;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+    section ul, section ol {
+      margin: 12px 0 12px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    section p + p { margin-top: 12px; }
+
+    .highlight-box {
+      background: rgba(124,58,237,0.08);
+      border: 1px solid rgba(124,58,237,0.25);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin: 16px 0;
+    }
+    .highlight-box p, .highlight-box li {
+      font-size: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    th {
+      text-align: left;
+      padding: 10px 14px;
+      background: rgba(124,58,237,0.15);
+      color: var(--purple-light);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 10px 14px;
+      color: var(--muted);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+
+    /* CONTACT */
+    .contact-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px 28px;
+    }
+    .contact-card p { color: var(--muted); font-size: 15px; line-height: 1.8; }
+    .contact-card a { color: var(--purple-light); text-decoration: none; }
+    .contact-card a:hover { text-decoration: underline; }
+
+    /* FOOTER */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 48px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    footer p { color: var(--muted); font-size: 13px; }
+    .footer-links { display: flex; gap: 20px; }
+    .footer-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: #fff; }
+
+    @media (max-width: 600px) {
+      nav { padding: 16px 20px; }
+      .nav-links { display: none; }
+      footer { padding: 20px; flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <a class="nav-brand" href="/homepage">
+      <img src="/Unversal-logo-2025-05-16.png" alt="UCAGS Logo" onerror="this.style.display='none'" />
+      <span>UCAGS</span>
+    </a>
+    <div class="nav-links">
+      <a href="/homepage">Home</a>
+      <a href="/terms_of_service">Terms of Service</a>
+      <a href="mailto:info@ucags.lk">Contact</a>
+    </div>
+  </nav>
+
+  <div class="container">
+
+    <div class="page-header">
+      <div class="badge">Legal</div>
+      <h1>Privacy Policy</h1>
+      <p class="meta">Last updated: 1 March 2025 &nbsp;·&nbsp; Effective date: 1 March 2025</p>
+    </div>
+
+    <!-- TABLE OF CONTENTS -->
+    <div class="toc">
+      <h3>Contents</h3>
+      <ol>
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#who-we-are">Who We Are</a></li>
+        <li><a href="#data-collected">Data We Collect</a></li>
+        <li><a href="#google-data">Google User Data</a></li>
+        <li><a href="#how-we-use">How We Use Your Data</a></li>
+        <li><a href="#sharing">Data Sharing &amp; Disclosure</a></li>
+        <li><a href="#retention">Data Retention</a></li>
+        <li><a href="#security">Security</a></li>
+        <li><a href="#your-rights">Your Rights</a></li>
+        <li><a href="#cookies">Cookies</a></li>
+        <li><a href="#children">Children's Privacy</a></li>
+        <li><a href="#changes">Changes to This Policy</a></li>
+        <li><a href="#contact">Contact Us</a></li>
+      </ol>
+    </div>
+
+    <!-- 1. OVERVIEW -->
+    <section id="overview">
+      <h2><span class="num">1</span> Overview</h2>
+      <p>This Privacy Policy describes how Universal College of Applied &amp; General Studies ("<strong>UCAGS</strong>", "we", "us", or "our") collects, uses, stores, and protects information when you use the UCAGS Student Management System (the "<strong>Platform</strong>").</p>
+      <p>The Platform is an <strong>internal, staff-only</strong> system used exclusively by authorised UCAGS employees (admissions officers, academic coordinators, and administrators). It is not a public-facing consumer product. By accessing the Platform, you agree to this Privacy Policy.</p>
+    </section>
+
+    <!-- 2. WHO WE ARE -->
+    <section id="who-we-are">
+      <h2><span class="num">2</span> Who We Are</h2>
+      <div class="contact-card">
+        <p><strong>Universal College of Applied &amp; General Studies (UCAGS)</strong></p>
+        <p>Sri Lanka</p>
+        <p>Email: <a href="mailto:info@ucags.lk">info@ucags.lk</a></p>
+        <p>Website: <a href="/homepage">ucags.lk</a></p>
+      </div>
+      <p style="margin-top:16px;">UCAGS acts as the <strong>data controller</strong> for all personal data processed through the Platform.</p>
+    </section>
+
+    <!-- 3. DATA WE COLLECT -->
+    <section id="data-collected">
+      <h2><span class="num">3</span> Data We Collect</h2>
+      <p>We collect the following categories of data through the Platform:</p>
+
+      <table>
+        <thead>
+          <tr><th>Category</th><th>Examples</th><th>Source</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Staff account data</td>
+            <td>Name, institutional email address, role, password (hashed)</td>
+            <td>UCAGS HR / staff self-registration</td>
+          </tr>
+          <tr>
+            <td>Student &amp; lead data</td>
+            <td>Full name, phone number, email, programme of interest, enquiry notes, payment records</td>
+            <td>Admissions staff input, online enquiry forms</td>
+          </tr>
+          <tr>
+            <td>Google account data</td>
+            <td>Google email, name, profile picture (from OAuth sign-in), Google Sheets / Drive / Calendar access tokens</td>
+            <td>Google OAuth 2.0 (staff-initiated)</td>
+          </tr>
+          <tr>
+            <td>Usage &amp; activity logs</td>
+            <td>Login timestamps, page views, actions performed in the Platform</td>
+            <td>Automatically recorded by the server</td>
+          </tr>
+          <tr>
+            <td>Communication records</td>
+            <td>WhatsApp message logs, follow-up notes</td>
+            <td>Staff input within the Platform</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 4. GOOGLE USER DATA -->
+    <section id="google-data">
+      <h2><span class="num">4</span> Google User Data</h2>
+      <p>The Platform integrates with Google Workspace APIs. When a staff member connects their Google account, we may access and use the following Google user data:</p>
+
+      <div class="highlight-box">
+        <ul>
+          <li><strong>Google Profile (email, name)</strong> — used to authenticate the staff member and personalise their session. We do not store Google profile pictures beyond the active session.</li>
+          <li><strong>Google Sheets</strong> — read and write access to specific internal spreadsheets used to manage lead and student records, and batch data shared with admissions officers.</li>
+          <li><strong>Google Drive</strong> — create, read, and organise files in UCAGS-owned Drive folders for student documentation and batch management.</li>
+          <li><strong>Google Calendar</strong> — create and manage calendar events for follow-up tasks and scheduling reminders for staff members.</li>
+        </ul>
+      </div>
+
+      <p><strong>We commit to the following regarding Google user data:</strong></p>
+      <ul>
+        <li>We access Google user data <strong>only for the purposes described above</strong> and for no other purpose.</li>
+        <li>We do <strong>not sell, rent, or share</strong> Google user data with any third party, advertiser, or data broker.</li>
+        <li>We do <strong>not use</strong> Google user data to serve advertisements.</li>
+        <li>We do <strong>not allow humans to read</strong> Google user data except where (a) you have explicitly given permission, (b) it is necessary for security purposes, or (c) we are required to do so by law.</li>
+        <li>Google OAuth tokens are stored securely and used <strong>only to facilitate the specific Google Workspace integrations</strong> described in this Policy.</li>
+        <li>Our use of Google API services complies with the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener" style="color:var(--purple-light);">Google API Services User Data Policy</a>, including the Limited Use requirements.</li>
+      </ul>
+    </section>
+
+    <!-- 5. HOW WE USE DATA -->
+    <section id="how-we-use">
+      <h2><span class="num">5</span> How We Use Your Data</h2>
+      <p>We use the data we collect for the following purposes:</p>
+      <ul>
+        <li>To authenticate and authorise staff access to the Platform.</li>
+        <li>To manage student and prospective student records (leads, registrations, payments, attendance).</li>
+        <li>To sync data between the Platform and Google Sheets / Drive for collaborative staff workflows.</li>
+        <li>To schedule and manage follow-up tasks via Google Calendar.</li>
+        <li>To send and record WhatsApp communications with students and leads.</li>
+        <li>To generate reports, daily checklists, and analytics for management.</li>
+        <li>To ensure platform security, prevent fraud, and audit access logs.</li>
+        <li>To comply with applicable laws and regulations.</li>
+      </ul>
+    </section>
+
+    <!-- 6. SHARING -->
+    <section id="sharing">
+      <h2><span class="num">6</span> Data Sharing &amp; Disclosure</h2>
+      <p>We do <strong>not sell or rent</strong> personal data to any third party. We may share data only in the following limited circumstances:</p>
+      <ul>
+        <li><strong>Within UCAGS:</strong> Data is accessible to authorised UCAGS staff members on a need-to-know basis.</li>
+        <li><strong>Service providers:</strong> We use Supabase (database hosting) and Vercel (cloud hosting). These providers process data on our behalf under strict data processing agreements and may not use the data for their own purposes.</li>
+        <li><strong>Google Workspace:</strong> Data is shared with Google APIs as described in Section 4, solely to enable the integrations.</li>
+        <li><strong>Legal obligations:</strong> We may disclose data if required by law, court order, or government authority.</li>
+        <li><strong>Business transfers:</strong> In the event of a merger, acquisition, or restructuring, data may be transferred to the successor entity.</li>
+      </ul>
+    </section>
+
+    <!-- 7. RETENTION -->
+    <section id="retention">
+      <h2><span class="num">7</span> Data Retention</h2>
+      <p>We retain personal data for as long as necessary to fulfil the purposes described in this Policy:</p>
+      <ul>
+        <li><strong>Staff account data:</strong> Retained for the duration of employment and up to 3 years after leaving, or as required by law.</li>
+        <li><strong>Student &amp; lead data:</strong> Retained for up to 7 years from the date of last interaction, in accordance with educational record-keeping requirements.</li>
+        <li><strong>Google OAuth tokens:</strong> Retained while the staff member's Google integration is active. Tokens are revoked and deleted promptly when a staff member disconnects their Google account or leaves the organisation.</li>
+        <li><strong>Logs:</strong> Server and access logs are retained for up to 12 months.</li>
+      </ul>
+    </section>
+
+    <!-- 8. SECURITY -->
+    <section id="security">
+      <h2><span class="num">8</span> Security</h2>
+      <p>We implement appropriate technical and organisational measures to protect personal data against unauthorised access, loss, alteration, or disclosure, including:</p>
+      <ul>
+        <li>Encryption of data in transit (HTTPS/TLS) and at rest.</li>
+        <li>Hashed password storage (plaintext passwords are never stored).</li>
+        <li>Role-based access controls limiting data access to authorised staff only.</li>
+        <li>Secure storage of OAuth tokens with least-privilege scopes.</li>
+        <li>Regular security reviews and monitoring of access logs.</li>
+      </ul>
+      <p>While we take all reasonable precautions, no system is completely secure. If you suspect a security incident, please contact us immediately at <a href="mailto:info@ucags.lk" style="color:var(--purple-light);">info@ucags.lk</a>.</p>
+    </section>
+
+    <!-- 9. YOUR RIGHTS -->
+    <section id="your-rights">
+      <h2><span class="num">9</span> Your Rights</h2>
+      <p>Authorised users of the Platform have the following rights with respect to their personal data:</p>
+      <ul>
+        <li><strong>Access:</strong> Request a copy of the personal data we hold about you.</li>
+        <li><strong>Correction:</strong> Request correction of inaccurate or incomplete data.</li>
+        <li><strong>Deletion:</strong> Request deletion of your personal data, subject to legal retention obligations.</li>
+        <li><strong>Revoke Google Access:</strong> You may revoke the Platform's access to your Google account at any time via your <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener" style="color:var(--purple-light);">Google Account Permissions</a> page. This will disable Google Workspace integrations for your account.</li>
+        <li><strong>Restriction:</strong> Request that we restrict processing of your data in certain circumstances.</li>
+        <li><strong>Objection:</strong> Object to processing based on legitimate interests.</li>
+      </ul>
+      <p>To exercise any of these rights, contact us at <a href="mailto:info@ucags.lk" style="color:var(--purple-light);">info@ucags.lk</a>.</p>
+    </section>
+
+    <!-- 10. COOKIES -->
+    <section id="cookies">
+      <h2><span class="num">10</span> Cookies</h2>
+      <p>The Platform uses the following cookies and local storage mechanisms:</p>
+      <ul>
+        <li><strong>Session cookies:</strong> Required for maintaining your authenticated session. These are deleted when you close your browser.</li>
+        <li><strong>Supabase auth tokens:</strong> Stored in browser local storage to maintain your login state across sessions.</li>
+      </ul>
+      <p>We do <strong>not</strong> use tracking cookies, advertising cookies, or third-party analytics cookies.</p>
+    </section>
+
+    <!-- 11. CHILDREN -->
+    <section id="children">
+      <h2><span class="num">11</span> Children's Privacy</h2>
+      <p>The Platform is intended for use by adult UCAGS staff members only. It is not directed at children under the age of 18. We do not knowingly collect personal data from children. If you believe a child's data has been processed, please contact us so we can take appropriate action.</p>
+    </section>
+
+    <!-- 12. CHANGES -->
+    <section id="changes">
+      <h2><span class="num">12</span> Changes to This Policy</h2>
+      <p>We may update this Privacy Policy from time to time. When we make material changes, we will update the "Last updated" date at the top of this page and notify authorised users via the Platform. Continued use of the Platform after changes are posted constitutes acceptance of the updated Policy.</p>
+    </section>
+
+    <!-- 13. CONTACT -->
+    <section id="contact">
+      <h2><span class="num">13</span> Contact Us</h2>
+      <p>If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:</p>
+      <div class="contact-card" style="margin-top:16px;">
+        <p><strong>Universal College of Applied &amp; General Studies</strong></p>
+        <p>Sri Lanka</p>
+        <p>📧 <a href="mailto:info@ucags.lk">info@ucags.lk</a></p>
+        <p>🌐 <a href="/homepage">ucags.lk</a></p>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>&copy; 2025 Universal College of Applied &amp; General Studies. All rights reserved.</p>
+    <div class="footer-links">
+      <a href="/privacy_policy">Privacy Policy</a>
+      <a href="/terms_of_service">Terms of Service</a>
+      <a href="/homepage">Home</a>
+    </div>
+  </footer>
+
+</body>
+</html>

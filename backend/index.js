@@ -148,6 +148,17 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Serve public pages for specific routes
+app.get('/homepage', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/homepage.html'));
+});
+app.get('/privacy_policy', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/privacy_policy.html'));
+});
+app.get('/terms_of_service', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/terms_of_service.html'));
+});
+
 // Serve index.html for all other routes (SPA support)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));

@@ -352,6 +352,7 @@
   // Default view should be "All" (per requirement)
   let selectedStatus = 'all';
   let selectedInstallmentFilter = '';
+  let selectedNotConfirmed = false; // "Not confirmed" tab: slip received but not yet confirmed
 
   async function loadProgramsForPayments() {
     const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
@@ -425,12 +426,13 @@
     if (!wrap) return;
 
     const tabs = [
-      { key: '', label: 'All' },
-      { key: 'installment_1', label: '1st Installment' },
-      { key: 'installment_2', label: '2nd Installment' },
-      { key: 'installment_3', label: '3rd Installment' },
-      { key: 'installment_4', label: '4th Installment' },
-      { key: 'full_payment', label: 'Full payment' }
+      { key: '', label: 'All', notConfirmed: false },
+      { key: '__not_confirmed__', label: 'Not confirmed', notConfirmed: true },
+      { key: 'installment_1', label: '1st Installment', notConfirmed: false },
+      { key: 'installment_2', label: '2nd Installment', notConfirmed: false },
+      { key: 'installment_3', label: '3rd Installment', notConfirmed: false },
+      { key: 'installment_4', label: '4th Installment', notConfirmed: false },
+      { key: 'full_payment', label: 'Full payment', notConfirmed: false }
     ];
 
     wrap.innerHTML = '';
@@ -440,23 +442,37 @@
       btn.className = 'btn btn-secondary';
       btn.style.padding = '6px 10px';
       btn.style.borderRadius = '999px';
-      const active = String(t.key) === String(selectedInstallmentFilter || '');
+
+      const isNotConfirmedTab = t.notConfirmed;
+      const active = isNotConfirmedTab
+        ? selectedNotConfirmed
+        : (!selectedNotConfirmed && String(t.key) === String(selectedInstallmentFilter || ''));
+
       btn.style.border = active ? '1px solid #592c88' : '1px solid #eaecf0';
       btn.style.background = active ? '#f4ebff' : '#fff';
       btn.style.color = active ? '#592c88' : '#344054';
       btn.textContent = t.label;
       btn.onclick = () => {
-        selectedInstallmentFilter = t.key;
-        renderInstallmentTabs();
-
-        // Requirement: when filtering by installment, also show confirmed/paid payments.
-        // Switch status to "All" automatically.
-        const statusSel = qs('paymentsStatusSelect');
-        if (selectedInstallmentFilter) {
+        if (isNotConfirmedTab) {
+          selectedNotConfirmed = true;
+          selectedInstallmentFilter = '';
+          // Show all statuses so slip_received rows appear regardless of due/overdue
           selectedStatus = 'all';
+          const statusSel = qs('paymentsStatusSelect');
           if (statusSel) statusSel.value = 'all';
-        }
+        } else {
+          selectedNotConfirmed = false;
+          selectedInstallmentFilter = t.key;
 
+          // Requirement: when filtering by installment, also show confirmed/paid payments.
+          // Switch status to "All" automatically.
+          const statusSel = qs('paymentsStatusSelect');
+          if (selectedInstallmentFilter) {
+            selectedStatus = 'all';
+            if (statusSel) statusSel.value = 'all';
+          }
+        }
+        renderInstallmentTabs();
         loadPayments({ showSkeleton: true }).catch(console.error);
       };
       wrap.appendChild(btn);
@@ -483,7 +499,7 @@
 
     const ttlMs = 2 * 60 * 1000; // 2 minutes
     const fetchStatus = (selectedStatus === 'due_overdue') ? 'all' : selectedStatus;
-    const cacheKey = `payments:adminSummary:limit=${limit}:program=${encodeURIComponent(selectedProgramId||'')}:batch=${encodeURIComponent(selectedBatchName||'')}:status=${encodeURIComponent(fetchStatus)}:type=${encodeURIComponent(selectedInstallmentFilter||'')}`;
+    const cacheKey = `payments:adminSummary:limit=${limit}:program=${encodeURIComponent(selectedProgramId||'')}:batch=${encodeURIComponent(selectedBatchName||'')}:status=${encodeURIComponent(fetchStatus)}:type=${encodeURIComponent(selectedInstallmentFilter||'')}:notConfirmed=${selectedNotConfirmed}`;
 
     // Fast path: render from cache if fresh and skip fetch
     if (tbody && !showSkeleton && window.Cache) {
@@ -498,6 +514,9 @@
         }
 
         rows = applyInstallmentFilter(rows);
+        if (selectedNotConfirmed) {
+          rows = rows.filter(r => r.slip_received && !r.is_confirmed);
+        }
         __paymentsAllRows = rows;
         rows = filterPaymentsByQuery(rows, getPaymentsSearchQuery());
         renderPaymentsRows(rows, tbody);
@@ -574,6 +593,9 @@
     }
 
     rows = applyInstallmentFilter(rows);
+    if (selectedNotConfirmed) {
+      rows = rows.filter(r => r.slip_received && !r.is_confirmed);
+    }
     __paymentsAllRows = rows;
 
     rows = filterPaymentsByQuery(rows, getPaymentsSearchQuery());
