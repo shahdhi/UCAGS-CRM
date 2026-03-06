@@ -368,9 +368,9 @@
     const sec = $('reportsOfficerSection');
     if (!sec) return;
     const p = sec.querySelector('p');
-    const times = (schedule?.slots || []).map(s => (s.label || s.time)).join(', ');
+    const times = (schedule?.slots || []).map(s => `<strong>${s.label || s.time}</strong>`).join(', ');
     const grace = schedule?.graceMinutes ?? 20;
-    if (p) p.textContent = `Submit ${schedule?.slots?.length || 3} reports/day (${times}). Submission closes ${grace} minutes after each time.`;
+    if (p) p.innerHTML = `Submit ${schedule?.slots?.length || 3} reports/day (${times}). Submission closes <strong>${grace} minutes</strong> after each time.`;
   }
 
   function renderOfficerOverview({ reports, officers, schedule }) {
@@ -543,13 +543,14 @@
         const next = getNextWindow(schedule, now);
         if (open) {
           const { end } = computeWindowForToday(t.hhmm, graceMinutes);
-          status.textContent = `Submission window is OPEN until ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`;
+          const endTime = end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          status.innerHTML = `Submission window is OPEN until <strong>${endTime}</strong>.`;
         } else if (next) {
           const when = next.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           const dayHint = next.type === 'tomorrow' ? ' (tomorrow)' : '';
-          status.textContent = `Submission window is CLOSED. Next window opens at ${when}${dayHint}.`;
+          status.innerHTML = `Submission window is CLOSED. Next window opens at <strong>${when}${dayHint}</strong>.`;
         } else {
-          status.textContent = 'No schedule available.';
+          status.innerHTML = 'No schedule available.';
         }
       }
     };
