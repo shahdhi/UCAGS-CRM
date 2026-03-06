@@ -543,10 +543,11 @@
         const next = getNextWindow(schedule, now);
         if (open) {
           const { end } = computeWindowForToday(t.hhmm, graceMinutes);
-          const endTime = end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const endTime = end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Colombo' });
           status.innerHTML = `Submission window is OPEN until <strong>${endTime}</strong>.`;
         } else if (next) {
-          const when = next.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          // Always display times in Sri Lanka timezone (UTC+05:30), regardless of device timezone
+          const when = next.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Colombo' });
           const dayHint = next.type === 'tomorrow' ? ' (tomorrow)' : '';
           status.innerHTML = `Submission window is CLOSED. Next window opens at <strong>${when}${dayHint}</strong>.`;
         } else {
