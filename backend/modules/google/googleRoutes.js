@@ -374,11 +374,21 @@ router.post('/contacts/sync', isAuthenticated, async (req, res) => {
 
         let apiRes;
         if (resourceName) {
-          apiRes = await people.people.updateContact({
-            resourceName,
-            updatePersonFields: 'names,phoneNumbers,emailAddresses',
-            requestBody: { ...person, etag: etag || undefined }
-          });
+          // Try to update — if Google says the contact no longer exists (404), fall back to create
+          try {
+            apiRes = await people.people.updateContact({
+              resourceName,
+              updatePersonFields: 'names,phoneNumbers,emailAddresses',
+              requestBody: { ...person, etag: etag || undefined }
+            });
+          } catch (updateErr) {
+            const status = updateErr?.response?.status || updateErr?.code;
+            if (status === 404 || String(updateErr?.message || '').toLowerCase().includes('not found')) {
+              apiRes = await people.people.createContact({ requestBody: person });
+            } else {
+              throw updateErr;
+            }
+          }
         } else {
           apiRes = await people.people.createContact({ requestBody: person });
         }
@@ -458,23 +468,36 @@ router.post('/contacts/sync/:contactId', isAuthenticated, async (req, res) => {
     };
 
     let result;
+    let wasCreated = false;
 
     const resourceName = clean(contact?.google_resource_name);
     const etag = clean(contact?.google_etag);
 
     if (resourceName) {
-      // Update
-      result = await people.people.updateContact({
-        resourceName,
-        updatePersonFields: 'names,phoneNumbers,emailAddresses',
-        requestBody: {
-          ...person,
-          etag: etag || undefined
+      // Try to update — if Google says the contact no longer exists (404), fall back to create
+      try {
+        result = await people.people.updateContact({
+          resourceName,
+          updatePersonFields: 'names,phoneNumbers,emailAddresses',
+          requestBody: {
+            ...person,
+            etag: etag || undefined
+          }
+        });
+      } catch (updateErr) {
+        const status = updateErr?.response?.status || updateErr?.code;
+        if (status === 404 || String(updateErr?.message || '').toLowerCase().includes('not found')) {
+          // Contact was deleted from Google — create a fresh one
+          result = await people.people.createContact({ requestBody: person });
+          wasCreated = true;
+        } else {
+          throw updateErr;
         }
-      });
+      }
     } else {
       // Create
       result = await people.people.createContact({ requestBody: person });
+      wasCreated = true;
     }
 
     const savedResourceName = result?.data?.resourceName || null;
