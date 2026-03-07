@@ -64,6 +64,23 @@
       transition: color 0.2s;
     }
     .nav-links a:hover { color: #fff; }
+    .btn-login {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--purple) 0%, var(--purple-light) 100%);
+      color: #fff;
+      padding: 8px 22px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 2px 12px rgba(124,58,237,0.3);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-login:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 18px rgba(124,58,237,0.45);
+      color: #fff;
+    }
 
     /* HERO */
     .hero {
@@ -241,7 +258,8 @@
 
     @media (max-width: 600px) {
       nav { padding: 16px 20px; }
-      .nav-links { display: none; }
+      .nav-links { display: flex; gap: 12px; }
+      .nav-links a:not(.btn-login) { display: none; }
       .google-section { padding: 28px 20px; }
       footer { padding: 20px; flex-direction: column; align-items: flex-start; }
     }
@@ -259,6 +277,7 @@
       <a href="/privacy_policy">Privacy Policy</a>
       <a href="/terms_of_service">Terms of Service</a>
       <a href="mailto:info@ucags.edu.lk">Contact</a>
+      <a href="/index.html" class="btn-login">Login</a>
     </div>
   </nav>
 
