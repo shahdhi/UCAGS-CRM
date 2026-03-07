@@ -708,21 +708,25 @@
           { key: 'slot3', time: saved.slot3_time, label: saved.slot3_label }
         ];
 
-        // If officer section exists (some shared deployments), refresh its hint + button disable logic
-        try {
-          if (typeof setOfficerDescription === 'function') setOfficerDescription(schedule);
-          const select = $('dailyReportSlot');
-          if (select && select.options?.length) {
-            // rebuild option labels
-            select.innerHTML = '';
-            (schedule.slots || []).forEach(s => {
-              const opt = document.createElement('option');
-              opt.value = s.key;
-              opt.textContent = `${s.label || s.time}`;
-              select.appendChild(opt);
-            });
+        // Refresh the officer description and slot dropdown with new schedule values
+        setOfficerDescription(schedule);
+        const select = $('dailyReportSlot');
+        if (select) {
+          const currentVal = select.value;
+          select.innerHTML = '';
+          (schedule.slots || []).forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.key;
+            opt.textContent = s.label || s.time;
+            select.appendChild(opt);
+          });
+          // Restore previously selected slot if still valid
+          if ([...select.options].some(o => o.value === currentVal)) {
+            select.value = currentVal;
           }
-        } catch (e) {}
+          // Fire change event so updateHintAndDisable re-runs with new times
+          select.dispatchEvent(new Event('change'));
+        }
 
         if (msg) msg.textContent = 'Saved.';
         if (window.showToast) showToast('Schedule updated', 'success');
