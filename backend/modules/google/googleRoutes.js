@@ -119,10 +119,17 @@ router.get('/oauth/connect-url', isAuthenticated, async (req, res) => {
     const user = req.user || req.session?.user || {};
     const key = userKey(user);
 
+    // Build an absolute returnTo URL so the callback redirect always goes to the
+    // correct domain (e.g. ucags.online) regardless of where the API is hosted.
+    const appOrigin = (process.env.APP_URL || '').replace(/\/$/, '');
+    const rawReturnTo = clean(req.query.returnTo) || '/#contacts';
+    // If the client already sent an absolute URL, use it; otherwise prefix with APP_URL.
+    const returnTo = rawReturnTo.startsWith('http') ? rawReturnTo : `${appOrigin}${rawReturnTo}`;
+
     const state = signState({
       k: key,
       ts: Date.now(),
-      returnTo: clean(req.query.returnTo) || '/#contacts'
+      returnTo
     });
 
     const scopes = [
@@ -155,11 +162,16 @@ router.get('/oauth/connect', isAuthenticated, async (req, res) => {
     const user = req.user || req.session?.user || {};
     const key = userKey(user);
 
+    // Build an absolute returnTo URL so the callback redirect always goes to the
+    // correct domain (e.g. ucags.online) regardless of where the API is hosted.
+    const appOrigin = (process.env.APP_URL || '').replace(/\/$/, '');
+    const rawReturnTo = clean(req.query.returnTo) || '/#contacts';
+    const returnTo = rawReturnTo.startsWith('http') ? rawReturnTo : `${appOrigin}${rawReturnTo}`;
+
     const state = signState({
       k: key,
       ts: Date.now(),
-      // Optionally keep a return path
-      returnTo: clean(req.query.returnTo) || '/#contacts'
+      returnTo
     });
 
     const scopes = [
