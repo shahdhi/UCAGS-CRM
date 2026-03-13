@@ -302,7 +302,9 @@
         return;
       }
 
-      sel.innerHTML = officers.map(o => `<option value="${escapeHtml(String(o.id))}" data-name="${escapeHtml(o.name)}">${escapeHtml(o.name)}</option>`).join('');
+      // "All Officers" option at the top — shows leads from every officer
+      sel.innerHTML = `<option value="__ALL__" data-name="__ALL__">👥 All Officers</option>` +
+        officers.map(o => `<option value="${escapeHtml(String(o.id))}" data-name="${escapeHtml(o.name)}">${escapeHtml(o.name)}</option>`).join('');
     } catch (e) {
       console.error('Failed to load officers:', e);
       sel.innerHTML = `<option value="">Error loading officers</option>`;
@@ -317,6 +319,8 @@
     const officerUserId = opt.value;
     const officerName = opt.getAttribute('data-name') || opt.textContent;
     if (!officerUserId || !officerName) return null;
+    // Special sentinel: "All Officers" — no per-officer filter
+    if (officerUserId === '__ALL__') return { officerUserId: '__ALL__', officerName: '__ALL__', allOfficers: true };
     return { officerUserId, officerName };
   }
 
@@ -355,7 +359,11 @@
       }
 
       const headers = await getAuthHeaders();
-      const res = await fetch(`/api/crm-leads/admin/meta/batches?assignedTo=${encodeURIComponent(officer.officerName)}`, { headers });
+      // For "All Officers", fetch batches without an assignedTo filter
+      const batchUrl = officer.allOfficers
+        ? `/api/crm-leads/admin/meta/batches`
+        : `/api/crm-leads/admin/meta/batches?assignedTo=${encodeURIComponent(officer.officerName)}`;
+      const res = await fetch(batchUrl, { headers });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Failed to load batches');
 
@@ -398,8 +406,10 @@
 
     try {
       const headers = await getAuthHeaders();
-      // Prefer batch-filtered sheets, but if it returns empty we'll retry without batch filter.
-      let url = `/api/crm-leads/admin/meta/sheets?assignedTo=${encodeURIComponent(officer.officerName)}&batch=${encodeURIComponent(batch)}`;
+      // For "All Officers", fetch sheets without an assignedTo filter
+      let url = officer.allOfficers
+        ? `/api/crm-leads/admin/meta/sheets?batch=${encodeURIComponent(batch)}`
+        : `/api/crm-leads/admin/meta/sheets?assignedTo=${encodeURIComponent(officer.officerName)}&batch=${encodeURIComponent(batch)}`;
       let res = await fetch(url, { headers });
       let json = await res.json();
       if (!json.success) throw new Error(json.error || 'Failed to load sheets');
@@ -408,7 +418,9 @@
 
       // If none found for batch, retry without batch filter (in case data uses different batch naming)
       if (!sheets.length) {
-        url = `/api/crm-leads/admin/meta/sheets?assignedTo=${encodeURIComponent(officer.officerName)}`;
+        url = officer.allOfficers
+          ? `/api/crm-leads/admin/meta/sheets`
+          : `/api/crm-leads/admin/meta/sheets?assignedTo=${encodeURIComponent(officer.officerName)}`;
         res = await fetch(url, { headers });
         json = await res.json();
         if (!json.success) throw new Error(json.error || 'Failed to load sheets');
@@ -450,7 +462,8 @@
 
     const parts = [];
     if (programName && programSel?.value) parts.push(programName);
-    if (officer?.officerName) parts.push(officer.officerName);
+    if (officer?.allOfficers) parts.push('All Officers');
+    else if (officer?.officerName) parts.push(officer.officerName);
     if (batch) parts.push(batch);
     if (sheet) parts.push(sheet);
 
@@ -477,7 +490,9 @@
     const sheet = sheetSel.value;
 
     const ttlMs = 2 * 60 * 1000; // 2 minutes
-    const cacheKey = `leads:staffMgmt:${encodeURIComponent(officer.officerUserId)}:${encodeURIComponent(officer.officerName)}:${encodeURIComponent(batch)}:${encodeURIComponent(sheet)}`;
+    const cacheKey = officer.allOfficers
+      ? `leads:staffMgmt:__ALL__:${encodeURIComponent(batch)}:${encodeURIComponent(sheet)}`
+      : `leads:staffMgmt:${encodeURIComponent(officer.officerUserId)}:${encodeURIComponent(officer.officerName)}:${encodeURIComponent(batch)}:${encodeURIComponent(sheet)}`;
 
     // Fast path: use cache
     if (tbody && !showSkeleton && window.Cache) {
@@ -516,7 +531,8 @@
       const params = new URLSearchParams();
       params.set('batch', batch);
       if (sheet && sheet !== '(All Sheets)') params.set('sheet', sheet);
-      params.set('assignedTo', officer.officerName);
+      // Only filter by officer when a specific officer is selected
+      if (!officer.allOfficers) params.set('assignedTo', officer.officerName);
 
       const res = await fetch(`/api/crm-leads/admin?${params.toString()}`, { headers });
       const json = await res.json();
@@ -527,7 +543,9 @@
       // hydrate followups for each lead (admin view, officer-owned followups)
       await Promise.all(staffLeads.map(async (lead) => {
         try {
-          const fr = await fetch(`/api/crm-followups/admin/${encodeURIComponent(officer.officerUserId)}/${encodeURIComponent(lead.batch)}/${encodeURIComponent(lead.sheet || 'Main Leads')}/${encodeURIComponent(lead.id)}`, { headers });
+          // For "All Officers" mode, use the lead's own assignedTo user ID from lead data
+          const followupOfficerId = officer.allOfficers ? (lead.assignedToUserId || lead.userId || officer.officerUserId) : officer.officerUserId;
+          const fr = await fetch(`/api/crm-followups/admin/${encodeURIComponent(followupOfficerId)}/${encodeURIComponent(lead.batch)}/${encodeURIComponent(lead.sheet || 'Main Leads')}/${encodeURIComponent(lead.id)}`, { headers });
           const fj = await fr.json();
           if (!fj.success) return;
           const followups = fj.followups || [];
