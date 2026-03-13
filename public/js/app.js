@@ -189,6 +189,9 @@ async function showDashboard() {
     // Load officer batch submenus (officer-only) in background
     loadOfficerLeadsBatchesMenu();
 
+    // Start background auto-refresh for the dashboard (every 5 min)
+    startDashboardAutoRefresh();
+
     // Initialize counts
     updateEnquiriesBadge();
 
@@ -490,6 +493,10 @@ async function handleLogout() {
         currentUser = null;
         window.currentUser = null; // Clear global reference
         currentEnquiries = [];
+
+        // Stop dashboard background refresh and clear cache
+        stopDashboardAutoRefresh();
+        window.__homeDashboardCache = null;
         
         // Remove all event listeners by cleaning up
         window.location.hash = '';
@@ -2347,6 +2354,108 @@ function setupEventListeners() {
 let __homeFunnelChart = null;
 let __homeConfirmedLineChart = null;
 
+// Background refresh interval handle — cleared on logout
+let __dashboardRefreshInterval = null;
+const DASHBOARD_REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+// Cache for last successful dashboard payload (enables instant render on revisit)
+// window.__homeDashboardCache = { data, from, to, ts }
+
+// Smoothly animate a numeric text element from its current displayed value to a new value
+function animateDashboardNumber(el, newVal, isPercent) {
+    if (!el) return;
+    const raw = parseFloat(String(el.textContent).replace('%', '')) || 0;
+    const target = isPercent ? parseFloat(String(newVal).replace('%', '')) || 0 : Number(newVal) || 0;
+    if (raw === target) { el.textContent = newVal; return; }
+    const duration = 600;
+    const start = performance.now();
+    const step = (now) => {
+        const t = Math.min((now - start) / duration, 1);
+        const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // ease-in-out
+        const cur = raw + (target - raw) * ease;
+        el.textContent = isPercent ? `${cur.toFixed(1)}%` : String(Math.round(cur));
+        if (t < 1) requestAnimationFrame(step);
+        else el.textContent = newVal; // snap to exact value at end
+    };
+    requestAnimationFrame(step);
+}
+
+// Start (or restart) the periodic background refresh for the dashboard
+function startDashboardAutoRefresh() {
+    stopDashboardAutoRefresh();
+    __dashboardRefreshInterval = setInterval(() => {
+        // Only refresh if the home view is currently visible
+        const homeView = document.getElementById('homeView');
+        if (homeView && homeView.classList.contains('active')) {
+            loadDashboardInBackground().catch(() => {});
+        }
+    }, DASHBOARD_REFRESH_INTERVAL_MS);
+}
+
+function stopDashboardAutoRefresh() {
+    if (__dashboardRefreshInterval) {
+        clearInterval(__dashboardRefreshInterval);
+        __dashboardRefreshInterval = null;
+    }
+}
+
+// Silently fetch fresh dashboard data and update the UI without any loading indicators
+async function loadDashboardInBackground() {
+    if (!currentUser) return;
+    const fromEl = document.getElementById('homeFromDate');
+    const toEl = document.getElementById('homeToDate');
+    const from = fromEl?.value || '';
+    const to = toEl?.value || '';
+    try {
+        const analytics = await API.dashboard.getAnalytics({ from, to });
+        if (!analytics) return;
+
+        // Update cache
+        window.__homeDashboardCache = { data: analytics, from, to, ts: Date.now() };
+        window.__homeDashboardState.data = analytics;
+
+        // Smoothly update KPI numbers
+        const k = analytics.kpis || {};
+        animateDashboardNumber(document.getElementById('kpiFollowUpsDue'), String(k.followUpsDue ?? 0), false);
+        animateDashboardNumber(document.getElementById('kpiConfirmedPayments'), String(k.confirmedPayments ?? 0), false);
+        animateDashboardNumber(document.getElementById('kpiConversionRate'), fmtPct(k.conversionRate), true);
+
+        // Update charts silently (destroy + recreate, no flash because canvas is already visible)
+        const f = analytics.funnel || { new: 0, contacted: 0, followUp: 0, registered: 0, confirmedPayments: 0 };
+        const funnelCanvas = document.getElementById('homeFunnelChart');
+        if (funnelCanvas && window.Chart) {
+            const labels = ['New', 'Contacted', 'Follow-up', 'Registered', 'Confirmed'];
+            const values = [f.new, f.contacted, f.followUp, f.registered, f.confirmedPayments];
+            if (__homeFunnelChart) {
+                __homeFunnelChart.data.datasets[0].data = values;
+                __homeFunnelChart.update('active');
+            } else {
+                __homeFunnelChart = new Chart(funnelCanvas.getContext('2d'), {
+                    type: 'bar',
+                    data: { labels, datasets: [{ label: 'Count', data: values, backgroundColor: ['#e0f2fe','#d1fae5','#fef3c7','#ede9fe','#dcfce7'], borderColor: ['#0284c7','#059669','#d97706','#7c3aed','#16a34a'], borderWidth: 1 }] },
+                    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+                });
+            }
+        }
+
+        const ts = (analytics.confirmedOverTime || []);
+        const lineCanvas = document.getElementById('homeConfirmedLineChart');
+        if (lineCanvas && window.Chart && ts.length) {
+            const labels = ts.map(r => r.date);
+            const values = ts.map(r => r.count);
+            if (__homeConfirmedLineChart) {
+                __homeConfirmedLineChart.data.labels = labels;
+                __homeConfirmedLineChart.data.datasets[0].data = values;
+                __homeConfirmedLineChart.update('active');
+            }
+        }
+
+        console.log('[Dashboard] Background refresh complete');
+    } catch (e) {
+        console.warn('[Dashboard] Background refresh failed (silently):', e?.message);
+    }
+}
+
 // Standardized 3-state loading pattern for Home dashboard
 window.__homeDashboardState = window.__homeDashboardState || {
     data: null,
@@ -2423,7 +2532,11 @@ async function loadDashboard() {
     const applyBtn = document.getElementById('homeApplyRangeBtn');
     if (applyBtn && !applyBtn.__bound) {
         applyBtn.__bound = true;
-        applyBtn.addEventListener('click', () => loadDashboard().catch(console.error));
+        applyBtn.addEventListener('click', () => {
+            // Invalidate cache when user changes date range manually
+            window.__homeDashboardCache = null;
+            loadDashboard().catch(console.error);
+        });
     }
     const last30Btn = document.getElementById('homeThisMonthBtn');
     if (last30Btn && !last30Btn.__bound) {
@@ -2435,6 +2548,8 @@ async function loadDashboard() {
             const toEl = document.getElementById('homeToDate');
             if (fromEl) fromEl.value = isoDate(fromD);
             if (toEl) toEl.value = isoDate(toD);
+            // Invalidate cache when user changes date range
+            window.__homeDashboardCache = null;
             loadDashboard().catch(console.error);
         });
     }
@@ -2444,14 +2559,34 @@ async function loadDashboard() {
     const from = fromInputEl?.value || '';
     const to = toInputEl?.value || '';
 
+    // ── Cache-first: if we have cached data for the same date range,
+    //    skip the loading skeleton and immediately kick off a silent background refresh.
+    //    The normal fetch below is replaced by the cached data so the UI renders instantly.
+    const cache = window.__homeDashboardCache;
+    const cacheHit = cache && cache.data && cache.from === from && cache.to === to;
+
     // 3-state pattern
     const state = window.__homeDashboardState;
-    state.loading = true;
-    state.error = '';
-    renderHomeDashboard(state);
+    if (cacheHit) {
+        // No skeleton — use cached data straight away
+        state.data = cache.data;
+        state.loading = false;
+        state.error = '';
+        // Schedule a silent background fetch to get fresh numbers
+        setTimeout(() => loadDashboardInBackground().catch(() => {}), 100);
+    } else {
+        state.loading = true;
+        state.error = '';
+        renderHomeDashboard(state);
+    }
 
     try {
-        const analytics = await API.dashboard.getAnalytics({ from, to });
+        // Use cached analytics if available; otherwise fetch from server
+        const analytics = cacheHit ? cache.data : await API.dashboard.getAnalytics({ from, to });
+        if (!cacheHit) {
+            // Save fresh response to cache
+            window.__homeDashboardCache = { data: analytics, from, to, ts: Date.now() };
+        }
         state.data = analytics;
 
         // If range inputs are empty, default them to server-chosen range (current batch start -> today)
