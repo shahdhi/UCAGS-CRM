@@ -114,19 +114,31 @@ router.get('/', async (req, res) => {
       
       if (error) throw error;
       
+      // Emails that are always treated as admin regardless of user_metadata
+      const ADMIN_EMAILS_LIST = ['admin@ucags.edu.lk', 'mohamedunais2018@gmail.com'];
+
       // Transform Supabase users to our format
       const formattedUsers = users
         .slice()
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-        .map(user => ({
-        id: user.id,
-        email: user.email,
-        name: user.user_metadata?.name || user.email.split('@')[0],
-        role: user.user_metadata?.role || 'officer',
-        created_at: user.created_at,
-        last_sign_in_at: user.last_sign_in_at,
-        email_confirmed: !!user.email_confirmed_at
-      }));
+        .map(user => {
+          const metaRole = user.user_metadata?.role;
+          // Resolve role: prefer metadata, but fall back to email-based admin detection
+          const resolvedRole = metaRole
+            ? metaRole
+            : ADMIN_EMAILS_LIST.includes(user.email?.toLowerCase())
+              ? 'admin'
+              : 'officer';
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.user_metadata?.name || user.email.split('@')[0],
+            role: resolvedRole,
+            created_at: user.created_at,
+            last_sign_in_at: user.last_sign_in_at,
+            email_confirmed: !!user.email_confirmed_at
+          };
+        });
       
       res.json({
         success: true,
