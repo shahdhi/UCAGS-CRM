@@ -102,8 +102,8 @@ router.post('/me/checkout', isAuthenticated, async (req, res) => {
 router.post('/me/leave-requests', isAuthenticated, async (req, res) => {
   try {
     const officerName = req.user?.name;
-    const { date, reason } = req.body || {};
-    const record = await submitLeaveRequest({ officerName, leaveDate: date, reason });
+    const { date, reason, leaveType } = req.body || {};
+    const record = await submitLeaveRequest({ officerName, leaveDate: date, leaveType, reason });
 
     // Notify admins
     try {

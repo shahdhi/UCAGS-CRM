@@ -508,7 +508,7 @@
         const res = cached;
         const list = res.requests || [];
         if (!list.length) {
-          tbody.innerHTML = `<tr><td colspan="4" style="color:#666;">No leave requests</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="5" style="color:#666;">No leave requests</td></tr>`;
           return;
         }
         tbody.innerHTML = list.map(r => {
@@ -516,6 +516,7 @@
           return `
             <tr>
               <td>${escapeHtml(r.leave_date)}</td>
+              <td>${escapeHtml(leaveTypeLabel(r.leave_type))}</td>
               <td>${escapeHtml(r.reason || '')}</td>
               <td>${escapeHtml(r.status)}</td>
               <td>${admin}</td>
@@ -530,6 +531,7 @@
       const skelRow = () => `
         <tr class="table-skel-row">
           <td><div class="table-skel-line" style="width:55%"></div></td>
+          <td><div class="table-skel-line" style="width:40%"></div></td>
           <td><div class="table-skel-line" style="width:35%"></div></td>
           <td><div class="table-skel-line" style="width:45%"></div></td>
           <td><div class="table-skel-line" style="width:30%"></div></td>
@@ -542,7 +544,7 @@
       if (window.Cache && res) window.Cache.setWithTs(cacheKey, res);
       const list = res.requests || [];
       if (!list.length) {
-        tbody.innerHTML = `<tr><td colspan="4" style="color:#666;">No leave requests</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="color:#666;">No leave requests</td></tr>`;
         return;
       }
       tbody.innerHTML = list.map(r => {
@@ -550,6 +552,7 @@
         return `
           <tr>
             <td>${escapeHtml(r.leave_date)}</td>
+            <td>${escapeHtml(leaveTypeLabel(r.leave_type))}</td>
             <td>${escapeHtml(r.reason || '')}</td>
             <td>${escapeHtml(r.status)}</td>
             <td>${admin}</td>
@@ -557,26 +560,37 @@
         `;
       }).join('');
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="4" style="color:#ef4444;">${escapeHtml(e.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" style="color:#ef4444;">${escapeHtml(e.message)}</td></tr>`;
     }
+  }
+
+  function leaveTypeLabel(leaveType) {
+    if (leaveType === 'morning') return 'Morning (9:00 AM – 1:00 PM)';
+    if (leaveType === 'afternoon') return 'Afternoon (1:00 PM – 5:00 PM)';
+    return 'Full Day';
   }
 
   async function submitLeaveRequest() {
     const dateEl = document.getElementById('attendanceLeaveDate');
     const reasonEl = document.getElementById('attendanceLeaveReason');
     const msg = document.getElementById('attendanceLeaveSubmitMsg');
+    const leaveTypeEl = document.querySelector('input[name="attendanceLeaveType"]:checked');
 
     const date = dateEl?.value;
     const reason = reasonEl?.value || '';
+    const leaveType = leaveTypeEl?.value || 'full_day';
 
     try {
       if (!date) throw new Error('Please select a date');
       if (!reason.trim()) throw new Error('Please enter a reason');
 
       if (msg) msg.textContent = 'Submitting...';
-      await API.attendance.submitLeaveRequest({ date, reason });
+      await API.attendance.submitLeaveRequest({ date, reason, leaveType });
       if (msg) msg.textContent = 'Leave request submitted';
       if (reasonEl) reasonEl.value = '';
+      // Reset leave type to full day
+      const fullDayEl = document.getElementById('attendanceLeaveTypeFull');
+      if (fullDayEl) fullDayEl.checked = true;
 
       if (window.Cache) window.Cache.invalidatePrefix('attendance:');
       await loadMyLeaveRequests();
@@ -792,7 +806,7 @@
         const res = cached;
         const list = res.requests || [];
         if (!list.length) {
-          tbody.innerHTML = `<tr><td colspan="5" style="color:#666;">No requests</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="6" style="color:#666;">No requests</td></tr>`;
           return;
         }
 
@@ -805,6 +819,7 @@
             <tr>
               <td>${escapeHtml(r.leave_date)}</td>
               <td>${escapeHtml(r.officer_name)}</td>
+              <td>${escapeHtml(leaveTypeLabel(r.leave_type))}</td>
               <td>${escapeHtml(r.reason || '')}</td>
               <td>${escapeHtml(r.status)}</td>
               <td style="display:flex; gap:6px; flex-wrap: wrap;">${actions}</td>
@@ -826,9 +841,9 @@
 
               const row = btn.closest('tr');
               if (row) {
-                const statusCell = row.children[3];
+                const statusCell = row.children[4];
                 if (statusCell) statusCell.textContent = act === 'approve' ? 'approved' : 'rejected';
-                const actionsCell = row.children[4];
+                const actionsCell = row.children[5];
                 if (actionsCell) actionsCell.innerHTML = '';
               }
 
@@ -851,6 +866,7 @@
         <tr class="table-skel-row">
           <td><div class="table-skel-line" style="width:55%"></div></td>
           <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:40%"></div></td>
           <td><div class="table-skel-line" style="width:45%"></div></td>
           <td><div class="table-skel-line" style="width:35%"></div></td>
           <td><div class="table-skel-line" style="width:30%"></div></td>
@@ -864,7 +880,7 @@
       const list = res.requests || [];
 
       if (!list.length) {
-        tbody.innerHTML = `<tr><td colspan="5" style="color:#666;">No requests</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="color:#666;">No requests</td></tr>`;
         return;
       }
 
@@ -877,6 +893,7 @@
           <tr data-row-key="${escapeHtml(r.id)}">
             <td>${escapeHtml(r.leave_date)}</td>
             <td>${escapeHtml(r.officer_name)}</td>
+            <td>${escapeHtml(leaveTypeLabel(r.leave_type))}</td>
             <td>${escapeHtml(r.reason || '')}</td>
             <td>${escapeHtml(r.status)}</td>
             <td style="display:flex; gap:6px; flex-wrap: wrap;">${actions}</td>
@@ -904,9 +921,9 @@
             // Keep the row visible even if filtering by pending
             const row = btn.closest('tr');
             if (row) {
-              const statusCell = row.children[3];
+              const statusCell = row.children[4];
               if (statusCell) statusCell.textContent = act === 'approve' ? 'approved' : 'rejected';
-              const actionsCell = row.children[4];
+              const actionsCell = row.children[5];
               if (actionsCell) actionsCell.innerHTML = '';
             }
 
@@ -921,7 +938,7 @@
         });
       });
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="5" style="color:#ef4444;">${escapeHtml(e.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="color:#ef4444;">${escapeHtml(e.message)}</td></tr>`;
     }
   }
 

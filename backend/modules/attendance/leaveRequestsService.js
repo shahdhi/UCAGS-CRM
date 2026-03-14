@@ -11,6 +11,7 @@ const HEADERS = [
   'id',
   'officer_name',
   'leave_date',
+  'leave_type', // full_day|morning|afternoon
   'reason',
   'status', // pending|approved|rejected
   'admin_name',
@@ -46,14 +47,14 @@ async function ensureLeaveRequestsTab() {
   const existing = await sheetExists(spreadsheetId, TAB);
   if (!existing) {
     await createSheet(spreadsheetId, TAB);
-    await writeSheet(spreadsheetId, `${TAB}!A1:I1`, [HEADERS]);
+    await writeSheet(spreadsheetId, `${TAB}!A1:J1`, [HEADERS]);
     return { created: true };
   }
 
-  const headerRow = await readSheet(spreadsheetId, `${TAB}!A1:I1`);
+  const headerRow = await readSheet(spreadsheetId, `${TAB}!A1:J1`);
   const current = (headerRow && headerRow[0]) || [];
   if (current.join('|') !== HEADERS.join('|')) {
-    await writeSheet(spreadsheetId, `${TAB}!A1:I1`, [HEADERS]);
+    await writeSheet(spreadsheetId, `${TAB}!A1:J1`, [HEADERS]);
   }
 
   return { created: false };
@@ -64,12 +65,13 @@ function rowToObj(row) {
     id: row[0] || '',
     officer_name: row[1] || '',
     leave_date: row[2] || '',
-    reason: row[3] || '',
-    status: row[4] || 'pending',
-    admin_name: row[5] || '',
-    admin_comment: row[6] || '',
-    created_at: row[7] || '',
-    decided_at: row[8] || ''
+    leave_type: row[3] || 'full_day',
+    reason: row[4] || '',
+    status: row[5] || 'pending',
+    admin_name: row[6] || '',
+    admin_comment: row[7] || '',
+    created_at: row[8] || '',
+    decided_at: row[9] || ''
   };
 }
 
@@ -78,6 +80,7 @@ function objToRow(obj) {
     obj.id,
     obj.officer_name,
     obj.leave_date,
+    obj.leave_type || 'full_day',
     obj.reason || '',
     obj.status || 'pending',
     obj.admin_name || '',
@@ -91,7 +94,7 @@ async function listLeaveRequests({ officerName, status, fromDate, toDate } = {})
   const spreadsheetId = await requireAttendanceSheetId();
   await ensureLeaveRequestsTab();
 
-  const rows = await readSheet(spreadsheetId, `${TAB}!A2:I`);
+  const rows = await readSheet(spreadsheetId, `${TAB}!A2:J`);
   let list = (rows || []).map(rowToObj).filter(r => r.id);
 
   if (officerName) list = list.filter(r => r.officer_name === officerName);
@@ -104,19 +107,27 @@ async function listLeaveRequests({ officerName, status, fromDate, toDate } = {})
   return list;
 }
 
-async function submitLeaveRequest({ officerName, leaveDate, reason }) {
+const VALID_LEAVE_TYPES = ['full_day', 'morning', 'afternoon'];
+
+async function submitLeaveRequest({ officerName, leaveDate, leaveType, reason }) {
   if (!officerName) throw new Error('officerName is required');
   if (!isYmd(leaveDate)) throw new Error('leaveDate must be YYYY-MM-DD');
   if (!reason || !String(reason).trim()) throw new Error('reason is required');
 
+  const normalizedLeaveType = VALID_LEAVE_TYPES.includes(leaveType) ? leaveType : 'full_day';
+
   const spreadsheetId = await requireAttendanceSheetId();
   await ensureLeaveRequestsTab();
 
-  // Prevent duplicate pending request for same date
+  // Prevent duplicate pending/approved request for same date + type
   const existing = await listLeaveRequests({ officerName, fromDate: leaveDate, toDate: leaveDate });
-  const dup = existing.find(r => r.leave_date === leaveDate && (r.status === 'pending' || r.status === 'approved'));
+  const dup = existing.find(r =>
+    r.leave_date === leaveDate &&
+    (r.status === 'pending' || r.status === 'approved') &&
+    (r.leave_type === normalizedLeaveType || r.leave_type === 'full_day' || normalizedLeaveType === 'full_day')
+  );
   if (dup) {
-    const err = new Error('Leave request already exists for that date');
+    const err = new Error('Leave request already exists for that date/period');
     err.status = 409;
     throw err;
   }
@@ -126,6 +137,7 @@ async function submitLeaveRequest({ officerName, leaveDate, reason }) {
     id: generateId(),
     officer_name: officerName,
     leave_date: leaveDate,
+    leave_type: normalizedLeaveType,
     reason: String(reason).trim(),
     status: 'pending',
     admin_name: '',
@@ -134,7 +146,7 @@ async function submitLeaveRequest({ officerName, leaveDate, reason }) {
     decided_at: ''
   };
 
-  await appendSheet(spreadsheetId, `${TAB}!A:I`, [objToRow(obj)]);
+  await appendSheet(spreadsheetId, `${TAB}!A:J`, [objToRow(obj)]);
   return obj;
 }
 
@@ -142,7 +154,7 @@ async function findRowById(id) {
   const spreadsheetId = await requireAttendanceSheetId();
   await ensureLeaveRequestsTab();
 
-  const rows = await readSheet(spreadsheetId, `${TAB}!A2:I`);
+  const rows = await readSheet(spreadsheetId, `${TAB}!A2:J`);
   const list = (rows || []).map(rowToObj);
   const idx = list.findIndex(r => r.id === id);
   if (idx === -1) return { rowNumber: null, record: null };
@@ -177,7 +189,7 @@ async function decideLeaveRequest({ id, adminName, status, adminComment }) {
     decided_at: decidedAt
   };
 
-  await writeSheet(spreadsheetId, `${TAB}!A${rowNumber}:I${rowNumber}`, [objToRow(updated)]);
+  await writeSheet(spreadsheetId, `${TAB}!A${rowNumber}:J${rowNumber}`, [objToRow(updated)]);
   return updated;
 }
 

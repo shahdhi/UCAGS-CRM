@@ -696,10 +696,10 @@ const attendanceAPI = {
     const qs = month ? `?month=${encodeURIComponent(month)}` : '';
     return fetchAPI(`/attendance/me/calendar${qs}`);
   },
-  submitLeaveRequest: async ({ date, reason }) => {
+  submitLeaveRequest: async ({ date, reason, leaveType }) => {
     return fetchAPI('/attendance/me/leave-requests', {
       method: 'POST',
-      body: JSON.stringify({ date, reason })
+      body: JSON.stringify({ date, reason, leaveType })
     });
   },
   getMyLeaveRequests: async (params = {}) => {
