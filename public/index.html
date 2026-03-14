@@ -476,21 +476,53 @@
                     <hr style="margin: 16px 0;" />
 
                     <h3>Request Leave</h3>
-                    <div style="display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+                    <style>
+                      .leave-type-label {
+                        display: inline-flex; align-items: center; gap: 7px;
+                        font-size: 13px; cursor: pointer; user-select: none;
+                        white-space: nowrap;
+                      }
+                      .leave-type-label input[type="radio"] { display: none; }
+                      .leave-type-checkbox {
+                        width: 16px; height: 16px; min-width: 16px;
+                        border: 2px solid #9ca3af; border-radius: 4px;
+                        background: #fff; display: inline-flex;
+                        align-items: center; justify-content: center;
+                        transition: background 0.15s, border-color 0.15s;
+                      }
+                      .leave-type-label input[type="radio"]:checked + .leave-type-checkbox {
+                        background: #6366f1; border-color: #6366f1;
+                      }
+                      .leave-type-label input[type="radio"]:checked + .leave-type-checkbox::after {
+                        content: ''; display: block;
+                        width: 4px; height: 8px;
+                        border: 2px solid #fff; border-top: none; border-left: none;
+                        transform: rotate(45deg) translateY(-1px);
+                      }
+                    </style>
+                    <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:6px;">
                         <input type="date" id="attendanceLeaveDate" class="form-control" style="max-width:160px;" />
-                        <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; white-space:nowrap;">
-                            Full Day <input type="radio" name="attendanceLeaveType" id="attendanceLeaveTypeFull" value="full_day" checked style="margin:0;" />
+                        <label class="leave-type-label">
+                            <input type="radio" name="attendanceLeaveType" id="attendanceLeaveTypeFull" value="full_day" checked />
+                            <span class="leave-type-checkbox"></span>
+                            Full Day
                         </label>
-                        <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; white-space:nowrap;">
-                            Morning (9:00 AM – 1:00 PM) <input type="radio" name="attendanceLeaveType" id="attendanceLeaveTypeMorning" value="morning" style="margin:0;" />
+                        <label class="leave-type-label">
+                            <input type="radio" name="attendanceLeaveType" id="attendanceLeaveTypeMorning" value="morning" />
+                            <span class="leave-type-checkbox"></span>
+                            Morning (9:00 AM – 1:00 PM)
                         </label>
-                        <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; white-space:nowrap;">
-                            Afternoon (1:00 PM – 5:00 PM) <input type="radio" name="attendanceLeaveType" id="attendanceLeaveTypeAfternoon" value="afternoon" style="margin:0;" />
+                        <label class="leave-type-label">
+                            <input type="radio" name="attendanceLeaveType" id="attendanceLeaveTypeAfternoon" value="afternoon" />
+                            <span class="leave-type-checkbox"></span>
+                            Afternoon (1:00 PM – 5:00 PM)
                         </label>
-                        <input type="text" id="attendanceLeaveReason" class="form-control" placeholder="Reason" style="min-width:180px; max-width:260px;" />
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                        <input type="text" id="attendanceLeaveReason" class="form-control" placeholder="Reason for leave" style="flex:1;" />
                         <button id="attendanceLeaveSubmitBtn" class="btn btn-primary" type="button"><i class="fas fa-paper-plane"></i> Submit</button>
                     </div>
-                    <div id="attendanceLeaveSubmitMsg" style="margin-top: 4px; color:#666; font-size:13px;"></div>
+                    <div id="attendanceLeaveSubmitMsg" style="margin-top: 2px; color:#666; font-size:13px;"></div>
 
                     <h3 style="margin-top: 16px;">My Leave Requests</h3>
                     <div class="table-container">

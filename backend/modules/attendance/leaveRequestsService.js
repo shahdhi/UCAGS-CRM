@@ -61,6 +61,28 @@ async function ensureLeaveRequestsTab() {
 }
 
 function rowToObj(row) {
+  // Detect legacy rows (9 cols, no leave_type column) vs new rows (10 cols with leave_type).
+  // Legacy rows: row[3] is reason (free text), row[4] is status (pending|approved|rejected).
+  // New rows:    row[3] is leave_type (full_day|morning|afternoon), row[4] is reason, row[5] is status.
+  const STATUSES = ['pending', 'approved', 'rejected'];
+  const LEAVE_TYPES = ['full_day', 'morning', 'afternoon'];
+  const isLegacy = STATUSES.includes(row[4] || '') && !LEAVE_TYPES.includes(row[3] || '');
+
+  if (isLegacy) {
+    return {
+      id: row[0] || '',
+      officer_name: row[1] || '',
+      leave_date: row[2] || '',
+      leave_type: 'full_day',
+      reason: row[3] || '',
+      status: row[4] || 'pending',
+      admin_name: row[5] || '',
+      admin_comment: row[6] || '',
+      created_at: row[7] || '',
+      decided_at: row[8] || ''
+    };
+  }
+
   return {
     id: row[0] || '',
     officer_name: row[1] || '',
