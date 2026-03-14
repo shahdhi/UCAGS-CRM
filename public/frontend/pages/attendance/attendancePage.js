@@ -837,7 +837,8 @@
             try {
               if (act === 'approve') await API.attendance.approveLeaveRequest(id, comment);
               if (act === 'reject') await API.attendance.rejectLeaveRequest(id, comment);
-              if (window.Cache) window.Cache.invalidatePrefix('attendance:admin:leaveRequests');
+              // Invalidate all attendance caches so officer calendar reflects the new leave status
+              if (window.Cache) window.Cache.invalidatePrefix('attendance:');
 
               const row = btn.closest('tr');
               if (row) {
@@ -917,6 +918,9 @@
           try {
             if (act === 'approve') await API.attendance.approveLeaveRequest(id, comment);
             if (act === 'reject') await API.attendance.rejectLeaveRequest(id, comment);
+
+            // Invalidate all attendance caches so officer calendar reflects the new leave status
+            if (window.Cache) window.Cache.invalidatePrefix('attendance:');
 
             // Keep the row visible even if filtering by pending
             const row = btn.closest('tr');
