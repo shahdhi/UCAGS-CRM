@@ -2518,7 +2518,11 @@ async function loadDashboard() {
     try {
         const statsResponse = await API.dashboard.getStats();
         const badgeEl = document.getElementById('newEnquiriesCount');
-        if (badgeEl) badgeEl.textContent = statsResponse.stats?.new || 0;
+        if (badgeEl) {
+            const count = statsResponse.stats?.new || 0;
+            badgeEl.textContent = count;
+            badgeEl.style.display = count > 0 ? 'inline-flex' : 'none';
+        }
     } catch (e) {
         // ignore badge failures
     }
@@ -3038,7 +3042,9 @@ async function updateEnquiriesBadge() {
         const statsResponse = await API.dashboard.getStats();
         const badge = document.getElementById('newEnquiriesCount');
         if (badge) {
-            badge.textContent = statsResponse.stats?.new || 0;
+            const count = statsResponse.stats?.new || 0;
+            badge.textContent = count;
+            badge.style.display = count > 0 ? 'inline-flex' : 'none';
         }
     } catch (error) {
         const msg = String(error?.message || error || '');
