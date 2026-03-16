@@ -256,7 +256,12 @@ async function loadLeadManagement() {
         } catch (_) {}
 
         window.officerSheetFilter = name;
-        window.location.hash = `lead-management-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`;
+        const isAdmin2 = window.currentUser && window.currentUser.role === 'admin';
+        const pid2 = isAdmin2 ? (window.adminProgramId || '') : (window.officerProgramId || '');
+        const batchSlug2 = pid2
+          ? `${encodeURIComponent(pid2)}__PROG__${encodeURIComponent(batch)}`
+          : encodeURIComponent(batch);
+        window.location.hash = `lead-management-batch-${batchSlug2}__sheet__${encodeURIComponent(name)}`;
 
         // Call loadLeadManagement directly — skip tab re-render to prevent flicker
         window.__skipManagementTabRender = true;
@@ -402,7 +407,11 @@ async function loadLeadManagement() {
                 window.officerSheetFilter = 'Main Leads';
               }
               // navigate to keep URL in sync
-              window.location.hash = `lead-management-batch-${encodeURIComponent(v)}__sheet__${encodeURIComponent('Main Leads')}`;
+              const pid = isAdmin ? (window.adminProgramId || '') : (window.officerProgramId || '');
+              const batchSlug = pid
+                ? `${encodeURIComponent(pid)}__PROG__${encodeURIComponent(v)}`
+                : encodeURIComponent(v);
+              window.location.hash = `lead-management-batch-${batchSlug}__sheet__${encodeURIComponent('Main Leads')}`;
               // Sheet tabs will re-fetch for new batch (no cache for new batch key)
               loadLeadManagement();
             }
@@ -455,9 +464,12 @@ async function loadLeadManagement() {
     const params = new URLSearchParams();
     if (batchFilter && batchFilter !== 'all') params.set('batch', decodeURIComponent(batchFilter));
     if (sheet) params.set('sheet', sheet);
+    // Pass programId to scope batch_name to the correct program
+    const programIdForQuery = isAdmin ? window.adminProgramId : window.officerProgramId;
+    if (programIdForQuery) params.set('programId', programIdForQuery);
 
     // Admin uses /all endpoint, officers use /my endpoint
-    const endpoint = isAdmin ? '/api/crm-leads' : '/api/crm-leads/my';
+    const endpoint = isAdmin ? '/api/crm-leads/admin' : '/api/crm-leads/my';
     const res = await fetch(`${endpoint}?${params.toString()}`, { headers: authHeaders });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Failed to load leads');

@@ -208,15 +208,19 @@ function setupLeadsEventListeners() {
         if (window.currentUser && window.currentUser.role === 'admin') {
           window.adminBatchFilter = v;
           window.adminSheetFilter = 'Main Leads';
+          // Encode programId into URL to disambiguate same-named batches across programs
+          const pid = window.adminProgramId || '';
+          const batchSlug = pid
+            ? `${encodeURIComponent(pid)}__PROG__${encodeURIComponent(v)}`
+            : encodeURIComponent(v);
+          window.location.hash = `leads-batch-${batchSlug}__sheet__${encodeURIComponent('Main Leads')}`;
         } else {
           window.officerBatchFilter = v;
           window.officerSheetFilter = 'Main Leads';
+          const oPid = window.officerProgramId || '';
+          const oSlug = oPid ? `${encodeURIComponent(oPid)}__PROG__${encodeURIComponent(v)}` : encodeURIComponent(v);
+          window.location.hash = `leads-myLeads-batch-${oSlug}__sheet__${encodeURIComponent('Main Leads')}`;
         }
-        // update hash
-        const leadsPage = (window.currentUser && window.currentUser.role === 'admin')
-          ? `leads-batch-${encodeURIComponent(v)}__sheet__${encodeURIComponent('Main Leads')}`
-          : `leads-myLeads-batch-${encodeURIComponent(v)}__sheet__${encodeURIComponent('Main Leads')}`;
-        window.location.hash = leadsPage;
         // Sheet tabs will be re-fetched for new batch (cache miss is intentional here)
         currentPage = 1;
         loadLeads();
@@ -545,9 +549,18 @@ async function loadLeads() {
 
             updateOfficerNewLeadBtnVisibility();
 
-            const page = isOfficerView
-              ? `leads-myLeads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`
-              : `leads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(name)}`;
+            let page;
+            if (isOfficerView) {
+              const oPid = window.officerProgramId || '';
+              const oSlug = oPid ? `${encodeURIComponent(oPid)}__PROG__${encodeURIComponent(batch)}` : encodeURIComponent(batch);
+              page = `leads-myLeads-batch-${oSlug}__sheet__${encodeURIComponent(name)}`;
+            } else {
+              const pid = window.adminProgramId || '';
+              const batchSlug = pid
+                ? `${encodeURIComponent(pid)}__PROG__${encodeURIComponent(batch)}`
+                : encodeURIComponent(batch);
+              page = `leads-batch-${batchSlug}__sheet__${encodeURIComponent(name)}`;
+            }
             window.location.hash = page;
             currentPage = 1;
             
@@ -644,6 +657,8 @@ async function loadLeads() {
       // Admin view: may use batch/sheet filters
       if (window.adminBatchFilter) filters.batch = window.adminBatchFilter;
       if (window.adminSheetFilter) filters.sheet = window.adminSheetFilter;
+      // Pass programId so backend can scope batch_name to the correct program
+      if (window.adminProgramId) filters.programId = window.adminProgramId;
       response = await API.leads.getAll(filters);
     }
 

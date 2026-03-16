@@ -479,7 +479,9 @@ const UI = {
                 if (!batch || !sheet || !leadId) return;
 
                 window.__openLeadAfterNav = { leadId };
-                const page = `lead-management-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(sheet)}`;
+                const oPid = (window.currentUser?.role === 'admin' ? window.adminProgramId : window.officerProgramId) || '';
+                const oSlug = oPid ? `${encodeURIComponent(oPid)}__PROG__${encodeURIComponent(batch)}` : encodeURIComponent(batch);
+                const page = `lead-management-batch-${oSlug}__sheet__${encodeURIComponent(sheet)}`;
                 window.location.hash = page;
                 if (window.navigateToPage) window.navigateToPage(page);
             });
@@ -672,7 +674,9 @@ const UI = {
 
                 // Navigate to lead management for that batch+sheet and open lead
                 window.__openLeadAfterNav = { leadId };
-                const page = `lead-management-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(sheet)}`;
+                const oPid2 = (window.currentUser?.role === 'admin' ? window.adminProgramId : window.officerProgramId) || '';
+                const oSlug2 = oPid2 ? `${encodeURIComponent(oPid2)}__PROG__${encodeURIComponent(batch)}` : encodeURIComponent(batch);
+                const page = `lead-management-batch-${oSlug2}__sheet__${encodeURIComponent(sheet)}`;
                 window.location.hash = page;
                 if (window.navigateToPage) window.navigateToPage(page);
             });

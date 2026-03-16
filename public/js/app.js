@@ -295,8 +295,9 @@ async function loadOfficerLeadsBatchesMenu() {
             const current = bs.find(x => x.is_current);
             if (!current?.batch_name) continue;
 
-            const leadsPage = `leads-myLeads-batch-${encodeURIComponent(current.batch_name)}__sheet__${encodeURIComponent(defaultSheet)}`;
-            const mgmtPage = `lead-management-batch-${encodeURIComponent(current.batch_name)}__sheet__${encodeURIComponent(defaultSheet)}`;
+            const batchSlug = `${encodeURIComponent(p.id)}__PROG__${encodeURIComponent(current.batch_name)}`;
+            const leadsPage = `leads-myLeads-batch-${batchSlug}__sheet__${encodeURIComponent(defaultSheet)}`;
+            const mgmtPage = `lead-management-batch-${batchSlug}__sheet__${encodeURIComponent(defaultSheet)}`;
 
             leadsMenu.appendChild(createLink(leadsPage, p.name, () => {
                 window.officerProgramId = p.id;
@@ -374,7 +375,9 @@ async function loadBatchesMenu() {
             const current = bs.find(x => x.is_current);
             if (!current || !current.batch_name) continue;
 
-            const leadsPage = `leads-batch-${encodeURIComponent(current.batch_name)}__sheet__${encodeURIComponent('Main Leads')}`;
+            // Encode programId into the URL so same-named batches across programs stay distinct
+            const batchSlug = `${encodeURIComponent(p.id)}__PROG__${encodeURIComponent(current.batch_name)}`;
+            const leadsPage = `leads-batch-${batchSlug}__sheet__${encodeURIComponent('Main Leads')}`;
             const link = createLink(leadsPage, p.name);
             link.dataset.programId = p.id;
             link.addEventListener('click', () => {
@@ -616,8 +619,16 @@ function parseLeadsRouteIntoFilters(page) {
         if (page.startsWith('leads-myLeads-batch-')) {
             const slug = page.replace('leads-myLeads-batch-', '');
             const parts = slug.split('__sheet__');
-            window.officerBatchFilter = decodeURIComponent(parts[0] || 'all');
+            const batchPart = decodeURIComponent(parts[0] || 'all');
             window.officerSheetFilter = decodeURIComponent(parts[1] || 'Main Leads');
+            // Support new format: programId__PROG__batchName
+            const progSep = batchPart.indexOf('__PROG__');
+            if (progSep !== -1) {
+                window.officerProgramId = batchPart.slice(0, progSep);
+                window.officerBatchFilter = batchPart.slice(progSep + 8);
+            } else {
+                window.officerBatchFilter = batchPart;
+            }
             return;
         }
 
@@ -630,8 +641,16 @@ function parseLeadsRouteIntoFilters(page) {
         if (page.startsWith('lead-management-batch-')) {
             const slug = page.replace('lead-management-batch-', '');
             const parts = slug.split('__sheet__');
-            window.officerBatchFilter = decodeURIComponent(parts[0] || 'all');
+            const batchPart = decodeURIComponent(parts[0] || 'all');
             window.officerSheetFilter = decodeURIComponent(parts[1] || 'Main Leads');
+            // Support new format: programId__PROG__batchName
+            const progSep = batchPart.indexOf('__PROG__');
+            if (progSep !== -1) {
+                window.officerProgramId = batchPart.slice(0, progSep);
+                window.officerBatchFilter = batchPart.slice(progSep + 8);
+            } else {
+                window.officerBatchFilter = batchPart;
+            }
             return;
         }
 
@@ -639,8 +658,16 @@ function parseLeadsRouteIntoFilters(page) {
         if (page.startsWith('leads-batch-')) {
             const slug = page.replace('leads-batch-', '');
             const parts = slug.split('__sheet__');
-            window.adminBatchFilter = decodeURIComponent(parts[0] || '');
+            const batchPart = decodeURIComponent(parts[0] || '');
             window.adminSheetFilter = decodeURIComponent(parts[1] || 'Main Leads');
+            // Support new format: programId__PROG__batchName
+            const progSep = batchPart.indexOf('__PROG__');
+            if (progSep !== -1) {
+                window.adminProgramId = batchPart.slice(0, progSep);
+                window.adminBatchFilter = batchPart.slice(progSep + 8);
+            } else {
+                window.adminBatchFilter = batchPart;
+            }
         }
     } catch (e) {
         // ignore
@@ -689,7 +716,9 @@ function updateDeleteSheetButtons(page) {
                 // Fall back to Main Leads within same batch
                 const fallbackSheet = 'Main Leads';
                 window.officerSheetFilter = fallbackSheet;
-                const page2 = `leads-myLeads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(fallbackSheet)}`;
+                const oPid = window.officerProgramId || '';
+                const oSlug = oPid ? `${encodeURIComponent(oPid)}__PROG__${encodeURIComponent(batch)}` : encodeURIComponent(batch);
+                const page2 = `leads-myLeads-batch-${oSlug}__sheet__${encodeURIComponent(fallbackSheet)}`;
                 window.location.hash = page2;
                 navigateToPage(page2);
             } catch (error) {
@@ -728,7 +757,9 @@ function updateDeleteSheetButtons(page) {
                 // Fall back to Main Leads within same batch
                 const fallbackSheet = 'Main Leads';
                 window.officerSheetFilter = fallbackSheet;
-                const page2 = `lead-management-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(fallbackSheet)}`;
+                const oPid2 = window.officerProgramId || '';
+                const oSlug2 = oPid2 ? `${encodeURIComponent(oPid2)}__PROG__${encodeURIComponent(batch)}` : encodeURIComponent(batch);
+                const page2 = `lead-management-batch-${oSlug2}__sheet__${encodeURIComponent(fallbackSheet)}`;
                 window.location.hash = page2;
                 navigateToPage(page2);
             } catch (error) {
@@ -762,7 +793,11 @@ function updateDeleteSheetButtons(page) {
             // Fall back to Main Leads within the same batch (stay in Leads view)
             const fallbackSheet = 'Main Leads';
             window.adminSheetFilter = fallbackSheet;
-            const page2 = `leads-batch-${encodeURIComponent(batch)}__sheet__${encodeURIComponent(fallbackSheet)}`;
+            const pid2 = window.adminProgramId || '';
+            const batchSlug2 = pid2
+                ? `${encodeURIComponent(pid2)}__PROG__${encodeURIComponent(batch)}`
+                : encodeURIComponent(batch);
+            const page2 = `leads-batch-${batchSlug2}__sheet__${encodeURIComponent(fallbackSheet)}`;
             window.location.hash = page2;
             navigateToPage(page2);
         };

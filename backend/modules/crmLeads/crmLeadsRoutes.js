@@ -86,7 +86,7 @@ router.get('/admin/meta/sheets', isAdmin, async (req, res) => {
   }
 });
 
-// GET /api/crm-leads/admin?batch=...&sheet=...&search=...&status=...
+// GET /api/crm-leads/admin?batch=...&sheet=...&search=...&status=...&programId=...
 // Lists all leads for admin (supports officer filter via assignedTo)
 // SECURITY: Must be admin-only; otherwise officers can see all leads.
 router.get('/admin', isAdmin, async (req, res) => {
@@ -96,15 +96,16 @@ router.get('/admin', isAdmin, async (req, res) => {
     const search = req.query.search;
     const status = req.query.status;
     const assignedTo = req.query.assignedTo || req.query.officer;
+    const programId = req.query.programId;
 
-    const leads = await svc.listAdminLeads({ batchName, sheetName, search, status, assignedTo });
+    const leads = await svc.listAdminLeads({ batchName, sheetName, search, status, assignedTo, programId });
     res.json({ success: true, count: leads.length, leads });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }
 });
 
-// GET /api/crm-leads/my?batch=...&sheet=...&search=...&status=...
+// GET /api/crm-leads/my?batch=...&sheet=...&search=...&status=...&programId=...
 router.get('/my', isAuthenticated, async (req, res) => {
   try {
     const officerName = req.user?.name;
@@ -112,6 +113,7 @@ router.get('/my', isAuthenticated, async (req, res) => {
     const sheetName = req.query.sheet;
     const search = req.query.search;
     const status = req.query.status;
+    const programId = req.query.programId;
 
     // Debug logging
     console.log('📋 GET /api/crm-leads/my - Request details:', {
@@ -122,7 +124,8 @@ router.get('/my', isAuthenticated, async (req, res) => {
       batchName,
       sheetName,
       search,
-      status
+      status,
+      programId
     });
 
     if (!officerName) {
@@ -138,7 +141,7 @@ router.get('/my', isAuthenticated, async (req, res) => {
       });
     }
 
-    const leads = await svc.listMyLeads({ officerName, batchName, sheetName, search, status });
+    const leads = await svc.listMyLeads({ officerName, batchName, sheetName, search, status, programId });
     console.log(`✓ Returned ${leads.length} leads for ${officerName}`);
     res.json({ success: true, count: leads.length, leads });
   } catch (e) {

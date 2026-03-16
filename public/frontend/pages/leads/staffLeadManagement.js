@@ -533,6 +533,10 @@
       if (sheet && sheet !== '(All Sheets)') params.set('sheet', sheet);
       // Only filter by officer when a specific officer is selected
       if (!officer.allOfficers) params.set('assignedTo', officer.officerName);
+      // Pass programId to scope batch_name to the correct program (prevents cross-program leakage)
+      const programSel2 = $('staffLeadMgmtProgramSelect');
+      const selectedProgramId2 = programSel2?.value || '';
+      if (selectedProgramId2) params.set('programId', selectedProgramId2);
 
       const res = await fetch(`/api/crm-leads/admin?${params.toString()}`, { headers });
       const json = await res.json();

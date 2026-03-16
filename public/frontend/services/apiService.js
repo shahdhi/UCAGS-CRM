@@ -73,6 +73,8 @@ const leadsAPI = {
       if (filters.sheet) params.append('sheet', filters.sheet);
       if (filters.status) params.append('status', filters.status);
       if (filters.search) params.append('search', filters.search);
+      // Pass programId to scope batch_name to the correct program
+      if (filters.programId) params.append('programId', filters.programId);
       
       console.log('📊 Loading leads from Supabase:', `/crm-leads/admin?${params.toString()}`);
       return fetchAPI(`/crm-leads/admin?${params.toString()}`);
@@ -82,6 +84,7 @@ const leadsAPI = {
     const params = new URLSearchParams();
     if (filters.status) params.append('status', filters.status);
     if (filters.search) params.append('search', filters.search);
+    if (filters.programId) params.append('programId', filters.programId);
     
     console.log('📊 Loading all leads from Supabase:', `/crm-leads/admin?${params.toString()}`);
     return fetchAPI(`/crm-leads/admin?${params.toString()}`);

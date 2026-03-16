@@ -224,7 +224,7 @@ function pickManagementFields(input = {}) {
   return mgmt;
 }
 
-async function listMyLeads({ officerName, batchName, sheetName, search, status }) {
+async function listMyLeads({ officerName, batchName, sheetName, search, status, programId }) {
   const sb = requireSupabase();
   if (!officerName) {
     const err = new Error('Missing officerName');
@@ -232,12 +232,34 @@ async function listMyLeads({ officerName, batchName, sheetName, search, status }
     throw err;
   }
 
+  // If programId is provided, resolve valid batch names for that program
+  let resolvedBatchNames = null;
+  if (programId) {
+    const { data: pb, error: pbErr } = await sb
+      .from('program_batches')
+      .select('batch_name')
+      .eq('program_id', String(programId));
+    if (pbErr) throw pbErr;
+    resolvedBatchNames = (pb || []).map(r => r.batch_name).filter(Boolean);
+  }
+
   let q = sb
     .from('crm_leads')
     .select('*')
     .eq('assigned_to', officerName);
 
-  if (batchName && batchName !== 'all') q = q.eq('batch_name', batchName);
+  if (batchName && batchName !== 'all') {
+    // Verify batch belongs to program if programId provided
+    if (resolvedBatchNames && !resolvedBatchNames.includes(batchName)) {
+      console.warn(`[listMyLeads] batch "${batchName}" not found in program "${programId}". Returning empty.`);
+      return [];
+    }
+    q = q.eq('batch_name', batchName);
+  } else if (resolvedBatchNames) {
+    if (resolvedBatchNames.length === 0) return [];
+    q = q.in('batch_name', resolvedBatchNames);
+  }
+
   if (sheetName) q = q.eq('sheet_name', sheetName);
   if (status) q = q.eq('status', status);
 
@@ -270,14 +292,43 @@ async function listMyLeads({ officerName, batchName, sheetName, search, status }
 }
 
 // Admin: list all leads (no officer filter)
-async function listAdminLeads({ batchName, sheetName, search, status, assignedTo }) {
+async function listAdminLeads({ batchName, sheetName, search, status, assignedTo, programId }) {
   const sb = requireSupabase();
 
-  console.log('🔍 Querying Supabase for admin leads:', { batchName, sheetName, status, search });
+  console.log('🔍 Querying Supabase for admin leads:', { batchName, sheetName, status, search, programId });
+
+  // If programId is provided, resolve the valid batch names for that program
+  // so that same-named batches in different programs are not mixed together.
+  let resolvedBatchNames = null; // null = no program filter applied
+  if (programId) {
+    const { data: pb, error: pbErr } = await sb
+      .from('program_batches')
+      .select('batch_name')
+      .eq('program_id', String(programId));
+    if (pbErr) throw pbErr;
+    resolvedBatchNames = (pb || []).map(r => r.batch_name).filter(Boolean);
+  }
 
   let q = sb.from('crm_leads').select('*');
 
-  if (batchName && batchName !== 'all') q = q.eq('batch_name', batchName);
+  if (batchName && batchName !== 'all') {
+    q = q.eq('batch_name', batchName);
+  } else if (resolvedBatchNames) {
+    // No specific batch requested but we have a program scope — filter to program's batches
+    if (resolvedBatchNames.length === 0) {
+      // Program has no batches; return empty
+      return [];
+    }
+    q = q.in('batch_name', resolvedBatchNames);
+  }
+
+  // If a specific batch AND a programId is provided, verify the batch belongs to the program
+  if (batchName && batchName !== 'all' && resolvedBatchNames && !resolvedBatchNames.includes(batchName)) {
+    // Batch doesn't belong to the requested program — return empty to prevent cross-program leakage
+    console.warn(`[listAdminLeads] batch "${batchName}" not found in program "${programId}". Returning empty.`);
+    return [];
+  }
+
   if (sheetName) q = q.eq('sheet_name', sheetName);
   if (status) q = q.eq('status', status);
   if (assignedTo) q = q.eq('assigned_to', cleanString(assignedTo));
