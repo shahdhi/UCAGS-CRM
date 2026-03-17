@@ -648,6 +648,8 @@ async function loadLeads() {
         filters.batch = window.officerBatchFilter;
       }
       if (window.officerSheetFilter) filters.sheet = window.officerSheetFilter;
+      // Pass programId to scope batch_name to the correct program (prevents cross-program leakage)
+      if (window.officerProgramId) filters.programId = window.officerProgramId;
       
       console.log('🔍 Loading officer leads with filters:', filters);
       console.log('Current user:', window.currentUser);

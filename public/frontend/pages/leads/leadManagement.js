@@ -191,7 +191,8 @@ async function loadLeadManagement() {
     }
   } catch (_) {}
   const officerKey = window.currentUser?.id || window.currentUser?.email || window.currentUser?.name || 'me';
-  const cacheKey = `leads:management:${encodeURIComponent(officerKey)}:${encodeURIComponent(batchFilter||'all')}:${encodeURIComponent(sheet)}`;
+  const programKey = window.adminProgramId || window.officerProgramId || 'noprog';
+  const cacheKey = `leads:management:${encodeURIComponent(officerKey)}:${encodeURIComponent(programKey)}:${encodeURIComponent(batchFilter||'all')}:${encodeURIComponent(sheet)}`;
 
   // Sheet tabs (officer)
   // IMPORTANT: render tabs even when serving leads from cache, otherwise the tab bar can disappear.

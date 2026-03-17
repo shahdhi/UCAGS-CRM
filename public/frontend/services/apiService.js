@@ -100,6 +100,8 @@ const leadsAPI = {
     if (filters.sheet) params.append('sheet', filters.sheet);
     if (filters.status) params.append('status', filters.status);
     if (filters.search) params.append('search', filters.search);
+    // Pass programId to scope batch_name to the correct program
+    if (filters.programId) params.append('programId', filters.programId);
     
     return fetchAPI(`/crm-leads/my?${params.toString()}`);
   },
