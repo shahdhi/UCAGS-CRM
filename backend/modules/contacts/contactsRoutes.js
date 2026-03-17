@@ -57,17 +57,54 @@ function programShort(programName) {
   if (!raw) return 'P';
   const p = raw.toLowerCase();
 
-  // Explicit mappings (add more as needed)
-  const map = {
-    'diploma in psychology': 'P'
-  };
-  if (map[p]) return map[p];
+  // Keyword-based mappings — order matters (more specific first)
+  const keywordMap = [
+    // Psychology
+    { keywords: ['psychology', 'psycho', 'psych'],        letter: 'P' },
+    // English
+    { keywords: ['english'],                               letter: 'E' },
+    // IT & AI / Information Technology / Artificial Intelligence
+    { keywords: ['it & ai', 'it and ai', 'information technology', 'it &', '& ai'], letter: 'I' },
+    // Business Management
+    { keywords: ['business management'],                   letter: 'B' },
+    // Human Resource Management / HRM
+    { keywords: ['human resource', 'hrm'],                 letter: 'H' },
+    // Accounting / Finance
+    { keywords: ['accounting', 'finance'],                 letter: 'A' },
+    // Marketing
+    { keywords: ['marketing'],                             letter: 'M' },
+    // Law
+    { keywords: ['law'],                                   letter: 'L' },
+    // Science
+    { keywords: ['science'],                               letter: 'S' },
+    // Education / Teaching
+    { keywords: ['education', 'teaching'],                 letter: 'D' },
+    // Computer Science / Computing
+    { keywords: ['computer', 'computing'],                 letter: 'C' },
+    // Nursing / Health
+    { keywords: ['nursing', 'health'],                     letter: 'N' },
+    // Engineering
+    { keywords: ['engineering'],                           letter: 'G' },
+    // Tourism / Hospitality
+    { keywords: ['tourism', 'hospitality'],                letter: 'T' },
+    // Media / Journalism
+    { keywords: ['media', 'journalism'],                   letter: 'J' },
+    // Art / Design
+    { keywords: ['art', 'design'],                         letter: 'R' },
+    // Early Childhood
+    { keywords: ['early childhood', 'childhood'],          letter: 'K' },
+  ];
 
-  // Keyword fallback
-  if (p.includes('psychology') || p.includes('psycho') || p.includes('psych')) return 'P';
+  for (const { keywords, letter } of keywordMap) {
+    if (keywords.some(kw => p.includes(kw))) return letter;
+  }
 
-  // fallback: first letter of last word
+  // Fallback: skip common prefix words (diploma, in, of, the, a) and use first letter of the first meaningful word
+  const skipWords = new Set(['diploma', 'certificate', 'degree', 'bachelor', 'master', 'in', 'of', 'the', 'a', 'an', 'and', '&']);
   const parts = raw.split(/\s+/).filter(Boolean);
+  const meaningful = parts.find(w => !skipWords.has(w.toLowerCase()));
+  if (meaningful) return meaningful[0].toUpperCase();
+
   if (!parts.length) return 'X';
   return String(parts[parts.length - 1][0] || 'X').toUpperCase();
 }
