@@ -158,7 +158,10 @@ router.post('/from-lead/:leadId', isAuthenticated, async (req, res) => {
     const leadPayload = (lead?.payload && typeof lead.payload === 'object') ? lead.payload : {};
     const leadIntake = (lead?.intake_json && typeof lead.intake_json === 'object') ? lead.intake_json : {};
 
-    const leadCourse = clean(
+    const leadBatch = clean(lead?.batch_name || '');
+
+    // Try to get program name from the lead itself first, then look it up via batch_name → program_batches → programs
+    let leadCourse = clean(
       leadIntake?.course ||
       lead?.course ||
       lead?.program_name ||
@@ -168,7 +171,26 @@ router.post('/from-lead/:leadId', isAuthenticated, async (req, res) => {
       leadPayload?.program ||
       ''
     );
-    const leadBatch = clean(lead?.batch_name || '');
+
+    if (!leadCourse && leadBatch) {
+      try {
+        const { data: pbRow } = await sb
+          .from('program_batches')
+          .select('program_id')
+          .eq('batch_name', leadBatch)
+          .maybeSingle();
+        if (pbRow?.program_id) {
+          const { data: progRow } = await sb
+            .from('programs')
+            .select('name')
+            .eq('id', pbRow.program_id)
+            .maybeSingle();
+          if (progRow?.name) leadCourse = progRow.name;
+        }
+      } catch (err) {
+        console.warn('Failed to resolve program name from batch:', leadBatch, err?.message || err);
+      }
+    }
 
     const progShort = programShort(leadCourse);
     const batchNo = batchNumber(leadBatch);

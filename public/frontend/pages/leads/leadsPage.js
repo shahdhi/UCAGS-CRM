@@ -149,55 +149,6 @@ function setupLeadsEventListeners() {
     });
   }
 
-  // Program selector (admin-only)
-  const programSelect = document.getElementById('leadsProgramSelect');
-  if (programSelect && !programSelect.__bound) {
-    programSelect.__bound = true;
-
-    const isAdmin = window.currentUser && window.currentUser.role === 'admin';
-    if (!isAdmin) {
-      programSelect.style.display = 'none';
-    } else {
-      programSelect.style.display = '';
-      // Load programs and default to latest program
-      (async () => {
-        try {
-          const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
-          const r = await fetch('/api/programs/sidebar', { headers: authHeaders });
-          const j = await r.json();
-          const programs = (j.programs || []).slice();
-          programs.sort((a, b) => {
-            const ad = a?.created_at ? new Date(a.created_at).getTime() : 0;
-            const bd = b?.created_at ? new Date(b.created_at).getTime() : 0;
-            if (bd !== ad) return bd - ad;
-            return String(a?.name || '').localeCompare(String(b?.name || ''));
-          });
-
-          programSelect.innerHTML = programs.map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name || p.id)}</option>`).join('');
-
-          if (!window.adminProgramId) window.adminProgramId = programs[0]?.id || '';
-          programSelect.value = window.adminProgramId || '';
-
-          programSelect.addEventListener('change', () => {
-            window.adminProgramId = programSelect.value;
-            // Reset batch filter so loadLeads() auto-selects current batch for this program
-            window.adminBatchFilter = '';
-            window.adminSheetFilter = 'Main Leads';
-            // Reset dropdown cache so it reloads for new program
-            const batchSel = document.getElementById('leadsProgramBatchSelect');
-            if (batchSel) batchSel.__loadedFor = null;
-            currentPage = 1;
-            loadLeads();
-          });
-          // NOTE: Do NOT call loadLeads() here — initLeadsPage already calls it after setupLeadsEventListeners
-        } catch (e) {
-          console.warn('Failed to load programs for program filter', e);
-          programSelect.style.display = 'none';
-        }
-      })();
-    }
-  }
-
   // Program batch selector (admin-only)
   const programBatchSelect = document.getElementById('leadsProgramBatchSelect');
   if (programBatchSelect && !programBatchSelect.__bound) {
