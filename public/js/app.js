@@ -3056,6 +3056,11 @@ async function loadDashboard() {
             }
         }
 
+        // XP Dashboard (leaderboard + trend chart)
+        if (window.loadXPDashboard) {
+            window.loadXPDashboard().catch(() => {});
+        }
+
     } catch (error) {
         console.error('Error loading dashboard:', error);
         state.error = error?.message || 'Failed to load dashboard data';

@@ -73,7 +73,51 @@ router.patch('/invites/:id', isAdminOrOfficer, async (req, res) => {
   try {
     const inviteId = req.params.id;
     const actorUserId = req.user?.id;
+
+    // Capture previous attendance for XP dedupe
+    let prevAttendance = null;
+    try {
+      const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
+      const sb = getSupabaseAdmin();
+      const { data: existing } = await sb
+        .from('demo_session_invites')
+        .select('attendance, officer_user_id')
+        .eq('id', inviteId)
+        .maybeSingle();
+      prevAttendance = existing?.attendance || null;
+    } catch (_) {}
+
     const invite = await svc.updateInvite({ inviteId, patch: req.body || {}, actorUserId });
+
+    // XP: +3 when lead attendance is marked as 'Attended' (once per invite)
+    try {
+      const { awardXPOnce } = require('../xp/xpService');
+      const newAttendance = invite?.attendance || req.body?.attendance;
+      if (newAttendance === 'Attended' && prevAttendance !== 'Attended') {
+        // Award XP to the officer who owns this invite
+        const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
+        const sb = getSupabaseAdmin();
+        const { data: inviteRow } = await sb
+          .from('demo_session_invites')
+          .select('officer_user_id, crm_lead_id')
+          .eq('id', inviteId)
+          .maybeSingle();
+        const officerUserId = inviteRow?.officer_user_id || actorUserId;
+        if (officerUserId) {
+          await awardXPOnce({
+            userId: officerUserId,
+            eventType: 'demo_attended',
+            xp: 3,
+            referenceId: inviteId,
+            referenceType: 'demo_invite',
+            note: `Demo session attended (invite ${inviteId})`
+          });
+        }
+      }
+    } catch (xpErr) {
+      console.warn('[XP] demo_attended hook error:', xpErr.message);
+    }
+
     res.json({ success: true, invite });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });

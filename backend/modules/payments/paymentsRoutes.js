@@ -567,6 +567,40 @@ router.post('/admin/:id/confirm', isAdmin, async (req, res) => {
       .single();
     if (uErr) throw uErr;
 
+    // XP: +20 for the assigned officer when payment is confirmed
+    try {
+      const { awardXPOnce } = require('../xp/xpService');
+      const sb2 = getSupabaseAdmin();
+      // Look up registration to find assigned officer
+      if (confirmed?.registration_id) {
+        const { data: regRow } = await sb2
+          .from('registrations')
+          .select('assigned_to')
+          .eq('id', confirmed.registration_id)
+          .maybeSingle();
+        const assignedOfficerName = cleanString(regRow?.assigned_to);
+        if (assignedOfficerName) {
+          const { data: { users } } = await sb2.auth.admin.listUsers();
+          const officerUser = (users || []).find(u => {
+            const nm = String(u.user_metadata?.name || '').trim().toLowerCase();
+            return nm === assignedOfficerName.toLowerCase();
+          });
+          if (officerUser?.id) {
+            await awardXPOnce({
+              userId: officerUser.id,
+              eventType: 'payment_received',
+              xp: 20,
+              referenceId: confirmed.id,
+              referenceType: 'payment',
+              note: `Payment confirmed for registration ${confirmed.registration_id}`
+            });
+          }
+        }
+      }
+    } catch (xpErr) {
+      console.warn('[XP] payment_received hook error:', xpErr.message);
+    }
+
     res.json({ success: true, payment: withReceipt, receipt_no: receiptNo });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });

@@ -52,7 +52,34 @@ router.get('/me/today', isAuthenticated, async (req, res) => {
 router.post('/me/checkin', isAuthenticated, async (req, res) => {
   try {
     const staffName = req.user?.name;
+    const officerUserId = req.user?.id;
     const record = await checkIn(staffName);
+
+    // XP: +1 if checked in before 10:00 AM Sri Lanka time
+    try {
+      const { awardXPOnce } = require('../xp/xpService');
+      if (officerUserId && record?.checkInIso) {
+        const SL_OFFSET = 330;
+        const checkInDate = new Date(new Date(record.checkInIso).getTime() + SL_OFFSET * 60 * 1000);
+        const hour = checkInDate.getUTCHours();
+        const minute = checkInDate.getUTCMinutes();
+        const isOnTime = hour < 10 || (hour === 10 && minute === 0);
+        if (isOnTime) {
+          const todayKey = checkInDate.toISOString().slice(0, 10);
+          await awardXPOnce({
+            userId: officerUserId,
+            eventType: 'attendance_on_time',
+            xp: 1,
+            referenceId: `${officerUserId}:${todayKey}`,
+            referenceType: 'attendance',
+            note: `On-time check-in at ${record.checkIn} (SL)`
+          });
+        }
+      }
+    } catch (xpErr) {
+      console.warn('[XP] attendance hook error:', xpErr.message);
+    }
+
     res.status(201).json({ success: true, record });
   } catch (error) {
     console.error('POST /api/attendance/me/checkin error:', error);

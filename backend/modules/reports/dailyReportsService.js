@@ -236,6 +236,22 @@ async function submitDailyReport({ officerUserId, officerName, slotKey, clientNo
     .single();
 
   if (error) throw error;
+
+  // XP: +3 per report slot submitted (deduped per slot per day)
+  try {
+    const { awardXPOnce } = require('../xp/xpService');
+    await awardXPOnce({
+      userId: officerUserId,
+      eventType: 'report_submitted',
+      xp: 3,
+      referenceId: `${officerUserId}:${dateISO}:${slotKey}`,
+      referenceType: 'report',
+      note: `Daily report submitted — ${slotKey} (${dateISO})`
+    });
+  } catch (xpErr) {
+    console.warn('[XP] report_submitted hook error:', xpErr.message);
+  }
+
   return data;
 }
 

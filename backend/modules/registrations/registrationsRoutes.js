@@ -197,6 +197,32 @@ router.post('/intake', async (req, res) => {
       });
     } catch (_) {}
 
+    // XP: +10 for the assigned officer when a registration is received
+    try {
+      const { awardXPOnce } = require('../xp/xpService');
+      const assignedOfficerName = cleanString(data?.assigned_to || row.assigned_to);
+      if (assignedOfficerName && data?.id) {
+        const sb2 = getSupabaseAdmin();
+        const { data: { users } } = await sb2.auth.admin.listUsers();
+        const officerUser = (users || []).find(u => {
+          const nm = String(u.user_metadata?.name || '').trim().toLowerCase();
+          return nm === assignedOfficerName.toLowerCase();
+        });
+        if (officerUser?.id) {
+          await awardXPOnce({
+            userId: officerUser.id,
+            eventType: 'registration_received',
+            xp: 10,
+            referenceId: data.id,
+            referenceType: 'registration',
+            note: `Registration received: ${data.name || 'student'}`
+          });
+        }
+      }
+    } catch (xpErr) {
+      console.warn('[XP] registration_received hook error:', xpErr.message);
+    }
+
     res.json({ success: true, registration: data });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });

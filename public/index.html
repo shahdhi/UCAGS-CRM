@@ -359,6 +359,40 @@
                         <canvas id="homeFunnelChart" height="150"></canvas>
                     </div>
                 </div>
+
+                <!-- XP Section -->
+                <div class="dashboard-grid" style="grid-template-columns: 1fr 1.4fr; margin-top: 0;">
+
+                    <!-- XP Leaderboard (admin sees all, officer sees personal card) -->
+                    <div class="dashboard-card admin-only" id="xpLeaderboardCard">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h3 style="margin:0;">⚡ XP Leaderboard</h3>
+                        </div>
+                        <div id="xpLeaderboardList">
+                            <p class="loading">Loading...</p>
+                        </div>
+                    </div>
+
+                    <!-- Officer: personal XP card -->
+                    <div class="dashboard-card officer-only" id="xpPersonalCard">
+                        <h3>⚡ My XP</h3>
+                        <div id="xpPersonalContent">
+                            <p class="loading">Loading...</p>
+                        </div>
+                    </div>
+
+                    <!-- XP Trend Chart -->
+                    <div class="dashboard-card" id="xpTrendCard">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <h3 style="margin:0;">📈 XP Trend</h3>
+                            <div style="display:flex; gap:6px;">
+                                <button id="xpTrend7Btn" class="btn btn-secondary btn-sm" type="button">7d</button>
+                                <button id="xpTrend30Btn" class="btn btn-primary btn-sm" type="button">30d</button>
+                            </div>
+                        </div>
+                        <canvas id="xpTrendChart" height="120"></canvas>
+                    </div>
+                </div>
             </div>
 
             <!-- Contacts View -->
@@ -2214,6 +2248,7 @@
     <script src="/frontend/pages/whatsapp/whatsappInbox.js?v=1"></script>
     <script src="/frontend/pages/whatsapp/waDrawer.js?v=1"></script>
     <script src="/frontend/pages/whatsapp/whatsappPanel.js?v=1"></script>
+    <script src="/frontend/pages/dashboard/xpDashboard.js?v=1"></script>
     
     <!-- Main App (UI + notifications must load before app.js) -->
     <script src="js/ui.js?v=3"></script>

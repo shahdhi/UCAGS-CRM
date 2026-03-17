@@ -154,15 +154,52 @@ router.get('/my', isAuthenticated, async (req, res) => {
 router.put('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, res) => {
   try {
     const officerName = req.user?.name;
+    const officerUserId = req.user?.id;
     const { batchName, sheetName, leadId } = req.params;
+
+    // Capture old status before update for XP hook
+    let oldStatus = null;
+    try {
+      const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
+      const sb = getSupabaseAdmin();
+      const { data: existing } = await sb
+        .from('crm_leads')
+        .select('status, assigned_at')
+        .eq('batch_name', batchName)
+        .eq('sheet_name', sheetName)
+        .eq('sheet_lead_id', String(leadId))
+        .maybeSingle();
+      oldStatus = existing?.status || null;
+    } catch (_) {}
+
     const lead = await svc.updateMyLeadManagement({
       officerName,
-      officerUserId: req.user?.id,
+      officerUserId,
       batchName,
       sheetName,
       sheetLeadId: leadId,
       updates: req.body || {}
     });
+
+    // XP hooks (best-effort, non-blocking)
+    try {
+      const { awardXPOnce } = require('../xp/xpService');
+      const newStatus = lead?.status || req.body?.status;
+
+      // +2 XP: lead contacted (status changed from 'New')
+      if (officerUserId && oldStatus === 'New' && newStatus && newStatus !== 'New') {
+        await awardXPOnce({
+          userId: officerUserId,
+          eventType: 'lead_contacted',
+          xp: 2,
+          referenceId: `${batchName}|${sheetName}|${leadId}`,
+          referenceType: 'lead',
+          note: `Lead contacted (was New → ${newStatus})`
+        });
+      }
+    } catch (xpErr) {
+      console.warn('[XP] lead_contacted hook error:', xpErr.message);
+    }
 
     res.json({ success: true, lead });
   } catch (e) {

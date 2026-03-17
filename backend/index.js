@@ -124,6 +124,9 @@ app.use('/api/attendance', require('./modules/attendance/attendanceRoutes'));
 // Receipt generation (Admin only)
 app.use('/api/receipts', require('./modules/receipts/receiptsRoutes'));
 
+// XP System
+app.use('/api/xp', require('./modules/xp/xpRoutes'));
+
 // WhatsApp (disabled): previously used Meta Cloud API routes.
 // Replaced with simple WhatsApp Web popup panel in the frontend.
 //
@@ -172,6 +175,16 @@ app.use((err, req, res, next) => {
     error: err.message || 'Internal Server Error'
   });
 });
+
+// Start XP cron (overdue follow-up penalty — only in long-running server, not Vercel)
+if (!process.env.VERCEL) {
+  try {
+    const { startXPCron } = require('./modules/xp/xpCron');
+    startXPCron();
+  } catch (e) {
+    console.warn('[XP cron] Failed to start:', e.message);
+  }
+}
 
 // Start server (only when running directly; Vercel imports the app as a handler)
 const PORT = config.server.port;
