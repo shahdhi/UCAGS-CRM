@@ -441,23 +441,20 @@
                     </div>
                 </div>
 
-                <!-- ── Row 2: Lead Funnel + Quick Actions ──────────────────────── -->
+                <!-- ── Row 2: Activity Feed + Quick Actions ──────────────────────── -->
                 <div class="nd-row nd-row-2-1">
-                    <!-- Lead Status / Funnel -->
+                    <!-- Activity Feed (swapped from Row 3) -->
                     <div class="nd-card">
                         <div class="nd-card-header">
-                            <div class="nd-card-title"><i class="fas fa-filter"></i> Lead Pipeline</div>
-                            <div class="nd-pipeline-summary" id="ndPipelineSummary"></div>
+                            <div class="nd-card-title"><i class="fas fa-stream"></i> Activity Feed</div>
+                            <span id="ndActivityFeedViewAll" style="font-size:12px;color:#7c3aed;cursor:pointer;font-weight:500;text-decoration:underline;text-underline-offset:2px;">Scoring</span>
                         </div>
-                        <div id="ndFunnelBars" class="nd-funnel-bars">
-                            <div class="nd-skeleton-bar"></div>
-                            <div class="nd-skeleton-bar"></div>
-                            <div class="nd-skeleton-bar"></div>
-                            <div class="nd-skeleton-bar"></div>
-                            <div class="nd-skeleton-bar"></div>
-                            <div class="nd-skeleton-bar"></div>
+                        <div id="ndActivityFeed" class="nd-activity-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
                         </div>
-                        <div class="nd-funnel-footer" id="ndFunnelFooter"></div>
                     </div>
 
                     <!-- Enrollment Leaderboard -->
@@ -477,20 +474,23 @@
                     </div>
                 </div>
 
-                <!-- ── Row 3: Activity Feed + Targets ──────────────────────────── -->
+                <!-- ── Row 3: Lead Pipeline + Targets ──────────────────────────── -->
                 <div class="nd-row nd-row-2-1">
-                    <!-- Activity Feed (moved from Row 4) -->
+                    <!-- Lead Status / Funnel (swapped from Row 2) -->
                     <div class="nd-card">
                         <div class="nd-card-header">
-                            <div class="nd-card-title"><i class="fas fa-stream"></i> Activity Feed</div>
-                            <span id="ndActivityFeedViewAll" style="font-size:12px;color:#7c3aed;cursor:pointer;font-weight:500;text-decoration:underline;text-underline-offset:2px;">Scoring</span>
+                            <div class="nd-card-title"><i class="fas fa-filter"></i> Lead Pipeline</div>
+                            <div class="nd-pipeline-summary" id="ndPipelineSummary"></div>
                         </div>
-                        <div id="ndActivityFeed" class="nd-activity-list">
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
+                        <div id="ndFunnelBars" class="nd-funnel-bars">
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
                         </div>
+                        <div class="nd-funnel-footer" id="ndFunnelFooter"></div>
                     </div>
 
                     <!-- Targets vs Achievements -->
