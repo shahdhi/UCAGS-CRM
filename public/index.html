@@ -315,7 +315,7 @@
                         </div>
                         <div class="nd-xp-block">
                             <div class="nd-xp-label">
-                                <span>⚡ XP Progress</span>
+                                <span>⚡ XP Progress <button id="ndXpHistoryBtn" title="View XP history" style="background:none;border:none;cursor:pointer;padding:0 4px;color:#a78bfa;font-size:13px;vertical-align:middle;"><i class="fas fa-info-circle"></i></button></span>
                                 <span id="ndXpNumbers">0 / 500</span>
                             </div>
                             <div class="nd-xp-bar-bg">
@@ -519,6 +519,7 @@
                     <div class="nd-card">
                         <div class="nd-card-header">
                             <div class="nd-card-title"><i class="fas fa-stream"></i> Activity Feed</div>
+                            <span id="ndActivityFeedViewAll" style="font-size:12px;color:#7c3aed;cursor:pointer;font-weight:500;text-decoration:underline;text-underline-offset:2px;">View all</span>
                         </div>
                         <div id="ndActivityFeed" class="nd-activity-list">
                             <div class="nd-skeleton-row"></div>
@@ -1561,7 +1562,24 @@
                 </div>
             </div>
 
-            <!-- Modal: Demo Session Reminder -->
+            <!-- Modal: XP Score History -->
+<div id="xpHistoryModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width:560px;">
+        <div class="modal-header">
+            <h3 style="margin:0;font-size:16px;"><i class="fas fa-bolt" style="color:#7c3aed;margin-right:8px;"></i>XP Score History</h3>
+            <button class="modal-close" onclick="closeModal('xpHistoryModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" style="padding:0;">
+            <div id="xpHistoryModalContent" style="max-height:480px;overflow-y:auto;padding:16px;">
+                <div class="nd-skeleton-row"></div>
+                <div class="nd-skeleton-row"></div>
+                <div class="nd-skeleton-row"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Demo Session Reminder -->
             <div id="demoReminderModal" class="modal">
                 <div class="modal-content" style="max-width: 520px;">
                     <div class="modal-header">

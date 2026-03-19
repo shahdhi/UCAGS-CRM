@@ -1299,6 +1299,126 @@
     });
   }
 
+  // ─── XP History Modal ────────────────────────────────────────────────────────
+  async function setupXPHistoryModal() {
+    const openXPModal = async () => {
+      if (window.openModal) window.openModal('xpHistoryModal');
+      else {
+        const m = document.getElementById('xpHistoryModal');
+        if (m) { m.style.display = 'flex'; m.classList.add('active'); }
+      }
+
+      const contentEl = document.getElementById('xpHistoryModalContent');
+      if (!contentEl) return;
+      contentEl.innerHTML = '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:24px;">Loading...</p>';
+
+      try {
+        const headers = await authHeaders();
+        const isAdmin = window.currentUser?.role === 'admin';
+        let events = [];
+
+        if (isAdmin) {
+          const r = await fetch('/api/xp/leaderboard', { headers });
+          const j = await r.json();
+          (j.leaderboard || []).forEach(entry => {
+            (entry.recentEvents || []).forEach(ev => {
+              events.push({ ...ev, officerName: entry.name });
+            });
+          });
+          events.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        } else {
+          const r = await fetch('/api/xp/me', { headers });
+          const j = await r.json();
+          events = j.recentEvents || [];
+        }
+
+        if (!events.length) {
+          contentEl.innerHTML = '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:24px;">No XP events yet.</p>';
+          return;
+        }
+
+        // Group by Sri Lanka date
+        const SL_OFFSET = 330;
+        const grouped = {};
+        events.forEach(ev => {
+          const d = new Date(new Date(ev.created_at).getTime() + SL_OFFSET * 60 * 1000);
+          const key = d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(ev);
+        });
+
+        const META = {
+          lead_contacted:        { label: 'Lead contacted',        icon: '📞' },
+          followup_completed:    { label: 'Follow-up completed',   icon: '✅' },
+          registration_received: { label: 'Registration received', icon: '📝' },
+          payment_received:      { label: 'Payment received',      icon: '💰' },
+          demo_attended:         { label: 'Demo attended',         icon: '🎓' },
+          attendance_on_time:    { label: 'On-time check-in',      icon: '⏰' },
+          checklist_completed:   { label: 'Checklist completed',   icon: '☑️' },
+          report_submitted:      { label: 'Report submitted',      icon: '📊' },
+          lead_responded_fast:   { label: 'Speed bonus (1h)',      icon: '⚡' },
+          followup_overdue:      { label: 'Overdue follow-up',     icon: '⚠️' },
+        };
+
+        contentEl.innerHTML = Object.entries(grouped).map(([date, dayEvents]) => {
+          const dayTotal = dayEvents.reduce((s, e) => s + (e.xp || 0), 0);
+          const dayColor = dayTotal >= 0 ? '#059669' : '#dc2626';
+          const daySign  = dayTotal >= 0 ? '+' : '';
+
+          return `
+            <div style="margin-bottom:16px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;
+                          padding:5px 0;border-bottom:2px solid #f3f4f6;margin-bottom:6px;">
+                <span style="font-size:12px;font-weight:700;color:#374151;">${date}</span>
+                <span style="font-size:12px;font-weight:700;color:${dayColor};">${daySign}${dayTotal} XP</span>
+              </div>
+              ${dayEvents.map(ev => {
+                const meta = META[ev.event_type] || { label: ev.event_type || 'Activity', icon: '•' };
+                const xpColor = (ev.xp || 0) >= 0 ? '#059669' : '#dc2626';
+                const xpSign  = (ev.xp || 0) >= 0 ? '+' : '';
+                const time    = ev.created_at
+                  ? new Date(new Date(ev.created_at).getTime() + SL_OFFSET * 60 * 1000)
+                      .toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                  : '';
+                const officerBit = isAdmin && ev.officerName
+                  ? `<span style="color:#7c3aed;font-weight:600;font-size:11px;margin-right:4px;">${escHtml(ev.officerName)}</span>`
+                  : '';
+                return `
+                  <div style="display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid #f9fafb;font-size:13px;">
+                    <span style="font-size:16px;flex-shrink:0;">${meta.icon}</span>
+                    <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                      ${officerBit}${escHtml(meta.label)}
+                    </span>
+                    <span style="color:#9ca3af;font-size:11px;flex-shrink:0;">${time}</span>
+                    <span style="font-weight:700;color:${xpColor};flex-shrink:0;min-width:52px;text-align:right;">
+                      ${xpSign}${ev.xp} XP
+                    </span>
+                  </div>`;
+              }).join('')}
+            </div>`;
+        }).join('');
+
+      } catch (e) {
+        contentEl.innerHTML = '<p style="color:#ef4444;font-size:13px;text-align:center;padding:16px;">Failed to load XP history.</p>';
+        console.warn('[Dashboard] XP history modal error:', e.message);
+      }
+    };
+
+    // Info icon next to XP Progress label
+    const infoBtn = document.getElementById('ndXpHistoryBtn');
+    if (infoBtn && !infoBtn.__wired) {
+      infoBtn.__wired = true;
+      infoBtn.addEventListener('click', openXPModal);
+    }
+
+    // "View all" text in Activity Feed header
+    const viewAllBtn = document.getElementById('ndActivityFeedViewAll');
+    if (viewAllBtn && !viewAllBtn.__wired) {
+      viewAllBtn.__wired = true;
+      viewAllBtn.addEventListener('click', openXPModal);
+    }
+  }
+
   // â”€â”€â”€ Skeleton â†’ Content helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Replace skeleton placeholders with real content and trigger fade-in animation.
   // Called after each section renders its innerHTML.
@@ -1362,6 +1482,7 @@
       setupTrendButtons();
       setupDateRangeButtons();
       setupAddTask();
+      setupXPHistoryModal();
       __listenersSetUp = true;
     }
 
