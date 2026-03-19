@@ -442,48 +442,6 @@
                 </div>
 
                 <!-- ── Row 2: Lead Funnel + Quick Actions ──────────────────────── -->
-                <div class="nd-row nd-row-equal">
-                    <!-- Activity Feed -->
-                    <div class="nd-card">
-                        <div class="nd-card-header">
-                            <div class="nd-card-title"><i class="fas fa-stream"></i> Activity Feed</div>
-                            <span id="ndActivityFeedViewAll" style="font-size:12px;color:#7c3aed;cursor:pointer;font-weight:500;text-decoration:underline;text-underline-offset:2px;">Scoring</span>
-                        </div>
-                        <div id="ndActivityFeed" class="nd-activity-list">
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                        </div>
-                    </div>
-
-                    <!-- Tasks -->
-                    <div class="nd-card">
-                        <div class="nd-card-header">
-                            <div class="nd-card-title"><i class="fas fa-tasks"></i> My Tasks</div>
-                            <button class="nd-btn-ghost officer-only" id="ndAddTaskBtn" type="button"><i class="fas fa-plus"></i> Add</button>
-                        </div>
-                        <div id="ndTaskAddForm" class="nd-task-add-form" style="display:none;">
-                            <input type="text" id="ndTaskTitle" class="nd-task-input" placeholder="Task title..." />
-                            <input type="datetime-local" id="ndTaskDue" class="nd-task-input" />
-                            <select id="ndTaskPriority" class="nd-task-input">
-                                <option value="low">Low Priority</option>
-                                <option value="medium" selected>Medium Priority</option>
-                                <option value="high">High Priority</option>
-                            </select>
-                            <button class="nd-btn-save" id="ndTaskSaveBtn" type="button">Save Task</button>
-                        </div>
-                        <div id="ndTasksList" class="nd-tasks-list">
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-
-                <!-- ── Row 3: Leaderboard + Targets ──────────────────────────── -->
-                    </div>
-                </div>
-
-
-                <!-- ── Row 4: Activity Feed + Tasks ───────────────────────────── -->
-                <div class="nd-row nd-row-2-1">
                     <!-- Lead Status / Funnel -->
                     <div class="nd-card">
                         <div class="nd-card-header">
@@ -555,6 +513,48 @@
                 </div>
                 <!-- ── Admin Action Center ────────────────────────────────────── -->
                 <!-- ── Admin Action Center ────────────────────────────────────── -->
+                <div class="nd-row nd-row-2-1">
+                <div class="nd-row nd-row-equal">
+                    <!-- Activity Feed -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-stream"></i> Activity Feed</div>
+                            <span id="ndActivityFeedViewAll" style="font-size:12px;color:#7c3aed;cursor:pointer;font-weight:500;text-decoration:underline;text-underline-offset:2px;">Scoring</span>
+                        </div>
+                        <div id="ndActivityFeed" class="nd-activity-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                        </div>
+                    </div>
+
+                    <!-- Tasks -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-tasks"></i> My Tasks</div>
+                            <button class="nd-btn-ghost officer-only" id="ndAddTaskBtn" type="button"><i class="fas fa-plus"></i> Add</button>
+                        </div>
+                        <div id="ndTaskAddForm" class="nd-task-add-form" style="display:none;">
+                            <input type="text" id="ndTaskTitle" class="nd-task-input" placeholder="Task title..." />
+                            <input type="datetime-local" id="ndTaskDue" class="nd-task-input" />
+                            <select id="ndTaskPriority" class="nd-task-input">
+                                <option value="low">Low Priority</option>
+                                <option value="medium" selected>Medium Priority</option>
+                                <option value="high">High Priority</option>
+                            </select>
+                            <button class="nd-btn-save" id="ndTaskSaveBtn" type="button">Save Task</button>
+                        </div>
+                        <div id="ndTasksList" class="nd-tasks-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+
+                <!-- ── Row 3: Leaderboard + Targets ──────────────────────────── -->
+                    </div>
+                </div>
+
+
+                <!-- ── Row 4: Activity Feed + Tasks ───────────────────────────── -->
                 <div class="nd-row nd-row-equal admin-only" id="ndAdminActionRow">
                     <!-- Enrollments Trend -->
                     <div class="nd-card">
