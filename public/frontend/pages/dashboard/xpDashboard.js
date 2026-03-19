@@ -81,9 +81,9 @@
 
   function medal(i) {
     if (i === 0) return '<span style="color:#f59e0b;font-size:16px;">1st</span>';
-    if (i === 1) return '<span style="color:#9ca3af;font-size:16px;">2nd</span>';
-    if (i === 2) return '<span style="color:#cd7f32;font-size:16px;">3rd</span>';
-    return `<span style="color:#6b7280;font-size:12px;">#${i + 1}</span>`;
+    if (i === 0) return '<i class="fas fa-medal" style="color:#f59e0b;font-size:18px;" title="1st"></i>';
+    if (i === 1) return '<i class="fas fa-medal" style="color:#9ca3af;font-size:18px;" title="2nd"></i>';
+    if (i === 2) return '<i class="fas fa-medal" style="color:#cd7f32;font-size:18px;" title="3rd"></i>';
   }
 
   function timeAgo(dateStr) {
