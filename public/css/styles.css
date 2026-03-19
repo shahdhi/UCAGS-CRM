@@ -3042,12 +3042,7 @@ body::-webkit-scrollbar-thumb:hover {
   border-radius: 6px; position: relative; transition: width 0.8s ease;
   min-width: 2%;
 }
-.nd-xp-bar-shimmer {
-  position: absolute; top: 0; left: -60%; width: 50%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-  animation: ndShimmer 2s infinite;
-}
-@keyframes ndShimmer { 0% { left: -60%; } 100% { left: 120%; } }
+/* nd-xp-bar-shimmer removed — static bar only */
 .nd-level-label { font-size: 11px; color: #8B5CF6; font-weight: 600; margin-top: 4px; }
 .nd-profile-right { display: flex; flex-direction: column; gap: 10px; flex: 0 0 auto; min-width: 220px; }
 .nd-officer-filter { display: flex; flex-direction: column; gap: 4px; }

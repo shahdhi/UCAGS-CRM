@@ -313,8 +313,7 @@
                             </div>
                             <div class="nd-xp-bar-bg">
                                 <div class="nd-xp-bar-fill" id="ndXpBarFill" style="width:0%">
-                                    <div class="nd-xp-bar-shimmer"></div>
-                                </div>
+                                        </div>
                             </div>
                             <div class="nd-level-label" id="ndLevelLabel">Level 1</div>
                         </div>
@@ -362,7 +361,7 @@
                         <div class="nd-metric-icon-wrap"><i class="fas fa-calendar-day"></i></div>
                         <div class="nd-metric-body">
                             <div class="nd-metric-value" id="kpiFollowUpsDue">—</div>
-                            <div class="nd-metric-label">Follow-ups Due</div>
+                            <div class="nd-metric-label">Follow-ups Today</div>
                             <div class="nd-metric-trend" id="kpiFollowupsTrend"></div>
                         </div>
                         <div class="nd-metric-glow"></div>
@@ -407,8 +406,8 @@
                                 <button id="xpTrend30Btn" class="nd-toggle-btn active" type="button">30d</button>
                             </div>
                         </div>
-                        <div class="nd-chart-wrap">
-                            <canvas id="xpTrendChart"></canvas>
+                        <div class="nd-chart-wrap" style="position:relative;height:220px;width:100%;">
+                            <canvas id="xpTrendChart" style="display:block;width:100%;height:100%;"></canvas>
                         </div>
                         <div class="nd-xp-chart-stats" id="ndXpChartStats">
                             <div class="nd-xp-stat"><span class="nd-xp-stat-label">Current XP</span><span class="nd-xp-stat-val" id="statCurrentXp">—</span></div>
@@ -417,20 +416,21 @@
                         </div>
                     </div>
 
-                    <!-- Achievements / Badges -->
+                    <!-- XP Leaderboard (moved from Row 3) -->
                     <div class="nd-card">
                         <div class="nd-card-header">
-                            <div class="nd-card-title"><i class="fas fa-medal"></i> Achievements</div>
+                            <div class="nd-card-title"><i class="fas fa-trophy"></i> XP Leaderboard</div>
+                            <div class="nd-leaderboard-badge" id="ndLeaderboardBadge"></div>
                         </div>
-                        <div id="ndAchievements" class="nd-badges-grid">
-                            <div class="nd-skeleton-badge"></div>
-                            <div class="nd-skeleton-badge"></div>
-                            <div class="nd-skeleton-badge"></div>
-                            <div class="nd-skeleton-badge"></div>
-                            <div class="nd-skeleton-badge"></div>
-                            <div class="nd-skeleton-badge"></div>
+                        <div id="xpLeaderboardList" class="nd-leaderboard-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
                         </div>
-                        <div class="nd-badges-summary" id="ndBadgesSummary"></div>
+                        <!-- Officer personal XP summary -->
+                        <div id="xpPersonalContent" class="officer-only nd-personal-xp"></div>
                     </div>
                 </div>
 
@@ -489,21 +489,20 @@
 
                 <!-- ── Row 3: Leaderboard + Targets ──────────────────────────── -->
                 <div class="nd-row nd-row-2-1">
-                    <!-- XP Leaderboard -->
+                    <!-- Achievements / Badges (moved from Row 1) -->
                     <div class="nd-card">
                         <div class="nd-card-header">
-                            <div class="nd-card-title"><i class="fas fa-trophy"></i> XP Leaderboard</div>
-                            <div class="nd-leaderboard-badge" id="ndLeaderboardBadge"></div>
+                            <div class="nd-card-title"><i class="fas fa-medal"></i> Achievements</div>
                         </div>
-                        <div id="xpLeaderboardList" class="nd-leaderboard-list">
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
+                        <div id="ndAchievements" class="nd-badges-grid">
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
                         </div>
-                        <!-- Officer personal XP summary -->
-                        <div id="xpPersonalContent" class="officer-only nd-personal-xp"></div>
+                        <div class="nd-badges-summary" id="ndBadgesSummary"></div>
                     </div>
 
                     <!-- Targets vs Achievements -->

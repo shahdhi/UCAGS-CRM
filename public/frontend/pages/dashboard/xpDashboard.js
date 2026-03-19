@@ -206,7 +206,7 @@
       }
 
       setText('ndXpNumbers', `${totalXp.toLocaleString()} / ${next.toLocaleString()} XP`);
-      setText('ndLevelLabel', `Level ${lvl + 1} — ${LEVEL_NAMES[lvl]}`);
+      setText('ndLevelLabel', `Level ${lvl + 1}`);
 
       const barFill = document.getElementById('ndXpBarFill');
       if (barFill) {
@@ -241,12 +241,13 @@
     setText('kpiConversionRate', convPct);
     setHtml('kpiConversionTrend', '');
 
-    // Follow-ups Due
-    const followUpsDue = kpis.followUpsDue ?? 0;
+    // Follow-ups Today
+    const followUpsDue  = kpis.followUpsDue  ?? 0;
+    const followUpsOverdue = kpis.followUpsOverdue ?? 0;
     setText('kpiFollowUpsDue', followUpsDue.toLocaleString());
     setHtml('kpiFollowupsTrend', followUpsDue > 0
-      ? `<span style="color:#f59e0b;">⚠ ${followUpsDue} today</span>`
-      : '');
+      ? `<span style="color:#f59e0b;">⚠ ${followUpsDue} remaining today${followUpsOverdue > 0 ? ` · <span style="color:#ef4444;">${followUpsOverdue} overdue</span>` : ''}</span>`
+      : `<span style="color:#10b981;">✓ All done for today</span>`);
 
     // Active Leads (new + contacted + follow-up from funnel)
     const activeLeads = (funnel.new || 0) + (funnel.contacted || 0) + (funnel.followUp || 0);
@@ -327,7 +328,7 @@
         },
         options: {
           responsive: true,
-          maintainAspectRatio: true,
+          maintainAspectRatio: false,
           interaction: { mode: 'index', intersect: false },
           plugins: {
             legend: { display: false },
