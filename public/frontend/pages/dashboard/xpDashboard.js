@@ -1,5 +1,5 @@
 ﻿/**
- * New Dashboard â€” xpDashboard.js
+ * New Dashboard - xpDashboard.js
  * Phase 2: Profile, KPI Metrics, XP Trend Chart + Stats Strip, Achievements/Badges
  *
  * Renders all nd- dashboard sections.
@@ -7,7 +7,7 @@
  */
 
 (function () {
-  // â”€â”€â”€ Module State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Module State ---
   let __xpTrendChart = null;
   let __xpTrendDays = 30;
   let __listenersSetUp = false;
@@ -16,34 +16,34 @@
   let __xpData = null;       // from /api/xp/me
   let __analyticsData = null; // from /api/dashboard/analytics
 
-  // â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Constants ---
   const LEVEL_THRESHOLDS = [0, 100, 250, 500, 1000, 2000, 4000, 8000];
   const LEVEL_NAMES = ['Rookie', 'Explorer', 'Achiever', 'Pro', 'Expert', 'Elite', 'Master', 'Legend'];
 
   const EVENT_LABELS = {
-    lead_contacted:        { label: 'Lead contacted',        icon: 'ðŸ“ž' },
-    followup_completed:    { label: 'Follow-up completed',   icon: 'âœ…' },
-    registration_received: { label: 'Registration received', icon: 'ðŸ“' },
-    payment_received:      { label: 'Payment received',      icon: 'ðŸ’°' },
-    demo_attended:         { label: 'Demo attended',         icon: 'ðŸŽ“' },
-    attendance_on_time:    { label: 'On-time check-in',      icon: 'â°' },
-    checklist_completed:   { label: 'Checklist completed',   icon: 'â˜‘ï¸' },
-    report_submitted:      { label: 'Report submitted',      icon: 'ðŸ“Š' },
-    lead_responded_fast:   { label: 'Speed bonus (1h)',      icon: 'âš¡' },
-    followup_overdue:      { label: 'Overdue follow-up',     icon: 'âš ï¸' },
+    lead_contacted:        { label: 'Lead contacted',        icon: '<i class="fas fa-phone"></i>' },
+    followup_completed:    { label: 'Follow-up completed',   icon: '<i class="fas fa-check-circle"></i>' },
+    registration_received: { label: 'Registration received', icon: '<i class="fas fa-file-alt"></i>' },
+    payment_received:      { label: 'Payment received',      icon: '<i class="fas fa-money-bill-wave"></i>' },
+    demo_attended:         { label: 'Demo attended',         icon: '<i class="fas fa-graduation-cap"></i>' },
+    attendance_on_time:    { label: 'On-time check-in',      icon: '<i class="fas fa-clock"></i>' },
+    checklist_completed:   { label: 'Checklist completed',   icon: '<i class="fas fa-check-square"></i>' },
+    report_submitted:      { label: 'Report submitted',      icon: '<i class="fas fa-chart-bar"></i>' },
+    lead_responded_fast:   { label: 'Speed bonus (1h)',      icon: '<i class="fas fa-bolt"></i>' },
+    followup_overdue:      { label: 'Overdue follow-up',     icon: '<i class="fas fa-exclamation-triangle"></i>' },
   };
 
   // Badge definitions: earned when at least one event of that type exists in recentEvents
   const BADGE_DEFS = [
-    { id: 'first_lead',      icon: 'ðŸ“ž', label: 'First Contact',  xp: 10,  desc: 'Contact your first lead',        eventType: 'lead_contacted'        },
-    { id: 'first_followup',  icon: 'âœ…', label: 'Follower',       xp: 15,  desc: 'Complete a follow-up',           eventType: 'followup_completed'    },
-    { id: 'first_reg',       icon: 'ðŸ“', label: 'Registrar',      xp: 50,  desc: 'Receive a registration',         eventType: 'registration_received' },
-    { id: 'speed_bonus',     icon: 'âš¡', label: 'Speed Demon',    xp: 20,  desc: 'Respond within 1 hour',          eventType: 'lead_responded_fast'   },
-    { id: 'first_payment',   icon: 'ðŸ’°', label: 'Closer',         xp: 100, desc: 'Receive a payment',              eventType: 'payment_received'      },
-    { id: 'first_checklist', icon: 'â˜‘ï¸', label: 'Diligent',       xp: 10,  desc: 'Complete your daily checklist',  eventType: 'checklist_completed'   },
+    { id: 'first_lead',      icon: '<i class="fas fa-phone"></i>',               label: 'First Contact', xp: 10,  desc: 'Contact your first lead',       eventType: 'lead_contacted'        },
+    { id: 'first_followup',  icon: '<i class="fas fa-check-circle"></i>',        label: 'Follower',      xp: 15,  desc: 'Complete a follow-up',          eventType: 'followup_completed'    },
+    { id: 'first_reg',       icon: '<i class="fas fa-file-alt"></i>',            label: 'Registrar',     xp: 50,  desc: 'Receive a registration',        eventType: 'registration_received' },
+    { id: 'speed_bonus',     icon: '<i class="fas fa-bolt"></i>',                label: 'Speed Demon',   xp: 20,  desc: 'Respond within 1 hour',         eventType: 'lead_responded_fast'   },
+    { id: 'first_payment',   icon: '<i class="fas fa-money-bill-wave"></i>',     label: 'Closer',        xp: 100, desc: 'Receive a payment',             eventType: 'payment_received'      },
+    { id: 'first_checklist', icon: '<i class="fas fa-check-square"></i>',        label: 'Diligent',      xp: 10,  desc: 'Complete your daily checklist', eventType: 'checklist_completed'   },
   ];
 
-  // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Helpers ---
   function escHtml(s) {
     return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -80,9 +80,9 @@
   }
 
   function medal(i) {
-    if (i === 0) return 'ðŸ¥‡';
-    if (i === 1) return 'ðŸ¥ˆ';
-    if (i === 2) return 'ðŸ¥‰';
+    if (i === 0) return '<span style="color:#f59e0b;font-size:16px;">1st</span>';
+    if (i === 1) return '<span style="color:#9ca3af;font-size:16px;">2nd</span>';
+    if (i === 2) return '<span style="color:#cd7f32;font-size:16px;">3rd</span>';
     return `<span style="color:#6b7280;font-size:12px;">#${i + 1}</span>`;
   }
 
@@ -115,7 +115,7 @@
     if (el) el.innerHTML = val;
   }
 
-  // â”€â”€â”€ Date Range Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Date Range Helpers ---
   function getDateRange() {
     const from = document.getElementById('homeFromDate')?.value || '';
     const to   = document.getElementById('homeToDate')?.value   || '';
@@ -132,7 +132,7 @@
     return `/api/dashboard/analytics${qs ? '?' + qs : ''}`;
   }
 
-  // â”€â”€â”€ Data Fetchers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Data Fetchers ---
   async function fetchXPData() {
     const headers = await authHeaders();
     const r = await fetch('/api/xp/me', { headers });
@@ -159,7 +159,7 @@
     return r.json();
   }
 
-  // â”€â”€â”€ Phase 2a: Profile Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Phase 2a: Profile Section ---
   async function renderProfileSection(xpData) {
     const user = window.currentUser || {};
     const name = user.name || user.email || 'User';
@@ -182,7 +182,7 @@
         const totalXp = xpData.totalXp || 0;
         const lvl     = levelFor(totalXp);
         const pct     = xpProgress(totalXp);
-        const circumference = 175.93; // 2 * Ï€ * 28
+    const circumference = 175.93; // 2 * pi * 28
 
         if (levelNumEl) levelNumEl.textContent = lvl + 1;
 
@@ -246,7 +246,7 @@
     }
   }
 
-  // â”€â”€â”€ Phase 2b: KPI Metrics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Phase 2b: KPI Metrics ---
   function renderKPIMetrics(analyticsData) {
     const kpis = analyticsData?.kpis || {};
     const funnel = analyticsData?.funnel || {};
@@ -267,7 +267,7 @@
     const followUpsOverdue = kpis.followUpsOverdue ?? 0;
     setText('kpiFollowUpsDue', followUpsDue.toLocaleString());
     setHtml('kpiFollowupsTrend', followUpsDue > 0
-      ? `<span style="color:#f59e0b;">âš  ${followUpsDue} remaining today${followUpsOverdue > 0 ? ` Â· <span style="color:#ef4444;">${followUpsOverdue} overdue</span>` : ''}</span>`
+    ? `<span style="color:#f59e0b;"><i class="fas fa-bolt"></i> ${followUpsDue} remaining today${followUpsOverdue > 0 ? ` &middot; <span style="color:#ef4444;">${followUpsOverdue} overdue</span>` : ''}</span>`
       : '');
 
     // Active Leads (new + contacted + follow-up from funnel)
@@ -282,13 +282,13 @@
 
     // Total XP (from xp data cached, or hide)
     const totalXp = __xpData?.totalXp ?? 0;
-    setText('kpiXpTotal', totalXp > 0 ? `âš¡ ${totalXp.toLocaleString()}` : 'â€”');
+    setText('kpiXpTotal', totalXp > 0 ? '<i class="fas fa-bolt" style="color:#7c3aed;"></i> ' + totalXp.toLocaleString() : '--');
     setHtml('kpiXpTrend', __xpData?.rank
       ? `<span style="color:#7c3aed;">#${__xpData.rank}</span>`
       : '');
   }
 
-  // â”€â”€â”€ Phase 2c: XP Trend Chart + Stats Strip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Phase 2c: XP Trend Chart + Stats Strip ---
   async function renderXPTrendChart(days) {
     const canvas = document.getElementById('xpTrendChart');
     if (!canvas) return;
@@ -316,9 +316,9 @@
       const highestDay = data.length ? Math.max(...data) : 0;
       const avgXp = data.length ? Math.round(data.reduce((s, v) => s + v, 0) / data.length) : 0;
 
-      setText('statCurrentXp', currentXp > 0 ? `âš¡ ${currentXp.toLocaleString()}` : 'â€”');
-      setText('statHighestXp', highestDay > 0 ? `${highestDay.toLocaleString()} XP` : 'â€”');
-      setText('statAvgXp', avgXp > 0 ? `${avgXp.toLocaleString()} XP/day` : 'â€”');
+    setText('statCurrentXp', currentXp > 0 ? '<i class="fas fa-bolt" style="color:#7c3aed;"></i> ' + currentXp.toLocaleString() : '--');
+    setText('statHighestXp', highestDay > 0 ? highestDay.toLocaleString() + ' XP' : '--');
+    setText('statAvgXp', avgXp > 0 ? avgXp.toLocaleString() + ' XP/day' : '--');
 
       // Destroy existing chart
       if (__xpTrendChart) {
@@ -359,7 +359,7 @@
               bodyColor: '#f9fafb',
               padding: 10,
               callbacks: {
-                label: ctx => `âš¡ ${ctx.parsed.y} XP`
+            label: ctx => '<i class="fas fa-bolt"></i> ' + ctx.parsed.y + ' XP'
               }
             }
           },
@@ -378,13 +378,13 @@
       });
     } catch (e) {
       console.warn('[Dashboard] XP trend chart error:', e.message);
-      setText('statCurrentXp', 'â€”');
-      setText('statHighestXp', 'â€”');
-      setText('statAvgXp', 'â€”');
+      setText('statCurrentXp', '--');
+      setText('statHighestXp', '--');
+      setText('statAvgXp', '--');
     }
   }
 
-  // â”€â”€â”€ Phase 2d: Achievements / Badges â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Phase 2d: Achievements / Badges ---
   function renderAchievements(xpData) {
     const achievementsEl = document.getElementById('ndAchievements');
     const summaryEl      = document.getElementById('ndBadgesSummary');
@@ -428,12 +428,12 @@
       summaryEl.innerHTML = `
         <span style="font-weight:600;color:#7c3aed;">${earned}</span>
         <span style="color:#6b7280;">/ ${total} badges earned</span>
-        ${earned === total ? ' ðŸ†' : ''}
+        ${earned === total ? ' <i class="fas fa-trophy" style="color:#f59e0b;"></i>' : ''}
       `;
     }
   }
 
-  // â”€â”€â”€ Trend Button Listeners â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Trend Button Listeners ---
   function setupTrendButtons() {
     const btn7  = document.getElementById('xpTrend7Btn');
     const btn30 = document.getElementById('xpTrend30Btn');
@@ -449,16 +449,16 @@
     });
   }
 
-  // â”€â”€â”€ Date Range Listeners â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Date Range Listeners ---
   // NOTE: homeApplyRangeBtn and homeThisMonthBtn are already wired in app.js
-  // loadDashboard() â€” which calls loadNewDashboard() â€” so we do NOT re-bind
+  // loadDashboard() - which calls loadNewDashboard() - so we do NOT re-bind
   // them here to avoid double-firing. This function is intentionally a no-op.
   function setupDateRangeButtons() {
     // No-op: app.js loadDashboard() owns these buttons and calls loadNewDashboard()
     // on change, which re-fetches all data with the updated date range.
   }
 
-  // â”€â”€â”€ Reload Analytics-dependent sections â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Reload Analytics-dependent sections ---
   async function reloadAnalyticsSection(officerId) {
     try {
       __analyticsData = await fetchAnalytics(officerId);
@@ -478,7 +478,7 @@
     }
   }
 
-  // â”€â”€â”€ Phase 3a: Lead Pipeline Funnel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Phase 3a: Lead Pipeline Funnel ---
   function renderLeadPipeline(analyticsData) {
     const funnelEl   = document.getElementById('ndFunnelBars');
     const summaryEl  = document.getElementById('ndPipelineSummary');
@@ -519,22 +519,22 @@
       `;
     }).join('');
 
-    // Footer: conversion rate from new â†’ enrolled
+    // Footer: conversion rate from new to enrolled
     if (footerEl) {
       const newLeads = funnel.new || 0;
       const enrolled = funnel.confirmedPayments || 0;
       const rate = newLeads > 0 ? ((enrolled / newLeads) * 100).toFixed(1) : '0.0';
       footerEl.innerHTML = `
         <span style="font-size:12px;color:#6b7280;">
-          New â†’ Enrolled conversion:
+            New &rarr; Enrolled conversion:
           <strong style="color:#7c3aed;">${rate}%</strong>
-          &nbsp;Â·&nbsp; ${enrolled} of ${newLeads} leads enrolled
+            &nbsp;&middot;&nbsp;  of  leads enrolled
         </span>
       `;
     }
   }
 
-  // â”€â”€â”€ Phase 3b: XP Leaderboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Phase 3b: XP Leaderboard ---
   async function renderLeaderboard(xpLeaderboard) {
     const listEl  = document.getElementById('xpLeaderboardList');
     const badgeEl = document.getElementById('ndLeaderboardBadge');
@@ -577,7 +577,7 @@
               ${initials(entry.name)}
             </div>
             <span class="nd-lb-name" style="font-weight:${fw};">${escHtml(entry.name)}${isMe ? ' <span style="color:#7c3aed;font-size:11px;">(you)</span>' : ''}</span>
-            <span class="nd-lb-xp">âš¡ ${(entry.totalXp || 0).toLocaleString()}</span>
+            <span class="nd-lb-xp"><i class="fas fa-bolt" style="color:#7c3aed;"></i> ${(entry.totalXp || 0).toLocaleString()}</span>
           </div>
         `;
       }).join('');
@@ -587,7 +587,7 @@
     }
   }
 
-  // â”€â”€â”€ Phase 3c: Targets vs Achievements â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Phase 3c: Targets vs Achievements ---
   function renderTargets(analyticsData, officerName) {
     const targetsEl = document.getElementById('ndTargets');
     const overallEl = document.getElementById('ndTargetsOverall');
@@ -622,7 +622,7 @@
     const targets = [
       {
         label:    'Enrollments',
-        icon:     'ðŸŽ“',
+      icon:     '<i class="fas fa-graduation-cap"></i>',
         value:    enrollments,
         target:   TARGETS.enrollments,
         format:   v => v.toLocaleString(),
@@ -630,17 +630,17 @@
       },
       {
         label:    'Follow-ups Due',
-        icon:     'ðŸ“…',
+      icon:     '<i class="fas fa-calendar-day"></i>',
         value:    followupsDue,
         target:   TARGETS.followups,
         format:   v => v.toLocaleString(),
         barClass: 'nd-target-bar-fill nd-target-bar-amber',
-        // For follow-ups, lower is better â€” invert bar
+      // For follow-ups, lower is better - invert bar
         invert:   true,
       },
       {
         label:    'Conversion Rate',
-        icon:     'ðŸ“ˆ',
+      icon:     '<i class="fas fa-chart-line"></i>',
         value:    Math.round(conversion * 100),
         target:   Math.round(TARGETS.conversion * 100),
         format:   v => `${v}%`,
@@ -667,7 +667,7 @@
           <div class="nd-target-bar-bg">
             <div class="${t.barClass}" style="width:${pct}%;transition:width 0.6s ease;"></div>
           </div>
-          <div style="font-size:11px;color:#9ca3af;margin-top:3px;">${pct}% of target${achieved ? ' âœ…' : ''}</div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:3px;">${pct}% of target${achieved ? ' <i class="fas fa-check-circle" style="color:#10b981;"></i>' : ''}</div>
         </div>
       `;
     }).join('');
@@ -692,7 +692,7 @@
     }
   }
 
-  // â”€â”€â”€ Targets Officer Selector (Admin) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Targets Officer Selector (Admin) ---
   function setupTargetsOfficerSelector(leaderboard) {
     const sel = document.getElementById('ndTargetsOfficerSelect');
     if (!sel) return;
@@ -718,7 +718,7 @@
     }
   }
 
-  // â”€â”€â”€ Phase 4a: Activity Feed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Phase 4a: Activity Feed ---
   async function renderActivityFeed() {
     const feedEl = document.getElementById('ndActivityFeed');
     if (!feedEl) return;
@@ -754,18 +754,18 @@
       if (!events.length) {
         feedEl.innerHTML = `
           <div style="text-align:center;padding:24px 0;color:#9ca3af;font-size:13px;">
-            <div style="font-size:28px;margin-bottom:8px;">ðŸ“­</div>
+            <div style="font-size:28px;margin-bottom:8px;"><i class="fas fa-inbox" style="color:#d1d5db;"></i></div>
             No recent activity yet.
           </div>`;
         return;
       }
 
       feedEl.innerHTML = events.map(ev => {
-        const meta = EVENT_LABELS[ev.event_type] || { label: ev.event_type || 'Activity', icon: 'â€¢' };
+      const meta = EVENT_LABELS[ev.event_type] || { label: ev.event_type || 'Activity', icon: '<i class="fas fa-circle"></i>' };
         const xpColor = (ev.xp ?? 0) >= 0 ? '#059669' : '#dc2626';
         const xpText  = (ev.xp ?? 0) >= 0 ? `+${ev.xp}` : `${ev.xp}`;
         const when    = timeAgo(ev.created_at);
-        const name    = isAdmin && ev.officerName ? `<span style="color:#7c3aed;font-weight:600;">${escHtml(ev.officerName)}</span> Â· ` : '';
+      const name    = isAdmin && ev.officerName ? `<span style="color:#7c3aed;font-weight:600;">${escHtml(ev.officerName)}</span> &middot; ` : '';
         return `
           <div class="nd-activity-item">
             <div class="nd-activity-icon">${meta.icon}</div>
@@ -783,7 +783,7 @@
     }
   }
 
-  // â”€â”€â”€ Phase 4b: Tasks List â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Phase 4b: Tasks List ---
   async function renderTasksList() {
     const listEl = document.getElementById('ndTasksList');
     if (!listEl) return;
@@ -799,7 +799,7 @@
       if (!tasks.length) {
         listEl.innerHTML = `
           <div style="text-align:center;padding:20px 0;color:#9ca3af;font-size:13px;">
-            <div style="font-size:24px;margin-bottom:6px;">âœ…</div>
+            <div style="font-size:24px;margin-bottom:6px;"><i class="fas fa-check-circle" style="color:#10b981;"></i></div>
             No tasks yet.
           </div>`;
         return;
@@ -828,7 +828,7 @@
             <div style="flex:1;min-width:0;">
               <div class="nd-task-title">${escHtml(task.title)}</div>
               ${dueLabel ? `<div class="nd-task-due" style="color:${isOverdue ? '#ef4444' : '#9ca3af'};">
-                ${isOverdue ? 'âš  ' : ''}${dueLabel}
+              ${isOverdue ? '<i class="fas fa-exclamation-triangle" style="color:#ef4444;"></i> ' : ''}${dueLabel}
               </div>` : ''}
             </div>
             <span class="nd-priority-badge nd-priority-${priClass}">${priLabel}</span>
@@ -860,7 +860,7 @@
     }
   };
 
-  // ─── Phase 4c: Enrollment Leaderboard (replaces Quick Actions) ───────────────
+  // --- Phase 4c: Enrollment Leaderboard (replaces Quick Actions) ---
   let __enrollLeaderboardData = []; // cache for batch filtering
 
   async function renderEnrollLeaderboard(batchFilter) {
@@ -912,7 +912,7 @@
               ${escHtml(entry.officer)}${isMe ? ' <span style="color:#7c3aed;font-size:11px;">(you)</span>' : ''}
             </span>
             <span style="display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;gap:1px;">
-              <span style="font-weight:700;color:#7c3aed;font-size:13px;">🎓 ${entry.count}</span>
+            <span style="font-weight:700;color:#7c3aed;font-size:13px;"><i class="fas fa-graduation-cap"></i> ${entry.count}</span>
               <span style="font-size:11px;color:#9ca3af;">${convPct} conv.</span>
             </span>
           </div>`;
@@ -961,10 +961,10 @@
   }
 
   function setupQuickActions() {
-    // Quick actions removed — replaced by enrollment leaderboard
+  // Quick actions removed - replaced by enrollment leaderboard
   }
 
-  // â”€â”€â”€ Phase 4d: Add Task Form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Phase 4d: Add Task Form ---
   function setupAddTask() {
     const addBtn  = document.getElementById('ndAddTaskBtn');
     const form    = document.getElementById('ndTaskAddForm');
@@ -1028,26 +1028,34 @@
     }
   }
 
-  // â”€â”€â”€ Phase 5a: Populate Officer Selectors (Admin) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Phase 5a: Populate Officer Selectors (Admin) ---
   async function populateOfficerSelectors(leaderboard) {
-    // ndOfficerSelect â€” profile section filter (reload all metrics for officer)
+    // ndOfficerSelect - profile section filter
     const mainSel    = document.getElementById('ndOfficerSelect');
-    // ndTargetsOfficerSelect â€” already handled in Phase 3 setupTargetsOfficerSelector
+    // ndTargetsOfficerSelect - handled in Phase 3
     // Both selectors get the same officer list derived from the analytics leaderboard
 
     if (!mainSel) return;
 
-    // Always repopulate â€” clear all options except the first placeholder
+    // Always repopulate - clear all options except first placeholder
+    // Always repopulate - clear all options except first placeholder
     while (mainSel.options.length > 1) mainSel.remove(1);
 
-    leaderboard.forEach(entry => {
-      if (!entry.officer || entry.officer === 'Unassigned') return;
+    // Build officer set: analytics leaderboard + XP leaderboard (all active officers)
+    const officers = new Set();
+    (leaderboard || []).forEach(e => { if (e.officer && e.officer !== 'Unassigned') officers.add(e.officer); });
+    try {
+      const h = await authHeaders();
+      const r = await fetch('/api/xp/leaderboard', { headers: h });
+      const j = await r.json();
+      (j.leaderboard || []).forEach(e => { if (e.name && e.name !== 'Unassigned') officers.add(e.name); });
+    } catch(e) { /* ignore */ }
+
+    [...officers].sort((a,b) => a.localeCompare(b)).forEach(name => {
       const opt = document.createElement('option');
-      opt.value = entry.officer;
-      opt.textContent = entry.officer;
+      opt.value = name; opt.textContent = name;
       mainSel.appendChild(opt);
     });
-
     // Wire change handler only once
     if (!mainSel.__wired) {
       mainSel.__wired = true;
@@ -1093,7 +1101,7 @@
     }
   }
 
-  // â”€â”€â”€ Phase 5b: Admin Action Center â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Phase 5b: Admin Action Center ---
   async function renderAdminActionCenter(analyticsData) {
     const acEl = document.getElementById('homeActionCenter');
     if (!acEl) return;
@@ -1121,7 +1129,7 @@
 
     const items = [
       {
-        icon: 'âš ï¸',
+      icon: '<i class="fas fa-exclamation-triangle"></i>',
         iconClass: 'nd-action-amber',
         title: 'Overdue Follow-ups',
         sub: 'Leads with missed follow-up dates',
@@ -1133,7 +1141,7 @@
         btnId: 'acOverdueFollowUpsBtn',
       },
       {
-        icon: 'ðŸ’³',
+      icon: '<i class="fas fa-credit-card"></i>',
         iconClass: 'nd-action-purple',
         title: 'Payments to Confirm',
         sub: 'Payment received but not confirmed',
@@ -1145,7 +1153,7 @@
         btnId: 'acConfirmPaymentsBtn',
       },
       {
-        icon: 'ðŸŽ“',
+      icon: '<i class="fas fa-graduation-cap"></i>',
         iconClass: 'nd-action-green',
         title: 'To Be Enrolled',
         sub: 'Payment confirmed but not enrolled',
@@ -1157,7 +1165,7 @@
         btnId: 'acToEnrollBtn',
       },
       {
-        icon: 'ðŸ“‹',
+      icon: '<i class="fas fa-clipboard-list"></i>',
         iconClass: 'nd-action-blue',
         title: 'Missing Assignment',
         sub: 'Registrations without an officer',
@@ -1169,7 +1177,7 @@
         btnId: 'acMissingAssignBtn',
       },
       {
-        icon: 'ðŸ–ï¸',
+      icon: '<i class="fas fa-umbrella-beach"></i>',
         iconClass: 'nd-action-rose',
         title: 'Leave Requests',
         sub: 'Pending staff leave approvals',
@@ -1220,7 +1228,7 @@
     });
   }
 
-  // â”€â”€â”€ Phase 5c: Enrollments per Day Chart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Phase 5c: Enrollments per Day Chart ---
   function renderEnrollmentsChart(analyticsData, officerFilter) {
     const isAdmin = window.currentUser?.role === 'admin';
 
@@ -1299,127 +1307,81 @@
     });
   }
 
-  // ─── XP History Modal ────────────────────────────────────────────────────────
+  // --- XP History Modal ---
+  // "Scoring" link in activity feed + info icon in XP bar: shows scoring rules table
+  // "ndXpHistoryBtn" (info icon) shows event history for officer, scoring rules for admin
+  function buildScoringRulesHTML() {
+    const rules = [
+      { icon: '<i class="fas fa-phone"></i>',                   label: 'Lead contacted',        xp: '+2',   trigger: 'Lead status changed from New' },
+      { icon: '<i class="fas fa-bolt"></i>',                    label: 'Speed bonus (1h)',       xp: '+2',   trigger: 'First follow-up within 1 hour of assignment' },
+      { icon: '<i class="fas fa-check-circle"></i>',            label: 'Follow-up completed',   xp: '+3',   trigger: 'Follow-up marked as completed' },
+      { icon: '<i class="fas fa-graduation-cap"></i>',          label: 'Demo attended',         xp: '+3',   trigger: 'Demo session marked as Attended' },
+      { icon: '<i class="fas fa-chart-bar"></i>',               label: 'Report submitted',      xp: '+3',   trigger: 'Daily report slot submitted' },
+      { icon: '<i class="fas fa-clock"></i>',                   label: 'On-time check-in',      xp: '+1',   trigger: 'Check-in recorded before 10:00 AM' },
+      { icon: '<i class="fas fa-check-square"></i>',            label: 'Checklist completed',   xp: '+2',   trigger: 'Daily checklist saved for the day' },
+      { icon: '<i class="fas fa-file-alt"></i>',                label: 'Registration received', xp: '+10',  trigger: 'New registration submission received' },
+      { icon: '<i class="fas fa-money-bill-wave"></i>',         label: 'Payment received',      xp: '+20',  trigger: 'Payment confirmed / received' },
+      { icon: '<i class="fas fa-exclamation-triangle"></i>',    label: 'Overdue follow-up',     xp: '-2',   trigger: 'Follow-up still open 1+ day past scheduled date (daily)' },
+    ];
+    return `
+      <div style="padding:16px;">
+        <p style="font-size:13px;color:#6b7280;margin:0 0 14px;">XP is awarded automatically based on your actions. Here is how it works:</p>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f9fafb;">
+              <th style="text-align:left;padding:8px 10px;color:#374151;font-weight:600;border-bottom:2px solid #e5e7eb;">Action</th>
+              <th style="text-align:center;padding:8px 10px;color:#374151;font-weight:600;border-bottom:2px solid #e5e7eb;">XP</th>
+              <th style="text-align:left;padding:8px 10px;color:#374151;font-weight:600;border-bottom:2px solid #e5e7eb;">When</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rules.map((r, i) => `
+              <tr style="background:${i % 2 === 0 ? '#fff' : '#fafafa'};">
+                <td style="padding:9px 10px;border-bottom:1px solid #f3f4f6;">
+                  <span style="color:#7c3aed;margin-right:8px;">${r.icon}</span>${r.label}
+                </td>
+                <td style="padding:9px 10px;border-bottom:1px solid #f3f4f6;text-align:center;font-weight:700;color:${r.xp.startsWith('-') ? '#dc2626' : '#059669'};">${r.xp} XP</td>
+                <td style="padding:9px 10px;border-bottom:1px solid #f3f4f6;color:#6b7280;">${r.trigger}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+        <p style="font-size:11px;color:#9ca3af;margin:12px 0 0;"><i class="fas fa-info-circle"></i> XP never goes below 0. Each action is rewarded only once per unique event.</p>
+      </div>`;
+  }
+
   async function setupXPHistoryModal() {
-    const openXPModal = async () => {
+    // Scoring rules modal (both info icon and "Scoring" link open this)
+    const openScoringModal = () => {
       if (window.openModal) window.openModal('xpHistoryModal');
       else {
         const m = document.getElementById('xpHistoryModal');
         if (m) { m.style.display = 'flex'; m.classList.add('active'); }
       }
+      // Update modal title
+      const title = document.querySelector('#xpHistoryModal .modal-header h3');
+      if (title) title.innerHTML = '<i class="fas fa-star" style="color:#7c3aed;margin-right:8px;"></i>XP Scoring Rules';
 
       const contentEl = document.getElementById('xpHistoryModalContent');
-      if (!contentEl) return;
-      contentEl.innerHTML = '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:24px;">Loading...</p>';
-
-      try {
-        const headers = await authHeaders();
-        const isAdmin = window.currentUser?.role === 'admin';
-        let events = [];
-
-        if (isAdmin) {
-          const r = await fetch('/api/xp/leaderboard', { headers });
-          const j = await r.json();
-          (j.leaderboard || []).forEach(entry => {
-            (entry.recentEvents || []).forEach(ev => {
-              events.push({ ...ev, officerName: entry.name });
-            });
-          });
-          events.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        } else {
-          const r = await fetch('/api/xp/me', { headers });
-          const j = await r.json();
-          events = j.recentEvents || [];
-        }
-
-        if (!events.length) {
-          contentEl.innerHTML = '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:24px;">No XP events yet.</p>';
-          return;
-        }
-
-        // Group by Sri Lanka date
-        const SL_OFFSET = 330;
-        const grouped = {};
-        events.forEach(ev => {
-          const d = new Date(new Date(ev.created_at).getTime() + SL_OFFSET * 60 * 1000);
-          const key = d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
-          if (!grouped[key]) grouped[key] = [];
-          grouped[key].push(ev);
-        });
-
-        const META = {
-          lead_contacted:        { label: 'Lead contacted',        icon: '📞' },
-          followup_completed:    { label: 'Follow-up completed',   icon: '✅' },
-          registration_received: { label: 'Registration received', icon: '📝' },
-          payment_received:      { label: 'Payment received',      icon: '💰' },
-          demo_attended:         { label: 'Demo attended',         icon: '🎓' },
-          attendance_on_time:    { label: 'On-time check-in',      icon: '⏰' },
-          checklist_completed:   { label: 'Checklist completed',   icon: '☑️' },
-          report_submitted:      { label: 'Report submitted',      icon: '📊' },
-          lead_responded_fast:   { label: 'Speed bonus (1h)',      icon: '⚡' },
-          followup_overdue:      { label: 'Overdue follow-up',     icon: '⚠️' },
-        };
-
-        contentEl.innerHTML = Object.entries(grouped).map(([date, dayEvents]) => {
-          const dayTotal = dayEvents.reduce((s, e) => s + (e.xp || 0), 0);
-          const dayColor = dayTotal >= 0 ? '#059669' : '#dc2626';
-          const daySign  = dayTotal >= 0 ? '+' : '';
-
-          return `
-            <div style="margin-bottom:16px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;
-                          padding:5px 0;border-bottom:2px solid #f3f4f6;margin-bottom:6px;">
-                <span style="font-size:12px;font-weight:700;color:#374151;">${date}</span>
-                <span style="font-size:12px;font-weight:700;color:${dayColor};">${daySign}${dayTotal} XP</span>
-              </div>
-              ${dayEvents.map(ev => {
-                const meta = META[ev.event_type] || { label: ev.event_type || 'Activity', icon: '•' };
-                const xpColor = (ev.xp || 0) >= 0 ? '#059669' : '#dc2626';
-                const xpSign  = (ev.xp || 0) >= 0 ? '+' : '';
-                const time    = ev.created_at
-                  ? new Date(new Date(ev.created_at).getTime() + SL_OFFSET * 60 * 1000)
-                      .toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-                  : '';
-                const officerBit = isAdmin && ev.officerName
-                  ? `<span style="color:#7c3aed;font-weight:600;font-size:11px;margin-right:4px;">${escHtml(ev.officerName)}</span>`
-                  : '';
-                return `
-                  <div style="display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid #f9fafb;font-size:13px;">
-                    <span style="font-size:16px;flex-shrink:0;">${meta.icon}</span>
-                    <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                      ${officerBit}${escHtml(meta.label)}
-                    </span>
-                    <span style="color:#9ca3af;font-size:11px;flex-shrink:0;">${time}</span>
-                    <span style="font-weight:700;color:${xpColor};flex-shrink:0;min-width:52px;text-align:right;">
-                      ${xpSign}${ev.xp} XP
-                    </span>
-                  </div>`;
-              }).join('')}
-            </div>`;
-        }).join('');
-
-      } catch (e) {
-        contentEl.innerHTML = '<p style="color:#ef4444;font-size:13px;text-align:center;padding:16px;">Failed to load XP history.</p>';
-        console.warn('[Dashboard] XP history modal error:', e.message);
-      }
+      if (contentEl) contentEl.innerHTML = buildScoringRulesHTML();
     };
 
-    // Info icon next to XP Progress label
+    // Info icon next to XP Progress
     const infoBtn = document.getElementById('ndXpHistoryBtn');
     if (infoBtn && !infoBtn.__wired) {
       infoBtn.__wired = true;
-      infoBtn.addEventListener('click', openXPModal);
+      infoBtn.addEventListener('click', openScoringModal);
     }
 
-    // "View all" text in Activity Feed header
-    const viewAllBtn = document.getElementById('ndActivityFeedViewAll');
-    if (viewAllBtn && !viewAllBtn.__wired) {
-      viewAllBtn.__wired = true;
-      viewAllBtn.addEventListener('click', openXPModal);
+    // "Scoring" text in Activity Feed header
+    const scoringBtn = document.getElementById('ndActivityFeedViewAll');
+    if (scoringBtn && !scoringBtn.__wired) {
+      scoringBtn.__wired = true;
+      scoringBtn.addEventListener('click', openScoringModal);
     }
   }
 
-  // â”€â”€â”€ Skeleton â†’ Content helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  // --- Skeleton to Content helpers ---
   // Replace skeleton placeholders with real content and trigger fade-in animation.
   // Called after each section renders its innerHTML.
   function clearSkeletons(containerIds) {
@@ -1435,7 +1397,7 @@
     });
   }
 
-  // â”€â”€â”€ Admin / Officer row visibility â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Admin / Officer row visibility ---
   function applyRoleVisibility() {
     const isAdmin = window.currentUser?.role === 'admin';
     const adminRow   = document.getElementById('ndAdminActionRow');
@@ -1468,11 +1430,11 @@
     }
   }
 
-  // â”€â”€â”€ Public Entry Point â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Public Entry Point ---
   /**
    * window.loadNewDashboard()
    * Called from app.js loadDashboard() after homeView is shown.
-   * Safe to call multiple times â€” reloads fresh data each time.
+   * Safe to call multiple times - reloads fresh data each time.
    */
   window.loadNewDashboard = async function () {
     const isAdmin = window.currentUser?.role === 'admin';
