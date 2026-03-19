@@ -169,7 +169,7 @@ router.put('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, res
         .eq('sheet_name', sheetName)
         .eq('sheet_lead_id', String(leadId))
         .maybeSingle();
-      oldStatus = existing?.status || null;
+      oldStatus = existing?.status || 'New'; // treat null/empty as 'New' (matches rowToLead behaviour)
     } catch (_) {}
 
     const lead = await svc.updateMyLeadManagement({
