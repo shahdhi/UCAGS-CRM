@@ -56,21 +56,21 @@ router.post('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, re
     const { sequence, ...payload } = req.body || {};
 
     // Capture previous state for XP dedupe
-    let prevActualAt = null;
+    let prevRow = null;
     try {
       const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
       const sb = getSupabaseAdmin();
       if (sequence) {
         const { data: existing } = await sb
           .from('crm_lead_followups')
-          .select('actual_at, created_at')
+          .select('actual_at, answered, created_at')
           .eq('officer_user_id', officerUserId)
           .eq('batch_name', batchName)
           .eq('sheet_name', sheetName)
           .eq('sheet_lead_id', String(leadId))
           .eq('sequence', Number(sequence))
           .maybeSingle();
-        prevActualAt = existing?.actual_at || null;
+        prevRow = existing || null;
       }
     } catch (_) {}
 
@@ -88,10 +88,11 @@ router.post('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, re
     try {
       const { awardXPOnce, awardXPSafe } = require('../xp/xpService');
 
-      // +2 XP: followup completed (actual_at newly set AND answered = yes)
-      const newActualAt = row?.actual_at || payload?.actualAt || payload?.actual_at;
-      const answeredYes = row?.answered === true;
-      if (officerUserId && newActualAt && !prevActualAt && answeredYes) {
+      // +2 XP: followup completed (actual_at is set AND answered newly became yes)
+      const hasActualAt = !!row?.actual_at;
+      const prevAnsweredYes = prevRow?.answered === true;
+      const newAnsweredYes = row?.answered === true;
+      if (officerUserId && hasActualAt && newAnsweredYes && !prevAnsweredYes) {
         await awardXPOnce({
           userId: officerUserId,
           eventType: 'followup_completed',
@@ -103,7 +104,7 @@ router.post('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, re
       }
 
       // +2 XP: speed bonus — first followup within 1h of lead being assigned
-      if (officerUserId && newActualAt && Number(sequence) === 1 && row?.id) {
+      if (officerUserId && row?.actual_at && Number(sequence) === 1 && row?.id) {
         try {
           const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
           const sb = getSupabaseAdmin();
