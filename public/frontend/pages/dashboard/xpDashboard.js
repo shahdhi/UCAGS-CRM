@@ -80,7 +80,7 @@
   }
 
   function medal(i) {
-  function medal(i) {
+
     if (i === 0) return '<i class="fas fa-medal" style="color:#f59e0b;font-size:18px;" title="1st"></i>';
     if (i === 1) return '<i class="fas fa-medal" style="color:#9ca3af;font-size:18px;" title="2nd"></i>';
     if (i === 2) return '<i class="fas fa-medal" style="color:#cd7f32;font-size:18px;" title="3rd"></i>';
