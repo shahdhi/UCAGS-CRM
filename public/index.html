@@ -477,22 +477,20 @@
                     </div>
                 </div>
 
-                <!-- ── Row 3: Leaderboard + Targets ──────────────────────────── -->
+                <!-- ── Row 3: Activity Feed + Targets ──────────────────────────── -->
                 <div class="nd-row nd-row-2-1">
-                    <!-- Achievements / Badges (moved from Row 1) -->
+                    <!-- Activity Feed (moved from Row 4) -->
                     <div class="nd-card">
                         <div class="nd-card-header">
-                            <div class="nd-card-title"><i class="fas fa-medal"></i> Achievements</div>
+                            <div class="nd-card-title"><i class="fas fa-stream"></i> Activity Feed</div>
+                            <span id="ndActivityFeedViewAll" style="font-size:12px;color:#7c3aed;cursor:pointer;font-weight:500;text-decoration:underline;text-underline-offset:2px;">Scoring</span>
                         </div>
-                        <div id="ndAchievements" class="nd-badges-grid">
-                            <div class="nd-skeleton-badge"></div>
-                            <div class="nd-skeleton-badge"></div>
-                            <div class="nd-skeleton-badge"></div>
-                            <div class="nd-skeleton-badge"></div>
-                            <div class="nd-skeleton-badge"></div>
-                            <div class="nd-skeleton-badge"></div>
+                        <div id="ndActivityFeed" class="nd-activity-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
                         </div>
-                        <div class="nd-badges-summary" id="ndBadgesSummary"></div>
                     </div>
 
                     <!-- Targets vs Achievements -->
@@ -513,20 +511,22 @@
                     </div>
                 </div>
 
-                <!-- ── Row 4: Activity Feed + Tasks ───────────────────────────── -->
+                <!-- ── Row 4: Achievements + Tasks ───────────────────────────── -->
                 <div class="nd-row nd-row-equal">
-                    <!-- Activity Feed -->
+                    <!-- Achievements / Badges (moved from Row 3) -->
                     <div class="nd-card">
                         <div class="nd-card-header">
-                            <div class="nd-card-title"><i class="fas fa-stream"></i> Activity Feed</div>
-                            <span id="ndActivityFeedViewAll" style="font-size:12px;color:#7c3aed;cursor:pointer;font-weight:500;text-decoration:underline;text-underline-offset:2px;">Scoring</span>
+                            <div class="nd-card-title"><i class="fas fa-medal"></i> Achievements</div>
                         </div>
-                        <div id="ndActivityFeed" class="nd-activity-list">
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
+                        <div id="ndAchievements" class="nd-badges-grid">
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
                         </div>
+                        <div class="nd-badges-summary" id="ndBadgesSummary"></div>
                     </div>
 
                     <!-- Tasks -->
