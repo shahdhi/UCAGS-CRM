@@ -1325,14 +1325,14 @@
     const rules = [
       { icon: '<i class="fas fa-phone"></i>',                   label: 'Lead contacted',        xp: '+2',   trigger: 'Lead status changed from New' },
       { icon: '<i class="fas fa-bolt"></i>',                    label: 'Speed bonus (1h)',       xp: '+2',   trigger: 'First follow-up within 1 hour of assignment' },
-      { icon: '<i class="fas fa-check-circle"></i>',            label: 'Follow-up completed',   xp: '+3',   trigger: 'Follow-up marked as completed' },
-      { icon: '<i class="fas fa-graduation-cap"></i>',          label: 'Demo attended',         xp: '+3',   trigger: 'Demo session marked as Attended' },
-      { icon: '<i class="fas fa-chart-bar"></i>',               label: 'Report submitted',      xp: '+3',   trigger: 'Daily report slot submitted' },
+      { icon: '<i class="fas fa-check-circle"></i>',            label: 'Follow-up completed',   xp: '+1/+2', trigger: 'Follow-up actual date set (+2 if answered, +1 if no answer)' },
+      { icon: '<i class="fas fa-graduation-cap"></i>',          label: 'Demo attended',         xp: '+15',  trigger: 'Demo session marked as Attended' },
+      { icon: '<i class="fas fa-chart-bar"></i>',               label: 'Report submitted',      xp: '+2',   trigger: 'Daily report slot submitted' },
       { icon: '<i class="fas fa-clock"></i>',                   label: 'On-time check-in',      xp: '+1',   trigger: 'Check-in recorded before 10:00 AM' },
       { icon: '<i class="fas fa-check-square"></i>',            label: 'Checklist completed',   xp: '+2',   trigger: 'Daily checklist saved for the day' },
-      { icon: '<i class="fas fa-file-alt"></i>',                label: 'Registration received', xp: '+10',  trigger: 'New registration submission received' },
-      { icon: '<i class="fas fa-money-bill-wave"></i>',         label: 'Payment received',      xp: '+20',  trigger: 'Payment confirmed / received' },
-      { icon: '<i class="fas fa-exclamation-triangle"></i>',    label: 'Overdue follow-up',     xp: '-2',   trigger: 'Follow-up still open 1+ day past scheduled date (daily)' },
+      { icon: '<i class="fas fa-file-alt"></i>',                label: 'Registration received', xp: '+20',  trigger: 'New registration submission received' },
+      { icon: '<i class="fas fa-money-bill-wave"></i>',         label: 'Payment received',      xp: '+40',  trigger: 'Payment confirmed / received' },
+      { icon: '<i class="fas fa-exclamation-triangle"></i>',    label: 'Overdue follow-up',     xp: '-5',   trigger: 'Follow-up still open 1+ day past scheduled date (daily)' },
     ];
     return `
       <div style="padding:16px;">

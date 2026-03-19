@@ -5,7 +5,7 @@
  *
  * XP Events:
  *  lead_contacted          +2   Lead status changed from 'New'
- *  followup_completed      +2   A followup is marked with an actual_at date AND answered = yes
+ *  followup_completed      +1/+2 A followup actual_at newly set (+2 if answered=yes, +1 if no/unset)
  *  registration_received   +20  New registration submission
  *  payment_received        +40  Payment confirmed / received
  *  demo_attended           +15  Demo session invite marked as 'Attended'

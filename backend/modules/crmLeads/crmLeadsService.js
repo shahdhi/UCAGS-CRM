@@ -466,23 +466,25 @@ async function updateMyLeadManagement({ officerName, batchName, sheetName, sheet
         management: mergedMgmt
       });
 
-      // XP hook: +2 for each followup where actual_at is set AND answered newly became yes
+      // XP hook: +1 or +2 per followup when actual_at is newly set
+      // +2 if answered = Yes, +1 if answered = No / not set
       try {
         const { awardXPOnce } = require('../xp/xpService');
         for (const row of (syncedRows || [])) {
           const prev = prevMap.get(row.sequence);
-          const prevAnsweredYes = prev?.answered === true;
-          const newAnsweredYes = row?.answered === true;
-          const hasActualAt = !!row?.actual_at;
-          // Award when: has a contact date AND answered newly became yes (was not yes before)
-          if (hasActualAt && newAnsweredYes && !prevAnsweredYes && row?.id) {
+          const prevActualAt = prev?.actual_at || null;
+          const newActualAt = row?.actual_at || null;
+          const answeredYes = row?.answered === true;
+          const xpAmount = answeredYes ? 2 : 1;
+          // Award when: actual_at newly set (first time contact date recorded)
+          if (newActualAt && !prevActualAt && row?.id) {
             await awardXPOnce({
               userId: officerUserId,
               eventType: 'followup_completed',
-              xp: 2,
+              xp: xpAmount,
               referenceId: row.id,
               referenceType: 'followup',
-              note: `Follow-up #${row.sequence} completed (answered)`
+              note: `Follow-up #${row.sequence} completed (${answeredYes ? 'answered' : 'no answer'})`
             });
           }
         }
