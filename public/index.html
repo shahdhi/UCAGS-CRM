@@ -442,78 +442,6 @@
                 </div>
 
                 <!-- ── Row 2: Lead Funnel + Quick Actions ──────────────────────── -->
-                <div class="nd-row nd-row-2-1">
-                    <!-- Lead Status / Funnel -->
-                    <div class="nd-card">
-                        <div class="nd-card-header">
-                            <div class="nd-card-title"><i class="fas fa-filter"></i> Lead Pipeline</div>
-                            <div class="nd-pipeline-summary" id="ndPipelineSummary"></div>
-                        </div>
-                        <div id="ndFunnelBars" class="nd-funnel-bars">
-                            <div class="nd-skeleton-bar"></div>
-                            <div class="nd-skeleton-bar"></div>
-                            <div class="nd-skeleton-bar"></div>
-                            <div class="nd-skeleton-bar"></div>
-                            <div class="nd-skeleton-bar"></div>
-                            <div class="nd-skeleton-bar"></div>
-                        </div>
-                        <div class="nd-funnel-footer" id="ndFunnelFooter"></div>
-                    </div>
-
-                    <!-- Enrollment Leaderboard -->
-                    <div class="nd-card">
-                        <div class="nd-card-header">
-                            <div class="nd-card-title"><i class="fas fa-graduation-cap"></i> Enrollment Leaderboard</div>
-                            <select id="ndEnrollBatchSelect" class="nd-select-sm">
-                                <option value="">All Batches</option>
-                            </select>
-                        </div>
-                        <div id="ndEnrollLeaderboard" class="nd-leaderboard-list">
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ── Row 3: Leaderboard + Targets ──────────────────────────── -->
-                <div class="nd-row nd-row-2-1">
-                    <!-- Achievements / Badges (moved from Row 1) -->
-                    <div class="nd-card">
-                        <div class="nd-card-header">
-                            <div class="nd-card-title"><i class="fas fa-medal"></i> Achievements</div>
-                        </div>
-                        <div id="ndAchievements" class="nd-badges-grid">
-                            <div class="nd-skeleton-badge"></div>
-                            <div class="nd-skeleton-badge"></div>
-                            <div class="nd-skeleton-badge"></div>
-                            <div class="nd-skeleton-badge"></div>
-                            <div class="nd-skeleton-badge"></div>
-                            <div class="nd-skeleton-badge"></div>
-                        </div>
-                        <div class="nd-badges-summary" id="ndBadgesSummary"></div>
-                    </div>
-
-                    <!-- Targets vs Achievements -->
-                    <div class="nd-card">
-                        <div class="nd-card-header">
-                            <div class="nd-card-title"><i class="fas fa-bullseye"></i> Targets</div>
-                            <select id="ndTargetsOfficerSelect" class="nd-select nd-select-sm admin-only">
-                                <option value="">All Officers</option>
-                            </select>
-                        </div>
-                        <div id="ndTargets" class="nd-targets-list">
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                        </div>
-                        <div class="nd-targets-overall" id="ndTargetsOverall"></div>
-                    </div>
-                </div>
-
-                <!-- ── Row 4: Activity Feed + Tasks ───────────────────────────── -->
                 <div class="nd-row nd-row-equal">
                     <!-- Activity Feed -->
                     <div class="nd-card">
@@ -548,11 +476,84 @@
                         <div id="ndTasksList" class="nd-tasks-list">
                             <div class="nd-skeleton-row"></div>
                             <div class="nd-skeleton-row"></div>
+
+                <!-- ── Row 3: Leaderboard + Targets ──────────────────────────── -->
+                    </div>
+                </div>
+
+
+                <!-- ── Row 4: Activity Feed + Tasks ───────────────────────────── -->
+                <div class="nd-row nd-row-2-1">
+                    <!-- Lead Status / Funnel -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-filter"></i> Lead Pipeline</div>
+                            <div class="nd-pipeline-summary" id="ndPipelineSummary"></div>
+                        </div>
+                        <div id="ndFunnelBars" class="nd-funnel-bars">
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                        </div>
+                        <div class="nd-funnel-footer" id="ndFunnelFooter"></div>
+                    </div>
+
+                    <!-- Enrollment Leaderboard -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-graduation-cap"></i> Enrollment Leaderboard</div>
+                            <select id="ndEnrollBatchSelect" class="nd-select-sm">
+                                <option value="">All Batches</option>
+                            </select>
+                        </div>
+                        <div id="ndEnrollLeaderboard" class="nd-leaderboard-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
                             <div class="nd-skeleton-row"></div>
                         </div>
                     </div>
                 </div>
+                            <div class="nd-skeleton-row"></div>
+                        </div>
+                <div class="nd-row nd-row-2-1">
+                    <!-- Achievements / Badges -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-medal"></i> Achievements</div>
+                        </div>
+                        <div id="ndAchievements" class="nd-badges-grid">
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                        </div>
+                        <div class="nd-badges-summary" id="ndBadgesSummary"></div>
+                    </div>
 
+                    <!-- Targets vs Achievements -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-bullseye"></i> Targets</div>
+                            <select id="ndTargetsOfficerSelect" class="nd-select nd-select-sm admin-only">
+                                <option value="">All Officers</option>
+                            </select>
+                        </div>
+                        <div id="ndTargets" class="nd-targets-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                        </div>
+                        <div class="nd-targets-overall" id="ndTargetsOverall"></div>
+                    </div>
+                </div>
+                <!-- ── Admin Action Center ────────────────────────────────────── -->
                 <!-- ── Admin Action Center ────────────────────────────────────── -->
                 <div class="nd-row nd-row-equal admin-only" id="ndAdminActionRow">
                     <!-- Enrollments Trend -->
