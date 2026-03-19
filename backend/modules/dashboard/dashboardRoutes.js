@@ -15,6 +15,7 @@ const sheetsService = require('../../../server/integrations/sheets');
 // Note: per-process cache (resets on deploy). Keeps UI snappy without adding infra.
 const __analyticsCache = new Map();
 const __officerNamesCache = { at: 0, ttlMs: 5 * 60 * 1000, value: [] };
+const __leaveCache = { at: 0, ttlMs: 60 * 1000, value: 0 }; // 60s cache for pending leave count
 
 function cacheGet(map, key) {
   const hit = map.get(key);
@@ -616,8 +617,8 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
       } : null
     };
 
-    // Cache the full payload briefly (keeps it fresh, but makes UI feel instant)
-    cacheSet(__analyticsCache, cacheKey, payload, 45 * 1000);
+    // Cache for 3 minutes — keeps UI snappy without hitting Sheets/Supabase on every load
+    cacheSet(__analyticsCache, cacheKey, payload, 3 * 60 * 1000);
 
     res.json(payload);
   } catch (e) {

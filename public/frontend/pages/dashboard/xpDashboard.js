@@ -157,6 +157,14 @@
     return r.json();
   }
 
+  async function fetchLeaderboardData() {
+    const headers = await authHeaders();
+    const r = await fetch('/api/xp/leaderboard', { headers });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j;
+  }
+
   async function fetchXPTrend(days) {
     const headers = await authHeaders();
     const isAdmin = window.currentUser?.role === 'admin';
@@ -546,16 +554,19 @@
   }
 
   // --- Phase 3b: XP Leaderboard ---
-  async function renderLeaderboard(xpLeaderboard) {
+  async function renderLeaderboard(prefetchedData) {
     const listEl  = document.getElementById('xpLeaderboardList');
     const badgeEl = document.getElementById('ndLeaderboardBadge');
     if (!listEl) return;
 
     try {
-      // Use XP leaderboard from /api/xp/leaderboard
+      // Use prefetched leaderboard data if available, otherwise fetch
       const headers = await authHeaders();
-      const r = await fetch('/api/xp/leaderboard', { headers });
-      const j = await r.json();
+      let j = prefetchedData;
+      if (!j) {
+        const r = await fetch('/api/xp/leaderboard', { headers });
+        j = await r.json();
+      }
       const list = j.leaderboard || [];
 
       // Leaderboard badge: show current user rank
@@ -730,7 +741,7 @@
   }
 
   // --- Phase 4a: Activity Feed ---
-  async function renderActivityFeed() {
+  async function renderActivityFeed(prefetchedXP, prefetchedLeaderboard) {
     const feedEl = document.getElementById('ndActivityFeed');
     if (!feedEl) return;
 
@@ -742,23 +753,27 @@
       let events = [];
 
       if (isAdmin) {
-        // Admin: show team-wide XP events from leaderboard endpoint
-        const r = await fetch('/api/xp/leaderboard', { headers });
-        const j = await r.json();
+        // Admin: use prefetched leaderboard data or fetch if not available
+        let j = prefetchedLeaderboard;
+        if (!j) {
+          const r = await fetch('/api/xp/leaderboard', { headers });
+          j = await r.json();
+        }
         const leaderboard = j.leaderboard || [];
-        // Flatten recent events across all officers (leaderboard has recentEvents per entry)
         leaderboard.forEach(entry => {
           (entry.recentEvents || []).forEach(ev => {
             events.push({ ...ev, officerName: entry.name });
           });
         });
-        // Sort by date desc, take latest 12
         events.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         events = events.slice(0, 12);
       } else {
-        // Officer: personal XP events
-        const r = await fetch('/api/xp/me', { headers });
-        const j = await r.json();
+        // Officer: use prefetched XP data or fetch if not available
+        let j = prefetchedXP;
+        if (!j) {
+          const r = await fetch('/api/xp/me', { headers });
+          j = await r.json();
+        }
         events = (j.recentEvents || []).slice(0, 12);
       }
 
@@ -1129,13 +1144,20 @@
     const toEnroll     = Number(ac.toBeEnrolled                 || 0);
     const missingAssign = Number(ac.registrationsMissingAssignedTo || 0);
 
-    // Fetch pending leave count
+    // Fetch pending leave count (cached 60s in memory to avoid re-fetching on every render)
     let pendingLeave = 0;
     try {
-      const h = await authHeaders();
-      const r = await fetch('/api/attendance/leave-requests?status=pending', { headers: h, cache: 'no-store' });
-      const j = await r.json();
-      if (j?.success) pendingLeave = Number(j.count || (j.requests || []).length || 0);
+      const now = Date.now();
+      if (window.__leaveCacheAt && now - window.__leaveCacheAt < 60000) {
+        pendingLeave = window.__leaveCacheVal || 0;
+      } else {
+        const h = await authHeaders();
+        const r = await fetch('/api/attendance/leave-requests?status=pending', { headers: h });
+        const j = await r.json();
+        pendingLeave = j?.success ? Number(j.count || (j.requests || []).length || 0) : 0;
+        window.__leaveCacheVal = pendingLeave;
+        window.__leaveCacheAt  = now;
+      }
     } catch (e) { /* ignore */ }
 
     const items = [
@@ -1465,19 +1487,29 @@
     // Apply role-based visibility immediately (before data loads)
     applyRoleVisibility();
 
-    // Fetch data in parallel: XP (officer only) + analytics
-    const [xpResult, analyticsResult] = await Promise.allSettled([
+    // Show skeleton placeholders in key containers while data loads
+    const skeletonHTML = `<div class="nd-skeleton-line wide"></div><div class="nd-skeleton-line med"></div><div class="nd-skeleton-line short"></div>`;
+    const skeletonNumHTML = `<div class="nd-skeleton-num"></div><div class="nd-skeleton-line med"></div>`;
+    const skelIds = ['ndActivityFeed','xpLeaderboardList','ndEnrollLeaderboard','ndTasksList'];
+    const kpiIds  = ['ndKpiLeads','ndKpiFollowups','ndKpiDemos','ndKpiRegistrations','ndKpiPayments','ndKpiAttendance'];
+    skelIds.forEach(id => { const el = document.getElementById(id); if (el) { el.classList.add('nd-card-loading'); el.innerHTML = skeletonHTML.repeat(3); } });
+    kpiIds.forEach(id  => { const el = document.getElementById(id);  if (el) { el.classList.add('nd-card-loading'); el.innerHTML = skeletonNumHTML; } });
+
+    // Fetch data in parallel: XP (officer only) + analytics + leaderboard (once, shared)
+    const [xpResult, analyticsResult, leaderboardResult] = await Promise.allSettled([
       isAdmin ? Promise.resolve(null) : fetchXPData(),
-      fetchAnalytics()
+      fetchAnalytics(),
+      fetchLeaderboardData()  // fetch once, pass to both renderLeaderboard + renderActivityFeed
     ]);
 
     __xpData        = xpResult.status === 'fulfilled' ? xpResult.value : null;
     __analyticsData = analyticsResult.status === 'fulfilled' ? analyticsResult.value : null;
+    const __leaderboardData = leaderboardResult.status === 'fulfilled' ? leaderboardResult.value : null;
 
     if (xpResult.status === 'rejected') console.warn('[Dashboard] XP data error:', xpResult.reason?.message);
     if (analyticsResult.status === 'rejected') console.warn('[Dashboard] Analytics error:', analyticsResult.reason?.message);
 
-    // Render all Phase 2 + Phase 3 + Phase 4 + Phase 5 sections in parallel
+    // Render all sections in parallel — leaderboard data passed in to avoid duplicate fetches
     await Promise.allSettled([
       // Phase 2
       renderProfileSection(__xpData),
@@ -1486,10 +1518,10 @@
       Promise.resolve(renderAchievements(__xpData)),
       // Phase 3
       Promise.resolve(renderLeadPipeline(__analyticsData)),
-      renderLeaderboard(),
+      renderLeaderboard(__leaderboardData),
       Promise.resolve(renderTargets(__analyticsData)),
       // Phase 4
-      renderActivityFeed(),
+      renderActivityFeed(__xpData, __leaderboardData),
       renderTasksList(),
       renderEnrollLeaderboard(),
       // Phase 5
@@ -1513,6 +1545,10 @@
       'ndAchievements',
       'homeActionCenter',
     ]);
+    // Remove skeleton loading class from KPI cards
+    [...skelIds, ...kpiIds].forEach(id => {
+      document.getElementById(id)?.classList.remove('nd-card-loading');
+    });
 
     // Reset enrollment leaderboard cache for next load
     __enrollLeaderboardData = [];

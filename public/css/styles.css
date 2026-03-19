@@ -3573,3 +3573,35 @@ body::-webkit-scrollbar-thumb:hover {
   line-height: 1;
   margin-top: 1px;
 }
+
+/* -- Dashboard Skeleton Loading --------------------------------- */
+@keyframes ndSkeletonPulse {
+  0%, 100% { opacity: 0.45; }
+  50%       { opacity: 0.75; }
+}
+.nd-skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: ndSkeletonPulse 1.4s ease-in-out infinite;
+  border-radius: 6px;
+  display: inline-block;
+}
+.nd-card-loading .nd-skeleton-line {
+  height: 14px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: ndSkeletonPulse 1.4s ease-in-out infinite;
+}
+.nd-card-loading .nd-skeleton-line.wide  { width: 80%; }
+.nd-card-loading .nd-skeleton-line.med   { width: 55%; }
+.nd-card-loading .nd-skeleton-line.short { width: 35%; }
+.nd-card-loading .nd-skeleton-num {
+  height: 32px; width: 80px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #ede9fe 25%, #ddd6fe 50%, #ede9fe 75%);
+  background-size: 200% 100%;
+  animation: ndSkeletonPulse 1.4s ease-in-out infinite;
+  margin-bottom: 6px;
+}
