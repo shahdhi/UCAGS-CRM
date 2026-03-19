@@ -98,7 +98,7 @@ router.post('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, re
           xp: 2,
           referenceId: row?.id,
           referenceType: 'followup',
-          note: `Follow-up #${sequence} completed (answered)`
+          note: `Follow-up #${row?.sequence ?? sequence} completed (answered)`
         });
       }
 
