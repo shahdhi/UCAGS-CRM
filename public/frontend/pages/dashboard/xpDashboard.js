@@ -1350,35 +1350,35 @@
   }
 
   async function setupXPHistoryModal() {
-    // Scoring rules modal (both info icon and "Scoring" link open this)
+
     const openScoringModal = () => {
-      if (window.openModal) window.openModal('xpHistoryModal');
-      else {
-        const m = document.getElementById('xpHistoryModal');
-        if (m) { m.style.display = 'flex'; m.classList.add('active'); }
-      }
-      // Update modal title
+      window.openModal('xpHistoryModal');
       const title = document.querySelector('#xpHistoryModal .modal-header h3');
       if (title) title.innerHTML = '<i class="fas fa-star" style="color:#7c3aed;margin-right:8px;"></i>XP Scoring Rules';
-
       const contentEl = document.getElementById('xpHistoryModalContent');
       if (contentEl) contentEl.innerHTML = buildScoringRulesHTML();
     };
 
-    // Info icon next to XP Progress
-    const infoBtn = document.getElementById('ndXpHistoryBtn');
-    if (infoBtn && !infoBtn.__wired) {
-      infoBtn.__wired = true;
-      infoBtn.addEventListener('click', openScoringModal);
-    }
-
-    // "Scoring" text in Activity Feed header
-    const scoringBtn = document.getElementById('ndActivityFeedViewAll');
-    if (scoringBtn && !scoringBtn.__wired) {
-      scoringBtn.__wired = true;
-      scoringBtn.addEventListener('click', openScoringModal);
+    // Use event delegation - always works regardless of render order
+    if (!document.__xpScoringDelegated) {
+      document.__xpScoringDelegated = true;
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('#ndXpHistoryBtn, #ndActivityFeedViewAll');
+        if (btn) { e.stopPropagation(); openScoringModal(); }
+      });
     }
   }
+
+
+
+
+
+
+
+
+
+
+
 
 
   // --- Skeleton to Content helpers ---
