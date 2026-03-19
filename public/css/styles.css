@@ -3517,3 +3517,59 @@ body::-webkit-scrollbar-thumb:hover {
     transition: none !important;
   }
 }
+
+/* -- Level Ring Avatar --------------------------------------------- */
+.nd-avatar-wrap {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+}
+.nd-level-ring {
+  position: absolute;
+  top: 0; left: 0;
+  transform: rotate(-90deg);
+}
+.nd-level-ring-bg {
+  fill: none;
+  stroke: rgba(139,92,246,0.15);
+  stroke-width: 4;
+}
+.nd-level-ring-fill {
+  fill: none;
+  stroke: #7c3aed;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 175.93;
+  stroke-dashoffset: 175.93;
+  transition: stroke-dashoffset 0.9s cubic-bezier(0.4,0,0.2,1);
+  filter: drop-shadow(0 0 4px rgba(124,58,237,0.5));
+}
+.nd-avatar-inner {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  box-shadow: 0 2px 12px rgba(124,58,237,0.3);
+}
+.nd-level-num {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+}
+.nd-level-tag {
+  font-size: 8px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.75);
+  letter-spacing: 0.5px;
+  line-height: 1;
+  margin-top: 1px;
+}

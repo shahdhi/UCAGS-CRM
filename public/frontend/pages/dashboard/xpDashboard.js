@@ -165,14 +165,39 @@
     const name = user.name || user.email || 'User';
     const role = user.role === 'admin' ? 'Administrator' : (user.role === 'officer' ? 'Academic Advisor' : (user.role || 'User'));
 
-    // Avatar
-    const avatarEl = document.getElementById('ndAvatar');
-    const initialsEl = document.getElementById('ndAvatarInitials');
-    if (avatarEl && initialsEl) {
-      initialsEl.textContent = initials(name);
-      // Color avatar based on name hash for visual identity
-      const hue = [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 0);
-      avatarEl.style.background = `linear-gradient(135deg, hsl(${hue},65%,55%), hsl(${(hue + 40) % 360},70%,45%))`;
+    // Avatar: level ring + level number (officer) or plain admin avatar
+    const isAdminUser = user.role === 'admin';
+    const levelNumEl  = document.getElementById('ndLevelNum');
+    const ringFill    = document.getElementById('ndLevelRingFill');
+
+    if (isAdminUser) {
+      // Admin: show a simple shield/star icon instead of level ring
+      if (levelNumEl) { levelNumEl.textContent = ''; levelNumEl.innerHTML = '<i class="fas fa-shield-alt" style="font-size:16px;"></i>'; }
+      const levelTagEl = document.querySelector('.nd-level-tag');
+      if (levelTagEl) levelTagEl.textContent = 'ADM';
+      if (ringFill) ringFill.style.strokeDashoffset = '0'; // full ring for admin
+    } else {
+      // Officer: show level number, animate ring based on XP progress
+      if (xpData) {
+        const totalXp = xpData.totalXp || 0;
+        const lvl     = levelFor(totalXp);
+        const pct     = xpProgress(totalXp);
+        const circumference = 175.93; // 2 * π * 28
+
+        if (levelNumEl) levelNumEl.textContent = lvl + 1;
+
+        if (ringFill) {
+          ringFill.style.strokeDashoffset = circumference; // start empty
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              const offset = circumference - (pct / 100) * circumference;
+              ringFill.style.strokeDashoffset = offset;
+            }, 100);
+          });
+        }
+      } else {
+        if (levelNumEl) levelNumEl.textContent = '1';
+      }
     }
 
     setText('ndProfileName', name);
@@ -940,24 +965,25 @@
     // ndTargetsOfficerSelect — already handled in Phase 3 setupTargetsOfficerSelector
     // Both selectors get the same officer list derived from the analytics leaderboard
 
-    if (mainSel && !mainSel.__populated) {
-      mainSel.__populated = true;
+    if (!mainSel) return;
 
-      // Clear existing options except the first "All Officers" placeholder
-      while (mainSel.options.length > 1) mainSel.remove(1);
+    // Always repopulate — clear all options except the first placeholder
+    while (mainSel.options.length > 1) mainSel.remove(1);
 
-      leaderboard.forEach(entry => {
-        const opt = document.createElement('option');
-        opt.value = entry.officer;
-        opt.textContent = entry.officer;
-        mainSel.appendChild(opt);
-      });
+    leaderboard.forEach(entry => {
+      if (!entry.officer || entry.officer === 'Unassigned') return;
+      const opt = document.createElement('option');
+      opt.value = entry.officer;
+      opt.textContent = entry.officer;
+      mainSel.appendChild(opt);
+    });
 
-      // Change → reload all analytics-dependent sections for selected officer
+    // Wire change handler only once
+    if (!mainSel.__wired) {
+      mainSel.__wired = true;
       mainSel.addEventListener('change', async () => {
         const officerId = mainSel.value || null;
         await reloadAnalyticsSection(officerId);
-        // Also re-render enrollment chart for selected officer
         renderEnrollmentsChart(__analyticsData, officerId);
       });
     }
