@@ -178,13 +178,9 @@
     setText('ndProfileName', name);
     setText('ndProfileRole', role);
 
-    // Meta: batch info from analytics if available
+    // Meta: intentionally left blank (batch names not shown)
     const meta = document.getElementById('ndProfileMeta');
-    if (meta && __analyticsData?.currentBatches?.length) {
-      meta.textContent = __analyticsData.currentBatches.join(', ');
-    } else if (meta) {
-      meta.textContent = '';
-    }
+    if (meta) meta.textContent = '';
 
     // XP bar + rank (officer only; admin skips XP section)
     if (user.role !== 'admin' && xpData) {
@@ -247,7 +243,7 @@
     setText('kpiFollowUpsDue', followUpsDue.toLocaleString());
     setHtml('kpiFollowupsTrend', followUpsDue > 0
       ? `<span style="color:#f59e0b;">⚠ ${followUpsDue} remaining today${followUpsOverdue > 0 ? ` · <span style="color:#ef4444;">${followUpsOverdue} overdue</span>` : ''}</span>`
-      : `<span style="color:#10b981;">✓ All done for today</span>`);
+      : '');
 
     // Active Leads (new + contacted + follow-up from funnel)
     const activeLeads = (funnel.new || 0) + (funnel.contacted || 0) + (funnel.followUp || 0);
