@@ -443,6 +443,7 @@ async function updateMyLeadManagement({ officerName, batchName, sheetName, sheet
 
   // Also persist follow-ups in normalized table (officer-owned)
   // Best-effort: does not block saving management_json.
+  console.log('[XP-DEBUG] updateMyLeadManagement: officerUserId=', officerUserId, 'officerName=', officerName);
   try {
     const followupsSvc = require('./followupsService');
     if (officerUserId) {
