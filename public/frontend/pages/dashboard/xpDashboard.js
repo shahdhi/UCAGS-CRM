@@ -17,16 +17,14 @@
   let __analyticsData = null; // from /api/dashboard/analytics
 
   // --- Constants ---
-  // Level thresholds (index = level-1, value = XP required to reach that level)
-  // Levels 1-10: fixed thresholds
-  // Levels 10-15: +1000 XP per level
-  // Levels 15-20: +1500 XP per level
-  // Levels 20+:   +2000 XP per level (up to level 30)
+  // Level thresholds (exact):
+  // Levels 1-10: fixed, Levels 11-15: +2000/level, Levels 16-20: +3000/level, Levels 21+: +4000/level
   const LEVEL_THRESHOLDS = (() => {
-    const t = [0, 250, 500, 800, 1250, 1600, 2000, 2500, 3200, 4000]; // levels 1-10
-    for (let l = 11; l <= 15; l++) t.push(t[t.length - 1] + 1000);   // levels 11-15
-    for (let l = 16; l <= 20; l++) t.push(t[t.length - 1] + 1500);   // levels 16-20
-    for (let l = 21; l <= 30; l++) t.push(t[t.length - 1] + 2000);   // levels 21-30
+    const fixed = [0, 500, 1000, 1600, 2500, 3200, 4000, 5000, 6400, 8000]; // levels 1-10
+    const t = [...fixed];
+    for (let l = 11; l <= 15; l++) t.push(t[t.length - 1] + 2000); // 10000,12000,14000,16000,18000
+    for (let l = 16; l <= 20; l++) t.push(t[t.length - 1] + 3000); // 21000,24000,27000,30000,33000
+    for (let l = 21; l <= 50; l++) t.push(t[t.length - 1] + 4000); // 37000,41000,...
     return t;
   })();
   const LEVEL_NAMES = [];
@@ -1326,12 +1324,12 @@
       { icon: '<i class="fas fa-phone"></i>',                   label: 'Lead contacted',        xp: '+2',   trigger: 'Lead status changed from New' },
       { icon: '<i class="fas fa-bolt"></i>',                    label: 'Speed bonus (1h)',       xp: '+2',   trigger: 'First follow-up within 1 hour of assignment' },
       { icon: '<i class="fas fa-check-circle"></i>',            label: 'Follow-up completed',   xp: '+1/+2', trigger: 'Follow-up actual date set (+2 if answered, +1 if no answer)' },
-      { icon: '<i class="fas fa-graduation-cap"></i>',          label: 'Demo attended',         xp: '+15',  trigger: 'Demo session marked as Attended' },
+      { icon: '<i class="fas fa-graduation-cap"></i>',          label: 'Demo attended',         xp: '+30',  trigger: 'Demo session marked as Attended' },
       { icon: '<i class="fas fa-chart-bar"></i>',               label: 'Report submitted',      xp: '+2',   trigger: 'Daily report slot submitted' },
       { icon: '<i class="fas fa-clock"></i>',                   label: 'On-time check-in',      xp: '+1',   trigger: 'Check-in recorded before 10:00 AM' },
       { icon: '<i class="fas fa-check-square"></i>',            label: 'Checklist completed',   xp: '+2',   trigger: 'Daily checklist saved for the day' },
-      { icon: '<i class="fas fa-file-alt"></i>',                label: 'Registration received', xp: '+20',  trigger: 'New registration submission received' },
-      { icon: '<i class="fas fa-money-bill-wave"></i>',         label: 'Payment received',      xp: '+40',  trigger: 'Payment confirmed / received' },
+      { icon: '<i class="fas fa-file-alt"></i>',                label: 'Registration received', xp: '+40',  trigger: 'New registration submission received' },
+      { icon: '<i class="fas fa-money-bill-wave"></i>',         label: 'Payment received',      xp: '+100', trigger: 'Payment confirmed / received' },
       { icon: '<i class="fas fa-exclamation-triangle"></i>',    label: 'Overdue follow-up',     xp: '-5',   trigger: 'Follow-up still open 1+ day past scheduled date (daily)' },
     ];
     return `

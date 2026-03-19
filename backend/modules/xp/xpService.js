@@ -6,9 +6,9 @@
  * XP Events:
  *  lead_contacted          +2   Lead status changed from 'New'
  *  followup_completed      +1/+2 A followup actual_at newly set (+2 if answered=yes, +1 if no/unset)
- *  registration_received   +20  New registration submission
- *  payment_received        +40  Payment confirmed / received
- *  demo_attended           +15  Demo session invite marked as 'Attended'
+ *  registration_received   +40  New registration submission
+ *  payment_received        +100 Payment confirmed / received
+ *  demo_attended           +30  Demo session invite marked as 'Attended'
  *  attendance_on_time      +1   Check-in recorded before 10:00 AM (SL time)
  *  checklist_completed     +2   Daily checklist snapshot saved for the day
  *  report_submitted        +2   Daily report slot submitted (1 per slot)

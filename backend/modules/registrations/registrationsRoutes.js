@@ -212,7 +212,7 @@ router.post('/intake', async (req, res) => {
           await awardXPOnce({
             userId: officerUser.id,
             eventType: 'registration_received',
-            xp: 20,
+            xp: 40,
             referenceId: data.id,
             referenceType: 'registration',
             note: `Registration received: ${data.name || 'student'}`
