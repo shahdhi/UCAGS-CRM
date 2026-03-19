@@ -282,7 +282,7 @@
 
     // Total XP (from xp data cached, or hide)
     const totalXp = __xpData?.totalXp ?? 0;
-    setText('kpiXpTotal', totalXp > 0 ? '<i class="fas fa-bolt" style="color:#7c3aed;"></i> ' + totalXp.toLocaleString() : '--');
+    setHtml('kpiXpTotal', totalXp > 0 ? '<i class="fas fa-bolt" style="color:#7c3aed;"></i> ' + totalXp.toLocaleString() : '--');
     setHtml('kpiXpTrend', __xpData?.rank
       ? `<span style="color:#7c3aed;">#${__xpData.rank}</span>`
       : '');
@@ -316,7 +316,7 @@
       const highestDay = data.length ? Math.max(...data) : 0;
       const avgXp = data.length ? Math.round(data.reduce((s, v) => s + v, 0) / data.length) : 0;
 
-    setText('statCurrentXp', currentXp > 0 ? '<i class="fas fa-bolt" style="color:#7c3aed;"></i> ' + currentXp.toLocaleString() : '--');
+    setHtml('statCurrentXp', currentXp > 0 ? '<i class="fas fa-bolt" style="color:#7c3aed;"></i> ' + currentXp.toLocaleString() : '--');
     setText('statHighestXp', highestDay > 0 ? highestDay.toLocaleString() + ' XP' : '--');
     setText('statAvgXp', avgXp > 0 ? avgXp.toLocaleString() + ' XP/day' : '--');
 
