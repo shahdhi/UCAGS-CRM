@@ -478,13 +478,14 @@ async function updateMyLeadManagement({ officerName, batchName, sheetName, sheet
           const xpAmount = answeredYes ? 2 : 1;
           // Award when: actual_at newly set (first time contact date recorded)
           if (newActualAt && !prevActualAt && row?.id) {
+            const leadName = cleanString(updates?.name) || sheetLeadId;
             await awardXPOnce({
               userId: officerUserId,
               eventType: 'followup_completed',
               xp: xpAmount,
               referenceId: row.id,
               referenceType: 'followup',
-              note: `Follow-up #${row.sequence} completed (${answeredYes ? 'answered' : 'no answer'})`
+              note: `${leadName} · Follow-up #${row.sequence} (${answeredYes ? 'answered' : 'no answer'})`
             });
           }
         }

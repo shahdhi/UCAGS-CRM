@@ -194,7 +194,7 @@ router.put('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, res
           xp: 2,
           referenceId: `${batchName}|${sheetName}|${leadId}`,
           referenceType: 'lead',
-          note: `Lead contacted (was New → ${newStatus})`
+          note: `${req.body?.name || leadId} · Contacted (${newStatus})`
         });
       }
     } catch (xpErr) {

@@ -780,7 +780,7 @@
         return `
           <div class="nd-activity-item">
             <div class="nd-activity-icon">${meta.icon}</div>
-            <div class="nd-activity-text">${name}${escHtml(meta.label)}</div>
+            <div class="nd-activity-text">${name}${escHtml(meta.label)}${ev.note ? `<span style="color:#6b7280;font-size:12px;margin-left:6px;">· ${escHtml(ev.note)}</span>` : ''}</div>
             <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
               <span class="nd-activity-time">${when}</span>
               <span class="nd-activity-xp" style="color:${xpColor};">${xpText} XP</span>
