@@ -460,36 +460,19 @@
                         <div class="nd-funnel-footer" id="ndFunnelFooter"></div>
                     </div>
 
-                    <!-- Quick Actions -->
+                    <!-- Enrollment Leaderboard -->
                     <div class="nd-card">
                         <div class="nd-card-header">
-                            <div class="nd-card-title"><i class="fas fa-bolt"></i> Quick Actions</div>
+                            <div class="nd-card-title"><i class="fas fa-graduation-cap"></i> Enrollment Leaderboard</div>
+                            <select id="ndEnrollBatchSelect" class="nd-select-sm">
+                                <option value="">All Batches</option>
+                            </select>
                         </div>
-                        <div class="nd-quick-actions">
-                            <button class="nd-action-btn nd-action-purple" id="qaAddLead">
-                                <div class="nd-action-icon-wrap"><i class="fas fa-user-plus"></i></div>
-                                <div class="nd-action-text">
-                                    <span class="nd-action-title">Add New Lead</span>
-                                    <span class="nd-action-desc">Register a new enquiry</span>
-                                </div>
-                                <i class="fas fa-chevron-right nd-action-arrow"></i>
-                            </button>
-                            <button class="nd-action-btn nd-action-blue" id="qaFollowup">
-                                <div class="nd-action-icon-wrap"><i class="fas fa-calendar-plus"></i></div>
-                                <div class="nd-action-text">
-                                    <span class="nd-action-title">Schedule Follow-up</span>
-                                    <span class="nd-action-desc">Set a follow-up reminder</span>
-                                </div>
-                                <i class="fas fa-chevron-right nd-action-arrow"></i>
-                            </button>
-                            <button class="nd-action-btn nd-action-green" id="qaUpdateStatus">
-                                <div class="nd-action-icon-wrap"><i class="fas fa-edit"></i></div>
-                                <div class="nd-action-text">
-                                    <span class="nd-action-title">Update Lead Status</span>
-                                    <span class="nd-action-desc">Change lead progress</span>
-                                </div>
-                                <i class="fas fa-chevron-right nd-action-arrow"></i>
-                            </button>
+                        <div id="ndEnrollLeaderboard" class="nd-leaderboard-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
                         </div>
                     </div>
                 </div>

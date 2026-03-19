@@ -1,5 +1,5 @@
-/**
- * New Dashboard — xpDashboard.js
+﻿/**
+ * New Dashboard â€” xpDashboard.js
  * Phase 2: Profile, KPI Metrics, XP Trend Chart + Stats Strip, Achievements/Badges
  *
  * Renders all nd- dashboard sections.
@@ -7,7 +7,7 @@
  */
 
 (function () {
-  // ─── Module State ─────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Module State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let __xpTrendChart = null;
   let __xpTrendDays = 30;
   let __listenersSetUp = false;
@@ -16,34 +16,34 @@
   let __xpData = null;       // from /api/xp/me
   let __analyticsData = null; // from /api/dashboard/analytics
 
-  // ─── Constants ────────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const LEVEL_THRESHOLDS = [0, 100, 250, 500, 1000, 2000, 4000, 8000];
   const LEVEL_NAMES = ['Rookie', 'Explorer', 'Achiever', 'Pro', 'Expert', 'Elite', 'Master', 'Legend'];
 
   const EVENT_LABELS = {
-    lead_contacted:        { label: 'Lead contacted',        icon: '📞' },
-    followup_completed:    { label: 'Follow-up completed',   icon: '✅' },
-    registration_received: { label: 'Registration received', icon: '📝' },
-    payment_received:      { label: 'Payment received',      icon: '💰' },
-    demo_attended:         { label: 'Demo attended',         icon: '🎓' },
-    attendance_on_time:    { label: 'On-time check-in',      icon: '⏰' },
-    checklist_completed:   { label: 'Checklist completed',   icon: '☑️' },
-    report_submitted:      { label: 'Report submitted',      icon: '📊' },
-    lead_responded_fast:   { label: 'Speed bonus (1h)',      icon: '⚡' },
-    followup_overdue:      { label: 'Overdue follow-up',     icon: '⚠️' },
+    lead_contacted:        { label: 'Lead contacted',        icon: 'ðŸ“ž' },
+    followup_completed:    { label: 'Follow-up completed',   icon: 'âœ…' },
+    registration_received: { label: 'Registration received', icon: 'ðŸ“' },
+    payment_received:      { label: 'Payment received',      icon: 'ðŸ’°' },
+    demo_attended:         { label: 'Demo attended',         icon: 'ðŸŽ“' },
+    attendance_on_time:    { label: 'On-time check-in',      icon: 'â°' },
+    checklist_completed:   { label: 'Checklist completed',   icon: 'â˜‘ï¸' },
+    report_submitted:      { label: 'Report submitted',      icon: 'ðŸ“Š' },
+    lead_responded_fast:   { label: 'Speed bonus (1h)',      icon: 'âš¡' },
+    followup_overdue:      { label: 'Overdue follow-up',     icon: 'âš ï¸' },
   };
 
   // Badge definitions: earned when at least one event of that type exists in recentEvents
   const BADGE_DEFS = [
-    { id: 'first_lead',      icon: '📞', label: 'First Contact',  xp: 10,  desc: 'Contact your first lead',        eventType: 'lead_contacted'        },
-    { id: 'first_followup',  icon: '✅', label: 'Follower',       xp: 15,  desc: 'Complete a follow-up',           eventType: 'followup_completed'    },
-    { id: 'first_reg',       icon: '📝', label: 'Registrar',      xp: 50,  desc: 'Receive a registration',         eventType: 'registration_received' },
-    { id: 'speed_bonus',     icon: '⚡', label: 'Speed Demon',    xp: 20,  desc: 'Respond within 1 hour',          eventType: 'lead_responded_fast'   },
-    { id: 'first_payment',   icon: '💰', label: 'Closer',         xp: 100, desc: 'Receive a payment',              eventType: 'payment_received'      },
-    { id: 'first_checklist', icon: '☑️', label: 'Diligent',       xp: 10,  desc: 'Complete your daily checklist',  eventType: 'checklist_completed'   },
+    { id: 'first_lead',      icon: 'ðŸ“ž', label: 'First Contact',  xp: 10,  desc: 'Contact your first lead',        eventType: 'lead_contacted'        },
+    { id: 'first_followup',  icon: 'âœ…', label: 'Follower',       xp: 15,  desc: 'Complete a follow-up',           eventType: 'followup_completed'    },
+    { id: 'first_reg',       icon: 'ðŸ“', label: 'Registrar',      xp: 50,  desc: 'Receive a registration',         eventType: 'registration_received' },
+    { id: 'speed_bonus',     icon: 'âš¡', label: 'Speed Demon',    xp: 20,  desc: 'Respond within 1 hour',          eventType: 'lead_responded_fast'   },
+    { id: 'first_payment',   icon: 'ðŸ’°', label: 'Closer',         xp: 100, desc: 'Receive a payment',              eventType: 'payment_received'      },
+    { id: 'first_checklist', icon: 'â˜‘ï¸', label: 'Diligent',       xp: 10,  desc: 'Complete your daily checklist',  eventType: 'checklist_completed'   },
   ];
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function escHtml(s) {
     return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -80,9 +80,9 @@
   }
 
   function medal(i) {
-    if (i === 0) return '🥇';
-    if (i === 1) return '🥈';
-    if (i === 2) return '🥉';
+    if (i === 0) return 'ðŸ¥‡';
+    if (i === 1) return 'ðŸ¥ˆ';
+    if (i === 2) return 'ðŸ¥‰';
     return `<span style="color:#6b7280;font-size:12px;">#${i + 1}</span>`;
   }
 
@@ -115,7 +115,7 @@
     if (el) el.innerHTML = val;
   }
 
-  // ─── Date Range Helpers ───────────────────────────────────────────────────────
+  // â”€â”€â”€ Date Range Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function getDateRange() {
     const from = document.getElementById('homeFromDate')?.value || '';
     const to   = document.getElementById('homeToDate')?.value   || '';
@@ -132,7 +132,7 @@
     return `/api/dashboard/analytics${qs ? '?' + qs : ''}`;
   }
 
-  // ─── Data Fetchers ────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Data Fetchers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function fetchXPData() {
     const headers = await authHeaders();
     const r = await fetch('/api/xp/me', { headers });
@@ -159,7 +159,7 @@
     return r.json();
   }
 
-  // ─── Phase 2a: Profile Section ────────────────────────────────────────────────
+  // â”€â”€â”€ Phase 2a: Profile Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function renderProfileSection(xpData) {
     const user = window.currentUser || {};
     const name = user.name || user.email || 'User';
@@ -182,7 +182,7 @@
         const totalXp = xpData.totalXp || 0;
         const lvl     = levelFor(totalXp);
         const pct     = xpProgress(totalXp);
-        const circumference = 175.93; // 2 * π * 28
+        const circumference = 175.93; // 2 * Ï€ * 28
 
         if (levelNumEl) levelNumEl.textContent = lvl + 1;
 
@@ -246,7 +246,7 @@
     }
   }
 
-  // ─── Phase 2b: KPI Metrics ────────────────────────────────────────────────────
+  // â”€â”€â”€ Phase 2b: KPI Metrics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function renderKPIMetrics(analyticsData) {
     const kpis = analyticsData?.kpis || {};
     const funnel = analyticsData?.funnel || {};
@@ -267,7 +267,7 @@
     const followUpsOverdue = kpis.followUpsOverdue ?? 0;
     setText('kpiFollowUpsDue', followUpsDue.toLocaleString());
     setHtml('kpiFollowupsTrend', followUpsDue > 0
-      ? `<span style="color:#f59e0b;">⚠ ${followUpsDue} remaining today${followUpsOverdue > 0 ? ` · <span style="color:#ef4444;">${followUpsOverdue} overdue</span>` : ''}</span>`
+      ? `<span style="color:#f59e0b;">âš  ${followUpsDue} remaining today${followUpsOverdue > 0 ? ` Â· <span style="color:#ef4444;">${followUpsOverdue} overdue</span>` : ''}</span>`
       : '');
 
     // Active Leads (new + contacted + follow-up from funnel)
@@ -282,13 +282,13 @@
 
     // Total XP (from xp data cached, or hide)
     const totalXp = __xpData?.totalXp ?? 0;
-    setText('kpiXpTotal', totalXp > 0 ? `⚡ ${totalXp.toLocaleString()}` : '—');
+    setText('kpiXpTotal', totalXp > 0 ? `âš¡ ${totalXp.toLocaleString()}` : 'â€”');
     setHtml('kpiXpTrend', __xpData?.rank
       ? `<span style="color:#7c3aed;">#${__xpData.rank}</span>`
       : '');
   }
 
-  // ─── Phase 2c: XP Trend Chart + Stats Strip ────────────────────────────────────
+  // â”€â”€â”€ Phase 2c: XP Trend Chart + Stats Strip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function renderXPTrendChart(days) {
     const canvas = document.getElementById('xpTrendChart');
     if (!canvas) return;
@@ -316,9 +316,9 @@
       const highestDay = data.length ? Math.max(...data) : 0;
       const avgXp = data.length ? Math.round(data.reduce((s, v) => s + v, 0) / data.length) : 0;
 
-      setText('statCurrentXp', currentXp > 0 ? `⚡ ${currentXp.toLocaleString()}` : '—');
-      setText('statHighestXp', highestDay > 0 ? `${highestDay.toLocaleString()} XP` : '—');
-      setText('statAvgXp', avgXp > 0 ? `${avgXp.toLocaleString()} XP/day` : '—');
+      setText('statCurrentXp', currentXp > 0 ? `âš¡ ${currentXp.toLocaleString()}` : 'â€”');
+      setText('statHighestXp', highestDay > 0 ? `${highestDay.toLocaleString()} XP` : 'â€”');
+      setText('statAvgXp', avgXp > 0 ? `${avgXp.toLocaleString()} XP/day` : 'â€”');
 
       // Destroy existing chart
       if (__xpTrendChart) {
@@ -359,7 +359,7 @@
               bodyColor: '#f9fafb',
               padding: 10,
               callbacks: {
-                label: ctx => `⚡ ${ctx.parsed.y} XP`
+                label: ctx => `âš¡ ${ctx.parsed.y} XP`
               }
             }
           },
@@ -378,13 +378,13 @@
       });
     } catch (e) {
       console.warn('[Dashboard] XP trend chart error:', e.message);
-      setText('statCurrentXp', '—');
-      setText('statHighestXp', '—');
-      setText('statAvgXp', '—');
+      setText('statCurrentXp', 'â€”');
+      setText('statHighestXp', 'â€”');
+      setText('statAvgXp', 'â€”');
     }
   }
 
-  // ─── Phase 2d: Achievements / Badges ──────────────────────────────────────────
+  // â”€â”€â”€ Phase 2d: Achievements / Badges â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function renderAchievements(xpData) {
     const achievementsEl = document.getElementById('ndAchievements');
     const summaryEl      = document.getElementById('ndBadgesSummary');
@@ -428,12 +428,12 @@
       summaryEl.innerHTML = `
         <span style="font-weight:600;color:#7c3aed;">${earned}</span>
         <span style="color:#6b7280;">/ ${total} badges earned</span>
-        ${earned === total ? ' 🏆' : ''}
+        ${earned === total ? ' ðŸ†' : ''}
       `;
     }
   }
 
-  // ─── Trend Button Listeners ───────────────────────────────────────────────────
+  // â”€â”€â”€ Trend Button Listeners â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function setupTrendButtons() {
     const btn7  = document.getElementById('xpTrend7Btn');
     const btn30 = document.getElementById('xpTrend30Btn');
@@ -449,16 +449,16 @@
     });
   }
 
-  // ─── Date Range Listeners ─────────────────────────────────────────────────────
+  // â”€â”€â”€ Date Range Listeners â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // NOTE: homeApplyRangeBtn and homeThisMonthBtn are already wired in app.js
-  // loadDashboard() — which calls loadNewDashboard() — so we do NOT re-bind
+  // loadDashboard() â€” which calls loadNewDashboard() â€” so we do NOT re-bind
   // them here to avoid double-firing. This function is intentionally a no-op.
   function setupDateRangeButtons() {
     // No-op: app.js loadDashboard() owns these buttons and calls loadNewDashboard()
     // on change, which re-fetches all data with the updated date range.
   }
 
-  // ─── Reload Analytics-dependent sections ──────────────────────────────────────
+  // â”€â”€â”€ Reload Analytics-dependent sections â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function reloadAnalyticsSection(officerId) {
     try {
       __analyticsData = await fetchAnalytics(officerId);
@@ -478,7 +478,7 @@
     }
   }
 
-  // ─── Phase 3a: Lead Pipeline Funnel ──────────────────────────────────────────
+  // â”€â”€â”€ Phase 3a: Lead Pipeline Funnel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function renderLeadPipeline(analyticsData) {
     const funnelEl   = document.getElementById('ndFunnelBars');
     const summaryEl  = document.getElementById('ndPipelineSummary');
@@ -519,22 +519,22 @@
       `;
     }).join('');
 
-    // Footer: conversion rate from new → enrolled
+    // Footer: conversion rate from new â†’ enrolled
     if (footerEl) {
       const newLeads = funnel.new || 0;
       const enrolled = funnel.confirmedPayments || 0;
       const rate = newLeads > 0 ? ((enrolled / newLeads) * 100).toFixed(1) : '0.0';
       footerEl.innerHTML = `
         <span style="font-size:12px;color:#6b7280;">
-          New → Enrolled conversion:
+          New â†’ Enrolled conversion:
           <strong style="color:#7c3aed;">${rate}%</strong>
-          &nbsp;·&nbsp; ${enrolled} of ${newLeads} leads enrolled
+          &nbsp;Â·&nbsp; ${enrolled} of ${newLeads} leads enrolled
         </span>
       `;
     }
   }
 
-  // ─── Phase 3b: XP Leaderboard ─────────────────────────────────────────────────
+  // â”€â”€â”€ Phase 3b: XP Leaderboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function renderLeaderboard(xpLeaderboard) {
     const listEl  = document.getElementById('xpLeaderboardList');
     const badgeEl = document.getElementById('ndLeaderboardBadge');
@@ -577,7 +577,7 @@
               ${initials(entry.name)}
             </div>
             <span class="nd-lb-name" style="font-weight:${fw};">${escHtml(entry.name)}${isMe ? ' <span style="color:#7c3aed;font-size:11px;">(you)</span>' : ''}</span>
-            <span class="nd-lb-xp">⚡ ${(entry.totalXp || 0).toLocaleString()}</span>
+            <span class="nd-lb-xp">âš¡ ${(entry.totalXp || 0).toLocaleString()}</span>
           </div>
         `;
       }).join('');
@@ -587,7 +587,7 @@
     }
   }
 
-  // ─── Phase 3c: Targets vs Achievements ────────────────────────────────────────
+  // â”€â”€â”€ Phase 3c: Targets vs Achievements â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function renderTargets(analyticsData, officerName) {
     const targetsEl = document.getElementById('ndTargets');
     const overallEl = document.getElementById('ndTargetsOverall');
@@ -622,7 +622,7 @@
     const targets = [
       {
         label:    'Enrollments',
-        icon:     '🎓',
+        icon:     'ðŸŽ“',
         value:    enrollments,
         target:   TARGETS.enrollments,
         format:   v => v.toLocaleString(),
@@ -630,17 +630,17 @@
       },
       {
         label:    'Follow-ups Due',
-        icon:     '📅',
+        icon:     'ðŸ“…',
         value:    followupsDue,
         target:   TARGETS.followups,
         format:   v => v.toLocaleString(),
         barClass: 'nd-target-bar-fill nd-target-bar-amber',
-        // For follow-ups, lower is better — invert bar
+        // For follow-ups, lower is better â€” invert bar
         invert:   true,
       },
       {
         label:    'Conversion Rate',
-        icon:     '📈',
+        icon:     'ðŸ“ˆ',
         value:    Math.round(conversion * 100),
         target:   Math.round(TARGETS.conversion * 100),
         format:   v => `${v}%`,
@@ -667,7 +667,7 @@
           <div class="nd-target-bar-bg">
             <div class="${t.barClass}" style="width:${pct}%;transition:width 0.6s ease;"></div>
           </div>
-          <div style="font-size:11px;color:#9ca3af;margin-top:3px;">${pct}% of target${achieved ? ' ✅' : ''}</div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:3px;">${pct}% of target${achieved ? ' âœ…' : ''}</div>
         </div>
       `;
     }).join('');
@@ -692,7 +692,7 @@
     }
   }
 
-  // ─── Targets Officer Selector (Admin) ─────────────────────────────────────────
+  // â”€â”€â”€ Targets Officer Selector (Admin) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function setupTargetsOfficerSelector(leaderboard) {
     const sel = document.getElementById('ndTargetsOfficerSelect');
     if (!sel) return;
@@ -718,7 +718,7 @@
     }
   }
 
-  // ─── Phase 4a: Activity Feed ──────────────────────────────────────────────────
+  // â”€â”€â”€ Phase 4a: Activity Feed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function renderActivityFeed() {
     const feedEl = document.getElementById('ndActivityFeed');
     if (!feedEl) return;
@@ -754,18 +754,18 @@
       if (!events.length) {
         feedEl.innerHTML = `
           <div style="text-align:center;padding:24px 0;color:#9ca3af;font-size:13px;">
-            <div style="font-size:28px;margin-bottom:8px;">📭</div>
+            <div style="font-size:28px;margin-bottom:8px;">ðŸ“­</div>
             No recent activity yet.
           </div>`;
         return;
       }
 
       feedEl.innerHTML = events.map(ev => {
-        const meta = EVENT_LABELS[ev.event_type] || { label: ev.event_type || 'Activity', icon: '•' };
+        const meta = EVENT_LABELS[ev.event_type] || { label: ev.event_type || 'Activity', icon: 'â€¢' };
         const xpColor = (ev.xp ?? 0) >= 0 ? '#059669' : '#dc2626';
         const xpText  = (ev.xp ?? 0) >= 0 ? `+${ev.xp}` : `${ev.xp}`;
         const when    = timeAgo(ev.created_at);
-        const name    = isAdmin && ev.officerName ? `<span style="color:#7c3aed;font-weight:600;">${escHtml(ev.officerName)}</span> · ` : '';
+        const name    = isAdmin && ev.officerName ? `<span style="color:#7c3aed;font-weight:600;">${escHtml(ev.officerName)}</span> Â· ` : '';
         return `
           <div class="nd-activity-item">
             <div class="nd-activity-icon">${meta.icon}</div>
@@ -783,7 +783,7 @@
     }
   }
 
-  // ─── Phase 4b: Tasks List ─────────────────────────────────────────────────────
+  // â”€â”€â”€ Phase 4b: Tasks List â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function renderTasksList() {
     const listEl = document.getElementById('ndTasksList');
     if (!listEl) return;
@@ -799,7 +799,7 @@
       if (!tasks.length) {
         listEl.innerHTML = `
           <div style="text-align:center;padding:20px 0;color:#9ca3af;font-size:13px;">
-            <div style="font-size:24px;margin-bottom:6px;">✅</div>
+            <div style="font-size:24px;margin-bottom:6px;">âœ…</div>
             No tasks yet.
           </div>`;
         return;
@@ -828,7 +828,7 @@
             <div style="flex:1;min-width:0;">
               <div class="nd-task-title">${escHtml(task.title)}</div>
               ${dueLabel ? `<div class="nd-task-due" style="color:${isOverdue ? '#ef4444' : '#9ca3af'};">
-                ${isOverdue ? '⚠ ' : ''}${dueLabel}
+                ${isOverdue ? 'âš  ' : ''}${dueLabel}
               </div>` : ''}
             </div>
             <span class="nd-priority-badge nd-priority-${priClass}">${priLabel}</span>
@@ -860,41 +860,111 @@
     }
   };
 
-  // ─── Phase 4c: Quick Actions ──────────────────────────────────────────────────
-  function setupQuickActions() {
-    const qaAddLead     = document.getElementById('qaAddLead');
-    const qaFollowup    = document.getElementById('qaFollowup');
-    const qaUpdateStatus = document.getElementById('qaUpdateStatus');
+  // ─── Phase 4c: Enrollment Leaderboard (replaces Quick Actions) ───────────────
+  let __enrollLeaderboardData = []; // cache for batch filtering
 
-    if (qaAddLead && !qaAddLead.__wired) {
-      qaAddLead.__wired = true;
-      qaAddLead.addEventListener('click', () => {
-        // Navigate to leads page and trigger add-lead modal if available
-        if (window.navigateToPage) window.navigateToPage('leads-myLeads');
-        setTimeout(() => {
-          const addBtn = document.getElementById('addLeadBtn') || document.querySelector('[data-action="add-lead"]');
-          if (addBtn) addBtn.click();
-        }, 400);
-      });
-    }
+  async function renderEnrollLeaderboard(batchFilter) {
+    const listEl = document.getElementById('ndEnrollLeaderboard');
+    if (!listEl) return;
 
-    if (qaFollowup && !qaFollowup.__wired) {
-      qaFollowup.__wired = true;
-      qaFollowup.addEventListener('click', () => {
-        // Navigate to calendar tasks / lead management
-        if (window.navigateToPage) window.navigateToPage('calendar');
-      });
-    }
+    try {
+      const headers = await authHeaders();
+      let data = __enrollLeaderboardData;
 
-    if (qaUpdateStatus && !qaUpdateStatus.__wired) {
-      qaUpdateStatus.__wired = true;
-      qaUpdateStatus.addEventListener('click', () => {
-        if (window.navigateToPage) window.navigateToPage('lead-management');
-      });
+      // Fetch fresh if no cache
+      if (!data.length) {
+        const r = await fetch('/api/dashboard/analytics', { headers });
+        const j = await r.json();
+        data = j.leaderboard?.enrollmentsCurrentBatch || [];
+        __enrollLeaderboardData = data;
+      }
+
+      // Apply batch filter if selected
+      let filtered = data;
+      if (batchFilter) {
+        // Re-fetch with batch filter via analytics
+        const params = new URLSearchParams();
+        params.set('batch', batchFilter);
+        const r = await fetch(`/api/dashboard/analytics?${params}`, { headers });
+        const j = await r.json();
+        filtered = j.leaderboard?.enrollmentsCurrentBatch || [];
+      }
+
+      if (!filtered.length) {
+        listEl.innerHTML = '<p style="color:#9ca3af;font-size:13px;padding:12px 0;text-align:center;">No enrollment data yet.</p>';
+        return;
+      }
+
+      const currentName = window.currentUser?.name || '';
+
+      listEl.innerHTML = filtered.map((entry, i) => {
+        const isMe = entry.officer === currentName;
+        const bg   = isMe ? 'rgba(124,58,237,0.06)' : 'transparent';
+        const fw   = i < 3 ? '700' : '500';
+        const convPct = entry.conversionRate ? (entry.conversionRate * 100).toFixed(1) + '%' : '0%';
+        return `
+          <div class="nd-leaderboard-row" style="background:${bg};${isMe ? 'border-left:3px solid #7c3aed;padding-left:8px;border-radius:4px;' : ''}">
+            <span class="nd-lb-rank">${medal(i)}</span>
+            <div class="nd-lb-avatar" style="background:hsl(${[...entry.officer].reduce((h,c)=>(h*31+c.charCodeAt(0))%360,0)},60%,55%);">
+              ${initials(entry.officer)}
+            </div>
+            <span class="nd-lb-name" style="font-weight:${fw};flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+              ${escHtml(entry.officer)}${isMe ? ' <span style="color:#7c3aed;font-size:11px;">(you)</span>' : ''}
+            </span>
+            <span style="display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;gap:1px;">
+              <span style="font-weight:700;color:#7c3aed;font-size:13px;">🎓 ${entry.count}</span>
+              <span style="font-size:11px;color:#9ca3af;">${convPct} conv.</span>
+            </span>
+          </div>`;
+      }).join('');
+
+    } catch (e) {
+      listEl.innerHTML = '<p style="color:#ef4444;font-size:13px;">Failed to load leaderboard.</p>';
+      console.warn('[Dashboard] Enroll leaderboard error:', e.message);
     }
   }
 
-  // ─── Phase 4d: Add Task Form ──────────────────────────────────────────────────
+  async function setupEnrollBatchFilter() {
+    const sel = document.getElementById('ndEnrollBatchSelect');
+    if (!sel || sel.__wired) return;
+    sel.__wired = true;
+
+    // Populate batch options from analytics response
+    try {
+      const headers = await authHeaders();
+      const r = await fetch('/api/batches', { headers });
+      const j = await r.json();
+      const batches = j.batches || j || [];
+      batches.forEach(b => {
+        const name = b.name || b.batch_name || b;
+        if (!name) return;
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        sel.appendChild(opt);
+      });
+    } catch (e) {
+      // Fallback: use currentBatches from analytics data
+      const batches = __analyticsData?.currentBatches || [];
+      batches.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        sel.appendChild(opt);
+      });
+    }
+
+    sel.addEventListener('change', () => {
+      __enrollLeaderboardData = []; // clear cache so re-fetch happens
+      renderEnrollLeaderboard(sel.value || null);
+    });
+  }
+
+  function setupQuickActions() {
+    // Quick actions removed — replaced by enrollment leaderboard
+  }
+
+  // â”€â”€â”€ Phase 4d: Add Task Form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function setupAddTask() {
     const addBtn  = document.getElementById('ndAddTaskBtn');
     const form    = document.getElementById('ndTaskAddForm');
@@ -958,16 +1028,16 @@
     }
   }
 
-  // ─── Phase 5a: Populate Officer Selectors (Admin) ────────────────────────────
+  // â”€â”€â”€ Phase 5a: Populate Officer Selectors (Admin) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function populateOfficerSelectors(leaderboard) {
-    // ndOfficerSelect — profile section filter (reload all metrics for officer)
+    // ndOfficerSelect â€” profile section filter (reload all metrics for officer)
     const mainSel    = document.getElementById('ndOfficerSelect');
-    // ndTargetsOfficerSelect — already handled in Phase 3 setupTargetsOfficerSelector
+    // ndTargetsOfficerSelect â€” already handled in Phase 3 setupTargetsOfficerSelector
     // Both selectors get the same officer list derived from the analytics leaderboard
 
     if (!mainSel) return;
 
-    // Always repopulate — clear all options except the first placeholder
+    // Always repopulate â€” clear all options except the first placeholder
     while (mainSel.options.length > 1) mainSel.remove(1);
 
     leaderboard.forEach(entry => {
@@ -982,14 +1052,48 @@
     if (!mainSel.__wired) {
       mainSel.__wired = true;
       mainSel.addEventListener('change', async () => {
-        const officerId = mainSel.value || null;
-        await reloadAnalyticsSection(officerId);
-        renderEnrollmentsChart(__analyticsData, officerId);
+        const officerName = mainSel.value || null;
+
+        // Show loading state in profile name
+        const profileName = document.getElementById('ndProfileName');
+        if (profileName && officerName) profileName.textContent = officerName;
+
+        // Reload all analytics-dependent sections for selected officer
+        await reloadAnalyticsSection(officerName);
+        renderEnrollmentsChart(__analyticsData, officerName);
+
+        // Update profile section to reflect selected officer
+        if (officerName) {
+          // Show officer name in profile
+          setText('ndProfileName', officerName);
+          setText('ndProfileRole', 'Academic Advisor');
+
+          // Update avatar initials to officer's initials
+          const initialsEl = document.getElementById('ndAvatarInitials');
+          const levelNumEl = document.getElementById('ndLevelNum');
+          if (levelNumEl) levelNumEl.textContent = '?';
+
+          // Find officer in leaderboard for enrollment count
+          const officerEntry = __analyticsData?.leaderboard?.enrollmentsCurrentBatch
+            ?.find(e => e.officer === officerName);
+          if (officerEntry) {
+            setText('ndXpNumbers', `${officerEntry.count} enrollments`);
+            setText('ndLevelLabel', `Conv: ${(officerEntry.conversionRate * 100).toFixed(1)}%`);
+          }
+
+          // Hide rank badge when viewing another officer
+          const rankBadge = document.getElementById('ndRankBadge');
+          if (rankBadge) rankBadge.style.display = 'none';
+
+        } else {
+          // Reset to current user's profile
+          await renderProfileSection(__xpData);
+        }
       });
     }
   }
 
-  // ─── Phase 5b: Admin Action Center ───────────────────────────────────────────
+  // â”€â”€â”€ Phase 5b: Admin Action Center â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function renderAdminActionCenter(analyticsData) {
     const acEl = document.getElementById('homeActionCenter');
     if (!acEl) return;
@@ -1017,7 +1121,7 @@
 
     const items = [
       {
-        icon: '⚠️',
+        icon: 'âš ï¸',
         iconClass: 'nd-action-amber',
         title: 'Overdue Follow-ups',
         sub: 'Leads with missed follow-up dates',
@@ -1029,7 +1133,7 @@
         btnId: 'acOverdueFollowUpsBtn',
       },
       {
-        icon: '💳',
+        icon: 'ðŸ’³',
         iconClass: 'nd-action-purple',
         title: 'Payments to Confirm',
         sub: 'Payment received but not confirmed',
@@ -1041,7 +1145,7 @@
         btnId: 'acConfirmPaymentsBtn',
       },
       {
-        icon: '🎓',
+        icon: 'ðŸŽ“',
         iconClass: 'nd-action-green',
         title: 'To Be Enrolled',
         sub: 'Payment confirmed but not enrolled',
@@ -1053,7 +1157,7 @@
         btnId: 'acToEnrollBtn',
       },
       {
-        icon: '📋',
+        icon: 'ðŸ“‹',
         iconClass: 'nd-action-blue',
         title: 'Missing Assignment',
         sub: 'Registrations without an officer',
@@ -1065,7 +1169,7 @@
         btnId: 'acMissingAssignBtn',
       },
       {
-        icon: '🏖️',
+        icon: 'ðŸ–ï¸',
         iconClass: 'nd-action-rose',
         title: 'Leave Requests',
         sub: 'Pending staff leave approvals',
@@ -1116,7 +1220,7 @@
     });
   }
 
-  // ─── Phase 5c: Enrollments per Day Chart ──────────────────────────────────────
+  // â”€â”€â”€ Phase 5c: Enrollments per Day Chart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function renderEnrollmentsChart(analyticsData, officerFilter) {
     const isAdmin = window.currentUser?.role === 'admin';
 
@@ -1195,7 +1299,7 @@
     });
   }
 
-  // ─── Skeleton → Content helpers ───────────────────────────────────────────────
+  // â”€â”€â”€ Skeleton â†’ Content helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Replace skeleton placeholders with real content and trigger fade-in animation.
   // Called after each section renders its innerHTML.
   function clearSkeletons(containerIds) {
@@ -1211,7 +1315,7 @@
     });
   }
 
-  // ─── Admin / Officer row visibility ──────────────────────────────────────────
+  // â”€â”€â”€ Admin / Officer row visibility â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function applyRoleVisibility() {
     const isAdmin = window.currentUser?.role === 'admin';
     const adminRow   = document.getElementById('ndAdminActionRow');
@@ -1244,11 +1348,11 @@
     }
   }
 
-  // ─── Public Entry Point ───────────────────────────────────────────────────────
+  // â”€â”€â”€ Public Entry Point â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   /**
    * window.loadNewDashboard()
    * Called from app.js loadDashboard() after homeView is shown.
-   * Safe to call multiple times — reloads fresh data each time.
+   * Safe to call multiple times â€” reloads fresh data each time.
    */
   window.loadNewDashboard = async function () {
     const isAdmin = window.currentUser?.role === 'admin';
@@ -1257,10 +1361,12 @@
     if (!__listenersSetUp) {
       setupTrendButtons();
       setupDateRangeButtons();
-      setupQuickActions();
       setupAddTask();
       __listenersSetUp = true;
     }
+
+    // Enrollment batch filter wired after analytics data available
+    await setupEnrollBatchFilter();
 
     // Apply role-based visibility immediately (before data loads)
     applyRoleVisibility();
@@ -1291,6 +1397,7 @@
       // Phase 4
       renderActivityFeed(),
       renderTasksList(),
+      renderEnrollLeaderboard(),
       // Phase 5
       renderAdminActionCenter(__analyticsData),
       Promise.resolve(renderEnrollmentsChart(__analyticsData)),
@@ -1305,15 +1412,20 @@
     clearSkeletons([
       'ndFunnelBars',
       'xpLeaderboardList',
+      'ndEnrollLeaderboard',
       'ndTargets',
       'ndActivityFeed',
       'ndTasksList',
       'ndAchievements',
       'homeActionCenter',
     ]);
+
+    // Reset enrollment leaderboard cache for next load
+    __enrollLeaderboardData = [];
   };
 
   // Keep backward-compat alias for any existing app.js calls
   window.loadXPDashboard = window.loadNewDashboard;
 
 })();
+
