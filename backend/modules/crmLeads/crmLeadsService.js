@@ -443,7 +443,6 @@ async function updateMyLeadManagement({ officerName, batchName, sheetName, sheet
 
   // Also persist follow-ups in normalized table (officer-owned)
   // Best-effort: does not block saving management_json.
-  console.log('[XP-DEBUG] updateMyLeadManagement: officerUserId=', officerUserId, 'officerName=', officerName);
   try {
     const followupsSvc = require('./followupsService');
     if (officerUserId) {
@@ -458,8 +457,6 @@ async function updateMyLeadManagement({ officerName, batchName, sheetName, sheet
         .eq('sheet_lead_id', String(sheetLeadId));
       const prevMap = new Map((prevFollowups || []).map(f => [f.sequence, f]));
 
-      console.log('[XP-DEBUG] mergedMgmt followup keys:', Object.keys(mergedMgmt).filter(k => /^followUp/.test(k)));
-      console.log('[XP-DEBUG] officerUserId:', officerUserId, 'syncedRows will follow...');
       const syncedRows = await followupsSvc.syncLegacyFollowupsFromManagement({
         officerUserId,
         officerName,
@@ -468,7 +465,6 @@ async function updateMyLeadManagement({ officerName, batchName, sheetName, sheet
         sheetLeadId,
         management: mergedMgmt
       });
-      console.log('[XP-DEBUG] syncedRows count:', (syncedRows || []).length, 'rows:', JSON.stringify((syncedRows || []).map(r => ({ id: r.id, seq: r.sequence, actual_at: r.actual_at, answered: r.answered }))));
 
       // XP hook: +2 for each followup where actual_at is set AND answered newly became yes
       try {
@@ -478,10 +474,9 @@ async function updateMyLeadManagement({ officerName, batchName, sheetName, sheet
           const prevAnsweredYes = prev?.answered === true;
           const newAnsweredYes = row?.answered === true;
           const hasActualAt = !!row?.actual_at;
-          console.log(`[XP-DEBUG] followup seq=${row.sequence} id=${row.id} hasActualAt=${hasActualAt} newAnsweredYes=${newAnsweredYes} prevAnsweredYes=${prevAnsweredYes} row.answered=${row?.answered}`);
           // Award when: has a contact date AND answered newly became yes (was not yes before)
           if (hasActualAt && newAnsweredYes && !prevAnsweredYes && row?.id) {
-            const xpResult = await awardXPOnce({
+            await awardXPOnce({
               userId: officerUserId,
               eventType: 'followup_completed',
               xp: 2,
@@ -489,11 +484,10 @@ async function updateMyLeadManagement({ officerName, batchName, sheetName, sheet
               referenceType: 'followup',
               note: `Follow-up #${row.sequence} completed (answered)`
             });
-            console.log(`[XP-DEBUG] awardXPOnce result:`, xpResult);
           }
         }
       } catch (xpErr) {
-        console.warn('[XP] followup sync hook error:', xpErr.message, xpErr.stack);
+        console.warn('[XP] followup sync hook error:', xpErr.message);
       }
     }
   } catch (e) {

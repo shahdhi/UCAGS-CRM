@@ -1081,7 +1081,6 @@ async function saveLeadManagement(event, leadId) {
     managementData.nextFollowUp = getNextFollowUpSchedule(managementData) || '';
     
     console.log('Saving lead management data:', managementData);
-    console.log('[FOLLOWUP-DEBUG] followUp keys:', Object.fromEntries(Object.entries(managementData).filter(([k]) => k.startsWith('followUp'))));
 
     // Optimistic UI: update local state + close modal immediately
     const lead = getContextLeads().find(l => l.id == leadId);

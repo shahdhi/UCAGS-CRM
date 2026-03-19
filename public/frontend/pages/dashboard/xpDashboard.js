@@ -17,8 +17,19 @@
   let __analyticsData = null; // from /api/dashboard/analytics
 
   // --- Constants ---
-  const LEVEL_THRESHOLDS = [0, 100, 250, 500, 1000, 2000, 4000, 8000];
-  const LEVEL_NAMES = ['Rookie', 'Explorer', 'Achiever', 'Pro', 'Expert', 'Elite', 'Master', 'Legend'];
+  // Level thresholds (index = level-1, value = XP required to reach that level)
+  // Levels 1-10: fixed thresholds
+  // Levels 10-15: +1000 XP per level
+  // Levels 15-20: +1500 XP per level
+  // Levels 20+:   +2000 XP per level (up to level 30)
+  const LEVEL_THRESHOLDS = (() => {
+    const t = [0, 250, 500, 800, 1250, 1600, 2000, 2500, 3200, 4000]; // levels 1-10
+    for (let l = 11; l <= 15; l++) t.push(t[t.length - 1] + 1000);   // levels 11-15
+    for (let l = 16; l <= 20; l++) t.push(t[t.length - 1] + 1500);   // levels 16-20
+    for (let l = 21; l <= 30; l++) t.push(t[t.length - 1] + 2000);   // levels 21-30
+    return t;
+  })();
+  const LEVEL_NAMES = [];
 
   const EVENT_LABELS = {
     lead_contacted:        { label: 'Lead contacted',        icon: '<i class="fas fa-phone"></i>' },
