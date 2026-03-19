@@ -474,12 +474,12 @@ async function updateMyLeadManagement({ officerName, batchName, sheetName, sheet
         const { awardXPOnce } = require('../xp/xpService');
         for (const row of (syncedRows || [])) {
           const prev = prevMap.get(row.sequence);
-          const prevAnsweredYes = prev?.answered === true;
-          const newAnsweredYes = row?.answered === true;
-          const hasActualAt = !!row?.actual_at;
-          console.log(`[XP-DEBUG] followup seq=${row.sequence} id=${row.id} hasActualAt=${hasActualAt} newAnsweredYes=${newAnsweredYes} prevAnsweredYes=${prevAnsweredYes} prev=`, prev);
-          // Award when: has a contact date, answered is now yes, and was NOT already yes before
-          if (hasActualAt && newAnsweredYes && !prevAnsweredYes && row?.id) {
+          const prevActualAt = prev?.actual_at || null;
+          const newActualAt = row?.actual_at || null;
+          const answeredYes = row?.answered === true || String(row?.answered).toLowerCase() === 'yes';
+          console.log(`[XP-DEBUG] followup seq=${row.sequence} id=${row.id} newActualAt=${newActualAt} prevActualAt=${prevActualAt} answeredYes=${answeredYes} row.answered=${row?.answered}`);
+          // Award when: actual_at newly set AND answered = yes
+          if (newActualAt && !prevActualAt && answeredYes && row?.id) {
             const xpResult = await awardXPOnce({
               userId: officerUserId,
               eventType: 'followup_completed',

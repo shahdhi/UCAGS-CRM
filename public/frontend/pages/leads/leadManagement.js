@@ -1062,10 +1062,11 @@ async function saveLeadManagement(event, leadId) {
 
     followUpSections.forEach((section, index) => {
       const num = Number(section.dataset.followup) || (index + 1);
-      const scheduleEl = document.getElementById(`followUp${num}Schedule`);
-      const dateEl = document.getElementById(`followUp${num}Date`);
-      const answeredEl = document.getElementById(`followUp${num}Answered`);
-      const commentEl = document.getElementById(`followUp${num}Comment`);
+      // Use section.querySelector as fallback in case getElementById fails (e.g. duplicate IDs or rendering issues)
+      const scheduleEl = document.getElementById(`followUp${num}Schedule`) || section.querySelector(`[id$="Schedule"]`);
+      const dateEl = document.getElementById(`followUp${num}Date`) || section.querySelector(`[id$="Date"]`);
+      const answeredEl = document.getElementById(`followUp${num}Answered`) || section.querySelector(`select[id$="Answered"]`);
+      const commentEl = document.getElementById(`followUp${num}Comment`) || section.querySelector(`[id$="Comment"]`);
       
       if (scheduleEl) managementData[`followUp${num}Schedule`] = scheduleEl.value;
       if (dateEl) managementData[`followUp${num}Date`] = dateEl.value;
