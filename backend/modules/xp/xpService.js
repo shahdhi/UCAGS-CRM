@@ -5,15 +5,15 @@
  *
  * XP Events:
  *  lead_contacted          +2   Lead status changed from 'New'
- *  followup_completed      +3   A followup is marked with an actual_at date
- *  registration_received   +10  New registration submission
- *  payment_received        +20  Payment confirmed / received
- *  demo_attended           +3   Demo session invite marked as 'Attended'
+ *  followup_completed      +2   A followup is marked with an actual_at date AND answered = yes
+ *  registration_received   +20  New registration submission
+ *  payment_received        +40  Payment confirmed / received
+ *  demo_attended           +15  Demo session invite marked as 'Attended'
  *  attendance_on_time      +1   Check-in recorded before 10:00 AM (SL time)
  *  checklist_completed     +2   Daily checklist snapshot saved for the day
- *  report_submitted        +3   Daily report slot submitted (1 per slot)
+ *  report_submitted        +2   Daily report slot submitted (1 per slot)
  *  lead_responded_fast     +2   First followup created within 1h of lead assignment
- *  followup_overdue        -2   A followup is still open 1+ day past scheduled date (daily cron)
+ *  followup_overdue        -5   A followup is still open 1+ day past scheduled date (daily cron)
  */
 
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
@@ -325,7 +325,7 @@ async function penaliseOverdueFollowups() {
     const result = await awardXPOnce({
       userId: f.officer_user_id,
       eventType: 'followup_overdue',
-      xp: -2,
+      xp: -5,
       referenceId: refId,
       referenceType: 'followup',
       note: `Overdue followup penalty (${todayKey})`

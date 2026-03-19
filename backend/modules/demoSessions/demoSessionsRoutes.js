@@ -107,7 +107,7 @@ router.patch('/invites/:id', isAdminOrOfficer, async (req, res) => {
           await awardXPOnce({
             userId: officerUserId,
             eventType: 'demo_attended',
-            xp: 3,
+            xp: 15,
             referenceId: inviteId,
             referenceType: 'demo_invite',
             note: `Demo session attended (invite ${inviteId})`

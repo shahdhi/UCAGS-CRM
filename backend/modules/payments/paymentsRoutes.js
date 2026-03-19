@@ -589,7 +589,7 @@ router.post('/admin/:id/confirm', isAdmin, async (req, res) => {
             await awardXPOnce({
               userId: officerUser.id,
               eventType: 'payment_received',
-              xp: 20,
+              xp: 40,
               referenceId: confirmed.id,
               referenceType: 'payment',
               note: `Payment confirmed for registration ${confirmed.registration_id}`

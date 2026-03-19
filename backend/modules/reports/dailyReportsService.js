@@ -243,7 +243,7 @@ async function submitDailyReport({ officerUserId, officerName, slotKey, clientNo
     await awardXPOnce({
       userId: officerUserId,
       eventType: 'report_submitted',
-      xp: 3,
+      xp: 2,
       referenceId: `${officerUserId}:${dateISO}:${slotKey}`,
       referenceType: 'report',
       note: `Daily report submitted — ${slotKey} (${dateISO})`

@@ -88,16 +88,17 @@ router.post('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, re
     try {
       const { awardXPOnce, awardXPSafe } = require('../xp/xpService');
 
-      // +3 XP: followup completed (actual_at newly set)
+      // +2 XP: followup completed (actual_at newly set AND answered = yes)
       const newActualAt = row?.actual_at || payload?.actualAt || payload?.actual_at;
-      if (officerUserId && newActualAt && !prevActualAt) {
+      const answeredYes = row?.answered === true;
+      if (officerUserId && newActualAt && !prevActualAt && answeredYes) {
         await awardXPOnce({
           userId: officerUserId,
           eventType: 'followup_completed',
-          xp: 3,
+          xp: 2,
           referenceId: row?.id,
           referenceType: 'followup',
-          note: `Follow-up #${sequence} completed`
+          note: `Follow-up #${sequence} completed (answered)`
         });
       }
 
