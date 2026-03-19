@@ -279,120 +279,332 @@
             </div>
 
             <div class="main-content">
-            <!-- Home View -->
+            <!-- Home View — New Dashboard -->
             <div id="homeView" class="content-view active">
-                <div class="page-header" style="margin-bottom: 12px;">
-                    <h1><i class="fas fa-chart-line"></i> Analytics</h1>
-                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                        <label style="font-size:13px; color:#667085;">From</label>
-                        <input id="homeFromDate" type="date" class="form-control" style="width:160px;" />
-                        <label style="font-size:13px; color:#667085;">To</label>
-                        <input id="homeToDate" type="date" class="form-control" style="width:160px;" />
-                        <button id="homeApplyRangeBtn" class="btn btn-secondary" type="button"><i class="fas fa-filter"></i> Apply</button>
-                        <button id="homeThisMonthBtn" class="btn btn-secondary" type="button">Last 30 days</button>
+
+                <!-- ── Dashboard Background Blobs ──────────────────────────────── -->
+                <div class="nd-bg-blobs" aria-hidden="true">
+                    <div class="nd-blob nd-blob-1"></div>
+                    <div class="nd-blob nd-blob-2"></div>
+                    <div class="nd-blob nd-blob-3"></div>
+                </div>
+
+                <!-- ── Profile Section ─────────────────────────────────────────── -->
+                <div class="nd-profile-section">
+                    <div class="nd-profile-left">
+                        <div class="nd-avatar" id="ndAvatar">
+                            <span id="ndAvatarInitials">?</span>
+                        </div>
+                        <div class="nd-profile-info">
+                            <div class="nd-profile-name" id="ndProfileName">Loading...</div>
+                            <div class="nd-profile-role" id="ndProfileRole">Academic Advisor</div>
+                            <div class="nd-profile-meta" id="ndProfileMeta"></div>
+                        </div>
+                    </div>
+                    <div class="nd-profile-center">
+                        <div class="nd-rank-badge" id="ndRankBadge">
+                            <i class="fas fa-trophy"></i>
+                            <span id="ndRankText">—</span>
+                        </div>
+                        <div class="nd-xp-block">
+                            <div class="nd-xp-label">
+                                <span>⚡ XP Progress</span>
+                                <span id="ndXpNumbers">0 / 500</span>
+                            </div>
+                            <div class="nd-xp-bar-bg">
+                                <div class="nd-xp-bar-fill" id="ndXpBarFill" style="width:0%">
+                                    <div class="nd-xp-bar-shimmer"></div>
+                                </div>
+                            </div>
+                            <div class="nd-level-label" id="ndLevelLabel">Level 1</div>
+                        </div>
+                    </div>
+                    <div class="nd-profile-right">
+                        <!-- Admin: officer selector for metrics -->
+                        <div class="nd-officer-filter admin-only" id="ndOfficerFilterWrap">
+                            <label class="nd-filter-label"><i class="fas fa-user-tie"></i> View Officer</label>
+                            <select id="ndOfficerSelect" class="nd-select">
+                                <option value="">All Officers</option>
+                            </select>
+                        </div>
+                        <!-- Date range -->
+                        <div class="nd-date-range">
+                            <input id="homeFromDate" type="date" class="nd-date-input" />
+                            <span class="nd-date-sep">→</span>
+                            <input id="homeToDate" type="date" class="nd-date-input" />
+                            <button id="homeApplyRangeBtn" class="nd-btn-ghost" type="button"><i class="fas fa-filter"></i></button>
+                            <button id="homeThisMonthBtn" class="nd-btn-ghost" type="button">30d</button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- KPI Overview Strip -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon yellow"><i class="fas fa-calendar-day"></i></div>
-                        <div class="stat-details">
-                            <h3 id="kpiFollowUpsDue">0</h3>
-                            <p>Follow-ups Due</p>
+                <!-- ── KPI Metrics Cards (6) ────────────────────────────────────── -->
+                <div class="nd-metrics-grid">
+                    <div class="nd-metric-card nd-metric-purple">
+                        <div class="nd-metric-icon-wrap"><i class="fas fa-user-graduate"></i></div>
+                        <div class="nd-metric-body">
+                            <div class="nd-metric-value" id="kpiConfirmedPayments">—</div>
+                            <div class="nd-metric-label">Enrollments</div>
+                            <div class="nd-metric-trend" id="kpiEnrollmentsTrend"></div>
                         </div>
+                        <div class="nd-metric-glow"></div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-icon green"><i class="fas fa-user-graduate"></i></div>
-                        <div class="stat-details">
-                            <h3 id="kpiConfirmedPayments">0</h3>
-                            <p>Enrollments</p>
+                    <div class="nd-metric-card nd-metric-green">
+                        <div class="nd-metric-icon-wrap"><i class="fas fa-percent"></i></div>
+                        <div class="nd-metric-body">
+                            <div class="nd-metric-value" id="kpiConversionRate">—</div>
+                            <div class="nd-metric-label">Conversion Rate</div>
+                            <div class="nd-metric-trend" id="kpiConversionTrend"></div>
                         </div>
+                        <div class="nd-metric-glow"></div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-icon blue"><i class="fas fa-percent"></i></div>
-                        <div class="stat-details">
-                            <h3 id="kpiConversionRate">0%</h3>
-                            <p>Conversion Rate</p>
+                    <div class="nd-metric-card nd-metric-amber">
+                        <div class="nd-metric-icon-wrap"><i class="fas fa-calendar-day"></i></div>
+                        <div class="nd-metric-body">
+                            <div class="nd-metric-value" id="kpiFollowUpsDue">—</div>
+                            <div class="nd-metric-label">Follow-ups Due</div>
+                            <div class="nd-metric-trend" id="kpiFollowupsTrend"></div>
                         </div>
+                        <div class="nd-metric-glow"></div>
+                    </div>
+                    <div class="nd-metric-card nd-metric-blue">
+                        <div class="nd-metric-icon-wrap"><i class="fas fa-users"></i></div>
+                        <div class="nd-metric-body">
+                            <div class="nd-metric-value" id="kpiActiveLeads">—</div>
+                            <div class="nd-metric-label">Active Leads</div>
+                            <div class="nd-metric-trend" id="kpiLeadsTrend"></div>
+                        </div>
+                        <div class="nd-metric-glow"></div>
+                    </div>
+                    <div class="nd-metric-card nd-metric-indigo">
+                        <div class="nd-metric-icon-wrap"><i class="fas fa-clipboard-list"></i></div>
+                        <div class="nd-metric-body">
+                            <div class="nd-metric-value" id="kpiRegistrations">—</div>
+                            <div class="nd-metric-label">Registrations</div>
+                            <div class="nd-metric-trend" id="kpiRegistrationsTrend"></div>
+                        </div>
+                        <div class="nd-metric-glow"></div>
+                    </div>
+                    <div class="nd-metric-card nd-metric-rose">
+                        <div class="nd-metric-icon-wrap"><i class="fas fa-star"></i></div>
+                        <div class="nd-metric-body">
+                            <div class="nd-metric-value" id="kpiXpTotal">—</div>
+                            <div class="nd-metric-label">Total XP</div>
+                            <div class="nd-metric-trend" id="kpiXpTrend"></div>
+                        </div>
+                        <div class="nd-metric-glow"></div>
                     </div>
                 </div>
 
-                <div class="dashboard-grid" style="grid-template-columns: 1.2fr 0.8fr;">
-                    <!-- Action Center (Admin only) -->
-                    <div class="dashboard-card admin-only">
-                        <h3>Action Center</h3>
-                        <div id="homeActionCenter" class="recent-list">
-                            <p class="loading">Loading...</p>
-                        </div>
-                    </div>
-
-                    <!-- Action Center (Officer only) -->
-                    <div class="dashboard-card officer-only">
-                        <h3>Action Center</h3>
-                        <div id="homeOfficerActionCenter" class="recent-list">
-                            <p class="loading">Loading...</p>
-                        </div>
-                    </div>
-
-                    <!-- Leaderboard -->
-                    <div class="dashboard-card">
-                        <h3>Leaderboard (Enrollments)</h3>
-                        <div id="homeLeaderboard" class="officer-stats">
-                            <p class="loading">Loading...</p>
-                        </div>
-                        <div id="homeLeaderboardDivider" style="margin-top:10px; border-top:1px solid #e5e7eb;"></div>
-                        <div id="homePerformerOfWeek" class="officer-stats" style="margin-top:10px;"></div>
-                    </div>
-                </div>
-
-                <div class="dashboard-grid" style="grid-template-columns: 1.2fr 0.8fr;">
-                    <!-- Time Series -->
-                    <div class="dashboard-card">
-                        <h3>Enrollments per Day</h3>
-                        <canvas id="homeConfirmedLineChart" height="120"></canvas>
-                    </div>
-
-                    <!-- Status -->
-                    <div class="dashboard-card">
-                        <h3>Status</h3>
-                        <canvas id="homeFunnelChart" height="150"></canvas>
-                    </div>
-                </div>
-
-                <!-- XP Section -->
-                <div class="dashboard-grid" style="grid-template-columns: 1fr 1.4fr; margin-top: 0;">
-
-                    <!-- XP Leaderboard (admin sees all, officer sees personal card) -->
-                    <div class="dashboard-card admin-only" id="xpLeaderboardCard">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                            <h3 style="margin:0;">⚡ XP Leaderboard</h3>
-                        </div>
-                        <div id="xpLeaderboardList">
-                            <p class="loading">Loading...</p>
-                        </div>
-                    </div>
-
-                    <!-- Officer: personal XP card -->
-                    <div class="dashboard-card officer-only" id="xpPersonalCard">
-                        <h3>⚡ My XP</h3>
-                        <div id="xpPersonalContent">
-                            <p class="loading">Loading...</p>
-                        </div>
-                    </div>
-
+                <!-- ── Row 1: XP Trend + Achievements ─────────────────────────── -->
+                <div class="nd-row nd-row-2-1">
                     <!-- XP Trend Chart -->
-                    <div class="dashboard-card" id="xpTrendCard">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                            <h3 style="margin:0;">📈 XP Trend</h3>
-                            <div style="display:flex; gap:6px;">
-                                <button id="xpTrend7Btn" class="btn btn-secondary btn-sm" type="button">7d</button>
-                                <button id="xpTrend30Btn" class="btn btn-primary btn-sm" type="button">30d</button>
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-chart-bar"></i> XP Performance Trend</div>
+                            <div class="nd-toggle-group">
+                                <button id="xpTrend7Btn" class="nd-toggle-btn" type="button">7d</button>
+                                <button id="xpTrend30Btn" class="nd-toggle-btn active" type="button">30d</button>
                             </div>
                         </div>
-                        <canvas id="xpTrendChart" height="120"></canvas>
+                        <div class="nd-chart-wrap">
+                            <canvas id="xpTrendChart"></canvas>
+                        </div>
+                        <div class="nd-xp-chart-stats" id="ndXpChartStats">
+                            <div class="nd-xp-stat"><span class="nd-xp-stat-label">Current XP</span><span class="nd-xp-stat-val" id="statCurrentXp">—</span></div>
+                            <div class="nd-xp-stat"><span class="nd-xp-stat-label">Highest Day</span><span class="nd-xp-stat-val" id="statHighestXp">—</span></div>
+                            <div class="nd-xp-stat"><span class="nd-xp-stat-label">Average</span><span class="nd-xp-stat-val" id="statAvgXp">—</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Achievements / Badges -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-medal"></i> Achievements</div>
+                        </div>
+                        <div id="ndAchievements" class="nd-badges-grid">
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                        </div>
+                        <div class="nd-badges-summary" id="ndBadgesSummary"></div>
                     </div>
                 </div>
+
+                <!-- ── Row 2: Lead Funnel + Quick Actions ──────────────────────── -->
+                <div class="nd-row nd-row-2-1">
+                    <!-- Lead Status / Funnel -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-filter"></i> Lead Pipeline</div>
+                            <div class="nd-pipeline-summary" id="ndPipelineSummary"></div>
+                        </div>
+                        <div id="ndFunnelBars" class="nd-funnel-bars">
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                        </div>
+                        <div class="nd-funnel-footer" id="ndFunnelFooter"></div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-bolt"></i> Quick Actions</div>
+                        </div>
+                        <div class="nd-quick-actions">
+                            <button class="nd-action-btn nd-action-purple" id="qaAddLead">
+                                <div class="nd-action-icon-wrap"><i class="fas fa-user-plus"></i></div>
+                                <div class="nd-action-text">
+                                    <span class="nd-action-title">Add New Lead</span>
+                                    <span class="nd-action-desc">Register a new enquiry</span>
+                                </div>
+                                <i class="fas fa-chevron-right nd-action-arrow"></i>
+                            </button>
+                            <button class="nd-action-btn nd-action-blue" id="qaFollowup">
+                                <div class="nd-action-icon-wrap"><i class="fas fa-calendar-plus"></i></div>
+                                <div class="nd-action-text">
+                                    <span class="nd-action-title">Schedule Follow-up</span>
+                                    <span class="nd-action-desc">Set a follow-up reminder</span>
+                                </div>
+                                <i class="fas fa-chevron-right nd-action-arrow"></i>
+                            </button>
+                            <button class="nd-action-btn nd-action-green" id="qaUpdateStatus">
+                                <div class="nd-action-icon-wrap"><i class="fas fa-edit"></i></div>
+                                <div class="nd-action-text">
+                                    <span class="nd-action-title">Update Lead Status</span>
+                                    <span class="nd-action-desc">Change lead progress</span>
+                                </div>
+                                <i class="fas fa-chevron-right nd-action-arrow"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Row 3: Leaderboard + Targets ──────────────────────────── -->
+                <div class="nd-row nd-row-2-1">
+                    <!-- XP Leaderboard -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-trophy"></i> XP Leaderboard</div>
+                            <div class="nd-leaderboard-badge" id="ndLeaderboardBadge"></div>
+                        </div>
+                        <div id="xpLeaderboardList" class="nd-leaderboard-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                        </div>
+                        <!-- Officer personal XP summary -->
+                        <div id="xpPersonalContent" class="officer-only nd-personal-xp"></div>
+                    </div>
+
+                    <!-- Targets vs Achievements -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-bullseye"></i> Targets</div>
+                            <select id="ndTargetsOfficerSelect" class="nd-select nd-select-sm admin-only">
+                                <option value="">All Officers</option>
+                            </select>
+                        </div>
+                        <div id="ndTargets" class="nd-targets-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                        </div>
+                        <div class="nd-targets-overall" id="ndTargetsOverall"></div>
+                    </div>
+                </div>
+
+                <!-- ── Row 4: Activity Feed + Tasks ───────────────────────────── -->
+                <div class="nd-row nd-row-equal">
+                    <!-- Activity Feed -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-stream"></i> Activity Feed</div>
+                        </div>
+                        <div id="ndActivityFeed" class="nd-activity-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                        </div>
+                    </div>
+
+                    <!-- Tasks -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-tasks"></i> My Tasks</div>
+                            <button class="nd-btn-ghost officer-only" id="ndAddTaskBtn" type="button"><i class="fas fa-plus"></i> Add</button>
+                        </div>
+                        <div id="ndTaskAddForm" class="nd-task-add-form" style="display:none;">
+                            <input type="text" id="ndTaskTitle" class="nd-task-input" placeholder="Task title..." />
+                            <input type="datetime-local" id="ndTaskDue" class="nd-task-input" />
+                            <select id="ndTaskPriority" class="nd-task-input">
+                                <option value="low">Low Priority</option>
+                                <option value="medium" selected>Medium Priority</option>
+                                <option value="high">High Priority</option>
+                            </select>
+                            <button class="nd-btn-save" id="ndTaskSaveBtn" type="button">Save Task</button>
+                        </div>
+                        <div id="ndTasksList" class="nd-tasks-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Admin Action Center ────────────────────────────────────── -->
+                <div class="nd-row nd-row-equal admin-only" id="ndAdminActionRow">
+                    <!-- Enrollments Trend -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-chart-area"></i> Enrollments per Day</div>
+                        </div>
+                        <canvas id="homeConfirmedLineChart" style="width:100%; height:160px;"></canvas>
+                    </div>
+
+                    <!-- Admin Tasks / Action Center -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-exclamation-circle"></i> Action Center</div>
+                        </div>
+                        <div id="homeActionCenter" class="nd-action-center-list">
+                            <div class="nd-loading">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Officer Action Center (officer only) -->
+                <div class="nd-row officer-only" id="ndOfficerActionRow" style="display:none;">
+                    <div class="nd-card" style="width:100%;">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-chart-area"></i> Enrollments per Day</div>
+                        </div>
+                        <canvas id="homeConfirmedLineChartOfficer" style="width:100%; height:160px;"></canvas>
+                    </div>
+                </div>
+
+                <!-- Hidden legacy elements for backward compat -->
+                <div style="display:none;">
+                    <div id="homeLeaderboard"></div>
+                    <div id="homeLeaderboardDivider"></div>
+                    <div id="homePerformerOfWeek"></div>
+                    <div id="homeOfficerActionCenter"></div>
+                    <div id="xpLeaderboardCard"></div>
+                    <div id="xpPersonalCard"></div>
+                    <div id="xpTrendCard"></div>
+                </div>
+
             </div>
 
             <!-- Contacts View -->

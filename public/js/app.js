@@ -2485,6 +2485,11 @@ async function loadDashboardInBackground() {
             }
         }
 
+        // Also refresh all new nd- dashboard sections silently
+        if (window.loadNewDashboard) {
+            window.loadNewDashboard().catch(() => {});
+        }
+
         console.log('[Dashboard] Background refresh complete');
     } catch (e) {
         console.warn('[Dashboard] Background refresh failed (silently):', e?.message);
@@ -3056,9 +3061,13 @@ async function loadDashboard() {
             }
         }
 
-        // XP Dashboard (leaderboard + trend chart)
-        if (window.loadXPDashboard) {
-            window.loadXPDashboard().catch(() => {});
+        // ── New Dashboard (Phases 2-5): owns all nd- sections ──
+        // Call loadNewDashboard() which fetches its own data in parallel
+        // and renders profile, KPIs, pipeline, leaderboard, targets,
+        // activity feed, tasks, quick actions, action center, charts.
+        // Date range is read directly from homeFromDate/homeToDate inputs.
+        if (window.loadNewDashboard) {
+            window.loadNewDashboard().catch(e => console.warn('[Dashboard] loadNewDashboard error:', e?.message));
         }
 
     } catch (error) {
