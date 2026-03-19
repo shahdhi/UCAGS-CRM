@@ -359,7 +359,7 @@
               bodyColor: '#f9fafb',
               padding: 10,
               callbacks: {
-            label: ctx => '<i class="fas fa-bolt"></i> ' + ctx.parsed.y + ' XP'
+            label: ctx => '⚡ ' + ctx.parsed.y + ' XP'
               }
             }
           },

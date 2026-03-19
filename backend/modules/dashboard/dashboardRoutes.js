@@ -239,68 +239,47 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
     const fromEff = from ? startOfDay(from) : fromDefault;
     const toEff = to ? endOfDay(to) : toDefault;
 
-    // Follow-ups due
-    // Admin: best-effort using legacy followups table if available
-    // Officer: use crm_lead_followups (officer-owned) if available
+    // Follow-ups due — sourced from crm_leads.management_json (same as Follow-up Calendar)
+    // Counts pending followUp1–5 schedules where schedule is set but actual date is not.
     let followUpsDue = 0;
     let followUpsOverdue = 0;
 
-    if (!isAdminUser && user?.id) {
-      try {
-        const todayMs0 = startOfDay(new Date()).getTime();
-        const todayMs1 = endOfDay(new Date()).getTime();
+    try {
+      const now = new Date();
+      const pad2 = (n) => String(n).padStart(2, '0');
+      const todayStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
 
-        const { data, error } = await sb
-          .from('crm_lead_followups')
-          .select('id, scheduled_at, actual_at')
-          .eq('officer_user_id', user.id)
-          .limit(20000);
-        if (error) throw error;
+      let leadsQuery = sb
+        .from('crm_leads')
+        .select('id, assigned_to, management_json')
+        .limit(20000);
 
-        (data || []).forEach(f => {
-          if (f.actual_at) return; // completed
-          const dt = new Date(f.scheduled_at || 0).getTime();
-          if (!Number.isFinite(dt)) return;
-          if (dt >= todayMs0 && dt <= todayMs1) followUpsDue++;
-          if (dt < todayMs0) followUpsOverdue++;
-        });
-      } catch (e) {
-        // ignore
+      // Officers only see their own leads
+      if (!isAdminUser && officerName) {
+        leadsQuery = leadsQuery.eq('assigned_to', officerName);
       }
-    } else {
-      try {
-        const { data, error } = await sb
-          .from('followups')
-          .select('id, follow_up_date, status')
-          .gte('follow_up_date', toISODate(fromEff))
-          .lte('follow_up_date', toISODate(toEff))
-          .limit(20000);
-        if (error) throw error;
 
-        const todayStr = toISODate(new Date());
-        const todayMs0 = startOfDay(new Date()).getTime();
-        const todayMs1 = endOfDay(new Date()).getTime();
+      const { data: leadsData, error: leadsError } = await leadsQuery;
+      if (leadsError) throw leadsError;
 
-        (data || []).forEach(f => {
-          const dt = new Date(f.follow_up_date).getTime();
-          const done = String(f.status || '').toLowerCase().includes('done') || String(f.status || '').toLowerCase().includes('completed');
-          if (done) return;
-          if (Number.isFinite(dt) && dt >= todayMs0 && dt <= todayMs1) followUpsDue++;
-          if (Number.isFinite(dt) && dt < todayMs0) followUpsOverdue++;
-        });
+      (leadsData || []).forEach(lead => {
+        const mgmt = lead.management_json || {};
+        for (const n of [1, 2, 3, 4, 5]) {
+          const schedule = mgmt[`followUp${n}Schedule`];
+          const actual   = mgmt[`followUp${n}Date`];
+          if (!schedule || actual) continue; // skip if no schedule or already completed
 
-        const { data: oData } = await sb
-          .from('followups')
-          .select('id, follow_up_date, status')
-          .lt('follow_up_date', todayStr)
-          .limit(20000);
-        (oData || []).forEach(f => {
-          const done = String(f.status || '').toLowerCase().includes('done') || String(f.status || '').toLowerCase().includes('completed');
-          if (!done) followUpsOverdue++;
-        });
-      } catch (e) {
-        // ignore
-      }
+          // Normalize to date portion for comparison (schedule can be datetime or date)
+          const scheduleDate = String(schedule).slice(0, 10);
+          if (scheduleDate === todayStr) {
+            followUpsDue++;
+          } else if (scheduleDate < todayStr) {
+            followUpsOverdue++;
+          }
+        }
+      });
+    } catch (e) {
+      // ignore — fallback leaves counts at 0
     }
 
     // Registrations received within range (created_at)
