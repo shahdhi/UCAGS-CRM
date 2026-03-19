@@ -506,11 +506,13 @@
     const total = stages.reduce((s, st) => s + st.count, 0);
     const max   = Math.max(...stages.map(s => s.count), 1);
 
-    // Pipeline summary badge
+    // Pipeline summary badge — show current batch names + total leads
     if (summaryEl) {
-      summaryEl.innerHTML = total > 0
-        ? `<span style="font-size:12px;color:#6b7280;">${total.toLocaleString()} total leads</span>`
+      const batches = (analyticsData?.currentBatches || []);
+      const batchLabel = batches.length
+        ? `<span style="font-size:11px;color:#7c3aed;font-weight:600;margin-right:8px;">📦 ${escHtml(batches.join(', '))}</span>`
         : '';
+      summaryEl.innerHTML = `${batchLabel}<span style="font-size:12px;color:#6b7280;">${total.toLocaleString()} total leads</span>`;
     }
 
     // Funnel bars
