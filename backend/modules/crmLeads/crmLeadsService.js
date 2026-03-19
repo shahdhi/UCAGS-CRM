@@ -446,7 +446,18 @@ async function updateMyLeadManagement({ officerName, batchName, sheetName, sheet
   try {
     const followupsSvc = require('./followupsService');
     if (officerUserId) {
-      await followupsSvc.syncLegacyFollowupsFromManagement({
+      // Capture previous state of each followup before sync (for XP dedup)
+      const sb2 = requireSupabase();
+      const { data: prevFollowups } = await sb2
+        .from('crm_lead_followups')
+        .select('id, sequence, actual_at, answered')
+        .eq('officer_user_id', officerUserId)
+        .eq('batch_name', batchName)
+        .eq('sheet_name', sheetName)
+        .eq('sheet_lead_id', String(sheetLeadId));
+      const prevMap = new Map((prevFollowups || []).map(f => [f.sequence, f]));
+
+      const syncedRows = await followupsSvc.syncLegacyFollowupsFromManagement({
         officerUserId,
         officerName,
         batchName,
@@ -454,6 +465,29 @@ async function updateMyLeadManagement({ officerName, batchName, sheetName, sheet
         sheetLeadId,
         management: mergedMgmt
       });
+
+      // XP hook: +2 for each followup where actual_at was newly set AND answered = yes
+      try {
+        const { awardXPOnce } = require('../xp/xpService');
+        for (const row of (syncedRows || [])) {
+          const prev = prevMap.get(row.sequence);
+          const prevActualAt = prev?.actual_at || null;
+          const newActualAt = row?.actual_at || null;
+          const answeredYes = row?.answered === true;
+          if (newActualAt && !prevActualAt && answeredYes && row?.id) {
+            await awardXPOnce({
+              userId: officerUserId,
+              eventType: 'followup_completed',
+              xp: 2,
+              referenceId: row.id,
+              referenceType: 'followup',
+              note: `Follow-up #${row.sequence} completed (answered)`
+            });
+          }
+        }
+      } catch (xpErr) {
+        console.warn('[XP] followup sync hook error:', xpErr.message);
+      }
     }
   } catch (e) {
     console.warn('⚠️ Followups sync skipped/failed:', e.message);
