@@ -674,17 +674,19 @@ body {
         align-items: stretch;
     }
 
-    /* Filters: selects take full width, refresh stays right */
+    /* Filters toolbar: stack selects then refresh button */
     .demo-filters-toolbar {
-        flex-direction: row;
-        justify-content: space-between;
+        flex-direction: column;
+        align-items: stretch;
         width: 100%;
+        gap: 6px;
     }
 
     .demo-filters-selects {
-        flex: 1;
+        flex: unset;
         flex-wrap: wrap;
         gap: 6px;
+        justify-content: stretch;
     }
 
     .demo-filter-select {
@@ -693,12 +695,19 @@ body {
         font-size: 16px; /* prevent iOS zoom */
     }
 
+    /* Refresh button full width below selects */
+    .demo-refresh-btn {
+        width: 100%;
+        justify-content: center;
+        padding: 8px;
+    }
+
     /* Demo sessions layout: stack cards above participants */
     .demo-sessions-layout {
         grid-template-columns: 1fr !important;
     }
 
-    /* Cards: horizontal scrollable row on mobile */
+    /* Cards: fill row responsively */
     #demoSessionsCards {
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
         gap: 8px !important;
@@ -708,6 +717,41 @@ body {
     button.demo-card {
         width: 100%;
         min-width: 0 !important;
+    }
+}
+
+/* Demo participants header */
+.demo-participants-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: flex-start;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.demo-participants-subtitle {
+    color: #667085;
+    font-size: 12px;
+    text-align: right;
+    flex: 1 1 260px;
+    min-width: 260px;
+    max-width: 520px;
+    white-space: normal;
+    line-height: 1.25;
+}
+
+@media (max-width: 768px) {
+    .demo-participants-header {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .demo-participants-subtitle {
+        text-align: left;
+        min-width: 0;
+        max-width: 100%;
+        flex: unset;
     }
 }
 
@@ -913,6 +957,37 @@ body {
     #manageLeadModal select,
     #manageLeadModal textarea {
         font-size: 16px !important;
+    }
+
+    /* datetime-local inputs overflow on mobile -- constrain them */
+    #manageLeadModal input[type="datetime-local"],
+    #manageLeadModal input[type="date"],
+    #manageLeadModal input[type="time"] {
+        width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+    }
+
+    /* Follow-up cards: prevent overflow */
+    #manageLeadModal .followup-section {
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        width: 100% !important;
+    }
+
+    /* Ensure all form-groups inside modal are full width */
+    #manageLeadModal .form-group {
+        min-width: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* The inner grid divs that become flex columns */
+    #manageLeadModal [style*="grid-template-columns: 1fr 1fr 1fr"] > div,
+    #manageLeadModal [style*="grid-template-columns: repeat(3"] > div {
+        width: 100% !important;
+        min-width: 0 !important;
     }
 }
 /* Contacts toolbar: 2-row layout */
