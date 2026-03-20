@@ -4018,3 +4018,201 @@ body::-webkit-scrollbar-thumb:hover {
   animation: ndSkeletonPulse 1.4s ease-in-out infinite;
   margin-bottom: 6px;
 }
+
+/* ============================================================
+   ATTENDANCE PAGE -- Mobile Fixes
+   ============================================================ */
+
+@media (max-width: 768px) {
+
+  /* -- My Today card: stack check-in/out buttons full width -- */
+  #attendanceMyTodayCard > div[style*="display:flex"] {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  #attendanceMyTodayCard .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* -- Daily Staff Records: date filter bar -- */
+  #attendanceAdminSection .filters-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  #attendanceAdminDate {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    font-size: 16px;
+    box-sizing: border-box;
+  }
+  #attendanceAdminRefreshBtn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* -- Admin Leave Approvals filter bar -- */
+  #attendanceAdminLeaveSection .filters-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  #attendanceAdminLeaveStatus {
+    width: 100% !important;
+    font-size: 16px;
+  }
+  #attendanceAdminLeaveRefreshBtn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* -- Officer Attendance Calendar: header nav buttons -- */
+  #attendancePrevMonthBtn,
+  #attendanceThisMonthBtn,
+  #attendanceNextMonthBtn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* -- Admin Staff Attendance Calendar: header -- */
+  #attendanceAdminOfficerSelect {
+    width: 100% !important;
+    min-width: 0 !important;
+    font-size: 16px;
+  }
+  #attendanceAdminCalPrevBtn,
+  #attendanceAdminCalThisBtn,
+  #attendanceAdminCalNextBtn {
+    flex: 1;
+    justify-content: center;
+  }
+  /* Stack the admin calendar header controls */
+  #attendanceAdminCalendarSection > div:first-child {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  #attendanceAdminCalendarSection > div:first-child > div:last-child {
+    width: 100%;
+  }
+
+  /* -- Officer calendar header: stack title + nav -- */
+  #attendanceOfficerSection > div:first-child {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  #attendanceOfficerSection > div:first-child > div:last-child {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  /* -- Calendar grid cells: compact on mobile -- */
+  #attendanceCalendarGrid.followup-calendar-grid,
+  #attendanceAdminCalendarGrid.followup-calendar-grid {
+    gap: 3px;
+  }
+  #attendanceCalendarGrid .followup-calendar-cell,
+  #attendanceAdminCalendarGrid .followup-calendar-cell {
+    padding: 4px 2px;
+    min-height: 40px;
+    border-radius: 5px;
+  }
+  /* Day number font size */
+  #attendanceCalendarGrid .followup-calendar-cell > div > span:first-child,
+  #attendanceAdminCalendarGrid .followup-calendar-cell > div > span:first-child {
+    font-size: 10px !important;
+    font-weight: 700;
+  }
+  /* Hide the status label text on mobile -- colour bg conveys the info */
+  #attendanceCalendarGrid .followup-calendar-cell > div > span:last-child,
+  #attendanceAdminCalendarGrid .followup-calendar-cell > div > span:last-child {
+    display: none !important;
+  }
+  /* Header day-name cells */
+  #attendanceCalendarGrid .followup-calendar-cell.header,
+  #attendanceAdminCalendarGrid .followup-calendar-cell.header {
+    font-size: 8px !important;
+    padding: 4px 1px;
+    min-height: auto;
+    text-align: center;
+    border-radius: 4px;
+  }
+  /* Center-align the day number inside each cell */
+  #attendanceCalendarGrid .followup-calendar-cell > div,
+  #attendanceAdminCalendarGrid .followup-calendar-cell > div {
+    justify-content: center !important;
+  }
+
+  /* -- Leave request date input -- */
+  #attendanceLeaveDate {
+    max-width: 100% !important;
+    width: 100% !important;
+    font-size: 16px;
+  }
+  .leave-type-label {
+    font-size: 12px;
+    white-space: normal;
+  }
+
+  /* -- Leave reason row: stack input + button -- */
+  #attendanceOfficerSection div:has(#attendanceLeaveReason) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  #attendanceLeaveReason {
+    width: 100% !important;
+    height: 38px !important;
+    font-size: 16px !important;
+  }
+  #attendanceLeaveSubmitBtn {
+    width: 100% !important;
+    height: 38px !important;
+    justify-content: center;
+  }
+
+  /* -- Ensure all tables scroll horizontally -- */
+  #attendanceView .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Extra-small screens (<=480px) */
+@media (max-width: 480px) {
+
+  /* Tighter calendar grid */
+  #attendanceCalendarGrid.followup-calendar-grid,
+  #attendanceAdminCalendarGrid.followup-calendar-grid {
+    gap: 2px;
+  }
+  #attendanceCalendarGrid .followup-calendar-cell,
+  #attendanceAdminCalendarGrid .followup-calendar-cell {
+    min-height: 32px;
+    padding: 3px 1px;
+    border-radius: 4px;
+  }
+  #attendanceCalendarGrid .followup-calendar-cell > div > span:first-child,
+  #attendanceAdminCalendarGrid .followup-calendar-cell > div > span:first-child {
+    font-size: 9px !important;
+  }
+  #attendanceCalendarGrid .followup-calendar-cell.header,
+  #attendanceAdminCalendarGrid .followup-calendar-cell.header {
+    font-size: 7px !important;
+  }
+
+  /* Legend items: tighter gap */
+  #attendanceOfficerSection div[style*="gap: 12px"],
+  #attendanceAdminCalendarSection div[style*="gap: 12px"] {
+    gap: 6px !important;
+    font-size: 11px !important;
+  }
+
+  /* Leave type radio buttons: stack vertically */
+  #attendanceOfficerSection div[style*="flex-wrap:wrap"][style*="attendanceLeave"],
+  #attendanceOfficerSection div:has(#attendanceLeaveDate) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
