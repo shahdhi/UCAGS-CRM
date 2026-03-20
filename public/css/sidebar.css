@@ -631,25 +631,62 @@ body:has(#dashboardPage.active) {
 }
 
 /* Responsive Design */
+/* ============================================================
+   MOBILE OVERLAY — appears behind sidebar when open
+   ============================================================ */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.visible {
+    opacity: 1;
+}
+
+/* ============================================================
+   TABLET (≤ 1024px)
+   ============================================================ */
 @media (max-width: 1024px) {
+    /* Use dynamic viewport height to avoid address-bar clipping */
+    #dashboardPage {
+        height: 100dvh;
+    }
+
     .sidebar {
         transform: translateX(-100%);
+        height: 100dvh;
+        box-shadow: none;
     }
 
     .sidebar.mobile-open {
         transform: translateX(0);
+        box-shadow: 4px 0 40px rgba(88, 28, 135, 0.5);
+    }
+
+    .sidebar-overlay {
+        display: block;
     }
 
     .main-wrapper {
         margin-left: 0;
+        height: 100dvh;
     }
 
     .mobile-menu-btn {
         display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .top-bar {
-        padding: 0 20px;
+        padding: 0 16px;
     }
 
     .main-content {
@@ -657,25 +694,134 @@ body:has(#dashboardPage.active) {
     }
 
     .page-title {
-        font-size: 20px;
+        font-size: 15px;
     }
 }
 
+/* ============================================================
+   MOBILE (≤ 768px)
+   ============================================================ */
 @media (max-width: 768px) {
     .sidebar {
-        width: 100%;
-        max-width: 280px;
+        width: 280px;
+        max-width: 85vw;
+    }
+
+    /* Larger touch targets for nav items */
+    .nav-item {
+        padding: 12px 14px;
+        min-height: 44px;
+    }
+
+    .nav-item span {
+        font-size: 13px;
+    }
+
+    .nav-item i {
+        font-size: 16px;
+        width: 20px;
+    }
+
+    .nav-subitem {
+        padding: 10px 12px;
+        min-height: 40px;
+        font-size: 12px;
+    }
+
+    .nav-section-header {
+        padding: 12px 14px;
+        min-height: 44px;
+    }
+
+    .top-bar {
+        padding: 0 14px;
+        height: 52px;
     }
 
     .top-bar-right .user-menu {
         display: none;
     }
 
+    .top-bar-right {
+        gap: 10px;
+    }
+
+    .icon-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .page-title {
+        font-size: 14px;
+        max-width: 160px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .main-content {
+        padding: 14px;
+    }
+
     .call-stats-grid {
         grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .welcome-section {
+        padding: 14px;
     }
 
     .welcome-section h2 {
-        font-size: 22px;
+        font-size: 16px;
+    }
+
+    /* Cards full-width on small phones */
+    .card {
+        border-radius: 12px;
+    }
+
+    /* Tables scroll horizontally instead of overflowing */
+    .table-responsive,
+    .leads-table-container,
+    .crm-table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* ============================================================
+   SMALL PHONES (≤ 480px)
+   ============================================================ */
+@media (max-width: 480px) {
+    .main-content {
+        padding: 10px;
+    }
+
+    .call-stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .top-bar {
+        height: 50px;
+    }
+
+    /* Prevent modal overflow on very small screens */
+    .modal-content {
+        margin: 8px;
+        max-height: calc(100dvh - 16px);
+        border-radius: 16px;
+    }
+
+    /* Section headers smaller */
+    .section-title,
+    .page-title {
+        font-size: 13px;
+    }
+
+    /* Buttons full-width in action rows on tiny screens */
+    .action-row-mobile {
+        flex-direction: column;
     }
 }

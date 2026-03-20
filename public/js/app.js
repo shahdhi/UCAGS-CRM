@@ -567,11 +567,68 @@ function setupNavigation() {
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const sidebar = document.querySelector('.sidebar');
     
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+    function openMobileMenu() {
+        sidebar.classList.add('mobile-open');
+        if (sidebarOverlay) {
+            sidebarOverlay.style.display = 'block';
+            requestAnimationFrame(() => sidebarOverlay.classList.add('visible'));
+        }
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeMobileMenuFull() {
+        sidebar.classList.remove('mobile-open');
+        if (sidebarOverlay) {
+            sidebarOverlay.classList.remove('visible');
+            setTimeout(() => { sidebarOverlay.style.display = 'none'; }, 300);
+        }
+        document.body.style.overflow = '';
+    }
+
     if (mobileMenuBtn) {
         mobileMenuBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('mobile-open');
+            if (sidebar.classList.contains('mobile-open')) {
+                closeMobileMenuFull();
+            } else {
+                openMobileMenu();
+            }
         });
     }
+
+    // Close sidebar when overlay is tapped
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', closeMobileMenuFull);
+    }
+
+    // Swipe left to close sidebar on mobile
+    let touchStartX = 0;
+    let touchStartY = 0;
+    sidebar.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    sidebar.addEventListener('touchend', (e) => {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
+        // Swipe left > 60px, mostly horizontal
+        if (dx < -60 && dy < 80) closeMobileMenuFull();
+    }, { passive: true });
+
+    // Swipe right from left edge to open sidebar
+    document.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    document.addEventListener('touchend', (e) => {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
+        // Swipe right from left edge (within 24px), > 60px horizontal
+        if (touchStartX < 24 && dx > 60 && dy < 80 && !sidebar.classList.contains('mobile-open')) {
+            openMobileMenu();
+        }
+    }, { passive: true });
     
     // Sidebar toggle (collapse/expand)
     const sidebarToggle = document.getElementById('sidebarToggle');
@@ -585,9 +642,13 @@ function setupNavigation() {
 // Close mobile menu
 function closeMobileMenu() {
     const sidebar = document.querySelector('.sidebar');
-    if (sidebar) {
-        sidebar.classList.remove('mobile-open');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    if (sidebar) sidebar.classList.remove('mobile-open');
+    if (sidebarOverlay) {
+        sidebarOverlay.classList.remove('visible');
+        setTimeout(() => { sidebarOverlay.style.display = 'none'; }, 300);
     }
+    document.body.style.overflow = '';
 }
 
 // Setup URL routing
