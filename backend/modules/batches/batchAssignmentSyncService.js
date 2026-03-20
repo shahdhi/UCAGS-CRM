@@ -115,7 +115,8 @@ async function syncAssignmentsToSheets(batchName, { sheetNames } = {}) {
     const idxFn = indexHeaders(headers);
 
     const idIdx = idxFn('ID');
-    const assignedIdx = idxFn('assigned_to');
+    // Support both "assigned_to" (underscore) and "Assigned To" (space) column headers
+    const assignedIdx = idxFn('assigned_to') ?? idxFn('assigned to');
 
     if (idIdx == null) {
       perSheetResults.push({ sheetName, success: false, error: 'Missing required header: ID' });
@@ -153,8 +154,9 @@ async function syncAssignmentsToSheets(batchName, { sheetNames } = {}) {
     const map = new Map();
     (data || []).forEach(r => map.set(String(r.sheet_lead_id), r.assigned_to == null ? '' : String(r.assigned_to)));
 
-    // Build updates: update assigned_to cell for every row that has an ID.
-    // If ID not found in Supabase, set blank (since you said clear blanks too).
+    // Build updates: only write assigned_to when Supabase has a non-blank value.
+    // Skip rows where the lead is not found in Supabase or has no assignment,
+    // so we never overwrite a value in the sheet with blank.
     const updates = [];
     const colLetter = colToLetter(assignedIdx);
 
@@ -162,7 +164,11 @@ async function syncAssignmentsToSheets(batchName, { sheetNames } = {}) {
       if (!r || !r.length) return;
       const sheetLeadId = String(getCell(r, idIdx) || '').trim();
       if (!sheetLeadId) return;
-      const assigned = map.get(sheetLeadId) ?? '';
+
+      // Only update if Supabase has this lead AND has a non-blank assigned_to
+      if (!map.has(sheetLeadId)) return;
+      const assigned = map.get(sheetLeadId);
+      if (!assigned) return; // skip blank/null assignments — don't clear the sheet
 
       const rowNumber = i + 2; // data starts at row 2
       updates.push({
