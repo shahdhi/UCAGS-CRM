@@ -693,6 +693,17 @@
       if (showSkeleton) renderAdminCalendarSkeleton();
       const res = await API.attendance.adminGetOfficerCalendar({ officerName: adminOfficerName, month: adminCalMonth });
       renderAdminCalendar(res.days || []);
+
+      // Attendance percentage for this officer/month
+      const pctEl = document.getElementById('attendanceAdminCalPct');
+      if (pctEl) {
+        const today = ymdToday();
+        const considered = (res.days || []).filter(d => d.date <= today && d.status !== 'before_start' && d.status !== 'holiday' && d.status !== 'future');
+        const presentish = considered.filter(d => d.status === 'present' || d.status === 'leave').length;
+        const denom = considered.length || 0;
+        const pct = denom ? Math.round((presentish / denom) * 100) : 0;
+        pctEl.textContent = denom ? `${pct}% attendance (${presentish}/${denom} days)` : '';
+      }
     } catch (e) {
       console.error(e);
       if (window.UI?.showToast) UI.showToast(e.message || 'Failed to load calendar', 'error');
