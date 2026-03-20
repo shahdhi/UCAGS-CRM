@@ -22,10 +22,12 @@ router.post('/:batchName/sync', isAdmin, async (req, res) => {
 
     let push = null;
     try {
+      console.log('[syncRoute] starting syncAssignmentsToSheets for:', req.params.batchName);
       push = await syncAssignmentsToSheets(req.params.batchName, { sheetNames });
       console.log('[syncRoute] push result:', JSON.stringify(push));
     } catch (pushErr) {
       console.error('[syncRoute] syncAssignmentsToSheets ERROR:', pushErr.message || pushErr);
+      console.error('[syncRoute] stack:', pushErr.stack || '(no stack)');
       push = { success: false, error: pushErr.message || String(pushErr) };
     }
 

@@ -161,20 +161,7 @@ router.get('/officers', isAdmin, async (req, res) => {
   }
 });
 
-// Manual sync endpoint (admin)
-// POST /api/batches/:batchName/sync
-router.post('/:batchName/sync', isAdmin, async (req, res) => {
-  try {
-    const batchName = String(req.params.batchName || '').trim();
-    validateBatchName(batchName);
-
-    const syncService = require('./batchSyncService');
-    const result = await syncService.syncBatchToSupabase(batchName);
-    res.json(result);
-  } catch (e) {
-    console.error('Batch sync error:', e);
-    res.status(e.status || 500).json({ success: false, error: e.message });
-  }
-});
+// NOTE: POST /:batchName/sync is handled by batchSyncRoutes.js (both pull + push).
+// Do not add a duplicate here — Express will match the first registered route only.
 
 module.exports = router;
