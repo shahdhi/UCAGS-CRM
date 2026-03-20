@@ -620,6 +620,119 @@ body {
     background-clip: text;
 }
 
+/* ============================================================
+   CONTACTS — Google Contacts style
+   ============================================================ */
+
+/* Avatar circle */
+.contact-avatar {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0;
+    flex-shrink: 0;
+}
+
+/* Name + secondary info in first column */
+.contact-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.contact-name-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.contact-name-primary {
+    font-weight: 600;
+    font-size: 14px;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Secondary line (phone shown inside name cell on mobile) — hidden on desktop */
+.contact-name-secondary {
+    display: none;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* Table row hover */
+#contactsTable tbody tr {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+#contactsTable tbody tr:hover {
+    background: #f5f3ff;
+}
+
+/* ============================================================
+   CONTACTS — Responsive
+   ============================================================ */
+@media (max-width: 768px) {
+    /* Hide phone and email columns — shown in name cell instead */
+    .contact-col-phone,
+    .contact-col-email,
+    #contactsTable thead th:nth-child(2),
+    #contactsTable thead th:nth-child(3) {
+        display: none;
+    }
+
+    /* Show secondary line (phone) inside the name cell */
+    .contact-name-secondary {
+        display: block;
+    }
+
+    /* Larger avatar on mobile */
+    .contact-avatar {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        font-size: 16px;
+    }
+
+    /* More breathing room per row */
+    #contactsTable tbody td {
+        padding: 10px 12px;
+    }
+
+    /* Full-width search bar */
+    #contactsView .contacts-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    #contactsView #contactsSearch {
+        width: 100% !important;
+        font-size: 16px; /* prevent iOS zoom */
+    }
+
+    #contactsView .google-contacts-toolbar {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+    }
+
+    /* Remove horizontal table scroll — single column layout is clean */
+    #contactsView .table-container {
+        overflow-x: hidden;
+    }
+}
+
 /* Contacts toolbar: compact header actions */
 #contactsView .contacts-toolbar {
     display: flex;

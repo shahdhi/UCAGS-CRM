@@ -1467,13 +1467,38 @@ async function loadContacts() {
 
         const escape = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-        const trHtml = (c) => `
-          <tr data-row-key="${escape(c.id)}">
-            <td style="font-weight:700;">${escape(c.display_name || c.name || '')}</td>
-            <td>${escape(c.phone_number || '')}</td>
-            <td>${escape(c.email || '')}</td>
-          </tr>
-        `;
+        const initials = (name) => {
+            const parts = String(name || '').trim().split(/\s+/);
+            return parts.length >= 2
+                ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+                : (parts[0]?.[0] || '?').toUpperCase();
+        };
+
+        const avatarColors = ['#7c3aed','#2563eb','#059669','#d97706','#dc2626','#db2777','#0891b2'];
+        const colorFor = (name) => avatarColors[(String(name || '').charCodeAt(0) || 0) % avatarColors.length];
+
+        const trHtml = (c) => {
+            const name = escape(c.display_name || c.name || '');
+            const phone = escape(c.phone_number || '');
+            const email = escape(c.email || '');
+            const ini = initials(c.display_name || c.name || '');
+            const color = colorFor(c.display_name || c.name || '');
+            return `
+              <tr data-row-key="${escape(c.id)}">
+                <td style="font-weight:700;">
+                  <div class="contact-name-cell">
+                    <div class="contact-avatar" style="background:${color};">${ini}</div>
+                    <div class="contact-name-info">
+                      <div class="contact-name-primary">${name}</div>
+                      <div class="contact-name-secondary">${phone}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="contact-col-phone">${phone}</td>
+                <td class="contact-col-email">${email}</td>
+              </tr>
+            `;
+        };
 
         if (tbody) {
             if (window.DOMPatcher && DOMPatcher.patchTableBody) {
