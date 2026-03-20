@@ -138,12 +138,14 @@ async function syncAssignmentsToSheets(batchName, { sheetNames } = {}) {
       continue;
     }
 
-    // Fetch assignments from Supabase for these IDs
+    // Fetch assignments from Supabase for these IDs.
+    // We fetch all rows for this batch matching these sheet_lead_ids, then filter
+    // by normalized sheet_name on the JS side — this handles any casing/spacing
+    // differences between what's stored in Supabase and the Google Sheet tab name.
     const { data, error } = await sb
       .from('crm_leads')
-      .select('sheet_lead_id, assigned_to')
+      .select('sheet_lead_id, sheet_name, assigned_to')
       .eq('batch_name', batchName)
-      .eq('sheet_name', sheetName)
       .in('sheet_lead_id', ids);
 
     if (error) {
@@ -151,8 +153,21 @@ async function syncAssignmentsToSheets(batchName, { sheetNames } = {}) {
       continue;
     }
 
+    // Normalize sheet name for comparison (trim + lowercase)
+    const normalizedTabName = sheetName.trim().toLowerCase();
+
+    // Filter to rows whose sheet_name matches this tab (case-insensitive)
+    // Fall back to all rows if none match — handles cases where sheet_name wasn't stored
+    const matchingRows = (data || []).filter(r =>
+      String(r.sheet_name || '').trim().toLowerCase() === normalizedTabName
+    );
+    const rowsToUse = matchingRows.length > 0 ? matchingRows : (data || []);
+
+    console.log(`[syncAssignments] batch=${batchName} sheet=${sheetName} ids=${ids.length} supabaseRows=${(data||[]).length} matched=${matchingRows.length}`);
+    console.log(`[syncAssignments] rows with assigned_to: ${rowsToUse.filter(r => r.assigned_to).length}`);
+
     const map = new Map();
-    (data || []).forEach(r => map.set(String(r.sheet_lead_id), r.assigned_to == null ? '' : String(r.assigned_to)));
+    rowsToUse.forEach(r => map.set(String(r.sheet_lead_id), r.assigned_to == null ? '' : String(r.assigned_to)));
 
     // Build updates: only write assigned_to when Supabase has a non-blank value.
     // Skip rows where the lead is not found in Supabase or has no assignment,
