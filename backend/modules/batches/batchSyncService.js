@@ -187,6 +187,7 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
         created_date: l.created_date,
         notes: l.notes,
         intake_json: l.intake_json,
+        assigned_to: l.assigned_to,
         source: 'google_sheets',
         synced_at: nowIso
       }));
