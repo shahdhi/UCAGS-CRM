@@ -363,40 +363,46 @@
   }
 
   async function renderProgramTabs() {
-    const tabs = qs('paymentsProgramTabs');
+    const programSel = qs('paymentsProgramTabs');
     const batchSel = qs('paymentsBatchSelect');
-    if (!tabs || !batchSel) return;
+    if (!programSel || !batchSel) return;
 
     const { programs, batches } = await loadProgramsForPayments();
 
     // default program = first
     if (!selectedProgramId && programs.length) selectedProgramId = programs[0].id;
 
-    tabs.innerHTML = '';
-    programs.forEach(p => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn-secondary';
-      btn.style.padding = '6px 10px';
-      btn.style.borderRadius = '999px';
-      const active = String(p.id) === String(selectedProgramId);
-      btn.style.border = active ? '1px solid #592c88' : '1px solid #eaecf0';
-      btn.style.background = active ? '#f4ebff' : '#fff';
-      btn.style.color = active ? '#592c88' : '#344054';
-      btn.textContent = p.name;
-      btn.onclick = async () => {
-        selectedProgramId = p.id;
-        await renderProgramTabs();
-        await loadPayments({ showSkeleton: true });
-      };
-      tabs.appendChild(btn);
-    });
+    // Rebuild program dropdown only if programs changed (avoid resetting scroll position)
+    const currentOptions = Array.from(programSel.options).map(o => o.value).join(',');
+    const newOptions = programs.map(p => String(p.id)).join(',');
+    if (currentOptions !== newOptions) {
+      programSel.innerHTML = '';
+      programs.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name;
+        programSel.appendChild(opt);
+      });
 
-    // batches for selected program
+      // Bind change handler once
+      if (!programSel.__bound) {
+        programSel.__bound = true;
+        programSel.addEventListener('change', async () => {
+          selectedProgramId = programSel.value;
+          selectedBatchName = '';
+          await renderProgramTabs();
+          await loadPayments({ showSkeleton: true });
+        });
+      }
+    }
+
+    programSel.value = String(selectedProgramId);
+
+    // Batches for selected program
     const bs = (batches || []).filter(b => String(b.program_id) === String(selectedProgramId));
     const current = bs.find(b => b.is_current);
     batchSel.innerHTML = '';
-    bs.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).forEach(b => {
+    bs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).forEach(b => {
       const opt = document.createElement('option');
       opt.value = b.batch_name;
       opt.textContent = b.batch_name;

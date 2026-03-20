@@ -11,6 +11,32 @@
 const { getStaffRecords } = require('./attendanceService');
 const { listLeaveRequests } = require('./leaveRequestsService');
 const { listOverrides } = require('./adminAttendanceOverridesService');
+const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
+
+// Returns the officer's creation date as YYYY-MM-DD (Sri Lanka timezone), or null if not found.
+async function getOfficerStartDate(officerName) {
+  try {
+    const sb = getSupabaseAdmin();
+    if (!sb) return null;
+    const { data: { users }, error } = await sb.auth.admin.listUsers();
+    if (error || !users) return null;
+    const match = users.find(u =>
+      (u.user_metadata?.name || '').toLowerCase().trim() === String(officerName || '').toLowerCase().trim()
+    );
+    if (!match || !match.created_at) return null;
+    // Convert to Asia/Colombo date
+    const dtf = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Colombo',
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    });
+    const parts = dtf.formatToParts(new Date(match.created_at));
+    const map = {};
+    for (const p of parts) if (p.type !== 'literal') map[p.type] = p.value;
+    return `${map.year}-${map.month}-${map.day}`;
+  } catch (_) {
+    return null;
+  }
+}
 
 function pad2(n) {
   return String(n).padStart(2, '0');
@@ -54,6 +80,9 @@ async function getOfficerMonthCalendar({ officerName, month }) {
   const from = `${month}-01`;
   const to = `${month}-${pad2(count)}`;
 
+  // Officer's account creation date — dates before this are shown as 'before_start'
+  const officerStartDate = await getOfficerStartDate(officerName);
+
   // Attendance rows for the month
   const records = await getStaffRecords(officerName, { fromDate: from, toDate: to });
   const presentSet = new Set(
@@ -84,18 +113,20 @@ async function getOfficerMonthCalendar({ officerName, month }) {
 
     let status = 'absent';
     if (date > today) status = 'future';
+    else if (officerStartDate && date < officerStartDate) status = 'before_start';
     else if (presentSet.has(date)) status = 'present';
     else if (leaveSet.has(date)) status = 'leave';
 
     const o = overrideMap.get(date);
-    if (o && ['present', 'absent', 'leave'].includes(String(o))) {
+    // Only allow overrides on dates on or after the officer's start date
+    if (o && ['present', 'absent', 'leave', 'holiday'].includes(String(o)) && status !== 'before_start') {
       status = String(o);
     }
 
     days.push({ date, status });
   }
 
-  return { month, officerName, from, to, today, days };
+  return { month, officerName, from, to, today, officerStartDate, days };
 }
 
 module.exports = {

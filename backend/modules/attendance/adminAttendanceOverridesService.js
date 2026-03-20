@@ -85,8 +85,8 @@ async function listOverrides({ officerName, fromDate, toDate } = {}) {
 async function upsertOverride({ officerName, date, status, updatedBy }) {
   if (!officerName) throw new Error('officerName is required');
   if (!isYmd(date)) throw new Error('date must be YYYY-MM-DD');
-  if (!['present', 'absent', 'leave'].includes(String(status))) {
-    throw new Error('status must be present|absent|leave');
+  if (!['present', 'absent', 'leave', 'holiday'].includes(String(status))) {
+    throw new Error('status must be present|absent|leave|holiday');
   }
 
   const spreadsheetId = await requireAttendanceSheetId();

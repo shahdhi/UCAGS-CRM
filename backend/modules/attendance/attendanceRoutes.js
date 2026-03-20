@@ -333,6 +333,30 @@ router.get('/admin/calendar', isAdmin, async (req, res) => {
   }
 });
 
+// Admin: mark a date as holiday for ALL officers at once
+router.post('/admin/calendar/holiday', isAdmin, async (req, res) => {
+  try {
+    const adminName = req.user?.name || 'Admin';
+    const date = String(req.body?.date || '').trim();
+    if (!date) return res.status(400).json({ success: false, error: 'date is required' });
+
+    const officers = await listOfficerSheets();
+    const results = [];
+    for (const officerName of officers) {
+      try {
+        const r = await upsertOverride({ officerName, date, status: 'holiday', updatedBy: adminName });
+        results.push({ officerName, ...r });
+      } catch (e) {
+        results.push({ officerName, error: e.message });
+      }
+    }
+    res.json({ success: true, date, officers: results });
+  } catch (error) {
+    console.error('POST /api/attendance/admin/calendar/holiday error:', error);
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
 // Admin: set a day status override
 router.put('/admin/calendar', isAdmin, async (req, res) => {
   try {

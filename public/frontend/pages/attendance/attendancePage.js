@@ -433,13 +433,16 @@
       if (status === 'present') bg = '#dcfce7';
       else if (status === 'absent') bg = '#fee2e2';
       else if (status === 'leave') bg = '#dbeafe';
-      else if (status === 'future') bg = '#f3f4f6';
+      else if (status === 'holiday') { bg = '#fef9c3'; border = '#fde047'; }
+      else if (status === 'future' || status === 'before_start') bg = '#f3f4f6';
+
+      const labelText = status === 'leave' ? 'Leave' : status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : status === 'holiday' ? '🏖️ Holiday' : '';
 
       cells.push(
         `<div class="followup-calendar-cell" data-date="${date}" style="background:${bg}; border:1px solid ${border}; cursor:default;">` +
           `<div style="display:flex; justify-content: space-between; align-items:center;">` +
             `<span style="font-weight:600;">${d}</span>` +
-            `<span style="font-size:11px; color:#555;">${status === 'leave' ? 'Leave' : status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : ''}</span>` +
+            `<span style="font-size:11px; color:#555;">${labelText}</span>` +
           `</div>` +
         `</div>`
       );
@@ -463,7 +466,7 @@
           const pctEl = document.getElementById('attendanceMonthPct');
           if (pctEl) {
             const today = ymdToday();
-            const considered = (res.days || []).filter(d => d.date <= today);
+            const considered = (res.days || []).filter(d => d.date <= today && d.status !== 'before_start' && d.status !== 'holiday');
             const presentish = considered.filter(d => d.status === 'present' || d.status === 'leave').length;
             const denom = considered.length || 0;
             const pct = denom ? Math.round((presentish / denom) * 100) : 0;
@@ -481,7 +484,7 @@
       const pctEl = document.getElementById('attendanceMonthPct');
       if (pctEl) {
         const today = ymdToday();
-        const considered = (res.days || []).filter(d => d.date <= today);
+        const considered = (res.days || []).filter(d => d.date <= today && d.status !== 'before_start' && d.status !== 'holiday');
         const presentish = considered.filter(d => d.status === 'present' || d.status === 'leave').length;
         const denom = considered.length || 0;
         const pct = denom ? Math.round((presentish / denom) * 100) : 0;
@@ -656,15 +659,20 @@
 
       let bg = '#fff';
       let border = '#e5e7eb';
+      const isBeforeStart = status === 'before_start';
       if (status === 'present') bg = '#dcfce7';
       else if (status === 'absent') bg = '#fee2e2';
       else if (status === 'leave') bg = '#dbeafe';
-      else if (status === 'future') bg = '#f3f4f6';
+      else if (status === 'holiday') { bg = '#fef9c3'; border = '#fde047'; }
+      else if (status === 'future' || isBeforeStart) bg = '#f3f4f6';
 
-      const labelText = status === 'leave' ? 'Leave' : status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : '';
+      const labelText = status === 'leave' ? 'Leave' : status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : status === 'holiday' ? '🏖️ Holiday' : '';
+
+      // Before-start and future cells are not clickable (no override allowed)
+      const cursor = (status === 'future' || isBeforeStart) ? 'default' : 'pointer';
 
       cells.push(
-        `<div class="followup-calendar-cell" data-date="${date}" data-status="${escapeHtml(status)}" style="background:${bg}; border:1px solid ${border}; cursor:pointer;">` +
+        `<div class="followup-calendar-cell" data-date="${date}" data-status="${escapeHtml(status)}" style="background:${bg}; border:1px solid ${border}; cursor:${cursor};">` +
           `<div style="display:flex; justify-content: space-between; align-items:center;">` +
             `<span style="font-weight:600;">${d}</span>` +
             `<span style="font-size:11px; color:#555;">${labelText}</span>` +
@@ -739,6 +747,9 @@
         const current = cell.getAttribute('data-status') || '';
         if (!date) return;
 
+        // Don't allow overrides on before_start or future dates
+        if (current === 'before_start' || current === 'future') return;
+
         openAdminDayModal({ date, currentStatus: current || 'present' });
       });
     }
@@ -763,6 +774,37 @@
           if (window.UI?.showToast) UI.showToast(e.message || 'Failed to update', 'error');
         } finally {
           saveBtn.disabled = false;
+        }
+      });
+    }
+
+    const holidayBtn = document.getElementById('attendanceMarkAllHolidayBtn');
+    if (holidayBtn && !holidayBtn.__bound) {
+      holidayBtn.__bound = true;
+      holidayBtn.addEventListener('click', async () => {
+        const date = __adminDayModalState.date;
+        if (!date) return;
+        if (!confirm(`Mark ${date} as Holiday for ALL officers? This will override their status for that day.`)) return;
+        try {
+          holidayBtn.disabled = true;
+          holidayBtn.textContent = 'Saving…';
+          const headers = await getAuthHeaders();
+          const res = await fetch('/api/attendance/admin/calendar/holiday', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ date })
+          });
+          const json = await res.json();
+          if (!json.success) throw new Error(json.error || 'Failed');
+          closeModal('attendanceAdminDayModal');
+          if (window.Cache) window.Cache.invalidatePrefix('attendance:');
+          await loadAdminCalendar({ showSkeleton: false });
+          if (window.UI?.showToast) UI.showToast(`${date} marked as Holiday for all officers`, 'success');
+        } catch (e) {
+          if (window.UI?.showToast) UI.showToast(e.message || 'Failed to mark holiday', 'error');
+        } finally {
+          holidayBtn.disabled = false;
+          holidayBtn.textContent = 'Mark Holiday for All';
         }
       });
     }
