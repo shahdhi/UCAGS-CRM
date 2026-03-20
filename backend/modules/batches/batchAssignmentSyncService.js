@@ -114,13 +114,17 @@ async function syncAssignmentsToSheets(batchName, { sheetNames } = {}) {
     const headers = (headerRow && headerRow[0]) ? headerRow[0].map(normalizeHeader) : [];
     const idxFn = indexHeaders(headers);
 
-    const idIdx = idxFn('ID');
-    // Support both "assigned_to" (underscore) and "Assigned To" (space) column headers
+    // Find assigned_to column — support multiple header name variants
     const assignedIdx = idxFn('assigned_to') ?? idxFn('assigned to');
-    const phoneIdx = idxFn('phone');
+    // Find phone column — support multiple header name variants
+    const phoneIdx = idxFn('phone') ?? idxFn('phone_number') ?? idxFn('mobile') ?? idxFn('contact');
 
     if (assignedIdx == null) {
-      perSheetResults.push({ sheetName, success: false, error: 'Missing required header: assigned_to / assigned to' });
+      perSheetResults.push({ sheetName, success: false, error: 'No assigned_to column found in sheet headers' });
+      continue;
+    }
+    if (phoneIdx == null) {
+      perSheetResults.push({ sheetName, success: false, error: 'No phone column found in sheet headers' });
       continue;
     }
 
@@ -130,11 +134,11 @@ async function syncAssignmentsToSheets(batchName, { sheetNames } = {}) {
       continue;
     }
 
-    // Fetch ALL assigned leads for this batch+sheet from Supabase
-    const normalizedTabName = sheetName.trim().toLowerCase();
+    // Fetch ALL assigned leads for this batch from Supabase (no sheet_name filter —
+    // the admin sheet and the intake sheet may have different sheet_name values in Supabase)
     const { data: allData, error } = await sb
       .from('crm_leads')
-      .select('sheet_lead_id, sheet_name, phone, assigned_to')
+      .select('phone, assigned_to')
       .eq('batch_name', batchName)
       .not('assigned_to', 'is', null)
       .neq('assigned_to', '');
@@ -144,28 +148,22 @@ async function syncAssignmentsToSheets(batchName, { sheetNames } = {}) {
       continue;
     }
 
-    // Filter to rows matching this sheet (case-insensitive), fall back to all if none match
-    const matchingRows = (allData || []).filter(r =>
-      String(r.sheet_name || '').trim().toLowerCase() === normalizedTabName
-    );
-    const rowsToUse = matchingRows.length > 0 ? matchingRows : (allData || []);
-
-    // Build two lookup maps:
-    // 1. By sheet_lead_id (ID column)
-    // 2. By normalized phone (fallback when no ID column or ID is auto-generated)
-    const mapById = new Map();
+    // Build a phone → assigned_to lookup map (normalize phone to digits only for matching)
     const mapByPhone = new Map();
-    rowsToUse.forEach(r => {
-      if (r.sheet_lead_id) mapById.set(String(r.sheet_lead_id), String(r.assigned_to));
-      if (r.phone) {
-        const cleanPhone = String(r.phone).replace(/\D/g, '');
-        if (cleanPhone) mapByPhone.set(cleanPhone, String(r.assigned_to));
+    (allData || []).forEach(r => {
+      if (!r.phone || !r.assigned_to) return;
+      // Store by last 9 digits (local number without country code) for robust matching
+      const digits = String(r.phone).replace(/\D/g, '');
+      if (digits.length >= 9) {
+        mapByPhone.set(digits.slice(-9), String(r.assigned_to));
       }
+      // Also store full digits string
+      mapByPhone.set(digits, String(r.assigned_to));
     });
 
-    console.log(`[syncAssignments] batch=${batchName} sheet=${sheetName} supabaseAssigned=${rowsToUse.length} byId=${mapById.size} byPhone=${mapByPhone.size}`);
+    console.log(`[syncAssignments] batch=${batchName} sheet=${sheetName} assignedInSupabase=${(allData||[]).length} phoneMapSize=${mapByPhone.size}`);
 
-    // Build updates
+    // Build updates — match each sheet row by phone number
     const updates = [];
     const colLetter = colToLetter(assignedIdx);
 
@@ -173,32 +171,15 @@ async function syncAssignmentsToSheets(batchName, { sheetNames } = {}) {
       if (!r || !r.length) return;
       const rowNumber = i + 2; // data starts at row 2
 
-      // Try match by ID first
-      let assigned = null;
-      if (idIdx != null) {
-        const sheetLeadId = String(getCell(r, idIdx) || '').trim();
-        if (sheetLeadId && mapById.has(sheetLeadId)) {
-          assigned = mapById.get(sheetLeadId);
-        }
-        // Also try auto-generated ID format: lead_{phone}
-        if (!assigned && sheetLeadId && sheetLeadId.startsWith('lead_')) {
-          const phoneDigits = sheetLeadId.replace('lead_', '');
-          if (phoneDigits && mapByPhone.has(phoneDigits)) {
-            assigned = mapByPhone.get(phoneDigits);
-          }
-        }
-      }
+      const rawPhone = String(getCell(r, phoneIdx) || '').trim();
+      if (!rawPhone) return;
 
-      // Fallback: match by phone number
-      if (!assigned && phoneIdx != null) {
-        const rawPhone = String(getCell(r, phoneIdx) || '').trim();
-        const cleanPhone = rawPhone.replace(/\D/g, '');
-        if (cleanPhone && mapByPhone.has(cleanPhone)) {
-          assigned = mapByPhone.get(cleanPhone);
-        }
-      }
+      const digits = rawPhone.replace(/\D/g, '');
+      if (!digits) return;
 
-      if (!assigned) return; // no assignment found — skip, don't clear the sheet
+      // Try full digits first, then last 9 digits
+      const assigned = mapByPhone.get(digits) || mapByPhone.get(digits.slice(-9)) || null;
+      if (!assigned) return; // not assigned — skip, don't clear
 
       updates.push({
         range: `${sheetName}!${colLetter}${rowNumber}`,
