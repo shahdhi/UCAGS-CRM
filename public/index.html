@@ -1528,13 +1528,15 @@
 
             <!-- Reports View (Admin Only) -->
             <div id="demoSessionsView" class="content-view" style="display:none;">
-                <div class="page-header">
+                <div class="page-header demo-page-header">
                     <h1><i class="fas fa-chalkboard-teacher"></i> Demo Sessions</h1>
-                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                        <select id="demoProgramSelect" class="form-control" style="width:220px;"></select>
-                        <select id="demoBatchSelect" class="form-control" style="width:200px;"></select>
-                        <select id="demoOfficerSelect" class="form-control admin-only" style="width:220px; display:none;"></select>
-                        <button id="demoSessionsRefreshBtn" class="btn btn-secondary btn-sm" type="button"><i class="fas fa-sync"></i> Refresh</button>
+                    <div class="demo-filters-toolbar">
+                        <div class="demo-filters-selects">
+                            <select id="demoProgramSelect" class="form-control demo-filter-select"></select>
+                            <select id="demoBatchSelect" class="form-control demo-filter-select"></select>
+                            <select id="demoOfficerSelect" class="form-control demo-filter-select admin-only" style="display:none;"></select>
+                        </div>
+                        <button id="demoSessionsRefreshBtn" class="btn btn-secondary btn-sm demo-refresh-btn" type="button"><i class="fas fa-sync"></i></button>
                     </div>
                 </div>
 

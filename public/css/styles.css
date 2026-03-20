@@ -621,6 +621,97 @@ body {
 }
 
 /* ============================================================
+   DEMO SESSIONS -- Filters toolbar & mobile card layout
+   ============================================================ */
+
+/* Page header: title left, filters right */
+.demo-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.demo-page-header h1 {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+/* Filters row: selects flex + refresh button */
+.demo-filters-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+}
+
+.demo-filters-selects {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+}
+
+.demo-filter-select {
+    min-width: 0;
+    flex: 1;
+    max-width: 220px;
+}
+
+.demo-refresh-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    /* Stack title and filters vertically */
+    .demo-page-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    /* Filters: selects take full width, refresh stays right */
+    .demo-filters-toolbar {
+        flex-direction: row;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .demo-filters-selects {
+        flex: 1;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .demo-filter-select {
+        flex: 1 1 calc(50% - 4px);
+        max-width: 100%;
+        font-size: 16px; /* prevent iOS zoom */
+    }
+
+    /* Demo sessions layout: stack cards above participants */
+    .demo-sessions-layout {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Cards: horizontal scrollable row on mobile */
+    #demoSessionsCards {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+        gap: 8px !important;
+    }
+
+    /* Demo card buttons: full width */
+    button.demo-card {
+        width: 100%;
+        min-width: 0 !important;
+    }
+}
+
+/* ============================================================
    CONTACTS — Google Contacts style
    ============================================================ */
 
