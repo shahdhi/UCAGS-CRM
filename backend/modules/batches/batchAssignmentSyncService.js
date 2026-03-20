@@ -9,6 +9,29 @@ const { getSpreadsheetInfo, readSheet, writeSheet } = require('../../core/sheets
 const { getBatch } = require('../../core/batches/batchesStore');
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
 
+function quotedSheetName(sheetName) {
+  const safe = String(sheetName || '').replace(/'/g, "''");
+  return `'${safe}'`;
+}
+
+function safeSheetRange(sheetName, a1Range) {
+  // Always quote sheet names that contain spaces or special characters
+  // so the Google Sheets API can parse the range correctly.
+  const needsQuoting = /[^A-Za-z0-9_]/.test(String(sheetName || ''));
+  const name = needsQuoting ? quotedSheetName(sheetName) : sheetName;
+  return `${name}!${a1Range}`;
+}
+
+async function readSheetWithFallback(spreadsheetId, sheetName, a1Range) {
+  // Try quoted name first (handles spaces and special chars reliably)
+  let v = await readSheet(spreadsheetId, safeSheetRange(sheetName, a1Range), { force: true });
+  // If empty and we used unquoted, try quoted as fallback
+  if ((!v || v.length === 0) && !/[^A-Za-z0-9_]/.test(String(sheetName || ''))) {
+    v = await readSheet(spreadsheetId, `${quotedSheetName(sheetName)}!${a1Range}`, { force: true });
+  }
+  return v || [];
+}
+
 function requireSupabase() {
   const sb = getSupabaseAdmin();
   if (!sb) {
@@ -71,7 +94,7 @@ async function syncAssignmentsToSheets(batchName, { sheetNames } = {}) {
   const perSheetResults = [];
 
   for (const sheetName of tabs) {
-    const headerRow = await readSheet(spreadsheetId, `${sheetName}!A1:AZ1`);
+    const headerRow = await readSheetWithFallback(spreadsheetId, sheetName, 'A1:AZ1');
     const headers = (headerRow && headerRow[0]) ? headerRow[0].map(normalizeHeader) : [];
     const idxFn = indexHeaders(headers);
 
@@ -89,7 +112,7 @@ async function syncAssignmentsToSheets(batchName, { sheetNames } = {}) {
       continue;
     }
 
-    const rows = await readSheet(spreadsheetId, `${sheetName}!A2:AZ`);
+    const rows = await readSheetWithFallback(spreadsheetId, sheetName, 'A2:AZ');
     if (!rows || rows.length === 0) {
       perSheetResults.push({ sheetName, success: true, updated: 0 });
       continue;
@@ -143,7 +166,7 @@ async function syncAssignmentsToSheets(batchName, { sheetNames } = {}) {
       if (!assigned) return; // not assigned — skip, don't clear
 
       updates.push({
-        range: `${sheetName}!${colLetter}${rowNumber}`,
+        range: safeSheetRange(sheetName, `${colLetter}${rowNumber}`),
         values: [[assigned]]
       });
     });
