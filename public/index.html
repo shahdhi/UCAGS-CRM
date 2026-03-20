@@ -603,17 +603,23 @@
 
             <!-- Contacts View -->
             <div id="contactsView" class="content-view">
-                <div class="page-header">
+                <div class="page-header contacts-page-header">
                     <h1><i class="fas fa-address-book"></i> Contacts</h1>
                     <div class="contacts-toolbar">
-                        <div class="google-contacts-toolbar" title="Google Contacts">
-                            <span id="googleContactsStatus" class="google-contacts-status"></span>
-                            <button id="googleContactsConnectBtn" class="btn btn-secondary btn-sm" type="button"><i class="fab fa-google"></i> Connect</button>
-                            <button id="googleContactsDisconnectBtn" class="btn btn-secondary btn-sm" type="button" style="display:none;"><i class="fas fa-unlink"></i></button>
-                            <button id="googleContactsSyncAllBtn" class="btn btn-secondary btn-sm" type="button" style="display:none;"><i class="fas fa-cloud-upload-alt"></i> Sync</button>
+                        <!-- Row 1: Google buttons + Refresh -->
+                        <div class="contacts-toolbar-row1">
+                            <div class="google-contacts-toolbar" title="Google Contacts">
+                                <span id="googleContactsStatus" class="google-contacts-status"></span>
+                                <button id="googleContactsConnectBtn" class="btn btn-secondary btn-sm" type="button"><i class="fab fa-google"></i> Connect</button>
+                                <button id="googleContactsDisconnectBtn" class="btn btn-secondary btn-sm" type="button" style="display:none;"><i class="fas fa-unlink"></i></button>
+                                <button id="googleContactsSyncAllBtn" class="btn btn-secondary btn-sm" type="button" style="display:none;"><i class="fas fa-cloud-upload-alt"></i> Sync</button>
+                            </div>
+                            <button id="contactsRefreshBtn" class="btn btn-secondary btn-sm" type="button"><i class="fas fa-sync"></i></button>
                         </div>
-                        <input id="contactsSearch" class="form-control" style="width:240px;" placeholder="Search" />
-                        <button id="contactsRefreshBtn" class="btn btn-secondary btn-sm" type="button"><i class="fas fa-sync"></i></button>
+                        <!-- Row 2: Search bar full width -->
+                        <div class="contacts-toolbar-row2">
+                            <input id="contactsSearch" class="form-control" placeholder="Search contacts..." />
+                        </div>
                     </div>
                 </div>
 

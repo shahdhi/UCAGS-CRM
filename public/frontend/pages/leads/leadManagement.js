@@ -720,7 +720,7 @@ async function openManageLeadModal(leadId) {
   
   const modalHTML = `
     <div class="modal-overlay" id="manageLeadModal" onclick="closeManageLeadModal(event)">
-      <div class="modal-dialog" onclick="event.stopPropagation()" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-dialog manage-lead-dialog" onclick="event.stopPropagation()" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
         <div class="modal-header">
           <h2><i class="fas fa-tasks"></i> Manage Lead: ${escapeHtml(lead.name)}</h2>
           <button class="modal-close" onclick="closeManageLeadModal()">

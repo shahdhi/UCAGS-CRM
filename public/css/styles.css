@@ -710,36 +710,170 @@ body {
         padding: 10px 12px;
     }
 
-    /* Full-width search bar */
-    #contactsView .contacts-toolbar {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
-    }
-
-    #contactsView #contactsSearch {
-        width: 100% !important;
-        font-size: 16px; /* prevent iOS zoom */
-    }
-
-    #contactsView .google-contacts-toolbar {
-        overflow-x: auto;
-        flex-wrap: nowrap;
-    }
-
     /* Remove horizontal table scroll — single column layout is clean */
     #contactsView .table-container {
         overflow-x: hidden;
     }
 }
 
-/* Contacts toolbar: compact header actions */
+/* ============================================================
+   MANAGE LEAD MODAL -- Mobile responsive overrides
+   All grids collapse to single column on mobile.
+   ============================================================ */
+@media (max-width: 768px) {
+    /* Modal becomes a full bottom sheet */
+    #manageLeadModal.modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    #manageLeadModal .modal-dialog,
+    #manageLeadModal .manage-lead-dialog {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 92dvh !important;
+        border-radius: 20px 20px 0 0 !important;
+        overflow-y: auto !important;
+    }
+
+    #manageLeadModal .modal-header {
+        border-radius: 20px 20px 0 0;
+        padding: 14px 16px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    #manageLeadModal .modal-header h2 {
+        font-size: 15px !important;
+    }
+
+    #manageLeadModal .modal-body {
+        padding: 14px 12px !important;
+    }
+
+    /* All 3-column grids collapse to 1 column */
+    #manageLeadModal [style*="grid-template-columns: repeat(3"],
+    #manageLeadModal [style*="grid-template-columns: 1fr 1fr 1fr"] {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+
+    /* 2-column grids collapse to 1 column */
+    #manageLeadModal [style*="grid-template-columns: 1fr 2fr"] {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 4px !important;
+    }
+
+    /* Follow-up sections -- reduce padding */
+    #manageLeadModal .followup-section {
+        padding: 12px !important;
+    }
+
+    /* Demo session invite row */
+    #manageLeadModal [style*="justify-content:space-between"] {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+    }
+
+    /* Demo invite select full width */
+    #demoInviteNumber {
+        width: 100% !important;
+    }
+
+    /* Footer buttons full width, sticky at bottom */
+    #manageLeadModal .modal-footer {
+        flex-direction: column-reverse !important;
+        gap: 8px !important;
+        padding: 12px !important;
+        position: sticky;
+        bottom: 0;
+        background: #fff;
+        z-index: 10;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    #manageLeadModal .modal-footer .btn {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    /* Add follow-up button full width */
+    #addFollowUpBtn {
+        width: 100% !important;
+    }
+
+    /* Contact info line */
+    #manageLeadModal [style*="background: #f5f5f5"] {
+        font-size: 13px;
+        line-height: 1.8;
+    }
+
+    /* Section headings smaller */
+    #manageLeadModal h3 {
+        font-size: 14px !important;
+    }
+
+    /* Inputs 16px to prevent iOS zoom */
+    #manageLeadModal input,
+    #manageLeadModal select,
+    #manageLeadModal textarea {
+        font-size: 16px !important;
+    }
+}
+/* Contacts toolbar: 2-row layout */
 #contactsView .contacts-toolbar {
     display: flex;
+    flex-direction: column;
     gap: 8px;
+    width: 100%;
+}
+
+#contactsView .contacts-toolbar-row1 {
+    display: flex;
     align-items: center;
+    gap: 8px;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+}
+
+#contactsView .contacts-toolbar-row2 {
+    display: flex;
+    width: 100%;
+}
+
+#contactsView .contacts-toolbar-row2 .form-control {
+    width: 100% !important;
+    font-size: 14px;
+}
+
+/* Desktop: page header flex row */
+#contactsView .contacts-page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
     flex-wrap: wrap;
-    justify-content: flex-end;
+    gap: 12px;
+}
+
+#contactsView .contacts-page-header h1 {
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    /* Stack header vertically on mobile */
+    #contactsView .contacts-page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    #contactsView .contacts-toolbar-row2 .form-control {
+        font-size: 16px; /* prevent iOS zoom */
+    }
 }
 
 #contactsView .google-contacts-toolbar {
