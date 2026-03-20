@@ -118,9 +118,15 @@ async function getOfficerMonthCalendar({ officerName, month }) {
     else if (leaveSet.has(date)) status = 'leave';
 
     const o = overrideMap.get(date);
-    // Only allow overrides on dates on or after the officer's start date
+    // Only allow overrides on dates on or after the officer's start date.
+    // Holiday overrides do NOT override an actual check-in — if the officer
+    // checked in on a holiday they are marked present.
     if (o && ['present', 'absent', 'leave', 'holiday'].includes(String(o)) && status !== 'before_start') {
-      status = String(o);
+      if (String(o) === 'holiday' && presentSet.has(date)) {
+        // Officer actually checked in — keep as present
+      } else {
+        status = String(o);
+      }
     }
 
     days.push({ date, status });
