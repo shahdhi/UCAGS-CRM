@@ -117,75 +117,89 @@ async function syncAssignmentsToSheets(batchName, { sheetNames } = {}) {
     const idIdx = idxFn('ID');
     // Support both "assigned_to" (underscore) and "Assigned To" (space) column headers
     const assignedIdx = idxFn('assigned_to') ?? idxFn('assigned to');
+    const phoneIdx = idxFn('phone');
 
-    if (idIdx == null) {
-      perSheetResults.push({ sheetName, success: false, error: 'Missing required header: ID' });
-      continue;
-    }
     if (assignedIdx == null) {
-      perSheetResults.push({ sheetName, success: false, error: 'Missing required header: assigned_to' });
+      perSheetResults.push({ sheetName, success: false, error: 'Missing required header: assigned_to / assigned to' });
       continue;
     }
 
     const rows = await readSheet(spreadsheetId, `${sheetName}!A2:AZ`);
-    const ids = (rows || [])
-      .filter(r => r && r.length)
-      .map(r => String(getCell(r, idIdx) || '').trim())
-      .filter(Boolean);
-
-    if (ids.length === 0) {
+    if (!rows || rows.length === 0) {
       perSheetResults.push({ sheetName, success: true, updated: 0 });
       continue;
     }
 
-    // Fetch assignments from Supabase for these IDs.
-    // We fetch all rows for this batch matching these sheet_lead_ids, then filter
-    // by normalized sheet_name on the JS side — this handles any casing/spacing
-    // differences between what's stored in Supabase and the Google Sheet tab name.
-    const { data, error } = await sb
+    // Fetch ALL assigned leads for this batch+sheet from Supabase
+    const normalizedTabName = sheetName.trim().toLowerCase();
+    const { data: allData, error } = await sb
       .from('crm_leads')
-      .select('sheet_lead_id, sheet_name, assigned_to')
+      .select('sheet_lead_id, sheet_name, phone, assigned_to')
       .eq('batch_name', batchName)
-      .in('sheet_lead_id', ids);
+      .not('assigned_to', 'is', null)
+      .neq('assigned_to', '');
 
     if (error) {
       perSheetResults.push({ sheetName, success: false, error: error.message || String(error) });
       continue;
     }
 
-    // Normalize sheet name for comparison (trim + lowercase)
-    const normalizedTabName = sheetName.trim().toLowerCase();
-
-    // Filter to rows whose sheet_name matches this tab (case-insensitive)
-    // Fall back to all rows if none match — handles cases where sheet_name wasn't stored
-    const matchingRows = (data || []).filter(r =>
+    // Filter to rows matching this sheet (case-insensitive), fall back to all if none match
+    const matchingRows = (allData || []).filter(r =>
       String(r.sheet_name || '').trim().toLowerCase() === normalizedTabName
     );
-    const rowsToUse = matchingRows.length > 0 ? matchingRows : (data || []);
+    const rowsToUse = matchingRows.length > 0 ? matchingRows : (allData || []);
 
-    console.log(`[syncAssignments] batch=${batchName} sheet=${sheetName} ids=${ids.length} supabaseRows=${(data||[]).length} matched=${matchingRows.length}`);
-    console.log(`[syncAssignments] rows with assigned_to: ${rowsToUse.filter(r => r.assigned_to).length}`);
+    // Build two lookup maps:
+    // 1. By sheet_lead_id (ID column)
+    // 2. By normalized phone (fallback when no ID column or ID is auto-generated)
+    const mapById = new Map();
+    const mapByPhone = new Map();
+    rowsToUse.forEach(r => {
+      if (r.sheet_lead_id) mapById.set(String(r.sheet_lead_id), String(r.assigned_to));
+      if (r.phone) {
+        const cleanPhone = String(r.phone).replace(/\D/g, '');
+        if (cleanPhone) mapByPhone.set(cleanPhone, String(r.assigned_to));
+      }
+    });
 
-    const map = new Map();
-    rowsToUse.forEach(r => map.set(String(r.sheet_lead_id), r.assigned_to == null ? '' : String(r.assigned_to)));
+    console.log(`[syncAssignments] batch=${batchName} sheet=${sheetName} supabaseAssigned=${rowsToUse.length} byId=${mapById.size} byPhone=${mapByPhone.size}`);
 
-    // Build updates: only write assigned_to when Supabase has a non-blank value.
-    // Skip rows where the lead is not found in Supabase or has no assignment,
-    // so we never overwrite a value in the sheet with blank.
+    // Build updates
     const updates = [];
     const colLetter = colToLetter(assignedIdx);
 
     (rows || []).forEach((r, i) => {
       if (!r || !r.length) return;
-      const sheetLeadId = String(getCell(r, idIdx) || '').trim();
-      if (!sheetLeadId) return;
-
-      // Only update if Supabase has this lead AND has a non-blank assigned_to
-      if (!map.has(sheetLeadId)) return;
-      const assigned = map.get(sheetLeadId);
-      if (!assigned) return; // skip blank/null assignments — don't clear the sheet
-
       const rowNumber = i + 2; // data starts at row 2
+
+      // Try match by ID first
+      let assigned = null;
+      if (idIdx != null) {
+        const sheetLeadId = String(getCell(r, idIdx) || '').trim();
+        if (sheetLeadId && mapById.has(sheetLeadId)) {
+          assigned = mapById.get(sheetLeadId);
+        }
+        // Also try auto-generated ID format: lead_{phone}
+        if (!assigned && sheetLeadId && sheetLeadId.startsWith('lead_')) {
+          const phoneDigits = sheetLeadId.replace('lead_', '');
+          if (phoneDigits && mapByPhone.has(phoneDigits)) {
+            assigned = mapByPhone.get(phoneDigits);
+          }
+        }
+      }
+
+      // Fallback: match by phone number
+      if (!assigned && phoneIdx != null) {
+        const rawPhone = String(getCell(r, phoneIdx) || '').trim();
+        const cleanPhone = rawPhone.replace(/\D/g, '');
+        if (cleanPhone && mapByPhone.has(cleanPhone)) {
+          assigned = mapByPhone.get(cleanPhone);
+        }
+      }
+
+      if (!assigned) return; // no assignment found — skip, don't clear the sheet
+
       updates.push({
         range: `${sheetName}!${colLetter}${rowNumber}`,
         values: [[assigned]]
