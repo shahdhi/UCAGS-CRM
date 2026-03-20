@@ -455,13 +455,30 @@ async function loadLeads() {
             const json = await res.json();
             if (!json.success) throw new Error(json.error || 'Sync failed');
 
-            // Summarize results
+            // Summarize pull (Sheets → Supabase)
             const pull = json.sheetsToSupabase?.sheets || [];
             const inserted = pull.reduce((a, s) => a + (s.inserted || 0), 0);
             const updated = pull.reduce((a, s) => a + (s.updated || 0), 0);
             const tabs = pull.length;
 
-            if (window.UI && UI.showToast) UI.showToast(`Sync completed: ${inserted} inserted, ${updated} updated (${tabs} tabs)`, 'success');
+            // Summarize push (Supabase → Sheets)
+            const push = json.supabaseToSheets;
+            const pushSheets = push?.sheets || [];
+            const pushWritten = pushSheets.reduce((a, s) => a + (s.updated || 0), 0);
+            const pushErrors = pushSheets.filter(s => !s.success).map(s => `${s.sheetName}: ${s.error}`);
+
+            let msg = `Pull ✓ ${inserted} inserted, ${updated} updated (${tabs} tabs)`;
+            if (push?.success) {
+              msg += ` | Push ✓ ${pushWritten} assigned`;
+            } else if (push) {
+              msg += ` | Push ✗ ${push.error || 'failed'}`;
+            }
+            if (pushErrors.length) {
+              msg += ` — ${pushErrors.join('; ')}`;
+            }
+
+            console.log('[sync] Full result:', JSON.stringify(json, null, 2));
+            if (window.UI && UI.showToast) UI.showToast(msg, push?.success ? 'success' : 'warning');
             await loadLeads();
           } catch (e) {
             console.error(e);
