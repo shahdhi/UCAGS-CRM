@@ -57,10 +57,6 @@ function crmConfirm({ title = 'Confirm', message = '', confirmText = 'OK', cance
  * @param {string} modeOrBatch - For officers this is usually 'myLeads'. For admins it can be a batch name.
  */
 async function initLeadsPage(modeOrBatch) {
-  console.log('[INIT-LEADS] ===== initLeadsPage called with:', modeOrBatch);
-  console.log('[INIT-LEADS] Current user:', window.currentUser);
-  console.log('[INIT-LEADS] Officer batch filter:', window.officerBatchFilter);
-  console.log('[INIT-LEADS] Officer sheet filter:', window.officerSheetFilter);
   
   // Remember current mode/batch (used by loadLeads)
   window.leadsModeOrBatch = modeOrBatch;
@@ -131,7 +127,6 @@ function setupLeadsEventListeners() {
     refreshBtn.parentNode.replaceChild(newRefreshBtn, refreshBtn);
     // Add new listener
     newRefreshBtn.addEventListener('click', () => {
-      console.log('Refresh button clicked');
       loadLeads();
     });
   }
@@ -270,7 +265,6 @@ function applyFiltersAndRender() {
 async function loadLeads() {
   // Prevent concurrent loads
   if (isLoading) {
-    console.log('[LOAD-LEADS] Already loading, skipping...');
     return;
   }
   
@@ -477,7 +471,6 @@ async function loadLeads() {
               msg += ` — ${pushErrors.join('; ')}`;
             }
 
-            console.log('[sync] Full result:', JSON.stringify(json, null, 2));
             if (window.UI && UI.showToast) UI.showToast(msg, push?.success ? 'success' : 'warning');
             await loadLeads();
           } catch (e) {
@@ -619,9 +612,6 @@ async function loadLeads() {
       // Pass programId to scope batch_name to the correct program (prevents cross-program leakage)
       if (window.officerProgramId) filters.programId = window.officerProgramId;
       
-      console.log('🔍 Loading officer leads with filters:', filters);
-      console.log('Current user:', window.currentUser);
-      
       response = await API.leads.getMyLeads(filters);
     } else {
       // Admin view: may use batch/sheet filters
@@ -636,19 +626,11 @@ async function loadLeads() {
     
     // Apply filters to populate filteredLeads
     applyFiltersAndRender();
-    
-    console.log('[LOAD-LEADS] ✓ Loaded ' + currentLeads.length + ' leads');
   } catch (error) {
     console.error('Error loading leads:', error);
     
     // Show more detailed error message
     let errorMsg = error.message || 'Unknown error occurred';
-    
-    // If the error contains debug info, show it
-    if (error.debug) {
-      console.error('Debug info:', error.debug);
-      errorMsg += '\n\nDebug info: ' + JSON.stringify(error.debug, null, 2);
-    }
     
     showLeadsError(errorMsg);
   } finally {
@@ -834,7 +816,6 @@ async function deleteOfficerLead(lead) {
     const toast = window.UI?.showToast || window.showToast;
     if (toast) toast('Lead deleted successfully', 'success');
   } catch (e) {
-    console.error('deleteOfficerLead error:', e);
     const toast = window.UI?.showToast || window.showToast;
     if (toast) toast(e.message || 'Failed to delete lead', 'error');
     else alert('Error: ' + (e.message || 'Failed to delete lead'));
@@ -1962,7 +1943,6 @@ async function bulkAssignLeads() {
       // Invalidate cache for all officers so they see the new assignments immediately
       if (window.Cache) {
         window.Cache.invalidatePrefix('leads:');
-        console.log('✓ Invalidated leads cache after assignment');
       }
       
       closeLeadsActionModal(modalId);
@@ -2279,7 +2259,6 @@ async function openNewLeadModal() {
       
       // Prevent double submission using flag
       if (isSubmitting) {
-        console.warn('[NEW-LEAD] Prevented double submission');
         return;
       }
       isSubmitting = true;
@@ -2419,7 +2398,6 @@ async function openDistributeUnassignedModal() {
         // Invalidate cache for all officers so they see the new assignments immediately
         if (window.Cache) {
           window.Cache.invalidatePrefix('leads:');
-          console.log('✓ Invalidated leads cache after distribution');
         }
         
         closeLeadsActionModal(modalId);

@@ -172,7 +172,6 @@ function setupManagementEventListeners() {
 async function loadLeadManagement() {
   // Prevent multiple simultaneous loads
   if (isLoading) {
-    console.log('⚠️ Already loading leads, skipping...');
     return;
   }
 
@@ -326,8 +325,6 @@ async function loadLeadManagement() {
   isLoading = true;
   
   try {
-    console.log('📊 Loading leads for management...');
-    
     if (!window.currentUser || !window.currentUser.name) {
       console.error('No current user found');
       isLoading = false;
@@ -505,15 +502,9 @@ async function loadLeadManagement() {
       }
     }));
 
-    console.log('[MGMT-LEADS] 📦 Raw leads data:', managementLeads.length, 'leads');
-
-
     // If no leads exist, keep empty list (do NOT inject mock leads in production)
     if (managementLeads.length === 0) {
-      console.log('ℹ️ No leads assigned to this officer');
     }
-
-    console.log('[MGMT-LEADS] ✓ Loaded ' + managementLeads.length + ' leads for management');
 
     // cache hydrated leads for faster reloads
     if (window.Cache) window.Cache.setWithTs(cacheKey, managementLeads);
@@ -562,16 +553,13 @@ function filterManagementLeads(skipRender) {
  * Render management table
  */
 function renderManagementTable() {
-  console.log('[MGMT-LEADS] Rendering management table...');
   const tbody = document.getElementById('managementTableBody');
   if (!tbody) {
     console.error('[MGMT-LEADS] ERROR: managementTableBody element not found!');
     return;
   }
-  console.log('[MGMT-LEADS] Rendering ' + filteredManagementLeads.length + ' leads');
   
   if (filteredManagementLeads.length === 0) {
-    console.log('[MGMT-LEADS] No leads to display');
     tbody.innerHTML = `
       <tr>
         <td colspan="9" style="text-align: center; padding: 40px;">
@@ -583,8 +571,6 @@ function renderManagementTable() {
     `;
     return;
   }
-  
-  console.log('[MGMT-LEADS] Rendering table rows...');
   
   tbody.innerHTML = filteredManagementLeads.map(lead => `
     <tr data-lead-id="${escapeHtml(String(lead.id))}">
@@ -601,8 +587,6 @@ function renderManagementTable() {
       </td>
     </tr>
   `).join('');
-  
-  console.log('✅ Table rendered successfully');
 }
 
 /**

@@ -269,9 +269,10 @@ async function listMyLeads({ officerName, batchName, sheetName, search, status, 
     q = q.or(`name.ilike.${s},email.ilike.${s},phone.ilike.${s}`);
   }
 
-  // Default order: lead added order (stable)
-  // Prefer created_at (when available), then sheet_lead_id.
+  // Order by sheet row position (preserves Google Sheet row order after sync).
+  // Falls back to created_at then sheet_lead_id for leads without a row index.
   const { data, error } = await q
+    .order('sheet_row_index', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true, nullsFirst: false })
     .order('sheet_lead_id', { ascending: true });
   if (error) throw error;
@@ -338,9 +339,10 @@ async function listAdminLeads({ batchName, sheetName, search, status, assignedTo
     q = q.or(`name.ilike.${s},email.ilike.${s},phone.ilike.${s}`);
   }
 
-  // Default order: lead added order (stable)
-  // Prefer created_at (when available), then sheet_lead_id.
+  // Order by sheet row position (preserves Google Sheet row order after sync).
+  // Falls back to created_at then sheet_lead_id for leads without a row index.
   const { data, error } = await q
+    .order('sheet_row_index', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true, nullsFirst: false })
     .order('sheet_lead_id', { ascending: true });
   if (error) throw error;

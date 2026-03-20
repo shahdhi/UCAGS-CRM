@@ -146,7 +146,7 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
     const rows = await readSheetWithFallback(readSheet, spreadsheetId, sheetName, 'A2:AZ', { force: true });
     const parsed = (rows || [])
       .filter(r => r && r.length)
-      .map((r, i) => parseLeadRow(r, idxFn, i + 2, headers))  // Pass row number (2 = first data row) and headers
+      .map((r, i) => ({ ...parseLeadRow(r, idxFn, i + 2, headers), sheet_row_index: i }))  // i = 0-based row order from sheet
       .filter(l => l.sheet_lead_id);
 
     if (parsed.length === 0) {
@@ -188,7 +188,7 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
         notes: l.notes,
         intake_json: l.intake_json,
         assigned_to: l.assigned_to,
-        source: 'google_sheets',
+        sheet_row_index: l.sheet_row_index,
         synced_at: nowIso
       }));
 
@@ -208,6 +208,7 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
         intake_json: l.intake_json,
         created_date: l.created_date,
         notes: l.notes,
+        sheet_row_index: l.sheet_row_index,
         synced_at: nowIso
       }));
 
