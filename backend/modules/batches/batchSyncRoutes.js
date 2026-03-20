@@ -19,7 +19,15 @@ router.post('/:batchName/sync', isAdmin, async (req, res) => {
     const sheetNames = Array.isArray(req.body?.sheetNames) ? req.body.sheetNames : undefined;
 
     const pull = await syncBatchToSupabase(req.params.batchName, { sheetNames });
-    const push = await syncAssignmentsToSheets(req.params.batchName, { sheetNames });
+
+    let push = null;
+    try {
+      push = await syncAssignmentsToSheets(req.params.batchName, { sheetNames });
+      console.log('[syncRoute] push result:', JSON.stringify(push));
+    } catch (pushErr) {
+      console.error('[syncRoute] syncAssignmentsToSheets ERROR:', pushErr.message || pushErr);
+      push = { success: false, error: pushErr.message || String(pushErr) };
+    }
 
     res.json({
       success: true,

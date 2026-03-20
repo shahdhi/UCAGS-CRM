@@ -5,46 +5,9 @@
  * then write back ONLY the assigned_to column from Supabase (clearing it if Supabase is blank).
  */
 
-const { getSpreadsheetInfo, readSheet } = require('../../core/sheets/sheetsClient');
+const { getSpreadsheetInfo, readSheet, writeSheet } = require('../../core/sheets/sheetsClient');
 const { getBatch } = require('../../core/batches/batchesStore');
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
-const { google } = require('googleapis');
-const { config } = require('../../core/config/environment');
-
-let cachedAuth = null;
-
-function normalizeEnv(v) {
-  if (v == null) return v;
-  let s = String(v).trim();
-  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
-    s = s.slice(1, -1);
-  }
-  return s;
-}
-
-async function getSheetsAuth() {
-  if (cachedAuth) return cachedAuth;
-
-  const serviceAccountEmail = normalizeEnv(config.google.serviceAccountEmail);
-  let privateKey = normalizeEnv(config.google.privateKey);
-  if (!serviceAccountEmail || !privateKey) {
-    const err = new Error('Missing GOOGLE_SERVICE_ACCOUNT_EMAIL / GOOGLE_PRIVATE_KEY');
-    err.status = 500;
-    throw err;
-  }
-  privateKey = privateKey.replace(/\\n/g, '\n').replace(/\r\n/g, '\n');
-
-  const scopes = ['https://www.googleapis.com/auth/spreadsheets'];
-  const auth = new google.auth.JWT(serviceAccountEmail, null, privateKey, scopes);
-  await auth.authorize();
-  cachedAuth = auth;
-  return auth;
-}
-
-async function getSheetsApi() {
-  const auth = await getSheetsAuth();
-  return google.sheets({ version: 'v4', auth });
-}
 
 function requireSupabase() {
   const sb = getSupabaseAdmin();
@@ -104,8 +67,6 @@ async function syncAssignmentsToSheets(batchName, { sheetNames } = {}) {
   const tabs = Array.isArray(sheetNames) && sheetNames.length
     ? sheetNames
     : await listSheetTabs(spreadsheetId);
-
-  const sheetsApi = await getSheetsApi();
 
   const perSheetResults = [];
 
@@ -192,19 +153,11 @@ async function syncAssignmentsToSheets(batchName, { sheetNames } = {}) {
       continue;
     }
 
-    // Batch update in chunks to avoid request size limits
-    const CHUNK = 500;
+    // Write each cell using the shared writeSheet client (same auth as all other sheet writes)
     let updatedCount = 0;
-    for (let i = 0; i < updates.length; i += CHUNK) {
-      const chunk = updates.slice(i, i + CHUNK);
-      await sheetsApi.spreadsheets.values.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-          valueInputOption: 'USER_ENTERED',
-          data: chunk
-        }
-      });
-      updatedCount += chunk.length;
+    for (const update of updates) {
+      await writeSheet(spreadsheetId, update.range, update.values);
+      updatedCount++;
     }
 
     perSheetResults.push({ sheetName, success: true, updated: updatedCount });
