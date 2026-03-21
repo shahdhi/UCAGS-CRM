@@ -3,14 +3,10 @@
  * Centralized service for making API calls
  */
 
-// Supabase Edge Functions base URL.
-const SUPABASE_FUNCTIONS_URL =
-  (typeof window !== 'undefined' && window.__SUPABASE_FUNCTIONS_URL__) ||
-  (typeof process !== 'undefined' && process.env?.SUPABASE_FUNCTIONS_URL) ||
-  'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1';
-
-// Falls back to relative /api for local development (override window.__SUPABASE_FUNCTIONS_URL__ = '/api').
-const API_BASE = SUPABASE_FUNCTIONS_URL;
+// Always use the relative /api/ prefix in the browser so the global fetch
+// interceptor (index.html) rewrites the URL to the Supabase Edge Function URL
+// and injects the user JWT automatically. Absolute URLs bypass the interceptor.
+const API_BASE = '/api';
 
 /**
  * Generic fetch wrapper with error handling
@@ -19,18 +15,13 @@ const _API_SERVICE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJz
 
 async function fetchAPI(endpoint, options = {}) {
   try {
-    // Get Supabase session token. By the time fetchAPI is called, the INITIAL_SESSION
-    // auth event has already fired so the session is fully cached in the Supabase client.
+    // Auth headers: only set apikey here. The Authorization header (user JWT) is
+    // injected by the global fetch interceptor in index.html, which reads the
+    // Supabase session at call time. Pre-setting Authorization with the anon key
+    // would block the interceptor from injecting the real user token.
     let authHeaders = {
       'apikey': _API_SERVICE_ANON_KEY,
-      'Authorization': `Bearer ${_API_SERVICE_ANON_KEY}`, // fallback anon
     };
-    if (window.supabaseClient) {
-      const { data } = await window.supabaseClient.auth.getSession();
-      if (data && data.session && data.session.access_token) {
-        authHeaders['Authorization'] = `Bearer ${data.session.access_token}`;
-      }
-    }
     
     const response = await fetch(`${API_BASE}${endpoint}`, {
       headers: {
