@@ -165,6 +165,30 @@ router.put('/leave/:id', async (req, params) => {
   return successResponse({ leave: data });
 });
 
+// GET /leave-requests  — alias used by app.js (?status=pending)
+router.get('/leave-requests', async (req) => {
+  const user = await isAuthenticated(req);
+  const sb = getSupabaseAdmin();
+  const url = new URL(req.url);
+  const status = url.searchParams.get('status');
+  let q = sb.from('leave_requests').select('*').order('created_at', { ascending: false }).limit(100);
+  if (user.role !== 'admin') q = q.eq('user_id', user.id);
+  if (status) q = q.eq('status', status);
+  const { data, error } = await q;
+  if (error) throw error;
+  return successResponse({ leave_requests: data ?? [] });
+});
+
+// GET /me/today  — today's attendance for current user
+router.get('/me/today', async (req) => {
+  const user = await isAuthenticated(req);
+  const sb = getSupabaseAdmin();
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = await sb.from('attendance').select('*').eq('user_id', user.id).eq('date', today).maybeSingle();
+  if (error) throw error;
+  return successResponse({ attendance: data ?? null });
+});
+
 // PUT /admin/override/:userId/:date  — admin override for attendance
 router.put('/admin/override/:userId/:date', async (req, params) => {
   await isAdmin(req);

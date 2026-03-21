@@ -12,8 +12,65 @@
     <link rel="stylesheet" href="css/receipts.css?v=3">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
-      // Supabase Edge Functions base URL — set globally so all modules can read it.
+      // Supabase Edge Functions base URL
       window.__SUPABASE_FUNCTIONS_URL__ = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1';
+
+      // ── Fetch interceptor ────────────────────────────────────────────────────
+      // Rewrites ALL fetch('/api/X') calls → fetch('https://....supabase.co/functions/v1/X')
+      // and injects the Supabase JWT automatically.
+      // This means no changes needed in app.js or any page JS file.
+      (function () {
+        const FUNCTIONS_BASE = window.__SUPABASE_FUNCTIONS_URL__;
+        const _originalFetch = window.fetch.bind(window);
+
+        window.fetch = async function (input, init = {}) {
+          let url = typeof input === 'string' ? input : (input instanceof Request ? input.url : String(input));
+
+          // Only rewrite relative /api/ calls
+          if (url.startsWith('/api/')) {
+            // /api/programs/sidebar  →  https://.../functions/v1/programs/sidebar
+            // Strip the /api/ prefix and split off the function name
+            const withoutApi = url.slice(5); // remove "/api/"
+            const slashIdx = withoutApi.indexOf('/');
+            const fnName = slashIdx === -1 ? withoutApi.split('?')[0] : withoutApi.slice(0, slashIdx);
+            const rest = slashIdx === -1 ? '' : withoutApi.slice(slashIdx);
+            url = `${FUNCTIONS_BASE}/${fnName}${rest}`;
+
+            // Inject auth token + apikey (required by Supabase Edge Functions)
+            const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
+            const headers = new Headers(init.headers || (input instanceof Request ? input.headers : {}));
+            if (!headers.has('apikey')) {
+              headers.set('apikey', ANON_KEY);
+            }
+            if (!headers.has('Authorization') && window.supabaseClient) {
+              try {
+                const { data: { session } } = await window.supabaseClient.auth.getSession();
+                if (session?.access_token) {
+                  headers.set('Authorization', `Bearer ${session.access_token}`);
+                } else {
+                  // Fallback to anon key if no session yet
+                  headers.set('Authorization', `Bearer ${ANON_KEY}`);
+                }
+              } catch (_) {
+                headers.set('Authorization', `Bearer ${ANON_KEY}`);
+              }
+            }
+            if (!headers.has('Content-Type') && !(init.body instanceof FormData)) {
+              headers.set('Content-Type', 'application/json');
+            }
+
+            init = { ...init, headers };
+
+            if (input instanceof Request) {
+              input = new Request(url, { ...input, ...init });
+            } else {
+              input = url;
+            }
+          }
+
+          return _originalFetch(input, init);
+        };
+      })();
     </script>
 </head>
 <body>

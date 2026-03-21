@@ -27,6 +27,9 @@ function getServiceKey(): string {
 /**
  * Extract and verify the JWT from the Authorization header.
  * Returns the authenticated user or throws with status 401/403.
+ *
+ * Strategy: Pass the user's JWT to the Supabase admin client which
+ * calls the auth server to validate and return the user.
  */
 export async function getAuthUser(req: Request): Promise<AuthUser> {
   const authHeader = req.headers.get('Authorization');
@@ -35,15 +38,30 @@ export async function getAuthUser(req: Request): Promise<AuthUser> {
     (err as any).status = 401;
     throw err;
   }
-  const token = authHeader.replace('Bearer ', '');
+  const token = authHeader.replace('Bearer ', '').trim();
 
-  // Use anon client to verify the user token
-  const supabase = createClient(getSupabaseUrl(), getAnonKey(), {
-    global: { headers: { Authorization: `Bearer ${token}` } },
+  const url = getSupabaseUrl();
+  const serviceKey = getServiceKey();
+  const anonKey = getAnonKey();
+
+  if (!url) throw Object.assign(new Error('SUPABASE_URL not set'), { status: 500 });
+
+  // Use the user's own JWT with the anon client — Supabase will validate it server-side
+  const key = anonKey || serviceKey;
+  const userClient = createClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: key,
+      },
+    },
   });
-  const { data: { user }, error } = await supabase.auth.getUser();
+
+  const { data: { user }, error } = await userClient.auth.getUser(token);
+
   if (error || !user) {
-    const err = new Error('Unauthorized');
+    const err = new Error('Unauthorized: ' + (error?.message ?? 'invalid token'));
     (err as any).status = 401;
     throw err;
   }

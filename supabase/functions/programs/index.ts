@@ -20,6 +20,20 @@ router.get('/', async (req) => {
   return successResponse({ programs: data ?? [] });
 });
 
+// GET /sidebar  — programs with their current batches (for sidebar nav)
+router.get('/sidebar', async (req) => {
+  await isAuthenticated(req);
+  const sb = getSupabaseAdmin();
+  const { data: programs, error: pErr } = await sb.from('programs').select('id,name,code').eq('is_active', true).order('name');
+  if (pErr) throw pErr;
+  const { data: batches, error: bErr } = await sb.from('program_batches').select('id,program_id,batch_name,is_current').eq('is_current', true);
+  if (bErr) throw bErr;
+  const batchMap: Record<string, any> = {};
+  for (const b of batches ?? []) batchMap[b.program_id] = b;
+  const result = (programs ?? []).map((p: any) => ({ ...p, currentBatch: batchMap[p.id] ?? null }));
+  return successResponse({ programs: result });
+});
+
 // POST /  — create a program (admin)
 router.post('/', async (req) => {
   await isAdmin(req);

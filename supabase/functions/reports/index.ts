@@ -98,6 +98,30 @@ router.post('/daily/checklist', async (req) => {
   return successResponse({ checklist: data }, 201);
 });
 
+// GET /daily/schedule  — get scheduled tasks/reminders for officers
+router.get('/daily/schedule', async (req) => {
+  const user = await isAuthenticated(req);
+  const sb = getSupabaseAdmin();
+  const url = new URL(req.url);
+  const start = url.searchParams.get('start');
+  const days = Math.min(parseInt(url.searchParams.get('days') ?? '7', 10) || 7, 30);
+
+  const startDate = start ? new Date(start) : new Date();
+  const endDate = new Date(startDate.getTime() + days * 86400_000);
+
+  let q = sb.from('crm_lead_followups').select('*')
+    .gte('scheduled_at', startDate.toISOString())
+    .lte('scheduled_at', endDate.toISOString())
+    .order('scheduled_at', { ascending: true })
+    .limit(200);
+
+  if (user.role !== 'admin') q = q.eq('officer_user_id', user.id);
+
+  const { data, error } = await q;
+  if (error) throw error;
+  return successResponse({ schedule: data ?? [], followups: data ?? [] });
+});
+
 // GET /admin/daily  — admin view of all daily reports
 router.get('/admin/daily', async (req) => {
   await isAdmin(req);
