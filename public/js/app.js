@@ -15,9 +15,12 @@ async function initializeApp() {
     }
 
     // Check if user is logged in with Supabase
+    // Use getSession() (not getUser()) so the session token is immediately available
+    // in the Supabase client's in-memory cache for subsequent fetchAPI calls.
     try {
-        const user = await SupabaseAuth.getCurrentUser();
-        if (user) {
+        const session = await SupabaseAuth.getSession();
+        if (session && session.user) {
+            const user = session.user;
             // Determine role: check user_metadata first, then check if admin email
             let role = user.user_metadata?.role || 'user';
             
