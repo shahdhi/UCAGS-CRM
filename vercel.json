@@ -1,13 +1,10 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/**/*.js", "use": "@vercel/node" },
     { "src": "public/**", "use": "@vercel/static" }
   ],
   "routes": [
     { "handle": "filesystem" },
-    { "src": "/api/health", "dest": "/api/health.js" },
-    { "src": "/api/(.*)", "dest": "/api/[...path].js" },
     { "src": "/Register", "dest": "/public/register.html" },
     { "src": "/homepage", "dest": "/public/homepage.html" },
     { "src": "/privacy_policy", "dest": "/public/privacy_policy.html" },

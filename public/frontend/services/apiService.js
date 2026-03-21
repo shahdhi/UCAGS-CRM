@@ -3,7 +3,14 @@
  * Centralized service for making API calls
  */
 
-const API_BASE = '/api';
+// Supabase Edge Functions base URL.
+const SUPABASE_FUNCTIONS_URL =
+  (typeof window !== 'undefined' && window.__SUPABASE_FUNCTIONS_URL__) ||
+  (typeof process !== 'undefined' && process.env?.SUPABASE_FUNCTIONS_URL) ||
+  'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1';
+
+// Falls back to relative /api for local development (override window.__SUPABASE_FUNCTIONS_URL__ = '/api').
+const API_BASE = SUPABASE_FUNCTIONS_URL;
 
 /**
  * Generic fetch wrapper with error handling
