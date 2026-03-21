@@ -15,14 +15,14 @@ const API_BASE = SUPABASE_FUNCTIONS_URL;
 /**
  * Generic fetch wrapper with error handling
  */
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
+const _API_SERVICE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
 
 async function fetchAPI(endpoint, options = {}) {
   try {
     // Get Supabase session token
     let authHeaders = {
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, // fallback anon
+      'apikey': _API_SERVICE_ANON_KEY,
+      'Authorization': `Bearer ${_API_SERVICE_ANON_KEY}`, // fallback anon
     };
     if (window.supabaseClient) {
       const { data: { session } } = await window.supabaseClient.auth.getSession();
