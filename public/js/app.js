@@ -14,72 +14,45 @@ async function initializeApp() {
         return;
     }
 
-    // Check if user is logged in with Supabase
-    // Use getSession() (not getUser()) so the session token is immediately available
-    // in the Supabase client's in-memory cache for subsequent fetchAPI calls.
-    try {
-        const session = await SupabaseAuth.getSession();
-        if (session && session.user) {
-            const user = session.user;
-            // Determine role: check user_metadata first, then check if admin email
-            let role = user.user_metadata?.role || 'user';
-            
-            // Admin email list (you can add multiple admin emails here)
-            const adminEmails = [
-                'admin@ucags.edu.lk',
-                'mohamedunais2018@gmail.com' // Add your admin emails here
-            ];
-            
-            if (adminEmails.includes(user.email.toLowerCase())) {
-                role = 'admin';
-            }
-            
-            currentUser = {
-                id: user.id,
-                email: user.email,
-                name: user.user_metadata?.name || user.email.split('@')[0],
-                role: role
-            };
-            window.currentUser = currentUser; // Expose globally
-            showDashboard();
-        } else {
-            showLogin();
+    const adminEmails = [
+        'admin@ucags.edu.lk',
+        'mohamedunais2018@gmail.com'
+    ];
+
+    function buildCurrentUser(user) {
+        let role = user.user_metadata?.role || 'user';
+        if (adminEmails.includes(user.email.toLowerCase())) {
+            role = 'admin';
         }
-    } catch (error) {
-        console.error('Auth check error:', error);
-        showLogin();
+        return {
+            id: user.id,
+            email: user.email,
+            name: user.user_metadata?.name || user.email.split('@')[0],
+            role: role
+        };
     }
 
-    // Listen for auth changes
+    // Drive everything from onAuthStateChange so that the Supabase session is
+    // fully loaded and cached in memory before any API calls are made.
+    // INITIAL_SESSION fires on page load with the restored session (or null).
+    // SIGNED_IN fires on explicit login. SIGNED_OUT fires on logout.
     SupabaseAuth.onAuthStateChange((event, session) => {
         console.log('Auth state changed:', event);
-        if (event === 'SIGNED_IN' && session) {
-            // Avoid double-initializing the dashboard on first load (INITIAL_SESSION -> SIGNED_IN)
+
+        if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session && session.user) {
+            // Avoid re-initializing the dashboard if user hasn't changed
             if (currentUser && currentUser.id === session.user.id) {
                 return;
             }
-            // Determine role
-            let role = session.user.user_metadata?.role || 'user';
-            
-            const adminEmails = [
-                'admin@ucags.edu.lk',
-                'mohamedunais2018@gmail.com'
-            ];
-            
-            if (adminEmails.includes(session.user.email.toLowerCase())) {
-                role = 'admin';
-            }
-            
-            currentUser = {
-                id: session.user.id,
-                email: session.user.email,
-                name: session.user.user_metadata?.name || session.user.email.split('@')[0],
-                role: role
-            };
-            window.currentUser = currentUser; // Expose globally
+            currentUser = buildCurrentUser(session.user);
+            window.currentUser = currentUser;
             showDashboard();
+        } else if (event === 'INITIAL_SESSION' && !session) {
+            // No session on page load → show login
+            showLogin();
         } else if (event === 'SIGNED_OUT') {
             currentUser = null;
+            window.currentUser = null;
             showLogin();
         }
     });

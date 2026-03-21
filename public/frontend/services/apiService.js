@@ -19,26 +19,16 @@ const _API_SERVICE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJz
 
 async function fetchAPI(endpoint, options = {}) {
   try {
-    // Get Supabase session token — retry briefly to handle race condition at page load
-    // where getSession() may return null before the session is restored from storage.
+    // Get Supabase session token. By the time fetchAPI is called, the INITIAL_SESSION
+    // auth event has already fired so the session is fully cached in the Supabase client.
     let authHeaders = {
       'apikey': _API_SERVICE_ANON_KEY,
       'Authorization': `Bearer ${_API_SERVICE_ANON_KEY}`, // fallback anon
     };
     if (window.supabaseClient) {
-      let session = null;
-      const maxWaitMs = 2000;
-      const start = Date.now();
-      while (Date.now() - start < maxWaitMs) {
-        const { data } = await window.supabaseClient.auth.getSession();
-        if (data && data.session && data.session.access_token) {
-          session = data.session;
-          break;
-        }
-        await new Promise(r => setTimeout(r, 100));
-      }
-      if (session && session.access_token) {
-        authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+      const { data } = await window.supabaseClient.auth.getSession();
+      if (data && data.session && data.session.access_token) {
+        authHeaders['Authorization'] = `Bearer ${data.session.access_token}`;
       }
     }
     
