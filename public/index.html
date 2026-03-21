@@ -42,13 +42,26 @@
             if (!headers.has('apikey')) {
               headers.set('apikey', ANON_KEY);
             }
-            if (!headers.has('Authorization') && window.supabaseClient) {
+            if (!headers.has('Authorization')) {
               try {
-                const { data: { session } } = await window.supabaseClient.auth.getSession();
-                if (session?.access_token) {
-                  headers.set('Authorization', `Bearer ${session.access_token}`);
+                // Use cached token set by onAuthStateChange (fastest, no polling needed).
+                // Fall back to polling getSession() for cases where the interceptor
+                // runs before onAuthStateChange has fired (e.g. very early requests).
+                let token = window.__supabaseToken || null;
+                if (!token && window.supabaseClient) {
+                  const deadline = Date.now() + 3000;
+                  while (Date.now() < deadline) {
+                    const { data } = await window.supabaseClient.auth.getSession();
+                    if (data?.session?.access_token) {
+                      token = data.session.access_token;
+                      break;
+                    }
+                    await new Promise(r => setTimeout(r, 80));
+                  }
+                }
+                if (token) {
+                  headers.set('Authorization', `Bearer ${token}`);
                 } else {
-                  // Fallback to anon key if no session yet
                   headers.set('Authorization', `Bearer ${ANON_KEY}`);
                 }
               } catch (_) {

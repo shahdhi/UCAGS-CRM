@@ -38,6 +38,8 @@ async function initializeApp() {
     // SIGNED_IN fires on explicit login. SIGNED_OUT fires on logout.
     SupabaseAuth.onAuthStateChange((event, session) => {
         console.log('Auth state changed:', event);
+        // Cache the token for immediate use by the fetch interceptor
+        window.__supabaseToken = session?.access_token || null;
 
         if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session && session.user) {
             // Avoid re-initializing the dashboard if user hasn't changed
