@@ -200,7 +200,7 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
 
     // Short-lived cache: dramatically speeds up repeated dashboard loads
     const cacheKey = JSON.stringify({
-      v: 1,
+      v: 3, // bumped: conversion rate now uses full batch leads count (no date filter)
       role: isAdminUser ? 'admin' : 'officer',
       officerName: isAdminUser ? '' : officerName,
       from: String(req.query.from || ''),
@@ -284,29 +284,30 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
     }
 
     // Registrations received within range (created_at)
-    // Currently used only for Action Center (admin). Officers don't need it.
+    // Admins see all; officers see only their own assigned registrations.
     let registrationsReceived = 0;
     let missingAssignedTo = 0;
-    if (isAdminUser) {
-      try {
-        let q = sb
-          .from('registrations')
-          .select('id, assigned_to, payload, created_at, batch_name')
-          .gte('created_at', fromEff.toISOString())
-          .lte('created_at', toEff.toISOString())
-          .limit(20000);
-        if (currentBatches.length) q = q.in('batch_name', currentBatches);
-        const { data, error } = await q;
-        if (error) throw error;
-        registrationsReceived = (data || []).length;
+    try {
+      let q = sb
+        .from('registrations')
+        .select('id, assigned_to, payload, created_at, batch_name')
+        .gte('created_at', fromEff.toISOString())
+        .lte('created_at', toEff.toISOString())
+        .limit(20000);
+      if (currentBatches.length) q = q.in('batch_name', currentBatches);
+      if (!isAdminUser && officerName) q = q.eq('assigned_to', officerName);
+      const { data, error } = await q;
+      if (error) throw error;
+      registrationsReceived = (data || []).length;
+      if (isAdminUser) {
         (data || []).forEach(r => {
           const payload = r?.payload && typeof r.payload === 'object' ? r.payload : {};
           const a = r?.assigned_to || payload?.assigned_to || payload?.assignedTo;
           if (!a) missingAssignedTo++;
         });
-      } catch (e) {
-        // ignore
       }
+    } catch (e) {
+      // ignore
     }
 
     // Enrollments (payment received saved) within range
@@ -330,15 +331,14 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
       }
     }
 
-    // Conversion rate: confirmed payments out of TOTAL leads (Main Leads + Extra Leads + etc.)
-    // Source of truth: Supabase crm_leads table (contains sheet_name = Main Leads / Extra Leads ...)
+    // Conversion rate: confirmed payments out of TOTAL leads assigned in current batch
+    // NOTE: No date range filter on leads — leads may have been imported before the selected window.
+    // We count all leads in the current batch(es) for the officer, regardless of created_at.
     let leadsCount = 0;
     try {
       let q = sb
         .from('crm_leads')
-        .select('id', { count: 'exact', head: true })
-        .gte('created_at', fromEff.toISOString())
-        .lte('created_at', toEff.toISOString());
+        .select('id', { count: 'exact', head: true });
       if (currentBatches.length) q = q.in('batch_name', currentBatches);
       if (!isAdminUser && officerName) q = q.eq('assigned_to', officerName);
       const { count, error } = await q;
