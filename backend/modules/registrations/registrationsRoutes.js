@@ -133,7 +133,72 @@ router.post('/intake', async (req, res) => {
       throw first.error;
     }
 
+    // Check if there's an existing registration for same phone + batch (before inserting new one)
+    // Used later to decide XP and whether to delete the old one.
+    let existingRegistrationForPhone = null;
+    try {
+      const { data: existingRegs } = await sb
+        .from('registrations')
+        .select('id, enrolled, enrolled_at, payload')
+        .eq('phone_number', cleanString(canonicalPhone || payload.phone_number))
+        .eq('batch_name', registrationBatchName)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      // Pick the most recent one that isn't this new submission
+      existingRegistrationForPhone = (existingRegs || [])[0] || null;
+    } catch (_) {}
+
     const data = await insertWithMissingColumnFallback(row);
+
+    // After insert, resolve the "previous" registration (must be different from the newly inserted one)
+    let previousRegistration = null;
+    if (existingRegistrationForPhone && existingRegistrationForPhone.id !== data?.id) {
+      previousRegistration = existingRegistrationForPhone;
+    }
+
+    // Determine if the previous registration is eligible for replacement:
+    // eligible = not enrolled AND no payment received
+    let previousIsReplaceable = false;
+    if (previousRegistration) {
+      const prevPayload = (previousRegistration.payload && typeof previousRegistration.payload === 'object')
+        ? previousRegistration.payload : {};
+      const isEnrolled = !!(
+        previousRegistration.enrolled === true ||
+        previousRegistration.is_enrolled === true ||
+        previousRegistration.enrolled_at ||
+        prevPayload?.enrolled === true ||
+        prevPayload?.enrolled_at
+      );
+
+      if (!isEnrolled) {
+        // Check if payment exists for this registration
+        try {
+          const { data: prevPayments } = await sb
+            .from('payments')
+            .select('id, amount, payment_date, slip_received, receipt_received')
+            .eq('registration_id', previousRegistration.id)
+            .limit(10);
+          const hasPayment = (prevPayments || []).some(p => {
+            const amt = Number(p.amount || 0);
+            return (amt > 0 && !!(p.payment_date || p.slip_received || p.receipt_received));
+          });
+          previousIsReplaceable = !hasPayment;
+        } catch (_) {
+          previousIsReplaceable = true; // if payments table doesn't exist, assume replaceable
+        }
+      }
+    }
+
+    // If old registration is replaceable (not enrolled, no payment) → delete it and its payments
+    if (previousRegistration && previousIsReplaceable) {
+      try {
+        await sb.from('payments').delete().eq('registration_id', previousRegistration.id);
+        await sb.from('registrations').delete().eq('id', previousRegistration.id);
+        console.log(`[Registrations] Replaced old registration ${previousRegistration.id} with new ${data?.id} for phone ${row.phone_number} in batch ${registrationBatchName}`);
+      } catch (replaceErr) {
+        console.warn('[Registrations] Failed to delete old registration:', replaceErr.message);
+      }
+    }
 
     // Notifications: registration received
     try {
@@ -197,27 +262,34 @@ router.post('/intake', async (req, res) => {
       });
     } catch (_) {}
 
-    // XP: +10 for the assigned officer when a registration is received
+    // XP: +40 for the assigned officer when a registration is received
+    // Skip XP if this phone number already had a previous registration in the same batch
+    // (i.e. it's a re-submission, not a genuinely new registration)
     try {
-      const { awardXPOnce } = require('../xp/xpService');
-      const assignedOfficerName = cleanString(data?.assigned_to || row.assigned_to);
-      if (assignedOfficerName && data?.id) {
-        const sb2 = getSupabaseAdmin();
-        const { data: { users } } = await sb2.auth.admin.listUsers();
-        const officerUser = (users || []).find(u => {
-          const nm = String(u.user_metadata?.name || '').trim().toLowerCase();
-          return nm === assignedOfficerName.toLowerCase();
-        });
-        if (officerUser?.id) {
-          await awardXPOnce({
-            userId: officerUser.id,
-            eventType: 'registration_received',
-            xp: 40,
-            referenceId: data.id,
-            referenceType: 'registration',
-            note: `Registration received: ${data.name || 'student'}`
+      const isResubmission = !!previousRegistration; // previousRegistration set if phone+batch already existed
+      if (!isResubmission) {
+        const { awardXPOnce } = require('../xp/xpService');
+        const assignedOfficerName = cleanString(data?.assigned_to || row.assigned_to);
+        if (assignedOfficerName && data?.id) {
+          const sb2 = getSupabaseAdmin();
+          const { data: { users } } = await sb2.auth.admin.listUsers();
+          const officerUser = (users || []).find(u => {
+            const nm = String(u.user_metadata?.name || '').trim().toLowerCase();
+            return nm === assignedOfficerName.toLowerCase();
           });
+          if (officerUser?.id) {
+            await awardXPOnce({
+              userId: officerUser.id,
+              eventType: 'registration_received',
+              xp: 40,
+              referenceId: data.id,
+              referenceType: 'registration',
+              note: `Registration received: ${data.name || 'student'}`
+            });
+          }
         }
+      } else {
+        console.log(`[XP] Skipping registration_received XP for ${row.phone_number} in batch ${registrationBatchName} — re-submission of existing registration`);
       }
     } catch (xpErr) {
       console.warn('[XP] registration_received hook error:', xpErr.message);
