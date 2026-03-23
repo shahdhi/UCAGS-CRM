@@ -129,5 +129,6 @@ const SupabaseAuth = {
 // Export for global access
 window.SupabaseAuth = SupabaseAuth;
 window.supabaseClient = supabaseClientInstance;
+window.SUPABASE_URL = SUPABASE_URL;
 
 console.log('✓ Supabase client initialized');

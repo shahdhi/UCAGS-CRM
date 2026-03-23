@@ -5,10 +5,24 @@ const API = {
     // Generic request handler
     async request(endpoint, options = {}) {
         try {
-            const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            let url = `${this.baseUrl}${endpoint}`;
+            if (window.SUPABASE_URL && (endpoint.startsWith('/dashboard') || endpoint.startsWith('/crm-leads'))) {
+                url = `${window.SUPABASE_URL}/functions/v1${endpoint}`;
+            }
+
+            let authHeaders = {};
+            if (window.supabaseClient) {
+                const { data: { session } } = await window.supabaseClient.auth.getSession();
+                if (session && session.access_token) {
+                    authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+                }
+            }
+
+            const response = await fetch(url, {
                 ...options,
                 headers: {
                     'Content-Type': 'application/json',
+                    ...authHeaders,
                     ...options.headers
                 }
             });
