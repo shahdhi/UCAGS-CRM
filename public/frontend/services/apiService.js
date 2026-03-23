@@ -19,14 +19,7 @@ async function fetchAPI(endpoint, options = {}) {
       }
     }
     
-    // Route certain heavy endpoints directly to Supabase Edge Functions
-    let url = `${API_BASE}${endpoint}`;
-    
-    if (window.SUPABASE_URL && (endpoint.startsWith('/dashboard') || endpoint.startsWith('/crm-leads'))) {
-      url = `${window.SUPABASE_URL}/functions/v1${endpoint}`;
-    }
-
-    const response = await fetch(url, {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
       headers: {
         'Content-Type': 'application/json',
         ...authHeaders,
