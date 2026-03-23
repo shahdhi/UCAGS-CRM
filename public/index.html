@@ -274,8 +274,28 @@
                     <button class="icon-btn" id="searchBtn">
                         <i class="fas fa-search"></i>
                     </button>
-                    <div class="user-menu">
-                        <span id="userDisplay"></span>
+                    <!-- Header XP Widget -->
+                    <div class="header-xp-widget" id="headerXpWidget" style="display:none;">
+                        <!-- Level circle -->
+                        <div class="hxp-circle-wrap" title="Your Level">
+                            <svg class="hxp-ring" viewBox="0 0 40 40" width="40" height="40">
+                                <circle class="hxp-ring-bg" cx="20" cy="20" r="16"/>
+                                <circle class="hxp-ring-fill" id="hxpRingFill" cx="20" cy="20" r="16"/>
+                            </svg>
+                            <div class="hxp-circle-inner">
+                                <span class="hxp-level-num" id="hxpLevelNum">1</span>
+                            </div>
+                        </div>
+                        <!-- XP bar + label -->
+                        <div class="hxp-bar-wrap">
+                            <div class="hxp-name" id="hxpName">User</div>
+                            <div class="hxp-bar-bg">
+                                <div class="hxp-bar-fill" id="hxpBarFill" style="width:0%"></div>
+                            </div>
+                            <div class="hxp-xp-text" id="hxpXpText">0 XP</div>
+                        </div>
+                        <!-- XP reward burst (hidden by default) -->
+                        <div class="hxp-burst" id="hxpBurst" aria-hidden="true"></div>
                     </div>
                 </div>
             </div>

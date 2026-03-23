@@ -224,6 +224,12 @@
     const meta = document.getElementById('ndProfileMeta');
     if (meta) meta.textContent = '';
 
+    // Sync header XP widget whenever profile section renders with fresh data
+    if (user.role !== 'admin' && xpData && window.updateHeaderXpDisplay) {
+      window.__hxpLastTotal = xpData.totalXp || 0;
+      window.updateHeaderXpDisplay(xpData.totalXp || 0);
+    }
+
     // XP bar + rank (officer only; admin skips XP section)
     if (user.role !== 'admin' && xpData) {
       const totalXp = xpData.totalXp || 0;
@@ -1556,6 +1562,82 @@
 
   // Keep backward-compat alias for any existing app.js calls
   window.loadXPDashboard = window.loadNewDashboard;
+
+  // ─── Instant XP Reward Detection ─────────────────────────────────────────
+  //
+  // Patches global fetch to watch for XP-granting API endpoints.
+  // After any such request succeeds, we re-fetch /api/xp/me quickly and,
+  // if the total changed, fire the header burst animation.
+
+  const XP_GRANT_ENDPOINTS = [
+    '/api/crm-leads',          // lead status changes → lead_contacted, followup_completed
+    '/api/attendance',         // check-in → attendance_on_time
+    '/api/reports',            // daily report → report_submitted
+    '/api/daily-checklist',    // checklist → checklist_completed
+    '/api/demo-sessions',      // demo attended → demo_attended
+    '/api/registrations',      // registration → registration_received
+    '/api/payments',           // payment → payment_received
+  ];
+
+  // Track in-flight XP polls to avoid stampede
+  let _xpPollTimer = null;
+
+  function _scheduleXpPoll(delayMs = 1500) {
+    if (_xpPollTimer) clearTimeout(_xpPollTimer);
+    _xpPollTimer = setTimeout(async () => {
+      _xpPollTimer = null;
+      if (!window.currentUser || window.currentUser.role === 'admin') return;
+      try {
+        const headers = await authHeaders();
+        const r = await fetch('/api/xp/me', { headers });
+        if (!r.ok) return;
+        const j = await r.json();
+        const newTotal = j.totalXp || 0;
+        const oldTotal = window.__hxpLastTotal ?? null;
+
+        if (oldTotal === null) {
+          // First load — just set baseline
+          window.__hxpLastTotal = newTotal;
+          if (window.updateHeaderXpDisplay) window.updateHeaderXpDisplay(newTotal);
+          return;
+        }
+
+        if (newTotal > oldTotal) {
+          const diff = newTotal - oldTotal;
+          if (window.triggerHeaderXpReward) {
+            window.triggerHeaderXpReward(diff, newTotal);
+          }
+        } else if (newTotal !== oldTotal) {
+          // XP decreased (penalty) — just update display
+          window.__hxpLastTotal = newTotal;
+          if (window.updateHeaderXpDisplay) window.updateHeaderXpDisplay(newTotal);
+        }
+      } catch (e) { /* silent */ }
+    }, delayMs);
+  }
+
+  // Patch global fetch (once) to detect XP-granting requests
+  if (!window.__xpFetchPatched) {
+    window.__xpFetchPatched = true;
+    const _origFetch = window.fetch;
+    window.fetch = async function (input, init) {
+      const result = await _origFetch.call(this, input, init);
+
+      // Only watch mutating requests (POST / PUT / PATCH)
+      const method = (init?.method || 'GET').toUpperCase();
+      if (method === 'GET' || method === 'DELETE') return result;
+
+      const url = (typeof input === 'string' ? input : input?.url) || '';
+      const matchesXpEndpoint = XP_GRANT_ENDPOINTS.some(ep => url.includes(ep));
+
+      if (matchesXpEndpoint && result.ok) {
+        // Schedule a quick poll to detect any XP change
+        _scheduleXpPoll(1200);
+      }
+
+      return result;
+    };
+  }
 
 })();
 

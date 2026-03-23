@@ -825,3 +825,182 @@ body:has(#dashboardPage.active) {
         flex-direction: column;
     }
 }
+
+/* ============================================================
+   HEADER XP WIDGET
+   ============================================================ */
+.header-xp-widget {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+    cursor: default;
+    user-select: none;
+}
+
+/* Level circle with SVG ring */
+.hxp-circle-wrap {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+}
+
+.hxp-ring {
+    position: absolute;
+    top: 0; left: 0;
+    transform: rotate(-90deg);
+}
+
+.hxp-ring-bg {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.15);
+    stroke-width: 3;
+}
+
+.hxp-ring-fill {
+    fill: none;
+    stroke: #a78bfa;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 100.53; /* 2 * pi * 16 */
+    stroke-dashoffset: 100.53;
+    transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    filter: drop-shadow(0 0 4px rgba(167, 139, 250, 0.7));
+}
+
+.hxp-circle-inner {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.4);
+}
+
+.hxp-level-num {
+    font-size: 12px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1;
+}
+
+/* XP bar and labels */
+.hxp-bar-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 90px;
+    max-width: 130px;
+}
+
+.hxp-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+    line-height: 1;
+}
+
+.hxp-bar-bg {
+    width: 100%;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 99px;
+    overflow: hidden;
+}
+
+.hxp-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #7c3aed, #a855f7);
+    border-radius: 99px;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 6px rgba(167, 139, 250, 0.5);
+}
+
+.hxp-xp-text {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* XP Burst / Reward animation */
+.hxp-burst {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 200;
+    font-size: 14px;
+    font-weight: 800;
+    color: #fbbf24;
+    white-space: nowrap;
+    opacity: 0;
+    text-shadow: 0 1px 8px rgba(251, 191, 36, 0.8);
+}
+
+.hxp-burst.hxp-burst-animate {
+    animation: hxpBurstAnim 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes hxpBurstAnim {
+    0%   { opacity: 0;   transform: translate(-50%, -50%) scale(0.5); }
+    15%  { opacity: 1;   transform: translate(-50%, -90%) scale(1.2); }
+    60%  { opacity: 1;   transform: translate(-50%, -130%) scale(1); }
+    100% { opacity: 0;   transform: translate(-50%, -160%) scale(0.85); }
+}
+
+/* Ring pulse on XP award */
+@keyframes hxpRingPulse {
+    0%   { filter: drop-shadow(0 0 4px rgba(167,139,250,0.7)); }
+    40%  { filter: drop-shadow(0 0 14px rgba(251,191,36,0.9)); }
+    100% { filter: drop-shadow(0 0 4px rgba(167,139,250,0.7)); }
+}
+
+.hxp-ring-fill.hxp-ring-pulse {
+    animation: hxpRingPulse 1.2s ease forwards;
+    stroke: #fbbf24;
+    transition: stroke 0.3s, stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* After pulse ends, revert stroke color */
+.hxp-ring-fill {
+    transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.4s ease;
+}
+
+/* Level-up flash */
+@keyframes hxpLevelUpFlash {
+    0%   { box-shadow: 0 2px 8px rgba(124,58,237,0.4); }
+    30%  { box-shadow: 0 0 0 6px rgba(251,191,36,0.5), 0 0 20px rgba(251,191,36,0.4); }
+    100% { box-shadow: 0 2px 8px rgba(124,58,237,0.4); }
+}
+
+.hxp-circle-inner.hxp-level-up {
+    animation: hxpLevelUpFlash 1.2s ease forwards;
+}
+
+/* Hide on mobile (too small for header) */
+@media (max-width: 768px) {
+    .hxp-bar-wrap {
+        display: none;
+    }
+    .header-xp-widget {
+        gap: 6px;
+    }
+}
+
+/* Hide entire widget on very small phones */
+@media (max-width: 420px) {
+    .header-xp-widget {
+        display: none !important;
+    }
+}

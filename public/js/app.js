@@ -90,6 +90,10 @@ function showLogin() {
     // Clear any active views and reset hash
     window.location.hash = '';
     
+    // Hide header XP widget
+    const headerXpWidget = document.getElementById('headerXpWidget');
+    if (headerXpWidget) headerXpWidget.style.display = 'none';
+
     // Clear user info
     const userDisplayEl = document.getElementById('userDisplay');
     if (userDisplayEl) userDisplayEl.textContent = '';
@@ -163,6 +167,9 @@ async function showDashboard() {
     const userRole = currentUser.role === 'admin' ? 'Administrator' : 'Academic Advisor';
     const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
     if (sidebarUserRoleEl) sidebarUserRoleEl.textContent = userRole;
+
+    // Show header XP widget with user name, then load real XP data
+    initHeaderXpWidget();
     
     // Show/hide admin features
     if (currentUser.role === 'admin') {
@@ -3599,3 +3606,187 @@ window.showEmailOptions = async function(enquiryId) {
         UI.showToast('Failed to send email', 'error');
     }
 };
+
+// ============================================================
+// HEADER XP WIDGET
+// ============================================================
+
+// Level thresholds (must match xpDashboard.js)
+const _HXP_THRESHOLDS = (() => {
+    const fixed = [0, 500, 1000, 1600, 2500, 3200, 4000, 5000, 6400, 8000];
+    const t = [...fixed];
+    for (let l = 11; l <= 15; l++) t.push(t[t.length - 1] + 2000);
+    for (let l = 16; l <= 20; l++) t.push(t[t.length - 1] + 3000);
+    for (let l = 21; l <= 50; l++) t.push(t[t.length - 1] + 4000);
+    return t;
+})();
+
+function _hxpLevelFor(xp) {
+    for (let i = _HXP_THRESHOLDS.length - 1; i >= 0; i--) {
+        if (xp >= _HXP_THRESHOLDS[i]) return i;
+    }
+    return 0;
+}
+
+function _hxpProgress(xp) {
+    const lvl = _hxpLevelFor(xp);
+    const next = _HXP_THRESHOLDS[lvl + 1];
+    if (next == null) return 100;
+    const prev = _HXP_THRESHOLDS[lvl];
+    return Math.round(((xp - prev) / (next - prev)) * 100);
+}
+
+/**
+ * Initialise the header XP widget on login.
+ * Shows name immediately, then fetches real XP (officers only).
+ */
+async function initHeaderXpWidget() {
+    const widget = document.getElementById('headerXpWidget');
+    if (!widget) return;
+
+    const user = window.currentUser;
+    if (!user) { widget.style.display = 'none'; return; }
+
+    // Show widget with user name immediately
+    widget.style.display = 'flex';
+    const nameEl = document.getElementById('hxpName');
+    if (nameEl) nameEl.textContent = user.name || user.email || '';
+
+    // Admin: show shield icon, no XP bar
+    if (user.role === 'admin') {
+        const levelNumEl = document.getElementById('hxpLevelNum');
+        if (levelNumEl) levelNumEl.innerHTML = '<i class="fas fa-shield-alt" style="font-size:10px;"></i>';
+        const ringFill = document.getElementById('hxpRingFill');
+        if (ringFill) ringFill.style.strokeDashoffset = '0'; // full ring
+        const xpText = document.getElementById('hxpXpText');
+        if (xpText) xpText.textContent = 'Admin';
+        return;
+    }
+
+    // Officer: fetch XP data
+    try {
+        const headers = await getAuthHeadersWithRetry();
+        const r = await fetch('/api/xp/me', { headers });
+        if (!r.ok) throw new Error('XP fetch failed');
+        const j = await r.json();
+        updateHeaderXpDisplay(j.totalXp || 0);
+    } catch (e) {
+        console.warn('[HeaderXP] Failed to load XP:', e.message);
+    }
+}
+
+/**
+ * Update the header XP widget to reflect new XP value.
+ * Call this anytime XP is awarded (e.g. after API calls that grant XP).
+ */
+function updateHeaderXpDisplay(totalXp) {
+    const lvl = _hxpLevelFor(totalXp);
+    const pct = _hxpProgress(totalXp);
+    const next = _HXP_THRESHOLDS[lvl + 1] ?? _HXP_THRESHOLDS[lvl];
+    const circumference = 100.53; // 2 * pi * 16
+
+    const levelNumEl = document.getElementById('hxpLevelNum');
+    if (levelNumEl) levelNumEl.textContent = lvl + 1;
+
+    const ringFill = document.getElementById('hxpRingFill');
+    if (ringFill) {
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                ringFill.style.strokeDashoffset = circumference - (pct / 100) * circumference;
+            }, 50);
+        });
+    }
+
+    const barFill = document.getElementById('hxpBarFill');
+    if (barFill) {
+        requestAnimationFrame(() => {
+            setTimeout(() => { barFill.style.width = pct + '%'; }, 50);
+        });
+    }
+
+    const xpText = document.getElementById('hxpXpText');
+    if (xpText) xpText.textContent = totalXp.toLocaleString() + ' / ' + next.toLocaleString() + ' XP';
+}
+
+/**
+ * Trigger the XP reward animation in the header.
+ * Call this whenever an XP event is awarded.
+ * @param {number} xpAmount - The XP awarded (e.g. 10)
+ * @param {number} [newTotal] - Optional: new total XP to update bar/ring
+ */
+function triggerHeaderXpReward(xpAmount, newTotal) {
+    const widget = document.getElementById('headerXpWidget');
+    if (!widget) return;
+
+    // Show burst label
+    const burst = document.getElementById('hxpBurst');
+    if (burst) {
+        burst.textContent = '+' + xpAmount + ' XP';
+        burst.classList.remove('hxp-burst-animate');
+        void burst.offsetWidth; // force reflow to restart animation
+        burst.classList.add('hxp-burst-animate');
+        setTimeout(() => burst.classList.remove('hxp-burst-animate'), 1500);
+    }
+
+    // Ring pulse
+    const ringFill = document.getElementById('hxpRingFill');
+    if (ringFill) {
+        ringFill.classList.remove('hxp-ring-pulse');
+        void ringFill.offsetWidth;
+        ringFill.classList.add('hxp-ring-pulse');
+        setTimeout(() => {
+            ringFill.classList.remove('hxp-ring-pulse');
+            ringFill.style.stroke = ''; // revert to CSS color
+        }, 1300);
+    }
+
+    // If new total provided, check for level-up and update display
+    if (newTotal != null) {
+        const oldTotal = window.__hxpLastTotal ?? 0;
+        const oldLvl = _hxpLevelFor(oldTotal);
+        const newLvl = _hxpLevelFor(newTotal);
+
+        if (newLvl > oldLvl) {
+            // Level-up flash on the circle
+            const circleInner = document.querySelector('.hxp-circle-inner');
+            if (circleInner) {
+                circleInner.classList.remove('hxp-level-up');
+                void circleInner.offsetWidth;
+                circleInner.classList.add('hxp-level-up');
+                setTimeout(() => circleInner.classList.remove('hxp-level-up'), 1300);
+            }
+            // Show level-up toast
+            if (window.UI && UI.showToast) {
+                UI.showToast(`🎉 Level Up! You reached Level ${newLvl + 1}!`, 'success');
+            }
+        }
+
+        window.__hxpLastTotal = newTotal;
+        updateHeaderXpDisplay(newTotal);
+    }
+}
+
+// Expose globally so other modules (xpDashboard, leadsPage, etc.) can call it
+window.triggerHeaderXpReward = triggerHeaderXpReward;
+window.updateHeaderXpDisplay = updateHeaderXpDisplay;
+window.initHeaderXpWidget    = initHeaderXpWidget;
+
+// Auto-refresh header XP every 60 seconds while logged in
+setInterval(async () => {
+    if (!window.currentUser || window.currentUser.role === 'admin') return;
+    try {
+        const headers = await getAuthHeadersWithRetry();
+        const r = await fetch('/api/xp/me', { headers });
+        if (!r.ok) return;
+        const j = await r.json();
+        const newTotal = j.totalXp || 0;
+        const oldTotal = window.__hxpLastTotal ?? 0;
+        if (newTotal !== oldTotal) {
+            // XP changed since last check — animate reward
+            const diff = newTotal - oldTotal;
+            if (diff > 0) triggerHeaderXpReward(diff, newTotal);
+            else updateHeaderXpDisplay(newTotal);
+            window.__hxpLastTotal = newTotal;
+        }
+    } catch (e) { /* silent */ }
+}, 60000);
