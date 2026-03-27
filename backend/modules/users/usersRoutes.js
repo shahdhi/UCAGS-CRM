@@ -134,6 +134,9 @@ router.get('/', async (req, res) => {
             email: user.email,
             name: user.user_metadata?.name || user.email.split('@')[0],
             role: resolvedRole,
+            staff_roles: user.user_metadata?.staff_roles || [],
+            supervisees: user.user_metadata?.supervisees || [],
+            last_set_password: user.user_metadata?.last_set_password || null,
             created_at: user.created_at,
             last_sign_in_at: user.last_sign_in_at,
             email_confirmed: !!user.email_confirmed_at
@@ -583,6 +586,76 @@ router.post('/:id/confirm-email', async (req, res) => {
 });
 
 /**
+ * PUT /api/users/:id/roles
+ * Update staff roles and supervisor assignments
+ */
+router.put('/:id/roles', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { staff_roles = [], supervisees = [] } = req.body;
+
+    // Validate roles
+    const validRoles = ['academic_advisor', 'supervisor', 'batch_coordinator', 'finance_manager'];
+    const filteredRoles = staff_roles.filter(r => validRoles.includes(r));
+
+    const supabase = getSupabaseAdmin();
+
+    if (supabase) {
+      // Get current user metadata to preserve existing fields
+      const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
+      if (listError) throw listError;
+
+      const existingUser = users.find(u => u.id === id);
+      if (!existingUser) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+
+      const currentMeta = existingUser.user_metadata || {};
+
+      const { data, error } = await supabase.auth.admin.updateUserById(id, {
+        user_metadata: {
+          ...currentMeta,
+          staff_roles: filteredRoles,
+          supervisees: filteredRoles.includes('supervisor') ? supervisees : []
+        }
+      });
+
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        message: 'Staff roles updated successfully',
+        staff_roles: filteredRoles,
+        supervisees: filteredRoles.includes('supervisor') ? supervisees : [],
+        source: 'supabase'
+      });
+    } else {
+      // Mock data fallback
+      const user = mockUsers.find(u => u.id === id);
+      if (!user) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      user.staff_roles = filteredRoles;
+      user.supervisees = filteredRoles.includes('supervisor') ? supervisees : [];
+
+      res.json({
+        success: true,
+        message: 'Staff roles updated successfully (mock)',
+        staff_roles: user.staff_roles,
+        supervisees: user.supervisees,
+        source: 'mock'
+      });
+    }
+  } catch (error) {
+    console.error('Error updating staff roles:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to update staff roles'
+    });
+  }
+});
+
+/**
  * PUT /api/users/:id/password
  * Change user password (in Supabase or mock data)
  */
@@ -601,9 +674,18 @@ router.put('/:id/password', async (req, res) => {
     }
 
     if (supabase) {
-      // Use Supabase
+      // Use Supabase — update password and store last_set_password in metadata
+      const { data: { users: allUsers }, error: listErr } = await supabase.auth.admin.listUsers();
+      if (listErr) throw listErr;
+      const existingUser = allUsers.find(u => u.id === id);
+      const currentMeta = existingUser?.user_metadata || {};
+
       const { data, error } = await supabase.auth.admin.updateUserById(id, {
-        password: password
+        password: password,
+        user_metadata: {
+          ...currentMeta,
+          last_set_password: password
+        }
       });
 
       if (error) {
@@ -622,7 +704,7 @@ router.put('/:id/password', async (req, res) => {
         source: 'supabase'
       });
     } else {
-      // Use mock data - just verify user exists
+      // Use mock data - verify user exists and store last_set_password
       const user = mockUsers.find(u => u.id === id);
       if (!user) {
         return res.status(404).json({
@@ -630,8 +712,8 @@ router.put('/:id/password', async (req, res) => {
           error: 'User not found'
         });
       }
+      user.last_set_password = password;
 
-      // Mock doesn't actually store passwords, just return success
       res.json({
         success: true,
         message: 'Password changed successfully (mock)',

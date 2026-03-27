@@ -1811,14 +1811,20 @@ async function loadUsers({ showSkeleton = false } = {}) {
                 tbody.innerHTML = users.map(user => {
                     const isProtectedAdmin = protectedAdminEmails.includes(user.email.toLowerCase());
 
+                    const roleLabels = { academic_advisor: 'Academic Advisor', supervisor: 'Supervisor', batch_coordinator: 'Batch Coordinator', finance_manager: 'Finance Manager' };
+                    const isAdmin = user.role === 'admin';
                     return `
                     <tr>
                         <td>${escapeHtml(user.email)}</td>
                         <td>${escapeHtml(user.name || '-')}</td>
                         <td>
-                            <span class="badge badge-${user.role === 'admin' ? 'primary' : 'secondary'}">
-                                ${user.role === 'admin' ? 'Admin' : 'Staff'}
+                            <span class="badge badge-${isAdmin ? 'primary' : 'secondary'}">
+                                ${isAdmin ? 'Admin' : 'Staff'}
                             </span>
+                            ${(user.staff_roles || []).map(r => `<span class="badge" style="background:#ede9ff;color:#6c47ff;margin-left:3px;font-size:11px;">${roleLabels[r] || r}</span>`).join('')}
+                        </td>
+                        <td>
+                            ${isAdmin ? '<span style="color:#bbb;font-size:13px;">—</span>' : (user.last_set_password ? `<span style="font-family:monospace;background:#f5f5f5;padding:2px 8px;border-radius:4px;font-size:13px;">${escapeHtml(user.last_set_password)}</span>` : '<span style="color:#bbb;font-size:13px;">—</span>')}
                         </td>
                         <td>${new Date(user.created_at).toLocaleDateString()}</td>
                         <td>${user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : '-'}</td>
@@ -1828,21 +1834,21 @@ async function loadUsers({ showSkeleton = false } = {}) {
                             </span>
                         </td>
                         <td>
-                            <div style="display: flex; gap: 5px;">
+                            ${isAdmin ? '' : `<div style="display: flex; gap: 5px;">
                                 ${!user.email_confirmed ? `
                                 <button class="btn btn-sm btn-success" onclick="confirmUserEmail('${user.id}', '${escapeHtml(user.email)}')" title="Confirm Email">
                                     <i class="fas fa-check"></i>
                                 </button>
                                 ` : ''}
-                                <button class="btn btn-sm btn-warning" onclick="openChangePasswordModal('${user.id}', '${escapeHtml(user.email)}')" title="Change Password">
-                                    <i class="fas fa-key"></i>
+                                <button class="btn btn-sm btn-warning" onclick="openChangePasswordModal('${user.id}', '${escapeHtml(user.email)}')" title="Edit Staff">
+                                    <i class="fas fa-user-edit"></i>
                                 </button>
                                 ${!isProtectedAdmin ? `
                                 <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.id}')" title="Delete User">
                                     <i class="fas fa-trash"></i>
                                 </button>
                                 ` : ''}
-                            </div>
+                            </div>`}
                         </td>
                     </tr>
                     `;
@@ -1871,16 +1877,22 @@ async function loadUsers({ showSkeleton = false } = {}) {
         // Define admin emails that cannot be deleted
         const protectedAdminEmails = ['admin@ucags.edu.lk', 'mohamedunais2018@gmail.com'];
         
+        const roleLabels = { academic_advisor: 'Academic Advisor', supervisor: 'Supervisor', batch_coordinator: 'Batch Coordinator', finance_manager: 'Finance Manager' };
         const trHtmlFn = (user) => {
             const isProtectedAdmin = protectedAdminEmails.includes(user.email.toLowerCase());
+            const isAdmin = user.role === 'admin';
             return `
             <tr data-row-key="${escapeHtml(user.id)}">
                 <td>${escapeHtml(user.email)}</td>
                 <td>${escapeHtml(user.name || '-')}</td>
                 <td>
-                    <span class="badge badge-${user.role === 'admin' ? 'primary' : 'secondary'}">
-                        ${user.role === 'admin' ? 'Admin' : 'Staff'}
+                    <span class="badge badge-${isAdmin ? 'primary' : 'secondary'}">
+                        ${isAdmin ? 'Admin' : 'Staff'}
                     </span>
+                    ${(user.staff_roles || []).map(r => `<span class="badge" style="background:#ede9ff;color:#6c47ff;margin-left:3px;font-size:11px;">${roleLabels[r] || r}</span>`).join('')}
+                </td>
+                <td>
+                    ${isAdmin ? '<span style="color:#bbb;font-size:13px;">—</span>' : (user.last_set_password ? `<span style="font-family:monospace;background:#f5f5f5;padding:2px 8px;border-radius:4px;font-size:13px;">${escapeHtml(user.last_set_password)}</span>` : '<span style="color:#bbb;font-size:13px;">—</span>')}
                 </td>
                 <td>${new Date(user.created_at).toLocaleDateString()}</td>
                 <td>${user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : '-'}</td>
@@ -1890,21 +1902,21 @@ async function loadUsers({ showSkeleton = false } = {}) {
                     </span>
                 </td>
                 <td>
-                    <div style="display: flex; gap: 5px;">
+                    ${isAdmin ? '' : `<div style="display: flex; gap: 5px;">
                         ${!user.email_confirmed ? `
                         <button class="btn btn-sm btn-success" onclick="confirmUserEmail('${user.id}', '${escapeHtml(user.email)}')" title="Confirm Email">
                             <i class="fas fa-check"></i>
                         </button>
                         ` : ''}
-                        <button class="btn btn-sm btn-warning" onclick="openChangePasswordModal('${user.id}', '${escapeHtml(user.email)}')" title="Change Password">
-                            <i class="fas fa-key"></i>
+                        <button class="btn btn-sm btn-warning" onclick="openChangePasswordModal('${user.id}', '${escapeHtml(user.email)}')" title="Edit Staff">
+                            <i class="fas fa-user-edit"></i>
                         </button>
                         ${!isProtectedAdmin ? `
                         <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.id}')" title="Delete User">
                             <i class="fas fa-trash"></i>
                         </button>
                         ` : ''}
-                    </div>
+                    </div>`}
                 </td>
             </tr>
             `;
@@ -2036,21 +2048,235 @@ async function addNewUser(event) {
     }
 }
 
-// Open change password modal
+// Switch tabs in Edit Staff modal
+function switchEditStaffTab(tab) {
+    const passwordPanel = document.getElementById('editStaffPanelPassword');
+    const rolesPanel = document.getElementById('editStaffPanelRoles');
+    const tabPassword = document.getElementById('editStaffTabPassword');
+    const tabRoles = document.getElementById('editStaffTabRoles');
+
+    if (tab === 'password') {
+        passwordPanel.style.display = '';
+        rolesPanel.style.display = 'none';
+        tabPassword.style.borderBottomColor = '#6c47ff';
+        tabPassword.style.color = '#6c47ff';
+        tabPassword.style.fontWeight = '600';
+        tabRoles.style.borderBottomColor = 'transparent';
+        tabRoles.style.color = '#666';
+        tabRoles.style.fontWeight = '500';
+    } else {
+        passwordPanel.style.display = 'none';
+        rolesPanel.style.display = '';
+        tabRoles.style.borderBottomColor = '#6c47ff';
+        tabRoles.style.color = '#6c47ff';
+        tabRoles.style.fontWeight = '600';
+        tabPassword.style.borderBottomColor = 'transparent';
+        tabPassword.style.color = '#666';
+        tabPassword.style.fontWeight = '500';
+    }
+}
+
+// Track currently selected staff roles in the modal
+window._currentStaffRoles = [];
+
+// Role display names and icons
+const STAFF_ROLE_META = {
+    academic_advisor:  { label: 'Academic Advisor',  icon: 'fa-user-graduate' },
+    supervisor:        { label: 'Supervisor',         icon: 'fa-user-tie' },
+    batch_coordinator: { label: 'Batch Coordinator',  icon: 'fa-layer-group' },
+    finance_manager:   { label: 'Finance Manager',    icon: 'fa-coins' }
+};
+
+// Toggle the Add Role dropdown
+function toggleAddRoleDropdown() {
+    const dd = document.getElementById('addRoleDropdown');
+    dd.style.display = dd.style.display === 'none' ? '' : 'none';
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    const wrap = document.getElementById('addRoleDropdownWrap');
+    if (wrap && !wrap.contains(e.target)) {
+        const dd = document.getElementById('addRoleDropdown');
+        if (dd) dd.style.display = 'none';
+    }
+});
+
+// Add a role tag
+function addStaffRole(role) {
+    // Close dropdown
+    const dd = document.getElementById('addRoleDropdown');
+    if (dd) dd.style.display = 'none';
+
+    // Avoid duplicates
+    if (window._currentStaffRoles.includes(role)) return;
+    window._currentStaffRoles.push(role);
+    renderRoleTags();
+
+    // Show supervisor section if supervisor added
+    if (role === 'supervisor') {
+        document.getElementById('supervisorAssignSection').style.display = '';
+        loadSupervisorStaffList();
+    }
+}
+
+// Remove a role tag
+function removeStaffRole(role) {
+    window._currentStaffRoles = window._currentStaffRoles.filter(r => r !== role);
+    renderRoleTags();
+    if (role === 'supervisor') {
+        document.getElementById('supervisorAssignSection').style.display = 'none';
+    }
+}
+
+// Re-render the role tags list
+function renderRoleTags() {
+    const container = document.getElementById('assignedRolesList');
+    const placeholder = document.getElementById('noRolesPlaceholder');
+    if (!container) return;
+
+    const roles = window._currentStaffRoles;
+    if (placeholder) placeholder.style.display = roles.length === 0 ? '' : 'none';
+
+    // Remove old tags (keep placeholder)
+    Array.from(container.querySelectorAll('.role-tag')).forEach(el => el.remove());
+
+    roles.forEach(role => {
+        const meta = STAFF_ROLE_META[role] || { label: role, icon: 'fa-tag' };
+        const tag = document.createElement('span');
+        tag.className = 'role-tag';
+        tag.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:#ede9ff;color:#6c47ff;border-radius:20px;font-size:13px;font-weight:600;';
+        tag.innerHTML = `<i class="fas ${meta.icon}" style="font-size:12px;"></i>${meta.label}<button type="button" onclick="removeStaffRole('${role}')" style="background:none;border:none;color:#a78bfa;cursor:pointer;padding:0 0 0 4px;font-size:14px;line-height:1;">&times;</button>`;
+        container.appendChild(tag);
+    });
+}
+
+// Load staff list for supervisor assignment
+async function loadSupervisorStaffList() {
+    const currentUserId = document.getElementById('changePasswordUserId').value;
+    const container = document.getElementById('supervisorStaffList');
+    container.innerHTML = '<div style="color:#888;font-size:13px;">Loading staff...</div>';
+
+    try {
+        const response = await fetch('/api/users');
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error);
+
+        const staffList = (data.users || []).filter(u => u.id !== currentUserId && u.role !== 'admin');
+
+        if (staffList.length === 0) {
+            container.innerHTML = '<div style="color:#888;font-size:13px;">No other staff available.</div>';
+            return;
+        }
+
+        // Get currently assigned supervisees from metadata stored on the user
+        const supervisees = window._editStaffCurrentSupervisees || [];
+
+        container.innerHTML = staffList.map(staff => {
+            const checked = supervisees.includes(staff.id) ? 'checked' : '';
+            return `<label style="display:flex;align-items:center;gap:8px;padding:6px 4px;cursor:pointer;border-radius:6px;" 
+                          onmouseover="this.style.background='#ede9ff'" onmouseout="this.style.background=''">
+                <input type="checkbox" value="${staff.id}" class="supervisee-checkbox" ${checked}
+                       style="width:15px;height:15px;cursor:pointer;accent-color:#6c47ff;">
+                <span style="font-size:14px;">${escapeHtml(staff.name || staff.email)}</span>
+                <span style="font-size:12px;color:#888;margin-left:auto;">${escapeHtml(staff.email)}</span>
+            </label>`;
+        }).join('');
+    } catch (err) {
+        container.innerHTML = `<div style="color:red;font-size:13px;">Failed to load staff: ${err.message}</div>`;
+    }
+}
+
+// Save staff roles
+async function saveStaffRoles() {
+    const userId = document.getElementById('changePasswordUserId').value;
+    const roles = window._currentStaffRoles.slice();
+
+    let supervisees = [];
+    if (roles.includes('supervisor')) {
+        supervisees = Array.from(document.querySelectorAll('.supervisee-checkbox:checked')).map(cb => cb.value);
+    }
+
+    const saveBtn = document.querySelector('#editStaffPanelRoles .btn-primary');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    saveBtn.disabled = true;
+
+    try {
+        const response = await fetch(`/api/users/${userId}/roles`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ staff_roles: roles, supervisees })
+        });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error || 'Failed to save roles');
+
+        closeModal('changePasswordModal');
+        if (window.UI && window.UI.showToast) {
+            UI.showToast('Staff roles updated successfully!', 'success');
+        } else {
+            alert('Staff roles updated successfully!');
+        }
+        if (window.Cache) window.Cache.invalidatePrefix('users:');
+        loadUsers().catch(console.error);
+    } catch (err) {
+        if (window.UI && window.UI.showToast) {
+            UI.showToast('Failed to save roles: ' + err.message, 'error');
+        } else {
+            alert('Failed to save roles: ' + err.message);
+        }
+    } finally {
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+    }
+}
+
+// Open edit staff modal (password + roles)
 function openChangePasswordModal(userId, userEmail) {
     document.getElementById('changePasswordUserId').value = userId;
     document.getElementById('changePasswordUserEmail').value = userEmail;
     document.getElementById('newPassword').value = '';
     document.getElementById('confirmPassword').value = '';
-    
-    // Reset button state
+
+    // Reset password button state
     const form = document.getElementById('changePasswordForm');
     const submitBtn = form.querySelector('button[type="submit"]');
     if (submitBtn) {
         submitBtn.innerHTML = '<i class="fas fa-key"></i> Change Password';
         submitBtn.disabled = false;
     }
-    
+
+    // Switch to password tab by default
+    switchEditStaffTab('password');
+
+    // Reset roles state
+    window._currentStaffRoles = [];
+    window._editStaffCurrentSupervisees = [];
+    renderRoleTags();
+    document.getElementById('supervisorAssignSection').style.display = 'none';
+    if (document.getElementById('addRoleDropdown')) document.getElementById('addRoleDropdown').style.display = 'none';
+
+    // Load existing roles from user data
+    fetch('/api/users').then(r => r.json()).then(data => {
+        if (!data.success) return;
+        const user = (data.users || []).find(u => u.id === userId);
+        if (!user) return;
+
+        window._currentStaffRoles = (user.staff_roles || []).slice();
+        window._editStaffCurrentSupervisees = user.supervisees || [];
+        renderRoleTags();
+
+        // Show supervisor section if supervisor role is active
+        if (window._currentStaffRoles.includes('supervisor')) {
+            document.getElementById('supervisorAssignSection').style.display = '';
+            loadSupervisorStaffList();
+        }
+    }).catch(() => {
+        window._currentStaffRoles = [];
+        renderRoleTags();
+        document.getElementById('supervisorAssignSection').style.display = 'none';
+    });
+
     openModal('changePasswordModal');
 }
 
