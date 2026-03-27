@@ -2098,7 +2098,6 @@
                                 <th>Email</th>
                                 <th>Name</th>
                                 <th>Role</th>
-                                <th>Password</th>
                                 <th>Created</th>
                                 <th>Last Sign In</th>
                                 <th>Status</th>
@@ -2107,7 +2106,7 @@
                         </thead>
                         <tbody id="usersTableBody">
                             <tr>
-                                <td colspan="8" class="loading">Loading users...</td>
+                                <td colspan="7" class="loading">Loading users...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -2147,6 +2146,17 @@
                         <!-- Tab: Password -->
                         <div id="editStaffPanelPassword">
                             <form id="changePasswordForm">
+                                <!-- Current password display -->
+                                <div class="form-group" id="currentPasswordDisplay" style="display:none;">
+                                    <label><i class="fas fa-key"></i> Current Password</label>
+                                    <div style="display:flex;align-items:center;gap:10px;background:#f8f7ff;border:1.5px solid #ede9ff;border-radius:8px;padding:10px 14px;">
+                                        <span id="currentPasswordValue" style="font-family:monospace;font-size:15px;letter-spacing:0.04em;color:#1a1a2e;flex:1;"></span>
+                                        <button type="button" onclick="copyCurrentPassword()" title="Copy password"
+                                            style="background:none;border:none;cursor:pointer;color:#6c47ff;font-size:15px;padding:2px 6px;">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
                                 <div class="form-group">
                                     <label for="newPassword"><i class="fas fa-lock"></i> New Password *</label>
                                     <div style="position: relative;">

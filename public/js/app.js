@@ -35,7 +35,9 @@ async function initializeApp() {
                 id: user.id,
                 email: user.email,
                 name: user.user_metadata?.name || user.email.split('@')[0],
-                role: role
+                role: role,
+                staff_roles: user.user_metadata?.staff_roles || [],
+                supervisees: user.user_metadata?.supervisees || []
             };
             window.currentUser = currentUser; // Expose globally
             showDashboard();
@@ -71,7 +73,9 @@ async function initializeApp() {
                 id: session.user.id,
                 email: session.user.email,
                 name: session.user.user_metadata?.name || session.user.email.split('@')[0],
-                role: role
+                role: role,
+                staff_roles: session.user.user_metadata?.staff_roles || [],
+                supervisees: session.user.user_metadata?.supervisees || []
             };
             window.currentUser = currentUser; // Expose globally
             showDashboard();
@@ -227,6 +231,15 @@ async function showDashboard() {
         }
     } catch (e) {
         console.warn('SwitchRole init error:', e);
+    }
+
+    // One-time background migration: ensure all existing officers have academic_advisor role
+    if (currentUser.role === 'admin' && !sessionStorage.getItem('__rolesMigrated')) {
+        sessionStorage.setItem('__rolesMigrated', '1');
+        fetch('/api/users/migrate-default-roles', { method: 'POST' })
+            .then(r => r.json())
+            .then(d => { if (d.updated > 0) console.log(`✓ Role migration: ${d.message}`); })
+            .catch(e => console.warn('Role migration failed:', e));
     }
 
     // Preload Lead Management once after login so calendar deep-links work immediately
@@ -1842,9 +1855,6 @@ async function loadUsers({ showSkeleton = false } = {}) {
                             </span>
                             ${(user.staff_roles || []).map(r => `<span class="badge" style="background:#ede9ff;color:#6c47ff;margin-left:3px;font-size:11px;">${roleLabels[r] || r}</span>`).join('')}
                         </td>
-                        <td>
-                            ${isAdmin ? '<span style="color:#bbb;font-size:13px;">—</span>' : (user.last_set_password ? `<span style="font-family:monospace;background:#f5f5f5;padding:2px 8px;border-radius:4px;font-size:13px;">${escapeHtml(user.last_set_password)}</span>` : '<span style="color:#bbb;font-size:13px;">—</span>')}
-                        </td>
                         <td>${new Date(user.created_at).toLocaleDateString()}</td>
                         <td>${user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : '-'}</td>
                         <td>
@@ -1909,9 +1919,6 @@ async function loadUsers({ showSkeleton = false } = {}) {
                         ${isAdmin ? 'Admin' : 'Staff'}
                     </span>
                     ${(user.staff_roles || []).map(r => `<span class="badge" style="background:#ede9ff;color:#6c47ff;margin-left:3px;font-size:11px;">${roleLabels[r] || r}</span>`).join('')}
-                </td>
-                <td>
-                    ${isAdmin ? '<span style="color:#bbb;font-size:13px;">—</span>' : (user.last_set_password ? `<span style="font-family:monospace;background:#f5f5f5;padding:2px 8px;border-radius:4px;font-size:13px;">${escapeHtml(user.last_set_password)}</span>` : '<span style="color:#bbb;font-size:13px;">—</span>')}
                 </td>
                 <td>${new Date(user.created_at).toLocaleDateString()}</td>
                 <td>${user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : '-'}</td>
@@ -2258,6 +2265,12 @@ function openChangePasswordModal(userId, userEmail) {
     document.getElementById('newPassword').value = '';
     document.getElementById('confirmPassword').value = '';
 
+    // Hide current password display until data loads
+    const cpDisplay = document.getElementById('currentPasswordDisplay');
+    const cpValue   = document.getElementById('currentPasswordValue');
+    if (cpDisplay) cpDisplay.style.display = 'none';
+    if (cpValue)   cpValue.textContent = '';
+
     // Reset password button state
     const form = document.getElementById('changePasswordForm');
     const submitBtn = form.querySelector('button[type="submit"]');
@@ -2281,11 +2294,17 @@ function openChangePasswordModal(userId, userEmail) {
     const addRoleDD = document.getElementById('addRoleDropdown');
     if (addRoleDD) addRoleDD.style.display = 'none';
 
-    // Load existing roles from user data
+    // Load existing roles and password from user data
     fetch('/api/users').then(r => r.json()).then(data => {
         if (!data.success) return;
         const user = (data.users || []).find(u => u.id === userId);
         if (!user) return;
+
+        // Show current password in modal
+        if (user.last_set_password && cpDisplay && cpValue) {
+            cpValue.textContent = user.last_set_password;
+            cpDisplay.style.display = '';
+        }
 
         window._currentStaffRoles = (user.staff_roles || []).slice();
         window._editStaffCurrentSupervisees = user.supervisees || [];
@@ -2303,6 +2322,24 @@ function openChangePasswordModal(userId, userEmail) {
         if (s) s.style.display = 'none';
     });
 }
+
+function copyCurrentPassword() {
+    const val = document.getElementById('currentPasswordValue')?.textContent || '';
+    if (!val) return;
+    navigator.clipboard.writeText(val).then(() => {
+        if (window.UI?.showToast) UI.showToast('Password copied!', 'success');
+    }).catch(() => {
+        // Fallback for older browsers
+        const ta = document.createElement('textarea');
+        ta.value = val;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (window.UI?.showToast) UI.showToast('Password copied!', 'success');
+    });
+}
+window.copyCurrentPassword = copyCurrentPassword;
 
 // Change user password
 async function changeUserPassword(event) {
@@ -4066,27 +4103,28 @@ async function initSwitchRoleBtn() {
         return;
     }
 
-    // Load staff_roles and supervisees from Supabase user_metadata
-    try {
-        if (window.supabaseClient) {
-            const { data: { user } } = await window.supabaseClient.auth.getUser();
-            if (user) {
-                if (user.user_metadata?.staff_roles) {
-                    window.currentUser.staff_roles = user.user_metadata.staff_roles;
-                }
-                if (user.user_metadata?.supervisees) {
-                    window.currentUser.supervisees = user.user_metadata.supervisees;
+    // staff_roles & supervisees are already loaded from user_metadata at login time.
+    // If somehow missing (e.g. old session), do a quick refresh from Supabase.
+    if (!window.currentUser.staff_roles?.length) {
+        try {
+            if (window.supabaseClient) {
+                const { data: { user } } = await window.supabaseClient.auth.getUser();
+                if (user?.user_metadata) {
+                    window.currentUser.staff_roles = user.user_metadata.staff_roles || [];
+                    window.currentUser.supervisees = user.user_metadata.supervisees || [];
                 }
             }
+        } catch (e) {
+            console.warn('Switch role: could not refresh from Supabase', e);
         }
-    } catch (e) {
-        console.warn('Switch role: could not load staff_roles', e);
     }
 
     const roles = window.currentUser.staff_roles || [];
 
-    // Only show button if officer has more than one role (or at least one defined role)
+    // Show button for any officer that has at least 1 defined role
     if (roles.length === 0) {
+        // Still show with a default "Academic Advisor" role so officers can always see the button
+        // This handles officers who haven't had roles explicitly set yet
         btn.style.display = 'none';
         return;
     }

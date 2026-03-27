@@ -193,7 +193,10 @@ router.post('/', async (req, res) => {
         email_confirm: true, // This should auto-confirm the email
         user_metadata: {
           name: name,
-          role: role
+          role: role,
+          // All new officers default to Academic Advisor role
+          staff_roles: role === 'officer' ? ['academic_advisor'] : [],
+          supervisees: []
         }
       });
 
@@ -582,6 +585,50 @@ router.post('/:id/confirm-email', async (req, res) => {
       success: false,
       error: error.message || 'Failed to confirm email'
     });
+  }
+});
+
+/**
+ * POST /api/users/migrate-default-roles
+ * One-time migration: set all officers without staff_roles to ['academic_advisor']
+ */
+router.post('/migrate-default-roles', async (req, res) => {
+  try {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return res.status(503).json({ success: false, error: 'Supabase admin not available' });
+    }
+
+    const ADMIN_EMAILS = ['admin@ucags.edu.lk', 'mohamedunais2018@gmail.com'];
+    const { data: { users }, error } = await supabase.auth.admin.listUsers();
+    if (error) throw error;
+
+    // Only officers that have no staff_roles set yet
+    const toUpdate = users.filter(u => {
+      const email = (u.email || '').toLowerCase();
+      const role = u.user_metadata?.role;
+      if (role === 'admin' || ADMIN_EMAILS.includes(email)) return false;
+      const existing = u.user_metadata?.staff_roles;
+      return !existing || existing.length === 0;
+    });
+
+    let updated = 0;
+    for (const u of toUpdate) {
+      const currentMeta = u.user_metadata || {};
+      await supabase.auth.admin.updateUserById(u.id, {
+        user_metadata: {
+          ...currentMeta,
+          staff_roles: ['academic_advisor'],
+          supervisees: currentMeta.supervisees || []
+        }
+      });
+      updated++;
+    }
+
+    res.json({ success: true, updated, message: `${updated} officer(s) updated to Academic Advisor` });
+  } catch (error) {
+    console.error('Error migrating default roles:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
