@@ -13,7 +13,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { isAdmin } = require('../../../server/middleware/auth');
+const { isAdmin, isAdminOrOfficer } = require('../../../server/middleware/auth');
 const { writeSheet, createSheet, sheetExists, getSpreadsheetInfo } = require('../../core/sheets/sheetsClient');
 const { listBatches, upsertBatch } = require('../../core/batches/batchesStore');
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
@@ -94,7 +94,7 @@ function colToLetter(col) {
   return letter;
 }
 
-router.get('/', isAdmin, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const batches = await listBatches();
     res.json({ success: true, batches });

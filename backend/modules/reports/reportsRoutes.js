@@ -139,8 +139,8 @@ router.put('/daily/schedule', isAdmin, async (req, res) => {
   }
 });
 
-// GET /api/reports/daily-checklist?start=YYYY-MM-DD&days=7 (admin)
-router.get('/daily-checklist', isAdmin, async (req, res) => {
+// GET /api/reports/daily-checklist?start=YYYY-MM-DD&days=7 (admin + supervisor)
+router.get('/daily-checklist', isAdminOrOfficer, async (req, res) => {
   try {
     const startISO = req.query?.start;
     const days = req.query?.days || 7;
