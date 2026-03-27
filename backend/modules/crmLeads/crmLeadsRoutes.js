@@ -12,7 +12,7 @@ const svc = require('./crmLeadsService');
 
 // Admin meta: list batches for an officer
 // GET /api/crm-leads/admin/meta/batches?assignedTo=OfficerName
-router.get('/admin/meta/batches', isAdmin, async (req, res) => {
+router.get('/admin/meta/batches', isAdminOrOfficer, async (req, res) => {
   try {
     const assignedTo = req.query.assignedTo || req.query.officer;
     const batches = await svc.listAdminBatches({ assignedTo });
@@ -75,7 +75,7 @@ router.delete('/meta/sheets', isAdminOrOfficer, async (req, res) => {
 
 // Admin meta: list sheets for an officer (optionally filtered by batch)
 // GET /api/crm-leads/admin/meta/sheets?assignedTo=OfficerName&batch=Batch-14
-router.get('/admin/meta/sheets', isAdmin, async (req, res) => {
+router.get('/admin/meta/sheets', isAdminOrOfficer, async (req, res) => {
   try {
     const assignedTo = req.query.assignedTo || req.query.officer;
     const batchName = req.query.batch;
@@ -89,7 +89,7 @@ router.get('/admin/meta/sheets', isAdmin, async (req, res) => {
 // GET /api/crm-leads/admin?batch=...&sheet=...&search=...&status=...&programId=...
 // Lists all leads for admin (supports officer filter via assignedTo)
 // SECURITY: Must be admin-only; otherwise officers can see all leads.
-router.get('/admin', isAdmin, async (req, res) => {
+router.get('/admin', isAdminOrOfficer, async (req, res) => {
   try {
     const batchName = req.query.batch;
     const sheetName = req.query.sheet;

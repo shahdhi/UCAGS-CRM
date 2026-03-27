@@ -8,14 +8,14 @@ const router = express.Router();
 const leadsService = require('./leadsService');
 const { getSpreadsheetInfo } = require('../../core/sheets/sheetsClient');
 const { config } = require('../../core/config/environment');
-const { isAdmin, isAuthenticated } = require('../../../server/middleware/auth');
+const { isAdmin, isAuthenticated, isAdminOrOfficer } = require('../../../server/middleware/auth');
 
 /**
  * GET /api/leads
  * Get all leads with optional filters
- * ADMIN ONLY - Officers should use /api/user-leads
+ * ADMIN + SUPERVISOR - Officers should use /api/user-leads
  */
-router.get('/', isAdmin, async (req, res) => {
+router.get('/', isAdminOrOfficer, async (req, res) => {
   try {
     const { status, search, batch } = req.query;
     
@@ -43,9 +43,9 @@ router.get('/', isAdmin, async (req, res) => {
 /**
  * GET /api/leads/batches
  * Get all available batch sheets
- * ADMIN ONLY
+ * ADMIN + SUPERVISOR
  */
-router.get('/batches', isAdmin, async (req, res) => {
+router.get('/batches', isAdminOrOfficer, async (req, res) => {
   try {
     const spreadsheetId = config.sheets.sheetId || config.sheets.leadsSheetId;
     

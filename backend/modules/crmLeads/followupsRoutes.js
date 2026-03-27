@@ -5,12 +5,12 @@
 const express = require('express');
 const router = express.Router();
 
-const { isAuthenticated, isAdmin } = require('../../../server/middleware/auth');
+const { isAuthenticated, isAdmin, isAdminOrOfficer } = require('../../../server/middleware/auth');
 const followupsSvc = require('./followupsService');
 
 // Admin: view followups for a given officer_user_id
 // GET /api/crm-followups/admin/:officerUserId/:batchName/:sheetName/:leadId
-router.get('/admin/:officerUserId/:batchName/:sheetName/:leadId', isAdmin, async (req, res) => {
+router.get('/admin/:officerUserId/:batchName/:sheetName/:leadId', isAdminOrOfficer, async (req, res) => {
   try {
     const { officerUserId, batchName, sheetName, leadId } = req.params;
 

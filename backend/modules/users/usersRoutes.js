@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
-const { isAdmin } = require('../../../server/middleware/auth');
+const { isAdmin, isAdminOrOfficer } = require('../../../server/middleware/auth');
 const { copySheetTemplate, sheetExists } = require('../../core/sheets/sheetsClient');
 const { config } = require('../../core/config/environment');
 
@@ -43,7 +43,7 @@ function isSupabaseAvailable() {
  * GET /api/users/officers
  * Get only officers (for assignment dropdown)
  */
-router.get('/officers', isAdmin, async (req, res) => {
+router.get('/officers', isAdminOrOfficer, async (req, res) => {
   try {
     const supabase = getSupabaseAdmin();
     
