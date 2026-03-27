@@ -556,7 +556,13 @@
       await Promise.all(staffLeads.map(async (lead) => {
         try {
           // For "All Officers" mode, use the lead's own assignedTo user ID from lead data
-          const followupOfficerId = officer.allOfficers ? (lead.assignedToUserId || lead.userId || officer.officerUserId) : officer.officerUserId;
+          const followupOfficerId = officer.allOfficers
+            ? (lead.assignedToUserId || lead.userId || null)
+            : officer.officerUserId;
+
+          // Skip followup fetch if we can't determine the officer ID
+          if (!followupOfficerId || followupOfficerId === '__ALL__') return;
+
           const fr = await fetch(`/api/crm-followups/admin/${encodeURIComponent(followupOfficerId)}/${encodeURIComponent(lead.batch)}/${encodeURIComponent(lead.sheet || 'Main Leads')}/${encodeURIComponent(lead.id)}`, { headers });
           const fj = await fr.json();
           if (!fj.success) return;
