@@ -127,7 +127,18 @@
                     <span>Lead Management</span>
                 </a>
 
-                <a href="#" class="nav-item" data-page="demo-sessions">
+                <!-- Supervisor-only nav items -->
+                <a href="#" class="nav-item supervisor-only" data-page="supervisor-lead-management">
+                    <i class="fas fa-tasks"></i>
+                    <span>Lead Management</span>
+                </a>
+
+                <a href="#" class="nav-item not-supervisor" data-page="demo-sessions">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                    <span>Demo Sessions</span>
+                </a>
+
+                <a href="#" class="nav-item supervisor-only" data-page="demo-sessions">
                     <i class="fas fa-chalkboard-teacher"></i>
                     <span>Demo Sessions</span>
                 </a>
@@ -138,6 +149,11 @@
                 </a>
 
                 <a href="#" class="nav-item officer-only" data-page="registrations-my">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Registrations</span>
+                </a>
+
+                <a href="#" class="nav-item supervisor-only" data-page="supervisor-registrations">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Registrations</span>
                 </a>
@@ -159,6 +175,7 @@
 
                 <div class="nav-divider admin-only"></div>
                 <div class="nav-divider officer-only"></div>
+                <div class="nav-divider supervisor-only"></div>
 
                 <a href="#" class="nav-item" data-page="whatsapp">
                     <i class="fab fa-whatsapp"></i>
@@ -196,6 +213,11 @@
                 </a>
 
                 <a href="#" class="nav-item admin-only" data-page="daily-checklist">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Daily Checklist</span>
+                </a>
+
+                <a href="#" class="nav-item supervisor-only" data-page="supervisor-daily-checklist">
                     <i class="fas fa-clipboard-check"></i>
                     <span>Daily Checklist</span>
                 </a>
@@ -271,9 +293,21 @@
                         <i class="fas fa-bell"></i>
                         <span class="notification-badge" style="display:none;">0</span>
                     </button>
-                    <button class="icon-btn" id="searchBtn">
-                        <i class="fas fa-search"></i>
-                    </button>
+                    <!-- Switch Role Button + Popup -->
+                    <div class="switch-role-wrap">
+                        <button class="icon-btn" id="switchRoleBtn" title="Switch Role" style="display:none;">
+                            <i class="fas fa-exchange-alt"></i>
+                        </button>
+                        <div id="switchRolePopup" class="switch-role-popup hidden">
+                            <div class="switch-role-header">
+                                <i class="fas fa-exchange-alt"></i>
+                                <span>Switch Role</span>
+                            </div>
+                            <div class="switch-role-list" id="switchRoleList">
+                                <!-- Role items injected dynamically -->
+                            </div>
+                        </div>
+                    </div>
                     <!-- Header XP Widget -->
                     <div class="header-xp-widget" id="headerXpWidget" style="display:none;">
                         <!-- Level circle -->
@@ -1826,6 +1860,130 @@
                 <div id="dailyChecklistWrap"></div>
             </div>
 
+            <!-- ═══════════════════════════════════════════════════════════
+                 SUPERVISOR VIEWS  (supervisor-only, hidden by default)
+            ═══════════════════════════════════════════════════════════ -->
+
+            <!-- Supervisor: Lead Management -->
+            <div id="supervisor-lead-managementView" class="content-view supervisor-only" style="display:none;">
+                <div class="page-header">
+                    <h1><i class="fas fa-tasks"></i> Lead Management <span style="font-size:14px;font-weight:400;color:#8b5cf6;margin-left:8px;">Supervisor View</span></h1>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <select id="supLmOfficerSelect" class="form-control" style="min-width:180px;">
+                            <option value="">All supervised officers</option>
+                        </select>
+                        <select id="supLmStatusFilter" class="form-control" style="min-width:140px;">
+                            <option value="">All Statuses</option>
+                            <option value="New">New</option>
+                            <option value="Contacted">Contacted</option>
+                            <option value="Interested">Interested</option>
+                            <option value="Awaiting Decision">Awaiting Decision</option>
+                            <option value="Registered">Registered</option>
+                            <option value="Enrolled">Enrolled</option>
+                            <option value="No Answer">No Answer</option>
+                            <option value="Unreachable">Unreachable</option>
+                            <option value="Not Interested">Not Interested</option>
+                            <option value="No Response">No Response</option>
+                            <option value="Next Batch">Next Batch</option>
+                        </select>
+                        <input type="text" id="supLmSearch" class="form-control" placeholder="Search name / phone…" style="min-width:180px;">
+                        <button class="btn btn-primary" id="supLmRefreshBtn"><i class="fas fa-sync"></i> Refresh</button>
+                    </div>
+                </div>
+                <div class="dashboard-card no-anim">
+                    <div class="table-container">
+                        <table class="data-table" id="supLmTable">
+                            <thead>
+                                <tr>
+                                    <th>Officer</th>
+                                    <th>Name</th>
+                                    <th>Phone</th>
+                                    <th>Status</th>
+                                    <th>Priority</th>
+                                    <th>Last Comment</th>
+                                    <th>Next Followup</th>
+                                </tr>
+                            </thead>
+                            <tbody id="supLmTableBody">
+                                <tr><td colspan="7" class="loading">Loading…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Supervisor: Registrations -->
+            <div id="supervisor-registrationsView" class="content-view supervisor-only" style="display:none;">
+                <div class="page-header">
+                    <h1><i class="fas fa-clipboard-list"></i> Registrations <span style="font-size:14px;font-weight:400;color:#8b5cf6;margin-left:8px;">Supervisor View</span></h1>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <select id="supRegOfficerSelect" class="form-control" style="min-width:180px;">
+                            <option value="">All supervised officers</option>
+                        </select>
+                        <button class="btn btn-secondary" id="supRegRefreshBtn"><i class="fas fa-sync"></i> Refresh</button>
+                    </div>
+                </div>
+                <div class="dashboard-card no-anim">
+                    <div class="table-container">
+                        <table class="data-table" id="supRegTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Phone</th>
+                                    <th>Email</th>
+                                    <th>Program</th>
+                                    <th>Payment</th>
+                                    <th>Enrolled</th>
+                                    <th>Assigned To</th>
+                                    <th>Submitted At</th>
+                                </tr>
+                            </thead>
+                            <tbody id="supRegTableBody">
+                                <tr><td colspan="8" class="loading">Loading…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Supervisor: Daily Checklist -->
+            <div id="supervisor-daily-checklistView" class="content-view supervisor-only no-view-anim" style="display:none;">
+                <div class="page-header">
+                    <h1><i class="fas fa-clipboard-check"></i> Daily Checklist <span style="font-size:14px;font-weight:400;color:#8b5cf6;margin-left:8px;">Supervisor View</span></h1>
+                </div>
+
+                <div class="dashboard-card" style="margin-bottom:16px;">
+                    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;justify-content:space-between;">
+                        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;">
+                            <div>
+                                <label style="display:block;font-size:12px;color:#666;">Week start</label>
+                                <input type="date" id="supDcStart" class="form-control" style="min-width:170px;" />
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;color:#666;">Days</label>
+                                <select id="supDcDays" class="form-control" style="min-width:90px;">
+                                    <option value="7" selected>7</option>
+                                    <option value="14">14</option>
+                                </select>
+                            </div>
+                            <select id="supDcOfficerSelect" class="form-control" style="min-width:180px;">
+                                <option value="">All supervised officers</option>
+                            </select>
+                            <button class="btn btn-primary" id="supDcLoadBtn"><i class="fas fa-sync"></i> Load</button>
+                        </div>
+                        <div style="display:flex;gap:10px;">
+                            <button class="btn btn-secondary" id="supDcPrevBtn"><i class="fas fa-chevron-left"></i> Prev 7</button>
+                            <button class="btn btn-secondary" id="supDcNextBtn">Next 7 <i class="fas fa-chevron-right"></i></button>
+                            <button class="btn btn-secondary" id="supDcThisWeekBtn"><i class="fas fa-calendar-day"></i> This Week</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="supDcWrap"></div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════════ -->
+
             <div id="notificationsView" class="content-view">
                 <div class="page-header">
                     <h1><i class="fas fa-bell"></i> Notifications</h1>
@@ -2565,6 +2723,7 @@
     <script src="/frontend/pages/leads/leadsPage.js?v=9"></script>
     <script src="/frontend/pages/leads/leadManagement.js?v=6"></script>
     <script src="/frontend/pages/leads/staffLeadManagement.js?v=1"></script>
+    <script src="/frontend/pages/supervisor/supervisorPage.js?v=1"></script>
     <script src="/frontend/pages/registrations/registrationsPage.js?v=2"></script>
     <script src="/frontend/pages/registrations/myRegistrationsPage.js?v=1"></script>
     <script src="/frontend/pages/demoSessions/demoSessionsPage.js?v=2"></script>

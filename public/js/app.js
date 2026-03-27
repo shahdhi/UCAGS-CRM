@@ -220,6 +220,15 @@ async function showDashboard() {
         console.warn('Notifications init error:', e);
     }
 
+    // Initialize Switch Role button (officer only)
+    try {
+        if (typeof initSwitchRoleBtn === 'function') {
+            initSwitchRoleBtn();
+        }
+    } catch (e) {
+        console.warn('SwitchRole init error:', e);
+    }
+
     // Preload Lead Management once after login so calendar deep-links work immediately
     if (!window.__leadManagementPreloaded && typeof window.initLeadManagementPage === 'function') {
         window.__leadManagementPreloaded = true;
@@ -1061,6 +1070,16 @@ async function navigateToPage(page) {
             if (window.initStaffLeadManagementPage) {
                 await window.initStaffLeadManagementPage();
             }
+            break;
+
+        case 'supervisor-lead-management':
+            if (window.SupervisorPage) window.SupervisorPage.initLeadManagement();
+            break;
+        case 'supervisor-registrations':
+            if (window.SupervisorPage) window.SupervisorPage.initRegistrations();
+            break;
+        case 'supervisor-daily-checklist':
+            if (window.SupervisorPage) window.SupervisorPage.initDailyChecklist();
             break;
         default:
             // Officer: handle per-batch pages (filtering personal leads)
@@ -4021,3 +4040,168 @@ setInterval(async () => {
         }
     } catch (e) { /* silent */ }
 }, 60000);
+
+// ── Switch Role Feature ─────────────────────────────────────────────────────
+
+const SWITCH_ROLE_META = {
+    academic_advisor:  { label: 'Academic Advisor',  icon: 'fa-user-tie' },
+    supervisor:        { label: 'Supervisor',         icon: 'fa-user-shield' },
+    batch_coordinator: { label: 'Batch Coordinator',  icon: 'fa-layer-group' },
+    finance_manager:   { label: 'Finance Manager',    icon: 'fa-coins' },
+};
+
+/**
+ * Load the current officer's staff_roles from the API and set up the
+ * Switch Role button + popup. Called once after login (officer only).
+ */
+async function initSwitchRoleBtn() {
+    const btn     = document.getElementById('switchRoleBtn');
+    const popup   = document.getElementById('switchRolePopup');
+    const list    = document.getElementById('switchRoleList');
+    if (!btn || !popup || !list) return;
+
+    // Admin users never see this button
+    if (!window.currentUser || window.currentUser.role === 'admin') {
+        btn.style.display = 'none';
+        return;
+    }
+
+    // Load staff_roles and supervisees from Supabase user_metadata
+    try {
+        if (window.supabaseClient) {
+            const { data: { user } } = await window.supabaseClient.auth.getUser();
+            if (user) {
+                if (user.user_metadata?.staff_roles) {
+                    window.currentUser.staff_roles = user.user_metadata.staff_roles;
+                }
+                if (user.user_metadata?.supervisees) {
+                    window.currentUser.supervisees = user.user_metadata.supervisees;
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('Switch role: could not load staff_roles', e);
+    }
+
+    const roles = window.currentUser.staff_roles || [];
+
+    // Only show button if officer has more than one role (or at least one defined role)
+    if (roles.length === 0) {
+        btn.style.display = 'none';
+        return;
+    }
+
+    btn.style.display = 'flex';
+
+    // Track active role (default = first role)
+    if (!window.currentUser.active_role) {
+        window.currentUser.active_role = roles[0];
+    }
+
+    // Apply body class for the initial active role
+    applyActiveRoleBodyClass(window.currentUser.active_role);
+
+    // Update sidebar role label
+    const sidebarRoleEl = document.getElementById('sidebarUserRole');
+    if (sidebarRoleEl && window.currentUser.active_role) {
+        const initMeta = SWITCH_ROLE_META[window.currentUser.active_role];
+        if (initMeta) sidebarRoleEl.textContent = initMeta.label;
+    }
+
+    renderSwitchRoleList();
+
+    // Toggle popup on button click
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isHidden = popup.classList.contains('hidden');
+        popup.classList.toggle('hidden', !isHidden);
+        if (!isHidden) return;
+        // Re-render to reflect current active role
+        renderSwitchRoleList();
+    });
+
+    // Close popup when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!popup.contains(e.target) && e.target !== btn) {
+            popup.classList.add('hidden');
+        }
+    });
+}
+
+function renderSwitchRoleList() {
+    const list   = document.getElementById('switchRoleList');
+    const popup  = document.getElementById('switchRolePopup');
+    if (!list) return;
+
+    const roles      = window.currentUser?.staff_roles || [];
+    const activeRole = window.currentUser?.active_role;
+
+    list.innerHTML = roles.map(role => {
+        const meta    = SWITCH_ROLE_META[role] || { label: role, icon: 'fa-tag' };
+        const isActive = role === activeRole;
+        return `
+        <div class="switch-role-item ${isActive ? 'active' : ''}" data-role="${role}">
+            <div class="sr-icon"><i class="fas ${meta.icon}"></i></div>
+            <span class="sr-label">${meta.label}</span>
+            <i class="fas fa-check sr-check"></i>
+        </div>`;
+    }).join('');
+
+    // Attach click handlers
+    list.querySelectorAll('.switch-role-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const selectedRole = item.dataset.role;
+            window.currentUser.active_role = selectedRole;
+
+            // Apply body class for role-based CSS visibility
+            applyActiveRoleBodyClass(selectedRole);
+
+            // Update sidebar role display
+            const sidebarRoleEl = document.getElementById('sidebarUserRole');
+            if (sidebarRoleEl) {
+                const meta = SWITCH_ROLE_META[selectedRole];
+                sidebarRoleEl.textContent = meta ? meta.label : selectedRole;
+            }
+
+            // Show a toast
+            const meta = SWITCH_ROLE_META[selectedRole] || { label: selectedRole };
+            if (window.UI && typeof UI.showToast === 'function') {
+                UI.showToast(`Switched to ${meta.label}`, 'success');
+            }
+
+            // Navigate to home after role switch so UI refreshes cleanly
+            window.location.hash = 'home';
+            navigateToPage('home');
+
+            // Close popup
+            if (popup) popup.classList.add('hidden');
+
+            // Re-render list to update active state
+            renderSwitchRoleList();
+        });
+    });
+}
+
+/**
+ * Apply the correct body CSS class based on the officer's active role.
+ * - 'supervisor'       → body.supervisor  (special nav + views)
+ * - anything else      → no extra class   (normal officer mode)
+ * Admin users are never affected.
+ */
+function applyActiveRoleBodyClass(role) {
+    if (!window.currentUser || window.currentUser.role === 'admin') return;
+
+    // Remove all role-mode classes first
+    document.body.classList.remove('supervisor');
+
+    if (role === 'supervisor') {
+        document.body.classList.add('supervisor');
+    }
+    // Other roles (academic_advisor, batch_coordinator, finance_manager)
+    // use the normal officer mode (no extra class needed).
+}
+
+window.applyActiveRoleBodyClass = applyActiveRoleBodyClass;
+
+window.initSwitchRoleBtn    = initSwitchRoleBtn;
+window.renderSwitchRoleList = renderSwitchRoleList;

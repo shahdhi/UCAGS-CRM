@@ -476,6 +476,157 @@ body:has(#dashboardPage.active) {
     box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
 }
 
+/* ── Switch Role Popup ─────────────────────────────────────────── */
+.switch-role-popup {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    background: #1e1b2e;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 12px;
+    min-width: 210px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    z-index: 9999;
+    overflow: hidden;
+    animation: srPopupIn 0.18s ease;
+}
+
+.switch-role-popup.hidden {
+    display: none;
+}
+
+@keyframes srPopupIn {
+    from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.switch-role-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.45);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.switch-role-header i {
+    color: #8b5cf6;
+    font-size: 13px;
+}
+
+.switch-role-list {
+    padding: 6px 0;
+}
+
+.switch-role-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    font-size: 14px;
+    color: rgba(255,255,255,0.85);
+}
+
+.switch-role-item:hover {
+    background: rgba(139, 92, 246, 0.18);
+}
+
+.switch-role-item.active {
+    background: rgba(139, 92, 246, 0.28);
+    color: #fff;
+    font-weight: 600;
+}
+
+.switch-role-item .sr-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    background: rgba(139, 92, 246, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    color: #8b5cf6;
+    flex-shrink: 0;
+}
+
+.switch-role-item.active .sr-icon {
+    background: #8b5cf6;
+    color: #fff;
+}
+
+.switch-role-item .sr-label {
+    flex: 1;
+}
+
+.switch-role-item .sr-check {
+    font-size: 12px;
+    color: #8b5cf6;
+    opacity: 0;
+}
+
+.switch-role-item.active .sr-check {
+    opacity: 1;
+}
+
+/* Switch role wrapper — anchors the popup to the button */
+.switch-role-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+/* ── Supervisor Role Mode ──────────────────────────────────────────────────── */
+
+/* By default, supervisor-only NAV items are hidden for everyone */
+/* (content-view.supervisor-only is handled separately below) */
+.nav-item.supervisor-only,
+.nav-subitem.supervisor-only,
+div.nav-divider.supervisor-only { display: none !important; }
+
+/* When body has .supervisor class (officer in supervisor role):
+   - hide normal officer-only items
+   - hide admin-only items
+   - show supervisor-only items
+   - hide officer-specific Leads/Lead Management sections
+*/
+body.supervisor .officer-only { display: none !important; }
+body.supervisor .admin-only   { display: none !important; }
+body.supervisor .nav-item.supervisor-only    { display: flex !important; }
+body.supervisor .nav-subitem.supervisor-only { display: flex !important; }
+body.supervisor div.nav-divider.supervisor-only { display: block !important; }
+
+/* Hide officer's personal leads & lead management sections in supervisor mode */
+body.supervisor #officerLeadsSection,
+body.supervisor #officerLeadManagementSection { display: none !important; }
+
+/* .not-supervisor: visible normally, hidden in supervisor mode */
+.not-supervisor { /* visible by default */ }
+body.supervisor .not-supervisor { display: none !important; }
+
+/* In supervisor mode, hide shared nav items (no role class) that supervisors don't need */
+body.supervisor .nav-item[data-page="calendar"],
+body.supervisor .nav-item[data-page="contacts"],
+body.supervisor .nav-item[data-page="whatsapp"],
+body.supervisor .nav-item[data-page="gmail"],
+body.supervisor .nav-item[data-page="call"],
+body.supervisor .nav-item[data-page="reports"],
+body.supervisor .nav-item[data-page="notifications"],
+body.supervisor .nav-item[data-page="settings"] { display: none !important; }
+
+/* Hide the shared dividers (no role class) in supervisor mode — supervisor has its own divider */
+body.supervisor .nav-divider:not(.supervisor-only):not(.admin-only):not(.officer-only) { display: none !important; }
+
+/* Supervisor content views: hidden by default, shown when .active is added */
+.content-view.supervisor-only { display: none; }
+.content-view.supervisor-only.active { display: block !important; }
+
 .notification-badge {
     position: absolute;
     top: -4px;
