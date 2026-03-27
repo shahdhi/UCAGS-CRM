@@ -552,6 +552,22 @@
 
       staffLeads = (json.leads || []).map(l => ({ ...l, status: normalizeLeadStatus(l.status) }));
 
+      // Supervisor mode + __ALL__: filter to only supervised officers' leads by name
+      if (officer.allOfficers && window.currentUser?.active_role === 'supervisor') {
+        const sel = $('staffLeadMgmtOfficerSelect');
+        // Collect supervisee names from the dropdown options (already filtered when loaded)
+        const superviseeNames = new Set(
+          Array.from(sel?.options || [])
+            .filter(o => o.value && o.value !== '__ALL__')
+            .map(o => o.textContent.trim().toLowerCase())
+        );
+        if (superviseeNames.size > 0) {
+          staffLeads = staffLeads.filter(l =>
+            superviseeNames.has((l.assignedTo || '').toLowerCase())
+          );
+        }
+      }
+
       // hydrate followups for each lead (admin view, officer-owned followups)
       await Promise.all(staffLeads.map(async (lead) => {
         try {
