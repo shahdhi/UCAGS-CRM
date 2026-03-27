@@ -37,7 +37,15 @@
   async function ensureOfficersLoaded() {
     if (cachedOfficers) return cachedOfficers;
     const res = await window.API.users.officers();
-    cachedOfficers = (res.officers || []).map(o => o.name).filter(Boolean);
+    let names = (res.officers || []).map(o => ({ id: o.id, name: o.name })).filter(o => o.name);
+
+    // Supervisor mode: restrict to supervised officers only
+    const superviseeIds = window.currentUser?.supervisees || [];
+    if (window.currentUser?.active_role === 'supervisor' && superviseeIds.length > 0) {
+      names = names.filter(o => superviseeIds.includes(o.id));
+    }
+
+    cachedOfficers = names.map(o => o.name);
     return cachedOfficers;
   }
 
@@ -563,7 +571,19 @@
     try {
       const res = await window.API.registrations.adminList(limit, { programId: selectedProgramId, batchName: selectedBatchName });
       if (window.Cache) window.Cache.setWithTs(cacheKey, res);
-      const rows = res.registrations || [];
+      let rows = res.registrations || [];
+
+      // Supervisor mode: filter rows to only those assigned to supervised officers
+      if (window.currentUser?.active_role === 'supervisor') {
+        const superviseeNames = (await ensureOfficersLoaded()).map(n => n.toLowerCase());
+        if (superviseeNames.length > 0) {
+          rows = rows.filter(r => {
+            const assigned = (r.assigned_to ?? r.payload?.assigned_to ?? '').toLowerCase();
+            return superviseeNames.includes(assigned);
+          });
+        }
+      }
+
       renderRows(rows);
     } catch (e) {
       console.error(e);
@@ -577,8 +597,9 @@
   }
 
   async function initRegistrationsPage() {
-    // Admin-only
-    if (!window.currentUser || window.currentUser.role !== 'admin') {
+    // Admin and supervisor allowed
+    const isSupervisor = window.currentUser?.active_role === 'supervisor';
+    if (!window.currentUser || (window.currentUser.role !== 'admin' && !isSupervisor)) {
       return;
     }
 
@@ -708,5 +729,11 @@
     await loadRegistrations({ showSkeleton: !hasRows });
   }
 
+  // Reset officer cache so it reloads with correct supervisor filter on role switch
+  function resetRegistrationsCache() {
+    cachedOfficers = null;
+  }
+
   window.initRegistrationsPage = initRegistrationsPage;
+  window.__registrationsResetCache = resetRegistrationsCache;
 })();

@@ -1087,10 +1087,16 @@ async function navigateToPage(page) {
             break;
 
         case 'supervisor-lead-management':
-            if (window.SupervisorPage) window.SupervisorPage.initLeadManagement();
+            // Reuse the admin staff lead management page (filtered to supervisees)
+            if (window.initStaffLeadManagementPage) {
+                await window.initStaffLeadManagementPage();
+            }
             break;
         case 'supervisor-registrations':
-            if (window.SupervisorPage) window.SupervisorPage.initRegistrations();
+            // Reuse the admin registrations page (filtered to supervisees)
+            if (window.initRegistrationsPage) {
+                await window.initRegistrationsPage();
+            }
             break;
         case 'supervisor-daily-checklist':
             if (window.SupervisorPage) window.SupervisorPage.initDailyChecklist();
@@ -4132,9 +4138,11 @@ async function initSwitchRoleBtn() {
 
     btn.style.display = 'flex';
 
-    // Track active role (default = first role)
+    // Restore active role from localStorage (survives page refresh)
+    const savedRole = localStorage.getItem(`activeRole_${window.currentUser.id}`);
     if (!window.currentUser.active_role) {
-        window.currentUser.active_role = roles[0];
+        // Use saved role if it's still valid, otherwise default to first role
+        window.currentUser.active_role = (savedRole && roles.includes(savedRole)) ? savedRole : roles[0];
     }
 
     // Apply body class for the initial active role
@@ -4192,6 +4200,9 @@ function renderSwitchRoleList() {
             const selectedRole = item.dataset.role;
             window.currentUser.active_role = selectedRole;
 
+            // Persist active role across page refreshes
+            localStorage.setItem(`activeRole_${window.currentUser.id}`, selectedRole);
+
             // Apply body class for role-based CSS visibility
             applyActiveRoleBodyClass(selectedRole);
 
@@ -4245,6 +4256,11 @@ function applyActiveRoleBodyClass(role) {
             break;
         // academic_advisor: no extra class — normal officer mode
     }
+
+    // Reset page state so officer dropdowns reload with correct role filter on next visit
+    // staffLeadManagement uses isInitialized flag; registrationsPage uses cachedOfficers
+    if (window.__staffLeadMgmtReset) window.__staffLeadMgmtReset();
+    if (window.__registrationsResetCache) window.__registrationsResetCache();
 }
 
 window.applyActiveRoleBodyClass = applyActiveRoleBodyClass;

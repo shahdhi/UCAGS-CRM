@@ -157,8 +157,9 @@
   }
 
   async function initStaffLeadManagementPage() {
-    if (!window.currentUser || window.currentUser.role !== 'admin') {
-      console.warn('StaffLeadManagement: admin only');
+    const isSupervisor = window.currentUser?.active_role === 'supervisor';
+    if (!window.currentUser || (window.currentUser.role !== 'admin' && !isSupervisor)) {
+      console.warn('StaffLeadManagement: admin or supervisor only');
       return;
     }
 
@@ -291,19 +292,26 @@
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Failed to load users');
 
-      const officers = (json.users || [])
+      let officers = (json.users || [])
         .filter(u => String(u.role).toLowerCase() !== 'admin')
         .map(u => ({ id: u.id, name: u.name }))
         .filter(u => u.id && u.name)
         .sort((a, b) => a.name.localeCompare(b.name));
+
+      // Supervisor mode: restrict to supervised officers only
+      const superviseeIds = window.currentUser?.supervisees || [];
+      if (window.currentUser?.active_role === 'supervisor' && superviseeIds.length > 0) {
+        officers = officers.filter(o => superviseeIds.includes(o.id));
+      }
 
       if (!officers.length) {
         sel.innerHTML = `<option value="">No officers found</option>`;
         return;
       }
 
-      // "All Officers" option at the top — shows leads from every officer
-      sel.innerHTML = `<option value="__ALL__" data-name="__ALL__">👥 All Officers</option>` +
+      // "All Officers" option at the top — shows leads from every officer in scope
+      const allLabel = window.currentUser?.active_role === 'supervisor' ? '👥 All Supervised Officers' : '👥 All Officers';
+      sel.innerHTML = `<option value="__ALL__" data-name="__ALL__">${allLabel}</option>` +
         officers.map(o => `<option value="${escapeHtml(String(o.id))}" data-name="${escapeHtml(o.name)}">${escapeHtml(o.name)}</option>`).join('');
     } catch (e) {
       console.error('Failed to load officers:', e);
@@ -677,8 +685,17 @@
     }
   }
 
+  // Reset so officer dropdown reloads with correct role filter on next visit
+  function resetStaffLeadMgmt() {
+    isInitialized = false;
+    isLoading = false;
+    staffLeads = [];
+    filteredStaffLeads = [];
+  }
+
   // globals
   window.initStaffLeadManagementPage = initStaffLeadManagementPage;
   window.refreshStaffLeadManagement = refreshStaffLeadManagement;
   window.openStaffManageLeadModal = openStaffManageLeadModal;
+  window.__staffLeadMgmtReset = resetStaffLeadMgmt;
 })();
