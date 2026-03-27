@@ -543,8 +543,9 @@ async function loadLeads() {
         updateOfficerNewLeadBtnVisibility();
       };
 
-      // Fetch sheets from server only when batch changes (cache per batch to avoid flicker on tab click)
-      const sheetsCacheKey = `__leadsSheets_${batch}`;
+      // Fetch sheets from server only when batch + user changes (cache per batch+user to avoid cross-officer contamination)
+      const _userCacheId = (window.currentUser?.id || window.currentUser?.email || window.currentUser?.name || 'anon');
+      const sheetsCacheKey = `__leadsSheets_${batch}_${_userCacheId}`;
       const sheetsFromCache = window[sheetsCacheKey];
       if (sheetsFromCache) {
         // Use cached sheet list — instant render, no flicker
@@ -592,7 +593,10 @@ async function loadLeads() {
           }
 
           // Invalidate sheets cache so new tab appears
-          if (activeBatch) delete window[`__leadsSheets_${activeBatch}`];
+          if (activeBatch) {
+            const _uid = (window.currentUser?.id || window.currentUser?.email || window.currentUser?.name || 'anon');
+            delete window[`__leadsSheets_${activeBatch}_${_uid}`];
+          }
 
           try { updateOfficerNewLeadBtnVisibility(); } catch (_) {}
 

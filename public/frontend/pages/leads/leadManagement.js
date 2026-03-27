@@ -215,7 +215,8 @@ async function loadLeadManagement() {
     }
 
     let sheets = ['Main Leads', 'Extra Leads'];
-    const mgmtSheetsCacheKey = `__mgmtSheets_${batch}`;
+    const _userCacheId = (window.currentUser?.id || window.currentUser?.email || window.currentUser?.name || 'anon');
+    const mgmtSheetsCacheKey = `__mgmtSheets_${batch}_${_userCacheId}`;
     if (window[mgmtSheetsCacheKey]) {
       sheets = window[mgmtSheetsCacheKey];
     } else {
@@ -294,7 +295,8 @@ async function loadLeadManagement() {
         if (String(d.batchName) !== String(batch)) return;
         if (d.sheetName) window.officerSheetFilter = d.sheetName;
         // Invalidate sheets cache so new tab appears
-        delete window[`__mgmtSheets_${batch}`];
+        const _uid2 = (window.currentUser?.id || window.currentUser?.email || window.currentUser?.name || 'anon');
+        delete window[`__mgmtSheets_${batch}_${_uid2}`];
         // Reset skip flag so new sheet tab gets rendered, then load
         window.__skipManagementTabRender = false;
         loadLeadManagement();
