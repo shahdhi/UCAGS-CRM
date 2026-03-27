@@ -1426,8 +1426,29 @@ async function listSheetsForBatch({ batchName, user }) {
   if (!b) throw Object.assign(new Error('batch is required'), { status: 400 });
 
   const defaults = ['Main Leads', 'Extra Leads'];
+  const isAdmin = String(user?.role || '') === 'admin';
+  const officerName = cleanString(user?.name);
 
-  // existing sheets from leads
+  // Fetch ALL officer-custom sheet names for this batch so we can exclude them
+  // from the general crm_leads scan (they should only appear for the officer who created them).
+  let allOfficerCustomSheetNames = new Set();
+  let myCustomSheetNames = new Set();
+  try {
+    const { data: allCustom } = await sb
+      .from('officer_custom_sheets')
+      .select('sheet_name, officer_name')
+      .eq('batch_name', b);
+    (allCustom || []).forEach(r => {
+      const s = normalizeSheetName(r.sheet_name);
+      if (!s) return;
+      allOfficerCustomSheetNames.add(s);
+      if (!isAdmin && officerName && r.officer_name === officerName) {
+        myCustomSheetNames.add(s);
+      }
+    });
+  } catch (_) {}
+
+  // existing sheets from leads — but exclude any officer-custom sheets that belong to OTHER officers
   const { data: leadSheets, error: lErr } = await sb
     .from('crm_leads')
     .select('sheet_name')
@@ -1435,7 +1456,12 @@ async function listSheetsForBatch({ batchName, user }) {
   if (lErr) throw lErr;
 
   const set = new Set(defaults);
-  (leadSheets || []).map(r => normalizeSheetName(r.sheet_name)).filter(Boolean).forEach(s => set.add(s));
+  (leadSheets || []).map(r => normalizeSheetName(r.sheet_name)).filter(Boolean).forEach(s => {
+    // Skip officer-custom sheets found in crm_leads — they are handled separately below
+    // to ensure only the creating officer sees them.
+    if (allOfficerCustomSheetNames.has(s)) return;
+    set.add(s);
+  });
 
   // shared sheets (admin-created)
   try {
@@ -1446,19 +1472,9 @@ async function listSheetsForBatch({ batchName, user }) {
     (shared || []).map(r => normalizeSheetName(r.sheet_name)).filter(Boolean).forEach(s => set.add(s));
   } catch (_) {}
 
-  // officer personal sheets - only include for the officer who created them, NOT for admins
-  if (String(user?.role || '') !== 'admin') {
-    const officerName = cleanString(user?.name);
-    if (officerName) {
-      try {
-        const { data: mine } = await sb
-          .from('officer_custom_sheets')
-          .select('sheet_name')
-          .eq('batch_name', b)
-          .eq('officer_name', officerName);
-        (mine || []).map(r => normalizeSheetName(r.sheet_name)).filter(Boolean).forEach(s => set.add(s));
-      } catch (_) {}
-    }
+  // officer personal sheets - only include for the officer who created them, NOT for admins or other officers
+  if (!isAdmin && officerName) {
+    myCustomSheetNames.forEach(s => set.add(s));
   }
   // Note: Admins should NOT see officer custom sheets in the main leads page dropdown.
   // Officer custom sheets are only visible to the officer who created them in their own view.
