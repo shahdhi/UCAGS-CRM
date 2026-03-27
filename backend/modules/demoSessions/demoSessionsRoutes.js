@@ -44,9 +44,12 @@ router.get('/invites', isAdminOrOfficer, async (req, res) => {
   try {
     const demoSessionId = req.query?.sessionId;
 
-    // Admin can optionally filter by officerId; officers are always forced to themselves
+    // Admin and supervisors can filter by officerId; regular officers are forced to themselves
     const isAdmin = req.user?.role === 'admin';
-    const officerId = isAdmin ? (req.query?.officerId || '') : (req.user?.id || '');
+    const staffRoles = req.user?.user_metadata?.staff_roles || [];
+    const isSupervisor = staffRoles.includes('supervisor');
+    const canFilterByOfficer = isAdmin || isSupervisor;
+    const officerId = canFilterByOfficer ? (req.query?.officerId || '') : (req.user?.id || '');
 
     const invites = await svc.listInvites({ demoSessionId, officerId });
     res.json({ success: true, invites });

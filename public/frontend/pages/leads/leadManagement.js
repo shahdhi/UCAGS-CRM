@@ -996,6 +996,30 @@ async function openManageLeadModal(leadId) {
     form.addEventListener('submit', (e) => saveLeadManagement(e, String(leadId)));
   }
 
+  // Supervisor mode: make entire modal read-only
+  if (window.currentUser?.active_role === 'supervisor') {
+    const modal = document.getElementById('manageLeadModal');
+    if (modal) {
+      // Disable all inputs, selects, textareas
+      modal.querySelectorAll('input, select, textarea, button[type="submit"]').forEach(el => {
+        el.disabled = true;
+        el.style.pointerEvents = 'none';
+        el.style.opacity = '0.7';
+      });
+      // Hide the save/submit button completely
+      const submitBtn = modal.querySelector('button[type="submit"]');
+      if (submitBtn) submitBtn.style.display = 'none';
+      // Add a read-only banner
+      const header = modal.querySelector('.modal-header');
+      if (header) {
+        const banner = document.createElement('div');
+        banner.style.cssText = 'background:#f0f4ff;border:1px solid #c7d7ff;color:#3b5bdb;padding:6px 16px;font-size:13px;display:flex;align-items:center;gap:6px;';
+        banner.innerHTML = '<i class="fas fa-eye"></i> <span>Read-only — Supervisors cannot edit lead data</span>';
+        header.insertAdjacentElement('afterend', banner);
+      }
+    }
+  }
+
 }
 
 /**

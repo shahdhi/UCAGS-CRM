@@ -189,6 +189,17 @@
 
     tbody.innerHTML = rows || '<tr><td colspan="7" style="padding:14px; color:#667085;">No invites yet</td></tr>';
 
+    // Supervisor mode: make entire table read-only
+    const isSupervisor = window.currentUser?.active_role === 'supervisor';
+    if (isSupervisor) {
+      tbody.querySelectorAll('select, input, button').forEach(el => {
+        el.disabled = true;
+        el.style.pointerEvents = 'none';
+        el.style.opacity = '0.7';
+      });
+      return; // skip binding change handlers
+    }
+
     // Apply attendance colors
     tbody.querySelectorAll('select[data-act="attendance"]').forEach(applyAttendanceSelectStyle);
 
@@ -283,9 +294,10 @@
   async function loadOfficersIntoSelect() {
     const sel = qs('demoOfficerSelect');
     const isAdmin = window.currentUser?.role === 'admin' || document.body.classList.contains('admin');
+    const isSupervisor = window.currentUser?.active_role === 'supervisor';
     if (!sel) return;
 
-    if (!isAdmin) {
+    if (!isAdmin && !isSupervisor) {
       sel.style.display = 'none';
       state.officerId = '';
       return;
@@ -295,9 +307,18 @@
 
     try {
       const j = await apiGet('/api/users/officers');
-      const officers = j.officers || [];
-      // "All officers" option
-      const opts = [`<option value="">All officers</option>`].concat(
+      let officers = j.officers || [];
+
+      // Supervisor: restrict to supervised officers only
+      if (isSupervisor && !isAdmin) {
+        const superviseeIds = new Set(window.currentUser?.supervisees || []);
+        if (superviseeIds.size > 0) {
+          officers = officers.filter(o => superviseeIds.has(o.id));
+        }
+      }
+
+      const allLabel = isSupervisor && !isAdmin ? 'All supervised officers' : 'All officers';
+      const opts = [`<option value="">${escapeHtml(allLabel)}</option>`].concat(
         officers.map(o => `<option value="${escapeHtml(o.id)}">${escapeHtml(o.name || o.email || o.id)}</option>`)
       );
       sel.innerHTML = opts.join('');
@@ -308,7 +329,6 @@
         await loadInvites();
       };
     } catch (e) {
-      // If officers endpoint fails, hide the control but keep page functional
       sel.style.display = 'none';
       state.officerId = '';
     }
