@@ -573,8 +573,16 @@
       if (window.Cache) window.Cache.setWithTs(cacheKey, res);
       let rows = res.registrations || [];
 
-      // Supervisor mode: filter rows to only those assigned to supervised officers
-      if (window.currentUser?.active_role === 'supervisor') {
+      // Officer filter dropdown (admin selects specific officer, or supervisor filtered to supervisees)
+      const officerSelVal = (qs('registrationsOfficerSelect')?.value || '').toLowerCase();
+      if (officerSelVal) {
+        // Specific officer selected — filter to that officer only
+        rows = rows.filter(r => {
+          const assigned = (r.assigned_to ?? r.payload?.assigned_to ?? '').toLowerCase();
+          return assigned === officerSelVal;
+        });
+      } else if (window.currentUser?.active_role === 'supervisor') {
+        // All supervised officers — filter to supervisees only
         const superviseeNames = (await ensureOfficersLoaded()).map(n => n.toLowerCase());
         if (superviseeNames.length > 0) {
           rows = rows.filter(r => {
@@ -724,14 +732,57 @@
       limitEl.addEventListener('change', () => loadRegistrations().catch(console.error));
     }
 
+    // Officer filter for admin and supervisor
+    const officerSel = qs('registrationsOfficerSelect');
+    const isAdmin = window.currentUser?.role === 'admin';
+    const isSup = window.currentUser?.active_role === 'supervisor';
+    if (officerSel && (isAdmin || isSup)) {
+      officerSel.style.display = '';
+      if (!officerSel.__bound) {
+        officerSel.__bound = true;
+        officerSel.addEventListener('change', () => loadRegistrations({ force: true }).catch(console.error));
+      }
+      // Populate officer list
+      try {
+        const res = await window.API.users.officers();
+        let officers = (res.officers || []).filter(o => o.name);
+        if (isSup && !isAdmin) {
+          const superviseeIds = new Set(window.currentUser?.supervisees || []);
+          officers = officers.filter(o => superviseeIds.has(o.id));
+        }
+        const allLabel = isSup && !isAdmin ? 'All supervised officers' : 'All officers';
+        officerSel.innerHTML = `<option value="">${allLabel}</option>` +
+          officers.map(o => `<option value="${o.name}">${o.name}</option>`).join('');
+      } catch(e) {
+        officerSel.style.display = 'none';
+      }
+    } else if (officerSel) {
+      officerSel.style.display = 'none';
+    }
+
     await renderProgramTabs();
     const hasRows = !!qs('registrationsTableBody')?.querySelector('tr[data-row-key]');
     await loadRegistrations({ showSkeleton: !hasRows });
   }
 
-  // Reset officer cache so it reloads with correct supervisor filter on role switch
+  // Reset officer cache and officer select so they reload with correct filter on role switch
   function resetRegistrationsCache() {
     cachedOfficers = null;
+    const officerSel = document.getElementById('registrationsOfficerSelect');
+    if (officerSel) {
+      officerSel.__bound = false;
+      officerSel.innerHTML = '';
+      officerSel.style.display = 'none';
+    }
+    // Also reset batch/limit bindings so init fully re-runs
+    const batchSel = document.getElementById('registrationsBatchSelect');
+    if (batchSel) batchSel.__bound = false;
+    const refreshBtn = document.getElementById('registrationsRefreshBtn');
+    if (refreshBtn) refreshBtn.__bound = false;
+    const exportBtn = document.getElementById('registrationsExportBtn');
+    if (exportBtn) exportBtn.__bound = false;
+    const limitEl = document.getElementById('registrationsLimit');
+    if (limitEl) limitEl.__bound = false;
   }
 
   window.initRegistrationsPage = initRegistrationsPage;

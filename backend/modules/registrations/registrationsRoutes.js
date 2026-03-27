@@ -391,7 +391,7 @@ router.get('/my', isAdminOrOfficer, async (req, res) => {
 
 // Admin list endpoint
 // GET /api/registrations/admin?limit=100
-router.get('/admin', isAdmin, async (req, res) => {
+router.get('/admin', isAdminOrOfficer, async (req, res) => {
   try {
     const sb = getSupabaseAdmin();
     const limit = Math.min(parseInt(req.query.limit || '100', 10) || 100, 500);

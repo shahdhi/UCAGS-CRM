@@ -148,9 +148,9 @@
                     <span>Registrations</span>
                 </a>
 
-                <a href="#" class="nav-item officer-only" data-page="registrations-my">
+                <a href="#" class="nav-item officer-only not-supervisor" data-page="registrations-my">
                     <i class="fas fa-clipboard-list"></i>
-                    <span>Registrations</span>
+                    <span>My Registrations</span>
                 </a>
 
                 <a href="#" class="nav-item supervisor-only" data-page="registrations">
@@ -1181,6 +1181,8 @@
                     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                         <div id="registrationsProgramTabs" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
                         <select id="registrationsBatchSelect" class="form-control" style="width:160px;"></select>
+                        <!-- Officer filter: shown for admin and supervisor only -->
+                        <select id="registrationsOfficerSelect" class="form-control" style="width:200px;display:none;"></select>
                         <button id="registrationsRefreshBtn" class="btn btn-secondary" type="button">
                             <i class="fas fa-sync"></i> Refresh
                         </button>
@@ -1603,7 +1605,7 @@
                         <div class="demo-filters-selects">
                             <select id="demoProgramSelect" class="form-control demo-filter-select"></select>
                             <select id="demoBatchSelect" class="form-control demo-filter-select"></select>
-                            <select id="demoOfficerSelect" class="form-control demo-filter-select admin-only" style="display:none;"></select>
+                            <select id="demoOfficerSelect" class="form-control demo-filter-select" style="display:none;"></select>
                         </div>
                         <button id="demoSessionsRefreshBtn" class="btn btn-secondary btn-sm demo-refresh-btn" type="button"><i class="fas fa-sync"></i></button>
                     </div>
@@ -1873,92 +1875,6 @@
                 </div>
 
                 <div id="dailyChecklistWrap"></div>
-            </div>
-
-            <!-- ═══════════════════════════════════════════════════════════
-                 SUPERVISOR VIEWS  (supervisor-only, hidden by default)
-            ═══════════════════════════════════════════════════════════ -->
-
-            <!-- Supervisor: Lead Management -->
-            <div id="supervisor-lead-managementView" class="content-view supervisor-only" style="display:none;">
-                <div class="page-header">
-                    <h1><i class="fas fa-tasks"></i> Lead Management <span style="font-size:14px;font-weight:400;color:#8b5cf6;margin-left:8px;">Supervisor View</span></h1>
-                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <select id="supLmOfficerSelect" class="form-control" style="min-width:180px;">
-                            <option value="">All supervised officers</option>
-                        </select>
-                        <select id="supLmStatusFilter" class="form-control" style="min-width:140px;">
-                            <option value="">All Statuses</option>
-                            <option value="New">New</option>
-                            <option value="Contacted">Contacted</option>
-                            <option value="Interested">Interested</option>
-                            <option value="Awaiting Decision">Awaiting Decision</option>
-                            <option value="Registered">Registered</option>
-                            <option value="Enrolled">Enrolled</option>
-                            <option value="No Answer">No Answer</option>
-                            <option value="Unreachable">Unreachable</option>
-                            <option value="Not Interested">Not Interested</option>
-                            <option value="No Response">No Response</option>
-                            <option value="Next Batch">Next Batch</option>
-                        </select>
-                        <input type="text" id="supLmSearch" class="form-control" placeholder="Search name / phone…" style="min-width:180px;">
-                        <button class="btn btn-primary" id="supLmRefreshBtn"><i class="fas fa-sync"></i> Refresh</button>
-                    </div>
-                </div>
-                <div class="dashboard-card no-anim">
-                    <div class="table-container">
-                        <table class="data-table" id="supLmTable">
-                            <thead>
-                                <tr>
-                                    <th>Officer</th>
-                                    <th>Name</th>
-                                    <th>Phone</th>
-                                    <th>Status</th>
-                                    <th>Priority</th>
-                                    <th>Last Comment</th>
-                                    <th>Next Followup</th>
-                                </tr>
-                            </thead>
-                            <tbody id="supLmTableBody">
-                                <tr><td colspan="7" class="loading">Loading…</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Supervisor: Registrations -->
-            <div id="supervisor-registrationsView" class="content-view supervisor-only" style="display:none;">
-                <div class="page-header">
-                    <h1><i class="fas fa-clipboard-list"></i> Registrations <span style="font-size:14px;font-weight:400;color:#8b5cf6;margin-left:8px;">Supervisor View</span></h1>
-                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <select id="supRegOfficerSelect" class="form-control" style="min-width:180px;">
-                            <option value="">All supervised officers</option>
-                        </select>
-                        <button class="btn btn-secondary" id="supRegRefreshBtn"><i class="fas fa-sync"></i> Refresh</button>
-                    </div>
-                </div>
-                <div class="dashboard-card no-anim">
-                    <div class="table-container">
-                        <table class="data-table" id="supRegTable">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Phone</th>
-                                    <th>Email</th>
-                                    <th>Program</th>
-                                    <th>Payment</th>
-                                    <th>Enrolled</th>
-                                    <th>Assigned To</th>
-                                    <th>Submitted At</th>
-                                </tr>
-                            </thead>
-                            <tbody id="supRegTableBody">
-                                <tr><td colspan="8" class="loading">Loading…</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
 
             <!-- Supervisor: Daily Checklist -->

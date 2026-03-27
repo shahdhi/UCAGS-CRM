@@ -4258,9 +4258,16 @@ function applyActiveRoleBodyClass(role) {
     }
 
     // Reset page state so officer dropdowns reload with correct role filter on next visit
-    // staffLeadManagement uses isInitialized flag; registrationsPage uses cachedOfficers
     if (window.__staffLeadMgmtReset) window.__staffLeadMgmtReset();
     if (window.__registrationsResetCache) window.__registrationsResetCache();
+    // Reset demo sessions so officer select reloads on next visit
+    window.__demoSessionsCurrentBatchListenerBound = false;
+    const remSave = document.getElementById('demoReminderSaveBtn');
+    const remCancel = document.getElementById('demoReminderCancelBtn');
+    if (remSave) remSave.__bound = false;
+    if (remCancel) remCancel.__bound = false;
+    const refreshBtn = document.getElementById('demoSessionsRefreshBtn');
+    if (refreshBtn) refreshBtn.__bound = false;
 }
 
 window.applyActiveRoleBodyClass = applyActiveRoleBodyClass;
