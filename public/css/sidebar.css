@@ -669,6 +669,10 @@ body.finance-manager .nav-divider:not(.finance-manager-only):not(.admin-only) { 
 .content-view.supervisor-only { display: none; }
 .content-view.supervisor-only.active { display: block !important; }
 
+/* Views shared between admin and supervisor — never hide these via role CSS */
+body.supervisor .content-view.admin-supervisor-view { display: none; }
+body.supervisor .content-view.admin-supervisor-view.active { display: block !important; }
+
 .notification-badge {
     position: absolute;
     top: -4px;
