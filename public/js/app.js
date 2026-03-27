@@ -40,6 +40,18 @@ async function initializeApp() {
                 supervisees: user.user_metadata?.supervisees || []
             };
             window.currentUser = currentUser; // Expose globally
+
+            // Apply saved active role BEFORE rendering so nav CSS is correct from the start
+            if (role !== 'admin') {
+                const savedRole = localStorage.getItem(`activeRole_${currentUser.id}`);
+                const validRoles = currentUser.staff_roles || [];
+                const roleToApply = (savedRole && validRoles.includes(savedRole)) ? savedRole : (validRoles[0] || '');
+                if (roleToApply) {
+                    currentUser.active_role = roleToApply;
+                    if (typeof applyActiveRoleBodyClass === 'function') applyActiveRoleBodyClass(roleToApply);
+                }
+            }
+
             showDashboard();
         } else {
             showLogin();
@@ -78,6 +90,18 @@ async function initializeApp() {
                 supervisees: session.user.user_metadata?.supervisees || []
             };
             window.currentUser = currentUser; // Expose globally
+
+            // Apply saved active role BEFORE rendering so nav CSS is correct from the start
+            if (role !== 'admin') {
+                const savedRole = localStorage.getItem(`activeRole_${currentUser.id}`);
+                const validRoles = currentUser.staff_roles || [];
+                const roleToApply = (savedRole && validRoles.includes(savedRole)) ? savedRole : (validRoles[0] || '');
+                if (roleToApply) {
+                    currentUser.active_role = roleToApply;
+                    if (typeof applyActiveRoleBodyClass === 'function') applyActiveRoleBodyClass(roleToApply);
+                }
+            }
+
             showDashboard();
         } else if (event === 'SIGNED_OUT') {
             currentUser = null;

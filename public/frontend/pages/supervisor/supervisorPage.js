@@ -499,7 +499,7 @@
     // Fetch checklist data from the API
     try {
       const params = new URLSearchParams({
-        startDate: startDate,
+        start: startDate,
         days: String(numDays)
       });
       const res = await fetch(`/api/reports/daily-checklist?${params}`, { headers });
