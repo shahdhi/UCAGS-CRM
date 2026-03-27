@@ -2054,6 +2054,7 @@ function switchEditStaffTab(tab) {
     const rolesPanel = document.getElementById('editStaffPanelRoles');
     const tabPassword = document.getElementById('editStaffTabPassword');
     const tabRoles = document.getElementById('editStaffTabRoles');
+    if (!passwordPanel || !rolesPanel || !tabPassword || !tabRoles) return;
 
     if (tab === 'password') {
         passwordPanel.style.display = '';
@@ -2246,6 +2247,9 @@ function openChangePasswordModal(userId, userEmail) {
         submitBtn.disabled = false;
     }
 
+    // Open modal first so all elements are accessible
+    openModal('changePasswordModal');
+
     // Switch to password tab by default
     switchEditStaffTab('password');
 
@@ -2253,8 +2257,10 @@ function openChangePasswordModal(userId, userEmail) {
     window._currentStaffRoles = [];
     window._editStaffCurrentSupervisees = [];
     renderRoleTags();
-    document.getElementById('supervisorAssignSection').style.display = 'none';
-    if (document.getElementById('addRoleDropdown')) document.getElementById('addRoleDropdown').style.display = 'none';
+    const supSection = document.getElementById('supervisorAssignSection');
+    if (supSection) supSection.style.display = 'none';
+    const addRoleDD = document.getElementById('addRoleDropdown');
+    if (addRoleDD) addRoleDD.style.display = 'none';
 
     // Load existing roles from user data
     fetch('/api/users').then(r => r.json()).then(data => {
@@ -2274,10 +2280,9 @@ function openChangePasswordModal(userId, userEmail) {
     }).catch(() => {
         window._currentStaffRoles = [];
         renderRoleTags();
-        document.getElementById('supervisorAssignSection').style.display = 'none';
+        const s = document.getElementById('supervisorAssignSection');
+        if (s) s.style.display = 'none';
     });
-
-    openModal('changePasswordModal');
 }
 
 // Change user password
