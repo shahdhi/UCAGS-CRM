@@ -163,9 +163,16 @@
                     <span>Payments</span>
                 </a>
 
-                <a href="#" class="nav-item officer-only" data-page="batch-management">
+                <!-- Batch coordinator: batch management only -->
+                <a href="#" class="nav-item batch-coordinator-only" data-page="batch-management">
                     <i class="fas fa-money-check-dollar"></i>
-                    <span>Batch management</span>
+                    <span>Batch Management</span>
+                </a>
+
+                <!-- Finance manager: payments (admin view) -->
+                <a href="#" class="nav-item finance-manager-only" data-page="payments">
+                    <i class="fas fa-money-check-dollar"></i>
+                    <span>Payments</span>
                 </a>
 
                 <a href="#" class="nav-item admin-only" data-page="students">
@@ -173,9 +180,17 @@
                     <span>Students</span>
                 </a>
 
+                <!-- Finance manager: students -->
+                <a href="#" class="nav-item finance-manager-only" data-page="students">
+                    <i class="fas fa-user-graduate"></i>
+                    <span>Students</span>
+                </a>
+
                 <div class="nav-divider admin-only"></div>
-                <div class="nav-divider officer-only"></div>
+                <div class="nav-divider officer-only academic-advisor-only"></div>
                 <div class="nav-divider supervisor-only"></div>
+                <div class="nav-divider batch-coordinator-only"></div>
+                <div class="nav-divider finance-manager-only"></div>
 
                 <a href="#" class="nav-item" data-page="whatsapp">
                     <i class="fab fa-whatsapp"></i>

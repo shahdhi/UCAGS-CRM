@@ -233,8 +233,9 @@ async function showDashboard() {
         console.warn('SwitchRole init error:', e);
     }
 
-    // One-time background migration: ensure all existing officers have academic_advisor role
-    if (currentUser.role === 'admin' && !sessionStorage.getItem('__rolesMigrated')) {
+    // One-time background migration: ensure all users have default staff_roles set
+    // Runs once per browser session regardless of role
+    if (!sessionStorage.getItem('__rolesMigrated')) {
         sessionStorage.setItem('__rolesMigrated', '1');
         fetch('/api/users/migrate-default-roles', { method: 'POST' })
             .then(r => r.json())
@@ -4230,13 +4231,20 @@ function applyActiveRoleBodyClass(role) {
     if (!window.currentUser || window.currentUser.role === 'admin') return;
 
     // Remove all role-mode classes first
-    document.body.classList.remove('supervisor');
+    document.body.classList.remove('supervisor', 'batch-coordinator', 'finance-manager');
 
-    if (role === 'supervisor') {
-        document.body.classList.add('supervisor');
+    switch (role) {
+        case 'supervisor':
+            document.body.classList.add('supervisor');
+            break;
+        case 'batch_coordinator':
+            document.body.classList.add('batch-coordinator');
+            break;
+        case 'finance_manager':
+            document.body.classList.add('finance-manager');
+            break;
+        // academic_advisor: no extra class — normal officer mode
     }
-    // Other roles (academic_advisor, batch_coordinator, finance_manager)
-    // use the normal officer mode (no extra class needed).
 }
 
 window.applyActiveRoleBodyClass = applyActiveRoleBodyClass;

@@ -584,33 +584,31 @@ body:has(#dashboardPage.active) {
 
 /* ── Supervisor Role Mode ──────────────────────────────────────────────────── */
 
-/* By default, supervisor-only NAV items are hidden for everyone */
-/* (content-view.supervisor-only is handled separately below) */
+/* ── Role-specific nav items: hidden by default for everyone ──────────────── */
 .nav-item.supervisor-only,
 .nav-subitem.supervisor-only,
-div.nav-divider.supervisor-only { display: none !important; }
+div.nav-divider.supervisor-only,
+.nav-item.batch-coordinator-only,
+div.nav-divider.batch-coordinator-only,
+.nav-item.finance-manager-only,
+div.nav-divider.finance-manager-only { display: none !important; }
 
-/* When body has .supervisor class (officer in supervisor role):
-   - hide normal officer-only items
-   - hide admin-only items
-   - show supervisor-only items
-   - hide officer-specific Leads/Lead Management sections
-*/
-body.supervisor .officer-only { display: none !important; }
-body.supervisor .admin-only   { display: none !important; }
-body.supervisor .nav-item.supervisor-only    { display: flex !important; }
-body.supervisor .nav-subitem.supervisor-only { display: flex !important; }
-body.supervisor div.nav-divider.supervisor-only { display: block !important; }
-
-/* Hide officer's personal leads & lead management sections in supervisor mode */
-body.supervisor #officerLeadsSection,
-body.supervisor #officerLeadManagementSection { display: none !important; }
+/* academic-advisor-only divider: visible in officer mode, hidden in other roles */
+div.nav-divider.academic-advisor-only { display: block; }
 
 /* .not-supervisor: visible normally, hidden in supervisor mode */
 .not-supervisor { /* visible by default */ }
-body.supervisor .not-supervisor { display: none !important; }
 
-/* In supervisor mode, hide shared nav items (no role class) that supervisors don't need */
+/* ── SUPERVISOR mode (body.supervisor) ───────────────────────────────────── */
+body.supervisor .officer-only  { display: none !important; }
+body.supervisor .admin-only    { display: none !important; }
+body.supervisor .not-supervisor { display: none !important; }
+body.supervisor .nav-item.supervisor-only    { display: flex !important; }
+body.supervisor .nav-subitem.supervisor-only { display: flex !important; }
+body.supervisor div.nav-divider.supervisor-only { display: block !important; }
+body.supervisor div.nav-divider.academic-advisor-only { display: none !important; }
+body.supervisor #officerLeadsSection,
+body.supervisor #officerLeadManagementSection { display: none !important; }
 body.supervisor .nav-item[data-page="calendar"],
 body.supervisor .nav-item[data-page="contacts"],
 body.supervisor .nav-item[data-page="whatsapp"],
@@ -619,11 +617,55 @@ body.supervisor .nav-item[data-page="call"],
 body.supervisor .nav-item[data-page="reports"],
 body.supervisor .nav-item[data-page="notifications"],
 body.supervisor .nav-item[data-page="settings"] { display: none !important; }
+body.supervisor .nav-divider:not(.supervisor-only):not(.admin-only):not(.officer-only):not(.academic-advisor-only) { display: none !important; }
 
-/* Hide the shared dividers (no role class) in supervisor mode — supervisor has its own divider */
-body.supervisor .nav-divider:not(.supervisor-only):not(.admin-only):not(.officer-only) { display: none !important; }
+/* ── BATCH COORDINATOR mode (body.batch-coordinator) ─────────────────────── */
+body.batch-coordinator .officer-only   { display: none !important; }
+body.batch-coordinator .admin-only     { display: none !important; }
+body.batch-coordinator .not-supervisor { display: none !important; }
+body.batch-coordinator div.nav-divider.academic-advisor-only { display: none !important; }
+body.batch-coordinator .nav-item.batch-coordinator-only    { display: flex !important; }
+body.batch-coordinator div.nav-divider.batch-coordinator-only { display: block !important; }
+/* Hide everything except home and batch management */
+body.batch-coordinator .nav-item[data-page="calendar"],
+body.batch-coordinator .nav-item[data-page="contacts"],
+body.batch-coordinator .nav-item[data-page="whatsapp"],
+body.batch-coordinator .nav-item[data-page="gmail"],
+body.batch-coordinator .nav-item[data-page="call"],
+body.batch-coordinator .nav-item[data-page="reports"],
+body.batch-coordinator .nav-item[data-page="notifications"],
+body.batch-coordinator .nav-item[data-page="settings"],
+body.batch-coordinator .nav-item[data-page="attendance"] { display: none !important; }
+/* Hide officer leads submenu */
+body.batch-coordinator #officerLeadsSection,
+body.batch-coordinator #officerLeadManagementSection { display: none !important; }
+/* Hide shared dividers */
+body.batch-coordinator .nav-divider:not(.batch-coordinator-only):not(.admin-only) { display: none !important; }
 
-/* Supervisor content views: hidden by default, shown when .active is added */
+/* ── FINANCE MANAGER mode (body.finance-manager) ─────────────────────────── */
+body.finance-manager .officer-only   { display: none !important; }
+body.finance-manager .admin-only     { display: none !important; }
+body.finance-manager .not-supervisor { display: none !important; }
+body.finance-manager div.nav-divider.academic-advisor-only { display: none !important; }
+body.finance-manager .nav-item.finance-manager-only    { display: flex !important; }
+body.finance-manager div.nav-divider.finance-manager-only { display: block !important; }
+/* Hide everything except home, payments, students */
+body.finance-manager .nav-item[data-page="calendar"],
+body.finance-manager .nav-item[data-page="contacts"],
+body.finance-manager .nav-item[data-page="whatsapp"],
+body.finance-manager .nav-item[data-page="gmail"],
+body.finance-manager .nav-item[data-page="call"],
+body.finance-manager .nav-item[data-page="reports"],
+body.finance-manager .nav-item[data-page="notifications"],
+body.finance-manager .nav-item[data-page="settings"],
+body.finance-manager .nav-item[data-page="attendance"] { display: none !important; }
+/* Hide officer leads submenu */
+body.finance-manager #officerLeadsSection,
+body.finance-manager #officerLeadManagementSection { display: none !important; }
+/* Hide shared dividers */
+body.finance-manager .nav-divider:not(.finance-manager-only):not(.admin-only) { display: none !important; }
+
+/* ── Supervisor content views ─────────────────────────────────────────────── */
 .content-view.supervisor-only { display: none; }
 .content-view.supervisor-only.active { display: block !important; }
 

@@ -187,6 +187,7 @@ router.post('/', async (req, res) => {
       // Use Supabase Admin API to create user with confirmed email
       console.log('Creating user with auto-confirmed email:', email);
       
+      const defaultStaffRoles = role === 'admin' ? ['finance_manager'] : ['academic_advisor'];
       const { data, error } = await supabase.auth.admin.createUser({
         email: email,
         password: password,
@@ -194,8 +195,7 @@ router.post('/', async (req, res) => {
         user_metadata: {
           name: name,
           role: role,
-          // All new officers default to Academic Advisor role
-          staff_roles: role === 'officer' ? ['academic_advisor'] : [],
+          staff_roles: defaultStaffRoles,
           supervisees: []
         }
       });
@@ -603,22 +603,23 @@ router.post('/migrate-default-roles', async (req, res) => {
     const { data: { users }, error } = await supabase.auth.admin.listUsers();
     if (error) throw error;
 
-    // Only officers that have no staff_roles set yet
+    // Officers with no staff_roles → set to academic_advisor
+    // Admins with no staff_roles → set to finance_manager
     const toUpdate = users.filter(u => {
-      const email = (u.email || '').toLowerCase();
-      const role = u.user_metadata?.role;
-      if (role === 'admin' || ADMIN_EMAILS.includes(email)) return false;
       const existing = u.user_metadata?.staff_roles;
       return !existing || existing.length === 0;
     });
 
     let updated = 0;
     for (const u of toUpdate) {
+      const email = (u.email || '').toLowerCase();
+      const isAdmin = u.user_metadata?.role === 'admin' || ADMIN_EMAILS.includes(email);
+      const defaultRoles = isAdmin ? ['finance_manager'] : ['academic_advisor'];
       const currentMeta = u.user_metadata || {};
       await supabase.auth.admin.updateUserById(u.id, {
         user_metadata: {
           ...currentMeta,
-          staff_roles: ['academic_advisor'],
+          staff_roles: defaultRoles,
           supervisees: currentMeta.supervisees || []
         }
       });
