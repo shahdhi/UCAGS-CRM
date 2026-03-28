@@ -578,6 +578,522 @@
     }
   }
 
+  /* ═══════════════════════════════════════════════════════════════
+     4.  SUPERVISOR DASHBOARD
+  ═══════════════════════════════════════════════════════════════ */
+
+  const SL_OFFSET_MIN_DASH = 330; // UTC+5:30
+
+  function dashTodayISO() {
+    const d = new Date(Date.now() + SL_OFFSET_MIN_DASH * 60 * 1000);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function dashMondayOfWeek(dateISO) {
+    const d = new Date(`${dateISO}T00:00:00Z`);
+    const day = d.getUTCDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setUTCDate(d.getUTCDate() + diff);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function dashAddDays(dateISO, n) {
+    const d = new Date(`${dateISO}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  }
+
+  // Chart instances (so we can destroy & recreate on refresh)
+  let _dashDonutChart = null;
+  let _dashTrendChart = null;
+  let _dashInited = false;
+  let _dashLoading = false;
+
+  // Color palette
+  const DASH_STATUS_COLORS = {
+    'New':               '#6c47ff',
+    'Contacted':         '#3b82f6',
+    'Interested':        '#f59e0b',
+    'Awaiting Decision': '#fb923c',
+    'Registered':        '#10b981',
+    'Enrolled':          '#059669',
+    'Not Interested':    '#ef4444',
+    'No Answer':         '#94a3b8',
+    'Unreachable':       '#64748b',
+  };
+
+  const OFFICER_PALETTE = ['#6c47ff','#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6'];
+
+  async function initSupervisorDashboard() {
+    if (_dashLoading) return;
+    _dashLoading = true;
+
+    _setDashLoading(true);
+
+    try {
+      const headers = await authHeaders();
+      const officers = await fetchSupervisedOfficers();
+
+      if (officers.length === 0) {
+        _setDashEmpty('No supervised officers assigned to you yet.');
+        return;
+      }
+
+      // ── Fetch all leads for supervised officers ──
+      let allLeads = [];
+      await Promise.all(officers.map(async (officer) => {
+        try {
+          const res = await fetch(`/api/crm-leads?officerId=${encodeURIComponent(officer.id)}`, { headers });
+          if (!res.ok) return;
+          const json = await res.json();
+          const leads = (json.leads || json.data || []).map(l => ({ ...l, _officerName: officer.name, _officerId: officer.id }));
+          allLeads.push(...leads);
+        } catch (e) { /* skip */ }
+      }));
+
+      // ── Fetch registrations ──
+      let allRegs = [];
+      try {
+        const res = await fetch('/api/registrations?limit=1000', { headers });
+        if (res.ok) {
+          const json = await res.json();
+          const officerNames = new Set(officers.map(o => (o.name || '').toLowerCase()));
+          allRegs = (json.registrations || json.data || []).filter(r => {
+            const assigned = (r.assigned_to || r.payload?.assigned_to || '').toLowerCase();
+            return officerNames.has(assigned);
+          });
+        }
+      } catch (e) { /* skip */ }
+
+      // ── Fetch checklist (this week) ──
+      const today = dashTodayISO();
+      const weekStart = dashMondayOfWeek(today);
+      let checklistMatrix = {};
+      try {
+        const params = new URLSearchParams({ start: weekStart, days: '7' });
+        const res = await fetch(`/api/reports/daily-checklist?${params}`, { headers });
+        if (res.ok) {
+          const json = await res.json();
+          checklistMatrix = json.matrix || json.data || {};
+        }
+      } catch (e) { /* skip */ }
+
+      // ── Render all sections ──
+      _renderStatCards(allLeads, allRegs, officers, checklistMatrix, today);
+      _renderDonutChart(allLeads);
+      _renderOfficerCards(officers, allLeads, allRegs, checklistMatrix);
+      _renderTrendChart(officers, allLeads);
+      _renderHeatmap(officers, checklistMatrix, weekStart);
+      _renderLeaderboard(officers, allLeads, allRegs, checklistMatrix);
+      _renderAlerts(officers, allLeads, checklistMatrix, today);
+
+      _dashInited = true;
+    } catch (e) {
+      console.error('[SupervisorDashboard] error:', e);
+      _setDashEmpty('Error loading dashboard: ' + esc(e.message));
+    } finally {
+      _dashLoading = false;
+      _setDashLoading(false);
+    }
+  }
+
+  function _setDashLoading(on) {
+    const btn = document.getElementById('supDashRefreshBtn');
+    if (btn) btn.innerHTML = on
+      ? '<i class="fas fa-spinner fa-spin"></i> Loading…'
+      : '<i class="fas fa-sync"></i> Refresh';
+    if (btn) btn.disabled = on;
+  }
+
+  function _setDashEmpty(msg) {
+    _dashLoading = false;
+    _setDashLoading(false);
+    ['supDashOfficerCards','supDashHeatmap','supDashLeaderboard','supDashAlerts'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = `<div style="color:#888;padding:12px;">${msg}</div>`;
+    });
+  }
+
+  /* ── Stat Cards ── */
+  function _renderStatCards(leads, regs, officers, matrix, today) {
+    const hot = leads.filter(l => ['interested','awaiting decision'].includes((l.status||'').toLowerCase())).length;
+
+    // Overdue follow-ups: any lead with a follow-up date in the past that isn't registered/enrolled
+    let overdue = 0;
+    leads.forEach(l => {
+      for (let i = 1; i <= 30; i++) {
+        const d = l[`followUp${i}Date`] || l[`follow_up_${i}_date`] || '';
+        if (d && new Date(d) < new Date(today) && !['registered','enrolled'].includes((l.status||'').toLowerCase())) {
+          overdue++;
+          break;
+        }
+      }
+    });
+
+    // Top performer by registrations
+    const regsByOfficer = {};
+    regs.forEach(r => {
+      const name = (r.assigned_to || r.payload?.assigned_to || '').trim();
+      if (name) regsByOfficer[name] = (regsByOfficer[name] || 0) + 1;
+    });
+    let topName = '—';
+    let topCount = 0;
+    Object.entries(regsByOfficer).forEach(([name, count]) => {
+      if (count > topCount) { topCount = count; topName = name; }
+    });
+
+    _setText('supDashTotalLeads', leads.length);
+    _setText('supDashTotalRegs', regs.length);
+    _setText('supDashHotLeads', hot);
+    _setText('supDashOverdueFU', overdue);
+    _setText('supDashTopPerformer', topName === '—' ? '—' : `🏆 ${topName}`);
+  }
+
+  function _setText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+
+  /* ── Donut Chart ── */
+  function _renderDonutChart(leads) {
+    const canvas = document.getElementById('supDashDonutChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    // Count by status
+    const counts = {};
+    leads.forEach(l => {
+      const s = l.status || 'Unknown';
+      counts[s] = (counts[s] || 0) + 1;
+    });
+
+    const labels = Object.keys(counts);
+    const data = labels.map(k => counts[k]);
+    const colors = labels.map(l => DASH_STATUS_COLORS[l] || '#94a3b8');
+
+    if (_dashDonutChart) { _dashDonutChart.destroy(); _dashDonutChart = null; }
+
+    _dashDonutChart = new Chart(canvas, {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw}` } }
+        }
+      }
+    });
+
+    // Custom legend
+    const legendEl = document.getElementById('supDashDonutLegend');
+    if (legendEl) {
+      legendEl.innerHTML = labels.map((l, i) =>
+        `<span style="display:inline-flex;align-items:center;gap:4px;">
+          <span style="width:10px;height:10px;border-radius:50%;background:${colors[i]};display:inline-block;"></span>
+          ${esc(l)} (${data[i]})
+        </span>`
+      ).join('');
+    }
+  }
+
+  /* ── Officer Performance Cards ── */
+  function _renderOfficerCards(officers, leads, regs, matrix) {
+    const el = document.getElementById('supDashOfficerCards');
+    if (!el) return;
+
+    const today = dashTodayISO();
+    const weekStart = dashMondayOfWeek(today);
+    const weekDates = Array.from({ length: 7 }, (_, i) => dashAddDays(weekStart, i));
+
+    el.innerHTML = officers.map((officer, idx) => {
+      const officerLeads = leads.filter(l => l._officerId === officer.id);
+      const officerRegs = regs.filter(r =>
+        (r.assigned_to || r.payload?.assigned_to || '').toLowerCase() === officer.name.toLowerCase()
+      );
+
+      // Checklist completion this week
+      let slotsSubmitted = 0, totalSlots = 0;
+      weekDates.forEach(date => {
+        const c = matrix?.[date]?.[officer.id];
+        totalSlots += 3;
+        if (c?.slot1) slotsSubmitted++;
+        if (c?.slot2) slotsSubmitted++;
+        if (c?.slot3) slotsSubmitted++;
+      });
+      const checkPct = totalSlots > 0 ? Math.round((slotsSubmitted / totalSlots) * 100) : 0;
+      const checkColor = checkPct >= 80 ? '#10b981' : checkPct >= 50 ? '#f59e0b' : '#ef4444';
+
+      const hot = officerLeads.filter(l => ['interested','awaiting decision'].includes((l.status||'').toLowerCase())).length;
+      const color = OFFICER_PALETTE[idx % OFFICER_PALETTE.length];
+
+      return `
+        <div style="border:1.5px solid #e8e0ff;border-radius:12px;padding:14px;background:#faf9ff;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;">
+              ${esc((officer.name||'?')[0].toUpperCase())}
+            </div>
+            <div style="font-weight:600;font-size:14px;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(officer.name)}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;color:#555;margin-bottom:10px;">
+            <div><i class="fas fa-users" style="color:${color};width:14px;"></i> <b>${officerLeads.length}</b> leads</div>
+            <div><i class="fas fa-fire" style="color:#f59e0b;width:14px;"></i> <b>${hot}</b> hot</div>
+            <div><i class="fas fa-clipboard-check" style="color:#10b981;width:14px;"></i> <b>${officerRegs.length}</b> regs</div>
+            <div><i class="fas fa-th-list" style="color:#8b5cf6;width:14px;"></i> <b>${checkPct}%</b> check</div>
+          </div>
+          <div style="height:6px;background:#ede9ff;border-radius:4px;overflow:hidden;">
+            <div style="height:100%;width:${checkPct}%;background:${checkColor};border-radius:4px;transition:width 0.6s;"></div>
+          </div>
+          <div style="font-size:10px;color:#888;margin-top:3px;">Checklist this week</div>
+        </div>`;
+    }).join('');
+  }
+
+  /* ── Trend Line Chart ── */
+  function _renderTrendChart(officers, leads) {
+    const canvas = document.getElementById('supDashTrendChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    // Build last 30 days
+    const today = dashTodayISO();
+    const days = Array.from({ length: 30 }, (_, i) => dashAddDays(today, i - 29));
+
+    // Group leads by officer + date added
+    const datasets = officers.map((officer, idx) => {
+      const officerLeads = leads.filter(l => l._officerId === officer.id);
+      const data = days.map(date => {
+        return officerLeads.filter(l => {
+          const created = (l.created_at || '').slice(0, 10);
+          return created === date;
+        }).length;
+      });
+      const color = OFFICER_PALETTE[idx % OFFICER_PALETTE.length];
+      return {
+        label: officer.name,
+        data,
+        borderColor: color,
+        backgroundColor: color + '22',
+        fill: false,
+        tension: 0.3,
+        pointRadius: 2,
+        borderWidth: 2,
+      };
+    });
+
+    const shortDays = days.map(d => {
+      const dt = new Date(d + 'T00:00:00Z');
+      return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    });
+
+    if (_dashTrendChart) { _dashTrendChart.destroy(); _dashTrendChart = null; }
+
+    _dashTrendChart = new Chart(canvas, {
+      type: 'line',
+      data: { labels: shortDays, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12 } } },
+          tooltip: { mode: 'index', intersect: false }
+        },
+        scales: {
+          x: { ticks: { maxTicksLimit: 10, font: { size: 11 } } },
+          y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } } }
+        }
+      }
+    });
+  }
+
+  /* ── Weekly Checklist Heatmap ── */
+  function _renderHeatmap(officers, matrix, weekStart) {
+    const el = document.getElementById('supDashHeatmap');
+    if (!el) return;
+
+    const dates = Array.from({ length: 7 }, (_, i) => dashAddDays(weekStart, i));
+    const dayLabels = dates.map(d => new Date(d + 'T00:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }));
+
+    const cellStyle = 'width:68px;height:40px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;cursor:default;';
+
+    const headerRow = `<tr>
+      <th style="padding:6px 10px;font-size:12px;color:#667085;text-align:left;min-width:130px;">Officer</th>
+      ${dayLabels.map(l => `<th style="padding:6px 4px;font-size:11px;color:#667085;text-align:center;">${esc(l)}</th>`).join('')}
+      <th style="padding:6px 8px;font-size:11px;color:#667085;text-align:center;">Rate</th>
+    </tr>`;
+
+    const rows = officers.map(officer => {
+      let total = 0, submitted = 0;
+      const cells = dates.map(date => {
+        const c = matrix?.[date]?.[officer.id];
+        const s1 = c?.slot1 ? 1 : 0;
+        const s2 = c?.slot2 ? 1 : 0;
+        const s3 = c?.slot3 ? 1 : 0;
+        const count = s1 + s2 + s3;
+        total += 3; submitted += count;
+
+        let bg, label;
+        if (!c || count === 0)       { bg = '#e5e7eb'; label = '—'; }
+        else if (count === 3)         { bg = '#10b981'; label = '✓✓✓'; }
+        else if (count === 2)         { bg = '#f59e0b'; label = '✓✓'; }
+        else                          { bg = '#fb923c'; label = '✓'; }
+
+        const title = `${date}: ${count}/3 slots`;
+        return `<td style="padding:4px;text-align:center;"><div style="${cellStyle}background:${bg};" title="${esc(title)}">${label}</div></td>`;
+      }).join('');
+
+      const rate = total > 0 ? Math.round((submitted / total) * 100) : 0;
+      const rateColor = rate >= 80 ? '#10b981' : rate >= 50 ? '#f59e0b' : '#ef4444';
+
+      return `<tr>
+        <td style="padding:6px 10px;font-size:13px;font-weight:500;color:#1e293b;">${esc(officer.name)}</td>
+        ${cells}
+        <td style="padding:6px 8px;text-align:center;font-weight:700;color:${rateColor};font-size:13px;">${rate}%</td>
+      </tr>`;
+    }).join('');
+
+    el.innerHTML = `<table style="border-collapse:separate;border-spacing:0;width:100%;">
+      <thead>${headerRow}</thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:10px;display:flex;gap:14px;font-size:12px;color:#555;flex-wrap:wrap;">
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#10b981;margin-right:4px;"></span>All 3 slots</span>
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#f59e0b;margin-right:4px;"></span>2 slots</span>
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#fb923c;margin-right:4px;"></span>1 slot</span>
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#e5e7eb;margin-right:4px;"></span>Not submitted</span>
+    </div>`;
+  }
+
+  /* ── Leaderboard ── */
+  function _renderLeaderboard(officers, leads, regs, matrix) {
+    const el = document.getElementById('supDashLeaderboard');
+    if (!el) return;
+
+    const today = dashTodayISO();
+    const weekStart = dashMondayOfWeek(today);
+    const weekDates = Array.from({ length: 7 }, (_, i) => dashAddDays(weekStart, i));
+
+    const scored = officers.map(officer => {
+      const officerLeads = leads.filter(l => l._officerId === officer.id);
+      const officerRegs = regs.filter(r =>
+        (r.assigned_to || r.payload?.assigned_to || '').toLowerCase() === officer.name.toLowerCase()
+      );
+      // Checklist slots this week
+      let slots = 0;
+      weekDates.forEach(d => {
+        const c = matrix?.[d]?.[officer.id];
+        if (c?.slot1) slots++;
+        if (c?.slot2) slots++;
+        if (c?.slot3) slots++;
+      });
+      // Score: 5pts per reg + 1pt per lead + 0.5pt per slot
+      const score = officerRegs.length * 5 + officerLeads.length + slots * 0.5;
+      return { officer, leads: officerLeads.length, regs: officerRegs.length, slots, score };
+    }).sort((a, b) => b.score - a.score);
+
+    const medals = ['🥇','🥈','🥉'];
+
+    el.innerHTML = scored.map((s, i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0eeff;${i === scored.length - 1 ? 'border:none;' : ''}">
+        <div style="font-size:20px;width:28px;text-align:center;">${medals[i] || `#${i+1}`}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:13px;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.officer.name)}</div>
+          <div style="font-size:11px;color:#888;margin-top:2px;">${s.regs} regs · ${s.leads} leads · ${s.slots}/21 slots</div>
+        </div>
+        <div style="font-size:13px;font-weight:700;color:#6c47ff;">${Math.round(s.score)}<span style="font-size:10px;color:#aaa;font-weight:400;">pts</span></div>
+      </div>`).join('');
+  }
+
+  /* ── Alerts ── */
+  function _renderAlerts(officers, leads, matrix, today) {
+    const el = document.getElementById('supDashAlerts');
+    if (!el) return;
+
+    const alerts = [];
+
+    // 1. Officers who haven't submitted checklist in 2+ consecutive days
+    officers.forEach(officer => {
+      let missed = 0;
+      for (let i = 1; i <= 2; i++) {
+        const d = dashAddDays(today, -i);
+        const c = matrix?.[d]?.[officer.id];
+        if (!c || (!c.slot1 && !c.slot2 && !c.slot3)) missed++;
+      }
+      if (missed >= 2) {
+        alerts.push({
+          type: 'warning',
+          icon: 'fa-clipboard-times',
+          msg: `<b>${esc(officer.name)}</b> has not submitted any checklist slots in the last 2 days.`
+        });
+      }
+    });
+
+    // 2. Officers with overdue follow-ups
+    const overdueCounts = {};
+    leads.forEach(l => {
+      if (['registered','enrolled'].includes((l.status||'').toLowerCase())) return;
+      for (let i = 1; i <= 30; i++) {
+        const d = l[`followUp${i}Date`] || l[`follow_up_${i}_date`] || '';
+        if (d && new Date(d) < new Date(today)) {
+          overdueCounts[l._officerName] = (overdueCounts[l._officerName] || 0) + 1;
+          break;
+        }
+      }
+    });
+    Object.entries(overdueCounts).forEach(([name, count]) => {
+      if (count > 0) {
+        alerts.push({
+          type: 'danger',
+          icon: 'fa-calendar-times',
+          msg: `<b>${esc(name)}</b> has <b>${count}</b> overdue follow-up${count > 1 ? 's' : ''}.`
+        });
+      }
+    });
+
+    // 3. Officers with no leads at all
+    officers.forEach(officer => {
+      const count = leads.filter(l => l._officerId === officer.id).length;
+      if (count === 0) {
+        alerts.push({
+          type: 'info',
+          icon: 'fa-user-slash',
+          msg: `<b>${esc(officer.name)}</b> has no leads assigned yet.`
+        });
+      }
+    });
+
+    if (alerts.length === 0) {
+      el.innerHTML = `<div style="display:flex;align-items:center;gap:10px;color:#10b981;padding:10px 0;">
+        <i class="fas fa-check-circle" style="font-size:18px;"></i>
+        <span style="font-size:14px;font-weight:500;">All good! No issues found.</span>
+      </div>`;
+      return;
+    }
+
+    const alertColors = {
+      warning: { bg: '#fffbeb', border: '#fde68a', icon: '#f59e0b', text: '#92400e' },
+      danger:  { bg: '#fef2f2', border: '#fecaca', icon: '#ef4444', text: '#991b1b' },
+      info:    { bg: '#eff6ff', border: '#bfdbfe', icon: '#3b82f6', text: '#1e40af' },
+    };
+
+    el.innerHTML = alerts.map(a => {
+      const c = alertColors[a.type] || alertColors.info;
+      return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;background:${c.bg};border:1.5px solid ${c.border};border-radius:8px;margin-bottom:8px;">
+        <i class="fas ${a.icon}" style="color:${c.icon};margin-top:2px;flex-shrink:0;"></i>
+        <span style="font-size:13px;color:${c.text};">${a.msg}</span>
+      </div>`;
+    }).join('');
+  }
+
+  /* ─── Public API for Dashboard ─────────────────────────────────── */
+  window.SupervisorDashboard = {
+    init: initSupervisorDashboard,
+    refresh: async function () {
+      _dashInited = false;
+      await initSupervisorDashboard();
+    }
+  };
+
   /* ─── Public API ───────────────────────────────────────────────── */
   window.SupervisorPage = {
     initLeadManagement,

@@ -1122,6 +1122,9 @@ async function navigateToPage(page) {
                 await window.initRegistrationsPage();
             }
             break;
+        case 'supervisor-dashboard':
+            if (window.SupervisorDashboard) window.SupervisorDashboard.init();
+            break;
         case 'supervisor-daily-checklist':
             if (window.SupervisorPage) window.SupervisorPage.initDailyChecklist();
             break;
