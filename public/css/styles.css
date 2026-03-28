@@ -1340,6 +1340,17 @@ body {
     transform: none !important;
 }
 
+/* Supervisor Dashboard: stable cards (no floating/hover lift) */
+#supervisor-dashboardView .dashboard-card,
+#supervisor-dashboardView .dashboard-card:hover,
+#supervisor-dashboardView .dashboard-card:active {
+    transition: none !important;
+    transform: none !important;
+    animation: none !important;
+    box-shadow: var(--shadow-sm) !important;
+    border-color: var(--separator) !important;
+}
+
 /* Notifications view: keep UI stable (no floating motion on hover) */
 #notificationsView .dashboard-card,
 #notificationsView .dashboard-card:hover,
