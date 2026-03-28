@@ -2038,6 +2038,74 @@ async function deleteUser(userId) {
 }
 
 // Add new user (admin only)
+// ── New User Role Tags ──────────────────────────────────────────────────────
+window._newUserRoles = [];
+
+const NEW_USER_ROLE_LABELS = {
+    officer:           { label: 'Academic Advisor',  icon: 'fa-user-graduate' },
+    supervisor:        { label: 'Supervisor',         icon: 'fa-user-tie' },
+    batch_coordinator: { label: 'Batch Coordinator',  icon: 'fa-layer-group' },
+    finance_manager:   { label: 'Finance Manager',    icon: 'fa-coins' },
+    admin:             { label: 'Administrator',       icon: 'fa-shield-alt' },
+};
+
+function renderNewUserRoleTags() {
+    const list = document.getElementById('newUserRolesList');
+    const placeholder = document.getElementById('newUserNoRolesPlaceholder');
+    if (!list) return;
+
+    // Remove old tags (keep placeholder)
+    Array.from(list.querySelectorAll('.new-user-role-tag')).forEach(el => el.remove());
+
+    if (window._newUserRoles.length === 0) {
+        if (placeholder) placeholder.style.display = '';
+    } else {
+        if (placeholder) placeholder.style.display = 'none';
+        window._newUserRoles.forEach(role => {
+            const info = NEW_USER_ROLE_LABELS[role] || { label: role, icon: 'fa-tag' };
+            const tag = document.createElement('span');
+            tag.className = 'new-user-role-tag';
+            tag.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:#ede9ff;border:1.5px solid #c4b5fd;border-radius:20px;font-size:13px;font-weight:500;color:#4c1d95;';
+            tag.innerHTML = `<i class="fas ${info.icon}"></i> ${info.label} <button type="button" onclick="removeNewUserRole('${role}')" style="background:none;border:none;cursor:pointer;color:#7c3aed;font-size:14px;line-height:1;padding:0 0 0 4px;">&times;</button>`;
+            list.appendChild(tag);
+        });
+    }
+}
+
+function addNewUserRole(role) {
+    if (!window._newUserRoles.includes(role)) {
+        window._newUserRoles.push(role);
+        renderNewUserRoleTags();
+    }
+    // Close dropdown
+    const dd = document.getElementById('newUserRoleDropdown');
+    if (dd) dd.style.display = 'none';
+}
+window.addNewUserRole = addNewUserRole;
+
+function removeNewUserRole(role) {
+    window._newUserRoles = window._newUserRoles.filter(r => r !== role);
+    renderNewUserRoleTags();
+}
+window.removeNewUserRole = removeNewUserRole;
+
+function toggleNewUserRoleDropdown() {
+    const dd = document.getElementById('newUserRoleDropdown');
+    if (!dd) return;
+    dd.style.display = dd.style.display === 'none' ? '' : 'none';
+}
+window.toggleNewUserRoleDropdown = toggleNewUserRoleDropdown;
+
+// Close new user role dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    const wrap = document.getElementById('newUserAddRoleWrap');
+    if (wrap && !wrap.contains(e.target)) {
+        const dd = document.getElementById('newUserRoleDropdown');
+        if (dd) dd.style.display = 'none';
+    }
+});
+// ────────────────────────────────────────────────────────────────────────────
+
 async function addNewUser(event) {
     event.preventDefault();
     
@@ -2048,8 +2116,17 @@ async function addNewUser(event) {
     
     const email = document.getElementById('userEmail').value.trim();
     const name = document.getElementById('userName').value.trim();
-    const role = document.getElementById('userRole').value;
+    const roles = window._newUserRoles || [];
     const password = document.getElementById('userPassword').value;
+
+    // Validate roles
+    if (roles.length === 0) {
+        alert('Please select at least one role.');
+        return;
+    }
+
+    // Determine primary role (admin > officer, else first selected)
+    const role = roles.includes('admin') ? 'admin' : (roles.includes('officer') ? 'officer' : roles[0]);
     
     // Validate password
     if (password.length < 6) {
@@ -2068,7 +2145,7 @@ async function addNewUser(event) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ email, name, role, password })
+            body: JSON.stringify({ email, name, role, staff_roles: roles, password })
         });
         
         const data = await response.json();
@@ -2087,8 +2164,10 @@ async function addNewUser(event) {
             alert(`Staff member "${name}" added successfully!`);
         }
         
-        // Reset form
+        // Reset form + role tags
         document.getElementById('addUserForm').reset();
+        window._newUserRoles = [];
+        renderNewUserRoleTags();
         
         // Reload users
         if (window.Cache) window.Cache.invalidatePrefix('users:');

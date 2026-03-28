@@ -2619,14 +2619,38 @@
                                placeholder="John Doe">
                     </div>
                     <div class="form-group">
-                        <label for="userRole"><i class="fas fa-user-tag"></i> Role *</label>
-                        <select id="userRole" class="form-control" required>
-                            <option value="officer">Academic Advisor</option>
-                            <option value="admin">Administrator</option>
-                        </select>
-                        <small style="color: #666; margin-top: 8px; display: block;">
-                            Officers can view and manage leads. Admins have full system access.
-                        </small>
+                        <label><i class="fas fa-user-tag"></i> Roles *</label>
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                            <small style="color:#666;">Select one or more roles for this staff member.</small>
+                            <!-- Add Role dropdown -->
+                            <div style="position:relative;" id="newUserAddRoleWrap">
+                                <button type="button" onclick="toggleNewUserRoleDropdown()"
+                                    style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:1.5px solid #6c47ff;border-radius:7px;background:#fff;color:#6c47ff;font-size:13px;font-weight:600;cursor:pointer;">
+                                    <i class="fas fa-plus"></i> Add Role
+                                </button>
+                                <div id="newUserRoleDropdown" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:999;min-width:200px;overflow:hidden;">
+                                    <div onclick="addNewUserRole('officer')" style="padding:10px 16px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#f3f0ff'" onmouseout="this.style.background=''">
+                                        <i class="fas fa-user-graduate" style="color:#6c47ff;width:16px;"></i> Academic Advisor
+                                    </div>
+                                    <div onclick="addNewUserRole('supervisor')" style="padding:10px 16px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#f3f0ff'" onmouseout="this.style.background=''">
+                                        <i class="fas fa-user-tie" style="color:#6c47ff;width:16px;"></i> Supervisor
+                                    </div>
+                                    <div onclick="addNewUserRole('batch_coordinator')" style="padding:10px 16px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#f3f0ff'" onmouseout="this.style.background=''">
+                                        <i class="fas fa-layer-group" style="color:#6c47ff;width:16px;"></i> Batch Coordinator
+                                    </div>
+                                    <div onclick="addNewUserRole('finance_manager')" style="padding:10px 16px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#f3f0ff'" onmouseout="this.style.background=''">
+                                        <i class="fas fa-coins" style="color:#6c47ff;width:16px;"></i> Finance Manager
+                                    </div>
+                                    <div onclick="addNewUserRole('admin')" style="padding:10px 16px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='#f3f0ff'" onmouseout="this.style.background=''">
+                                        <i class="fas fa-shield-alt" style="color:#6c47ff;width:16px;"></i> Administrator
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Role tags -->
+                        <div id="newUserRolesList" style="display:flex;flex-wrap:wrap;gap:8px;min-height:42px;padding:10px;border:1.5px dashed #d0c6f5;border-radius:8px;background:#faf9ff;">
+                            <span style="color:#aaa;font-size:13px;align-self:center;" id="newUserNoRolesPlaceholder">No roles selected. Click "Add Role" to begin.</span>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="userPassword"><i class="fas fa-lock"></i> Password *</label>
