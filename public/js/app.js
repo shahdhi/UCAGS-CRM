@@ -2107,32 +2107,89 @@ async function addNewUser(event) {
 
 // Switch tabs in Edit Staff modal
 function switchEditStaffTab(tab) {
+    const namePanel     = document.getElementById('editStaffPanelName');
     const passwordPanel = document.getElementById('editStaffPanelPassword');
-    const rolesPanel = document.getElementById('editStaffPanelRoles');
-    const tabPassword = document.getElementById('editStaffTabPassword');
-    const tabRoles = document.getElementById('editStaffTabRoles');
-    if (!passwordPanel || !rolesPanel || !tabPassword || !tabRoles) return;
+    const rolesPanel    = document.getElementById('editStaffPanelRoles');
+    const tabName       = document.getElementById('editStaffTabName');
+    const tabPassword   = document.getElementById('editStaffTabPassword');
+    const tabRoles      = document.getElementById('editStaffTabRoles');
 
-    if (tab === 'password') {
-        passwordPanel.style.display = '';
-        rolesPanel.style.display = 'none';
-        tabPassword.style.borderBottomColor = '#6c47ff';
-        tabPassword.style.color = '#6c47ff';
-        tabPassword.style.fontWeight = '600';
-        tabRoles.style.borderBottomColor = 'transparent';
-        tabRoles.style.color = '#666';
-        tabRoles.style.fontWeight = '500';
+    // Hide all panels and reset all tabs
+    [namePanel, passwordPanel, rolesPanel].forEach(p => { if (p) p.style.display = 'none'; });
+    [tabName, tabPassword, tabRoles].forEach(t => {
+        if (!t) return;
+        t.style.borderBottomColor = 'transparent';
+        t.style.color = '#666';
+        t.style.fontWeight = '500';
+    });
+
+    // Activate selected tab
+    if (tab === 'name') {
+        if (namePanel) namePanel.style.display = '';
+        if (tabName) { tabName.style.borderBottomColor = '#6c47ff'; tabName.style.color = '#6c47ff'; tabName.style.fontWeight = '600'; }
+    } else if (tab === 'password') {
+        if (passwordPanel) passwordPanel.style.display = '';
+        if (tabPassword) { tabPassword.style.borderBottomColor = '#6c47ff'; tabPassword.style.color = '#6c47ff'; tabPassword.style.fontWeight = '600'; }
     } else {
-        passwordPanel.style.display = 'none';
-        rolesPanel.style.display = '';
-        tabRoles.style.borderBottomColor = '#6c47ff';
-        tabRoles.style.color = '#6c47ff';
-        tabRoles.style.fontWeight = '600';
-        tabPassword.style.borderBottomColor = 'transparent';
-        tabPassword.style.color = '#666';
-        tabPassword.style.fontWeight = '500';
+        if (rolesPanel) rolesPanel.style.display = '';
+        if (tabRoles) { tabRoles.style.borderBottomColor = '#6c47ff'; tabRoles.style.color = '#6c47ff'; tabRoles.style.fontWeight = '600'; }
     }
 }
+
+// Save staff name (admin only)
+async function saveStaffName() {
+    if (currentUser.role !== 'admin') {
+        alert('Access denied. Admin only.');
+        return;
+    }
+
+    const userId = document.getElementById('changePasswordUserId').value;
+    const newName = (document.getElementById('editStaffNameInput').value || '').trim();
+
+    if (!newName) {
+        alert('Please enter a name.');
+        return;
+    }
+
+    const btn = document.getElementById('saveStaffNameBtn');
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    btn.disabled = true;
+
+    try {
+        // Fetch current user data to preserve the role
+        const usersRes = await fetch('/api/users');
+        const usersData = await usersRes.json();
+        const existingUser = (usersData.users || []).find(u => u.id === userId);
+        const currentRole = existingUser?.role || 'officer';
+
+        const response = await fetch(`/api/users/${userId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName, role: currentRole })
+        });
+        const data = await response.json();
+
+        if (!data.success) throw new Error(data.error || 'Failed to update name');
+
+        if (window.UI?.showToast) UI.showToast('Name updated successfully!', 'success');
+        else alert('Name updated successfully!');
+
+        closeModal('changePasswordModal');
+
+        // Invalidate user list cache and reload
+        if (window.Cache) window.Cache.invalidate('users_list');
+        loadUsers();
+    } catch (error) {
+        console.error('Error saving name:', error);
+        if (window.UI?.showToast) UI.showToast(error.message || 'Failed to update name', 'error');
+        else alert(error.message || 'Failed to update name');
+    } finally {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    }
+}
+window.saveStaffName = saveStaffName;
 
 // Track currently selected staff roles in the modal
 window._currentStaffRoles = [];
@@ -2325,11 +2382,15 @@ function openChangePasswordModal(userId, userEmail) {
     const addRoleDD = document.getElementById('addRoleDropdown');
     if (addRoleDD) addRoleDD.style.display = 'none';
 
-    // Load existing roles and password from user data
+    // Load existing roles, name and password from user data
     fetch('/api/users').then(r => r.json()).then(data => {
         if (!data.success) return;
         const user = (data.users || []).find(u => u.id === userId);
         if (!user) return;
+
+        // Pre-fill name input
+        const nameInput = document.getElementById('editStaffNameInput');
+        if (nameInput) nameInput.value = user.name || '';
 
         // Show current password in modal
         if (user.last_set_password && cpDisplay && cpValue) {

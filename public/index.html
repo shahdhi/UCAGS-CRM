@@ -2064,6 +2064,10 @@
 
                         <!-- Tab navigation -->
                         <div style="display:flex; gap:0; border-bottom: 2px solid #e0e0e0; margin-bottom: 18px;">
+                            <button type="button" id="editStaffTabName" onclick="switchEditStaffTab('name')"
+                                style="flex:1; padding:9px 0; border:none; background:none; border-bottom:3px solid transparent; color:#666; font-weight:500; cursor:pointer; font-size:14px; margin-bottom:-2px;">
+                                <i class="fas fa-user"></i> Name
+                            </button>
                             <button type="button" id="editStaffTabPassword" onclick="switchEditStaffTab('password')"
                                 style="flex:1; padding:9px 0; border:none; background:none; border-bottom:3px solid #6c47ff; color:#6c47ff; font-weight:600; cursor:pointer; font-size:14px; margin-bottom:-2px;">
                                 <i class="fas fa-key"></i> Password
@@ -2072,6 +2076,22 @@
                                 style="flex:1; padding:9px 0; border:none; background:none; border-bottom:3px solid transparent; color:#666; font-weight:500; cursor:pointer; font-size:14px; margin-bottom:-2px;">
                                 <i class="fas fa-shield-alt"></i> Roles
                             </button>
+                        </div>
+
+                        <!-- Tab: Name -->
+                        <div id="editStaffPanelName" style="display:none;">
+                            <div class="form-group">
+                                <label><i class="fas fa-user"></i> Display Name *</label>
+                                <input type="text" id="editStaffNameInput" class="form-control"
+                                       placeholder="Enter full name" maxlength="80">
+                                <p style="margin:6px 0 0; font-size:12px; color:#888;">This is the name shown across the system (sidebar, leads, reports, etc.)</p>
+                            </div>
+                            <div class="modal-actions" style="margin-top: 20px;">
+                                <button type="button" class="btn btn-secondary" onclick="closeModal('changePasswordModal')">Cancel</button>
+                                <button type="button" class="btn btn-primary" id="saveStaffNameBtn" onclick="saveStaffName()">
+                                    <i class="fas fa-save"></i> Save Name
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Tab: Password -->
