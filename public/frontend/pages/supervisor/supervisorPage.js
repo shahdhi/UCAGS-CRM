@@ -1011,19 +1011,23 @@
 
     const alerts = [];
 
-    // 1. Officers who haven't submitted checklist in 2+ consecutive days
+    // 1. Officers who have missed any checklist slot in the last 2 days
     officers.forEach(officer => {
-      let missed = 0;
+      let missedSlots = 0;
+      let totalSlots = 0;
       for (let i = 1; i <= 2; i++) {
         const d = dashAddDays(today, -i);
         const c = matrix?.[d]?.[officer.id];
-        if (!c || (!c.slot1 && !c.slot2 && !c.slot3)) missed++;
+        totalSlots += 3;
+        if (!c || !c.slot1) missedSlots++;
+        if (!c || !c.slot2) missedSlots++;
+        if (!c || !c.slot3) missedSlots++;
       }
-      if (missed >= 2) {
+      if (missedSlots > 0) {
         alerts.push({
           type: 'warning',
-          icon: 'fa-clipboard-times',
-          msg: `<b>${esc(officer.name)}</b> has not submitted any checklist slots in the last 2 days.`
+          icon: 'fa-clipboard-list',
+          msg: `<b>${esc(officer.name)}</b> missed <b>${missedSlots}</b> checklist slot${missedSlots > 1 ? 's' : ''} in the last 2 days.`
         });
       }
     });
