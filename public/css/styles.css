@@ -2809,6 +2809,23 @@ body:not(.admin) .nav-section.officer-only {
     display: block !important;
 }
 
+/* Hide "not-supervisor" items when the active role is supervisor */
+body.supervisor .not-supervisor {
+    display: none !important;
+}
+
+/* supervisor-only: hidden by default, shown only when active role is supervisor */
+.supervisor-only {
+    display: none !important;
+}
+body:not(.admin).supervisor .nav-item.supervisor-only,
+body:not(.admin).supervisor .nav-link.supervisor-only {
+    display: flex !important;
+}
+body:not(.admin).supervisor .nav-section.supervisor-only {
+    display: block !important;
+}
+
 /* Ensure content views also show/hide properly */
 body:not(.admin) .content-view.officer-only {
     display: block !important;
