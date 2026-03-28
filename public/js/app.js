@@ -943,10 +943,27 @@ async function navigateToPage(page) {
     }
 
     const navItems = document.querySelectorAll('.nav-item, .nav-subitem');
-    
+
+    // Extract the program+batch identity from a leads/lead-management page hash,
+    // so sidebar stays active when only the sheet changes.
+    function _leadsNavKey(p) {
+        if (!p) return null;
+        // Strip the __sheet__... suffix so any sheet on the same batch matches
+        const stripSheet = p.replace(/__sheet__.*/i, '');
+        if (stripSheet.startsWith('leads-myLeads-batch-')) return stripSheet;
+        if (stripSheet.startsWith('leads-batch-')) return stripSheet;
+        if (stripSheet.startsWith('lead-management-batch-')) return stripSheet;
+        return null;
+    }
+    const pageKey = _leadsNavKey(page);
+
     // Update active link
     navItems.forEach(link => {
-        if (link.dataset.page === page) {
+        const linkPage = link.dataset.page || '';
+        const linkKey = _leadsNavKey(linkPage);
+        // Match exactly, OR match by batch key (ignores sheet portion) for leads pages
+        const isActive = linkPage === page || (pageKey && linkKey && pageKey === linkKey);
+        if (isActive) {
             link.classList.add('active');
         } else {
             link.classList.remove('active');
@@ -4386,9 +4403,10 @@ function renderSwitchRoleList() {
                 UI.showToast(`Switched to ${meta.label}`, 'success');
             }
 
-            // Navigate to home after role switch so UI refreshes cleanly
-            window.location.hash = 'home';
-            navigateToPage('home');
+            // Navigate to the appropriate landing page after role switch
+            const landingPage = selectedRole === 'supervisor' ? 'supervisor-dashboard' : 'home';
+            window.location.hash = landingPage;
+            navigateToPage(landingPage);
 
             // Close popup
             if (popup) popup.classList.add('hidden');
