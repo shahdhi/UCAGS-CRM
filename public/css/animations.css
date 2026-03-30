@@ -193,11 +193,16 @@
     }
 }
 
-.btn-primary,
 .nav-brand h2,
 .page-header h1 {
     background-size: 200% 200%;
     animation: gradientShift 3s ease infinite;
+}
+
+/* btn-primary: no continuous animation – interferes with touch events on mobile */
+.btn-primary {
+    background-size: auto;
+    animation: none;
 }
 
 /* Slide In From Left */
@@ -231,8 +236,9 @@
     }
 }
 
+/* Login box: no continuous transform animation – it blocks touch input on mobile */
 .login-box {
-    animation: breathe 4s ease-in-out infinite;
+    animation: none;
 }
 
 /* Typing Animation for Loading Text */
