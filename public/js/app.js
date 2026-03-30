@@ -114,6 +114,12 @@ async function initializeApp() {
 function showLogin() {
     UI.hide('dashboardPage');
     UI.show('loginPage');
+    // Hide sidebar overlay if visible (prevents blocking login on mobile)
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    if (sidebarOverlay) {
+        sidebarOverlay.classList.remove('visible');
+        sidebarOverlay.style.display = 'none';
+    }
     
     // Clear any active views and reset hash
     window.location.hash = '';
