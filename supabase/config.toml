@@ -60,7 +60,7 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.crm-leads]
-verify_jwt = true
+verify_jwt = false
 
 [functions.crm-followups]
 verify_jwt = true
