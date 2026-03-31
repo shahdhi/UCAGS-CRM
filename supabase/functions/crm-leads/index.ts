@@ -967,6 +967,12 @@ Deno.serve(async (req: Request) => {
   // Auth
   const user = await getUser(req);
 
+  // Temporary debug: log auth headers received
+  console.log('[crm-leads] method:', method, 'path:', afterFn);
+  console.log('[crm-leads] Authorization header present:', !!req.headers.get('Authorization'));
+  console.log('[crm-leads] apikey header present:', !!req.headers.get('apikey'));
+  console.log('[crm-leads] user resolved:', user ? user.id : 'null');
+
   try {
     // -----------------------------------------------------------------------
     // OPTIONS already handled above via handleCors
@@ -976,7 +982,7 @@ Deno.serve(async (req: Request) => {
     // GET /meta/sheets?batch=...
     // -----------------------------------------------------------------------
     if (method === 'GET' && afterFn === 'meta/sheets') {
-      if (!user) return jsonResp({ success: false, error: 'Unauthorized' }, 401);
+      if (!user) return jsonResp({ success: false, error: 'Unauthorized', debug: { hasAuth: !!req.headers.get('Authorization'), hasApiKey: !!req.headers.get('apikey') } }, 401);
       if (!isAdminOrOfficer(user)) return jsonResp({ success: false, error: 'Forbidden' }, 403);
       const batchName = url.searchParams.get('batch') ?? '';
       const sheets = await listSheetsForBatch(sb, { batchName, user });
@@ -1119,7 +1125,7 @@ Deno.serve(async (req: Request) => {
     // GET /admin?batch=...&sheet=...
     // -----------------------------------------------------------------------
     if (method === 'GET' && afterFn === 'admin') {
-      if (!user) return jsonResp({ success: false, error: 'Unauthorized' }, 401);
+      if (!user) return jsonResp({ success: false, error: 'Unauthorized', debug: { hasAuth: !!req.headers.get('Authorization'), hasApiKey: !!req.headers.get('apikey'), tokenPrefix: (req.headers.get('Authorization') ?? '').slice(0, 20) } }, 401);
       if (!isAdminOrOfficer(user)) return jsonResp({ success: false, error: 'Forbidden' }, 403);
       const leads = await listAdminLeads(sb, {
         batchName: url.searchParams.get('batch'), sheetName: url.searchParams.get('sheet'),
