@@ -120,6 +120,9 @@ async function getUser(req: Request): Promise<any | null> {
   return user;
 }
 
+// Hardcoded admin emails (mirrors app.js logic)
+const ADMIN_EMAILS = ['admin@ucags.edu.lk', 'mohamedunais2018@gmail.com'];
+
 function userRole(user: any): string {
   return cleanStr(user?.user_metadata?.role ?? user?.role);
 }
@@ -128,13 +131,25 @@ function userName(user: any): string {
   return cleanStr(user?.user_metadata?.name ?? user?.user_metadata?.full_name ?? '');
 }
 
+function getStaffRoles(user: any): string[] {
+  const roles = user?.user_metadata?.staff_roles;
+  return Array.isArray(roles) ? roles.map(cleanStr).filter(Boolean) : [];
+}
+
 function isAdmin(user: any): boolean {
-  return userRole(user) === 'admin';
+  if (userRole(user) === 'admin') return true;
+  const email = cleanStr(user?.email).toLowerCase();
+  return ADMIN_EMAILS.includes(email);
 }
 
 function isAdminOrOfficer(user: any): boolean {
+  if (isAdmin(user)) return true;
+  // Officers are staff with any staff_roles entry
+  const staffRoles = getStaffRoles(user);
+  if (staffRoles.length > 0) return true;
+  // Legacy: role field set to officer/admission_officer
   const r = userRole(user);
-  return ['admin', 'officer', 'admission_officer'].includes(r);
+  return ['officer', 'admission_officer'].includes(r);
 }
 
 // ---------------------------------------------------------------------------
