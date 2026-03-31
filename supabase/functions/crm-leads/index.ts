@@ -108,7 +108,15 @@ async function getUser(req: Request): Promise<any | null> {
 
   // The admin/service-role client can verify any JWT via getUser(token)
   const { data: { user }, error } = await adminSb().auth.getUser(token);
-  if (error || !user) return null;
+  if (error) {
+    console.error('[crm-leads] getUser error:', error.message, error.status);
+    return null;
+  }
+  if (!user) {
+    console.error('[crm-leads] getUser returned no user for token');
+    return null;
+  }
+  console.log('[crm-leads] user verified:', user.id, 'role:', user.user_metadata?.role);
   return user;
 }
 

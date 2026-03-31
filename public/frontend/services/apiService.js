@@ -8,6 +8,7 @@ const API_BASE = '/api';
 // Supabase Edge Function base URL for crm-leads routes
 // All /crm-leads/* calls go directly to the edge function, bypassing Vercel.
 const EDGE_BASE = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-leads';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
 
 /**
  * Generic fetch wrapper with error handling
@@ -25,9 +26,12 @@ async function fetchAPI(endpoint, options = {}) {
 
     // Route /crm-leads/* directly to the Supabase Edge Function
     let fullUrl;
+    let extraHeaders = {};
     if (endpoint.startsWith('/crm-leads/') || endpoint === '/crm-leads') {
       const suffix = endpoint.replace(/^\/crm-leads\/?/, '');
       fullUrl = suffix ? `${EDGE_BASE}/${suffix}` : EDGE_BASE;
+      // Supabase gateway requires the anon key as the apikey header
+      extraHeaders['apikey'] = SUPABASE_ANON_KEY;
     } else {
       fullUrl = `${API_BASE}${endpoint}`;
     }
@@ -36,6 +40,7 @@ async function fetchAPI(endpoint, options = {}) {
       headers: {
         'Content-Type': 'application/json',
         ...authHeaders,
+        ...extraHeaders,
         ...options.headers
       },
       ...options
