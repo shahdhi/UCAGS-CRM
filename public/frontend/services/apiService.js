@@ -5,6 +5,10 @@
 
 const API_BASE = '/api';
 
+// Supabase Edge Function base URL for crm-leads routes
+// All /crm-leads/* calls go directly to the edge function, bypassing Vercel.
+const EDGE_BASE = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-leads';
+
 /**
  * Generic fetch wrapper with error handling
  */
@@ -18,8 +22,17 @@ async function fetchAPI(endpoint, options = {}) {
         authHeaders['Authorization'] = `Bearer ${session.access_token}`;
       }
     }
-    
-    const response = await fetch(`${API_BASE}${endpoint}`, {
+
+    // Route /crm-leads/* directly to the Supabase Edge Function
+    let fullUrl;
+    if (endpoint.startsWith('/crm-leads/') || endpoint === '/crm-leads') {
+      const suffix = endpoint.replace(/^\/crm-leads\/?/, '');
+      fullUrl = suffix ? `${EDGE_BASE}/${suffix}` : EDGE_BASE;
+    } else {
+      fullUrl = `${API_BASE}${endpoint}`;
+    }
+
+    const response = await fetch(fullUrl, {
       headers: {
         'Content-Type': 'application/json',
         ...authHeaders,
@@ -36,7 +49,7 @@ async function fetchAPI(endpoint, options = {}) {
     } else {
       // If the backend returned HTML (often means API route not reached), throw a clearer error
       const text = await response.text();
-      throw new Error(`API returned non-JSON response for ${endpoint} (status ${response.status}). Check API routing/auth. Body starts: ${text.slice(0, 60)}`);
+      throw new Error(`API returned non-JSON response for ${fullUrl} (status ${response.status}). Check API routing/auth. Body starts: ${text.slice(0, 60)}`);
     }
 
     if (!response.ok) {
@@ -280,6 +293,7 @@ const leadsAPI = {
 
   /**
    * Export leads as CSV (admin)
+   * Points directly at the Supabase Edge Function so the download works without Vercel.
    */
   exportCsvUrl: (filters = {}) => {
     const params = new URLSearchParams();
@@ -287,7 +301,7 @@ const leadsAPI = {
     if (filters.sheet) params.append('sheet', filters.sheet);
     if (filters.status) params.append('status', filters.status);
     if (filters.search) params.append('search', filters.search);
-    return `${API_BASE}/crm-leads/admin/export.csv?${params.toString()}`;
+    return `${EDGE_BASE}/admin/export.csv?${params.toString()}`;
   },
 
   /**
