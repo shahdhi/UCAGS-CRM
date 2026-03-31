@@ -958,7 +958,11 @@ Deno.serve(async (req: Request) => {
   // Edge function URL: /functions/v1/crm-leads/...
   // After stripping we work with segments after "crm-leads"
   const fullPath = url.pathname; // e.g. /functions/v1/crm-leads/admin
-  const afterFn = fullPath.replace(/^\/functions\/v1\/crm-leads\/?/, '').replace(/^crm-leads\/?/, '');
+  // Strip everything up to and including "crm-leads" to get the sub-path
+  const crmIdx = fullPath.indexOf('crm-leads');
+  const afterFn = crmIdx !== -1
+    ? fullPath.slice(crmIdx + 'crm-leads'.length).replace(/^\//, '')
+    : fullPath.replace(/^\/+/, '');
   // afterFn examples: "admin", "my", "admin/meta/batches", "admin/Batch-14/Main Leads/123"
   const method = req.method.toUpperCase();
 
