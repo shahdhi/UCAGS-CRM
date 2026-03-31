@@ -98,20 +98,16 @@ function adminSb() {
 
 /**
  * Verify the JWT from the request and return the decoded user payload.
- * Returns null if no/invalid token.
+ * Uses the service-role client's auth.getUser(token) which works with any valid JWT
+ * without needing the anon key (only SUPABASE_SERVICE_ROLE_KEY is needed).
  */
 async function getUser(req: Request): Promise<any | null> {
   const auth = req.headers.get('Authorization') ?? '';
   const token = auth.replace(/^Bearer\s+/i, '').trim();
   if (!token) return null;
 
-  // Use an anon client to verify the token
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? SERVICE_ROLE_KEY;
-  const userClient = createClient(SUPABASE_URL, anonKey, {
-    auth: { persistSession: false },
-    global: { headers: { Authorization: `Bearer ${token}` } },
-  });
-  const { data: { user }, error } = await userClient.auth.getUser();
+  // The admin/service-role client can verify any JWT via getUser(token)
+  const { data: { user }, error } = await adminSb().auth.getUser(token);
   if (error || !user) return null;
   return user;
 }
