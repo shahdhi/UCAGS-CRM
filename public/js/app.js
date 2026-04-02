@@ -1691,10 +1691,22 @@ async function loadSettings() {
         const btnAdminLeave = document.getElementById('settingsAdminLeaveReqBtn');
         const btnAdminDaily = document.getElementById('settingsAdminDailyReportsBtn');
 
+        // Edge routing helper for notifications (app.js context)
+        const _NOTIF_EDGE_APP = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-notifications';
+        const _NOTIF_ANON_APP = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
+
+        async function notifFetchApp(path, options = {}) {
+            const hdrs = await getAuthHeadersWithRetry();
+            hdrs['apikey'] = _NOTIF_ANON_APP;
+            if (options.headers) Object.assign(hdrs, options.headers);
+            const suffix = path.replace(/^\/api\/notifications\/?/, '');
+            const url = suffix ? `${_NOTIF_EDGE_APP}/${suffix}` : _NOTIF_EDGE_APP;
+            return fetch(url, { ...options, headers: hdrs });
+        }
+
         async function loadServerSettings() {
             try {
-                const headers = await getAuthHeadersWithRetry();
-                const res = await fetch('/api/notifications/settings', { headers });
+                const res = await notifFetchApp('/api/notifications/settings');
                 const json = await res.json();
                 if (json?.success && json.settings) {
                     return json.settings;
@@ -1705,8 +1717,11 @@ async function loadSettings() {
 
         async function saveServerSettings(patch) {
             try {
-                const headers = { ...(await getAuthHeadersWithRetry()), 'Content-Type': 'application/json' };
-                const res = await fetch('/api/notifications/settings', { method: 'PUT', headers, body: JSON.stringify(patch) });
+                const res = await notifFetchApp('/api/notifications/settings', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(patch)
+                });
                 const json = await res.json();
                 if (json?.success && json.settings) return json.settings;
             } catch (e) {}
@@ -1759,9 +1774,9 @@ async function loadSettings() {
                     if (perm === 'granted' && enabledLocal) {
                         window.Notifications.setBrowserNotificationsEnabled(false);
                         // persist server pref
-                        await fetch('/api/notifications/settings', {
+                        await notifFetchApp('/api/notifications/settings', {
                             method: 'PUT',
-                            headers: { ...(await getAuthHeadersWithRetry()), 'Content-Type': 'application/json' },
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ browser_alerts_enabled: false })
                         });
                         if (msg) msg.textContent = 'Browser alerts disabled.';
@@ -1774,18 +1789,18 @@ async function loadSettings() {
                     if (p === 'granted') {
                         window.Notifications.setBrowserNotificationsEnabled(true);
                         // persist server pref
-                        await fetch('/api/notifications/settings', {
+                        await notifFetchApp('/api/notifications/settings', {
                             method: 'PUT',
-                            headers: { ...(await getAuthHeadersWithRetry()), 'Content-Type': 'application/json' },
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ browser_alerts_enabled: true })
                         });
                         if (msg) msg.textContent = 'Browser alerts enabled.';
                         if (window.showToast) showToast('Browser alerts enabled', 'success');
                     } else {
                         window.Notifications.setBrowserNotificationsEnabled(false);
-                        await fetch('/api/notifications/settings', {
+                        await notifFetchApp('/api/notifications/settings', {
                             method: 'PUT',
-                            headers: { ...(await getAuthHeadersWithRetry()), 'Content-Type': 'application/json' },
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ browser_alerts_enabled: false })
                         });
                         if (msg) msg.textContent = 'Browser alerts not allowed.';

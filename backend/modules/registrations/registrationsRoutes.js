@@ -202,7 +202,7 @@ router.post('/intake', async (req, res) => {
 
     // Notifications: registration received
     try {
-      const { createNotification, listAdminUserIds, getNotificationSettings } = require('../notifications/notificationsService');
+      const { createNotification, listAdminUserIds, getNotificationSettings } = require('../notifications/notificationsHelper');
 
       const assignedToName = cleanString(data?.assigned_to || row.assigned_to);
       const sb2 = getSupabaseAdmin();

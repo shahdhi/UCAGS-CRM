@@ -157,7 +157,7 @@ async function notifyLeadAssignment({ officerName, leadCount = 1, batchName, she
   if (!userId) return;
 
   try {
-    const { createNotification } = require('../notifications/notificationsService');
+    const { createNotification } = require('../notifications/notificationsHelper');
     const title = 'New leads assigned';
     const msg = `${Number(leadCount) || 1} lead(s) assigned — ${cleanString(batchName)}${sheetName ? ' / ' + cleanString(sheetName) : ''}`;
     await createNotification({

@@ -134,7 +134,7 @@ router.post('/me/leave-requests', isAuthenticated, async (req, res) => {
 
     // Notify admins
     try {
-      const { listAdminUserIds, createNotification, getNotificationSettings } = require('../notifications/notificationsService');
+      const { listAdminUserIds, createNotification, getNotificationSettings } = require('../notifications/notificationsHelper');
       const adminIds = await listAdminUserIds();
       for (const adminId of adminIds) {
         const s = await getNotificationSettings(adminId);

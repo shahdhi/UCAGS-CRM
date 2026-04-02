@@ -6,6 +6,19 @@
   const READ_KEY = 'notificationCenter:readAt';
   const MAX_ITEMS = 50;
 
+  // Edge routing helper
+  const _NOTIF_EDGE = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-notifications';
+  const _NOTIF_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
+
+  async function notifFetch(path, options = {}) {
+    const hdrs = await authHeaders();
+    hdrs['apikey'] = _NOTIF_ANON;
+    if (options.headers) Object.assign(hdrs, options.headers);
+    const suffix = path.replace(/^\/api\/notifications\/?/, '');
+    const url = suffix ? `${_NOTIF_EDGE}/${suffix}` : _NOTIF_EDGE;
+    return fetch(url, { ...options, headers: hdrs });
+  }
+
   function safeJsonParse(s, fallback) {
     try { return JSON.parse(s); } catch { return fallback; }
   }
@@ -30,7 +43,7 @@
   async function loadItems() {
     // Prefer Supabase-backed notifications; fallback to local.
     try {
-      const res = await fetch('/api/notifications?limit=' + MAX_ITEMS, { headers: await authHeaders() });
+      const res = await notifFetch('/api/notifications?limit=' + MAX_ITEMS);
       const json = await res.json();
       if (json?.success && Array.isArray(json.notifications)) {
         return json.notifications.map(n => ({
@@ -63,9 +76,9 @@
     localStorage.setItem(READ_KEY, String(Date.now()));
     // Best-effort mark read in Supabase
     try {
-      await fetch('/api/notifications/mark-all-read', {
+      await notifFetch('/api/notifications/mark-all-read', {
         method: 'POST',
-        headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
     } catch (e) {}
@@ -84,9 +97,9 @@
 
     // Optional: persist to server (explicit use only)
     try {
-      const res = await fetch('/api/notifications', {
+      const res = await notifFetch('/api/notifications', {
         method: 'POST',
-        headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, message, type })
       });
       const json = await res.json();

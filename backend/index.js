@@ -106,9 +106,6 @@ app.use('/api/contacts', require('./modules/contacts/contactsRoutes'));
 // Google OAuth + Contacts sync
 app.use('/api/google', require('./modules/google/googleRoutes'));
 
-// Notifications
-app.use('/api/notifications', require('./modules/notifications/notificationsRoutes'));
-
 // Demo Sessions (invite + attendance + reminders)
 app.use('/api/demo-sessions', require('./modules/demoSessions/demoSessionsRoutes'));
 

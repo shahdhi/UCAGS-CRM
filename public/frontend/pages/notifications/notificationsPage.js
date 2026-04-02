@@ -26,17 +26,30 @@
     return 'fa-circle-info';
   }
 
+  // Edge routing helper — sends /api/notifications/* to crm-notifications edge function
+  const _NOTIF_EDGE = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-notifications';
+  const _NOTIF_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
+
+  async function notifFetch(path, options = {}) {
+    const hdrs = await authHeaders();
+    hdrs['apikey'] = _NOTIF_ANON;
+    if (options.headers) Object.assign(hdrs, options.headers);
+    const suffix = path.replace(/^\/api\/notifications\/?/, '');
+    const url = suffix ? `${_NOTIF_EDGE}/${suffix}` : _NOTIF_EDGE;
+    return fetch(url, { ...options, headers: hdrs });
+  }
+
   async function loadNotifications(limit = 200) {
-    const res = await fetch(`/api/notifications?limit=${limit}`, { headers: await authHeaders() });
+    const res = await notifFetch(`/api/notifications?limit=${limit}`);
     const json = await res.json();
     if (!json?.success) throw new Error(json?.error || 'Failed to load notifications');
     return json.notifications || [];
   }
 
   async function markAllRead() {
-    await fetch('/api/notifications/mark-all-read', {
+    await notifFetch('/api/notifications/mark-all-read', {
       method: 'POST',
-      headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
     }).catch(() => {});
 
