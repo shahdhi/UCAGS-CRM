@@ -80,6 +80,9 @@ verify_jwt = true
 [functions.reports]
 verify_jwt = true
 
+[functions.crm-reports]
+verify_jwt = false
+
 [functions.batches]
 verify_jwt = true
 

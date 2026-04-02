@@ -15,6 +15,9 @@ const EDGE_BASE_NOTIFICATIONS = 'https://xddaxiwyszynjyrizkmc.supabase.co/functi
 // Supabase Edge Function base URL for crm-registrations routes
 const EDGE_BASE_REGISTRATIONS = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-registrations';
 
+// Supabase Edge Function base URL for crm-reports routes
+const EDGE_BASE_REPORTS = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-reports';
+
 const EDGE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
 
 /**
@@ -55,6 +58,11 @@ async function fetchAPI(endpoint, options = {}) {
         fullUrl = suffix ? `${EDGE_BASE_REGISTRATIONS}/${suffix}` : EDGE_BASE_REGISTRATIONS;
         extraHeaders['apikey'] = EDGE_ANON_KEY;
       }
+    } else if (endpoint.startsWith('/reports/') || endpoint === '/reports') {
+      // Route all /reports/* directly to the Supabase Edge Function (crm-reports)
+      const suffix = endpoint.replace(/^\/reports\/?/, '');
+      fullUrl = suffix ? `${EDGE_BASE_REPORTS}/${suffix}` : EDGE_BASE_REPORTS;
+      extraHeaders['apikey'] = EDGE_ANON_KEY;
     } else {
       fullUrl = `${API_BASE}${endpoint}`;
     }
