@@ -817,9 +817,14 @@
       submitBtn.textContent = 'Submitting...';
 
       try {
-        const res = await fetch('/api/registrations/intake', {
+        // POST /intake goes directly to the Supabase Edge Function (no auth needed)
+        const INTAKE_URL = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-registrations/intake';
+        const res = await fetch(INTAKE_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q'
+          },
           body: JSON.stringify(payload)
         });
 

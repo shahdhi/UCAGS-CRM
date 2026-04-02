@@ -8,6 +8,13 @@ const API_BASE = '/api';
 // Supabase Edge Function base URL for crm-leads routes
 // All /crm-leads/* calls go directly to the edge function, bypassing Vercel.
 const EDGE_BASE = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-leads';
+
+// Supabase Edge Function base URL for crm-notifications routes
+const EDGE_BASE_NOTIFICATIONS = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-notifications';
+
+// Supabase Edge Function base URL for crm-registrations routes
+const EDGE_BASE_REGISTRATIONS = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-registrations';
+
 const EDGE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
 
 /**
@@ -32,6 +39,22 @@ async function fetchAPI(endpoint, options = {}) {
       fullUrl = suffix ? `${EDGE_BASE}/${suffix}` : EDGE_BASE;
       // Supabase gateway requires the anon key as the apikey header
       extraHeaders['apikey'] = EDGE_ANON_KEY;
+    } else if (endpoint.startsWith('/notifications/') || endpoint === '/notifications') {
+      // Route all /notifications/* directly to the Supabase Edge Function
+      const suffix = endpoint.replace(/^\/notifications\/?/, '');
+      fullUrl = suffix ? `${EDGE_BASE_NOTIFICATIONS}/${suffix}` : EDGE_BASE_NOTIFICATIONS;
+      extraHeaders['apikey'] = EDGE_ANON_KEY;
+    } else if (endpoint.startsWith('/registrations/') || endpoint === '/registrations') {
+      // Route all /registrations/* directly to the Supabase Edge Function
+      // Exception: /registrations/admin/export-sheet stays on Express (needs Google Sheets)
+      const suffix = endpoint.replace(/^\/registrations\/?/, '');
+      if (suffix === 'admin/export-sheet') {
+        // Keep on Express backend — requires Google Sheets API
+        fullUrl = `${API_BASE}${endpoint}`;
+      } else {
+        fullUrl = suffix ? `${EDGE_BASE_REGISTRATIONS}/${suffix}` : EDGE_BASE_REGISTRATIONS;
+        extraHeaders['apikey'] = EDGE_ANON_KEY;
+      }
     } else {
       fullUrl = `${API_BASE}${endpoint}`;
     }

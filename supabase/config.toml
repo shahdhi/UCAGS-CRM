@@ -71,8 +71,8 @@ verify_jwt = true
 [functions.users]
 verify_jwt = true
 
-[functions.notifications]
-verify_jwt = true
+[functions.crm-notifications]
+verify_jwt = false
 
 [functions.attendance]
 verify_jwt = true
@@ -86,7 +86,7 @@ verify_jwt = true
 [functions.batch-sync]
 verify_jwt = true
 
-[functions.registrations]
+[functions.crm-registrations]
 verify_jwt = false
 
 [functions.payments]
