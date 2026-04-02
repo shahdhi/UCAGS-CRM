@@ -100,9 +100,6 @@ app.use('/api/payment-setup', require('./modules/paymentSetup/batchPaymentSetupR
 // Registrations (public intake + admin listing)
 app.use('/api/registrations', require('./modules/registrations/registrationsRoutes'));
 
-// Reports (daily officer reports)
-app.use('/api/reports', require('./modules/reports/reportsRoutes'));
-
 // Contacts (CRM-only)
 app.use('/api/contacts', require('./modules/contacts/contactsRoutes'));
 
