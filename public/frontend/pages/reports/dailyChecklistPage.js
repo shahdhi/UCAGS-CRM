@@ -5,6 +5,21 @@
 (function () {
   const $ = (id) => document.getElementById(id);
 
+  // ---------------------------------------------------------------------------
+  // Edge function routing helper — rewrites /api/reports/* → Supabase edge URL
+  // ---------------------------------------------------------------------------
+  const _REPORTS_EDGE = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-reports';
+  const _REPORTS_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
+
+  async function reportsFetch(path, options = {}) {
+    const hdrs = await authHeaders();
+    hdrs['apikey'] = _REPORTS_ANON;
+    if (options.headers) Object.assign(hdrs, options.headers);
+    const suffix = path.replace(/^\/api\/reports\/?/, '');
+    const url = suffix ? `${_REPORTS_EDGE}/${suffix}` : _REPORTS_EDGE;
+    return fetch(url, { ...options, headers: hdrs });
+  }
+
   const SL_OFFSET_MIN = 330;
 
   function slTodayISO() {
@@ -192,10 +207,9 @@
   }
 
   async function saveRecordingStatus({ dateISO, officerUserId, status }) {
-    const headers = { ...(await authHeaders()), 'Content-Type': 'application/json' };
-    const res = await fetch('/api/reports/daily-checklist/call-recording', {
+    const res = await reportsFetch('/api/reports/daily-checklist/call-recording', {
       method: 'PUT',
-      headers,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ dateISO, officerUserId, status })
     });
     const json = await res.json();
@@ -204,10 +218,9 @@
   }
 
   async function recordSnapshotForDate(dateISO) {
-    const headers = { ...(await authHeaders()), 'Content-Type': 'application/json' };
-    const res = await fetch('/api/reports/daily-checklist/snapshot', {
+    const res = await reportsFetch('/api/reports/daily-checklist/snapshot', {
       method: 'POST',
-      headers,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ dateISO })
     });
     const json = await res.json();
@@ -229,9 +242,7 @@
     if (wrap) wrap.innerHTML = `<div class="dashboard-card"><p class="loading">Loading checklist…</p></div>`;
     if (msg) msg.textContent = '';
 
-    const headers = await authHeaders();
-    const url = `/api/reports/daily-checklist?start=${encodeURIComponent(start)}&days=${encodeURIComponent(days)}`;
-    const res = await fetch(url, { headers });
+    const res = await reportsFetch(`/api/reports/daily-checklist?start=${encodeURIComponent(start)}&days=${encodeURIComponent(days)}`);
     const json = await res.json();
 
     if (!json?.success) {

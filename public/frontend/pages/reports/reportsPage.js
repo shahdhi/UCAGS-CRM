@@ -10,6 +10,25 @@
   let officerHintIntervalId = null;
   let isInitReports = false;
 
+  // ---------------------------------------------------------------------------
+  // Edge function routing helper — rewrites /api/reports/* → Supabase edge URL
+  // ---------------------------------------------------------------------------
+  const _REPORTS_EDGE = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-reports';
+  const _REPORTS_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
+
+  function reportsUrl(path) {
+    // path is e.g. '/api/reports/daily/schedule'
+    const suffix = path.replace(/^\/api\/reports\/?/, '');
+    return suffix ? `${_REPORTS_EDGE}/${suffix}` : _REPORTS_EDGE;
+  }
+
+  async function reportsFetch(path, options = {}) {
+    const hdrs = await authHeaders();
+    hdrs['apikey'] = _REPORTS_ANON;
+    if (options.headers) Object.assign(hdrs, options.headers);
+    return fetch(reportsUrl(path), { ...options, headers: hdrs });
+  }
+
   async function authHeaders() {
     const headers = {};
     if (window.supabaseClient) {
@@ -218,8 +237,7 @@
       if (cached) return cached;
     }
 
-    const headers = await authHeaders();
-    const res = await fetch('/api/reports/daily/schedule', { headers });
+    const res = await reportsFetch('/api/reports/daily/schedule');
     const json = await res.json();
     if (!json?.success) throw new Error(json?.error || 'Failed to load schedule');
 
@@ -240,10 +258,9 @@
       notes: $('dailyReportNotes').value
     };
 
-    const headers = { ...(await authHeaders()), 'Content-Type': 'application/json' };
-    const res = await fetch('/api/reports/daily/submit', {
+    const res = await reportsFetch('/api/reports/daily/submit', {
       method: 'POST',
-      headers,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slotKey, payload, clientNowISO: new Date().toISOString() })
     });
 
@@ -265,8 +282,7 @@
       if (cached && Array.isArray(cached)) return cached;
     }
 
-    const headers = await authHeaders();
-    const res = await fetch(`/api/reports/daily?date=${encodeURIComponent(date)}`, { headers });
+    const res = await reportsFetch(`/api/reports/daily?date=${encodeURIComponent(date)}`);
     const json = await res.json();
     if (!json?.success) throw new Error(json?.error || 'Failed to load reports');
 
@@ -301,8 +317,6 @@
   }
 
   async function adminSaveSchedule() {
-    const headers = { ...(await authHeaders()), 'Content-Type': 'application/json' };
-
     const slot1Time = $('slot1Time').value;
     const slot2Time = $('slot2Time').value;
     const slot3Time = $('slot3Time').value;
@@ -314,9 +328,9 @@
     ];
     const graceMinutes = $('graceMinutes').value;
 
-    const res = await fetch('/api/reports/daily/schedule', {
+    const res = await reportsFetch('/api/reports/daily/schedule', {
       method: 'PUT',
-      headers,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slots, graceMinutes, timezone: 'Asia/Colombo' })
     });
 
@@ -340,10 +354,9 @@
       notes: $('dailyReportNotes').value
     };
 
-    const headers = { ...(await authHeaders()), 'Content-Type': 'application/json' };
-    const res = await fetch(`/api/reports/daily/${encodeURIComponent(reportId)}`, {
+    const res = await reportsFetch(`/api/reports/daily/${encodeURIComponent(reportId)}`, {
       method: 'PUT',
-      headers,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
@@ -478,8 +491,7 @@
   }
 
   async function officerLoadOverview(dateISO) {
-    const headers = await authHeaders();
-    const res = await fetch(`/api/reports/daily/overview?date=${encodeURIComponent(dateISO)}`, { headers });
+    const res = await reportsFetch(`/api/reports/daily/overview?date=${encodeURIComponent(dateISO)}`);
     const json = await res.json();
     if (!json?.success) throw new Error(json?.error || 'Failed to load reports');
     return { reports: json.reports || [], officers: json.officers || [] };
@@ -610,10 +622,9 @@
       if (openSlot && openSlot.key !== _lastRemindedSlotKey) {
         _lastRemindedSlotKey = openSlot.key;
         try {
-          const headers = { ...(await authHeaders()), 'Content-Type': 'application/json' };
-          await fetch('/api/reports/daily/remind', {
+          await reportsFetch('/api/reports/daily/remind', {
             method: 'POST',
-            headers,
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ nowISO: now.toISOString() })
           });
         } catch (e) {
