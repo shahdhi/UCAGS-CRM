@@ -380,7 +380,7 @@ async function loadLeads() {
       }
 
       // No caching: start with defaults, then fetch from server
-      let sheets = ['Main Leads', 'Extra Leads'];
+      let sheets = ['Main Leads', 'Extra Leads', 'Foxes'];
       sheets = Array.from(new Set(sheets));
 
       // Officer-only: meta/sheets returns only the officer-created sheets (excluding defaults)
@@ -558,7 +558,7 @@ async function loadLeads() {
           const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`, { headers: authHeaders });
           const json = await res.json();
           if (json.success && Array.isArray(json.sheets)) {
-            const merged = Array.from(new Set(['Main Leads', 'Extra Leads', ...json.sheets]));
+            const merged = Array.from(new Set(['Main Leads', 'Extra Leads', 'Foxes', ...json.sheets]));
             const officer = isOfficerView ? (json.sheets || []).slice() : [];
             window[sheetsCacheKey] = { merged, officer };
             if (isOfficerView) officerCreatedSheets = officer;

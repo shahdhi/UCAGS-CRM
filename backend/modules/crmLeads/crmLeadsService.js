@@ -1092,8 +1092,8 @@ async function assertOfficerCanUseSheet({ sb, batchName, sheetName, officerName 
   // New rule: officers can only add/delete/copy leads to sheets they created.
   // "Main Leads" and "Extra Leads" are reserved (read-only for officers).
   const low = String(s).toLowerCase();
-  if (['main leads', 'extra leads'].includes(low)) {
-    throw Object.assign(new Error('Officers cannot add/delete leads in Main Leads / Extra Leads'), { status: 403 });
+  if (['main leads', 'extra leads', 'foxes'].includes(low)) {
+    throw Object.assign(new Error('Officers cannot add/delete leads in Main Leads / Extra Leads / Foxes'), { status: 403 });
   }
 
   if (!off) {
@@ -1403,6 +1403,7 @@ function normalizeSheetName(name) {
   const low = raw.toLowerCase();
   if (low === 'main leads') return 'Main Leads';
   if (low === 'extra leads') return 'Extra Leads';
+  if (low === 'foxes') return 'Foxes';
   // Title-case-ish: keep user casing, but collapse spaces
   return raw;
 }
@@ -1414,7 +1415,7 @@ function validateSheetName(name) {
     throw Object.assign(new Error('Sheet name can only contain letters, numbers, spaces, hyphen (-) and underscore (_)'), { status: 400 });
   }
   const key = n.toLowerCase();
-  if (['main leads','extra leads'].includes(key)) {
+  if (['main leads','extra leads','foxes'].includes(key)) {
     throw Object.assign(new Error('This sheet name is reserved'), { status: 400 });
   }
   return n;
@@ -1425,7 +1426,7 @@ async function listSheetsForBatch({ batchName, user }) {
   const b = cleanString(batchName);
   if (!b) throw Object.assign(new Error('batch is required'), { status: 400 });
 
-  const defaults = ['Main Leads', 'Extra Leads'];
+  const defaults = ['Main Leads', 'Extra Leads', 'Foxes'];
   const isAdmin = String(user?.role || '') === 'admin';
   const officerName = cleanString(user?.name);
 

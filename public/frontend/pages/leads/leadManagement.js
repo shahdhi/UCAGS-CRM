@@ -214,7 +214,7 @@ async function loadLeadManagement() {
       if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
     }
 
-    let sheets = ['Main Leads', 'Extra Leads'];
+    let sheets = ['Main Leads', 'Extra Leads', 'Foxes'];
     const _userCacheId = (window.currentUser?.id || window.currentUser?.email || window.currentUser?.name || 'anon');
     const mgmtSheetsCacheKey = `__mgmtSheets_${batch}_${_userCacheId}`;
     if (window[mgmtSheetsCacheKey]) {

@@ -797,7 +797,7 @@ function parseLeadsRouteIntoFilters(page) {
 
 // Navigate to a specific page
 function updateDeleteSheetButtons(page) {
-    const isDefault = (s) => ['Main Leads', 'Extra Leads'].map(x => x.toLowerCase()).includes(String(s || '').toLowerCase());
+    const isDefault = (s) => ['Main Leads', 'Extra Leads', 'Foxes'].map(x => x.toLowerCase()).includes(String(s || '').toLowerCase());
 
     const btnLeads = document.getElementById('deleteSheetBtn');
     const btnMgmt = document.getElementById('deleteManagementSheetBtn');
