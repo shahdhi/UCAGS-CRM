@@ -784,7 +784,11 @@
         programs.forEach(p => {
           const opt = document.createElement('option');
           opt.value = p.id;
-          opt.textContent = p.name;
+          // Special display override for Psychology program
+          const displayName = p.name.trim().toLowerCase() === 'diploma in psychology'
+            ? 'Dual Diploma in Psychology + Counselling & Applied Psychology'
+            : p.name;
+          opt.textContent = displayName;
           select.appendChild(opt);
         });
       } catch (e) {
