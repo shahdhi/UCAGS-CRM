@@ -121,7 +121,7 @@ router.post('/create', isAdmin, async (req, res) => {
     await validateSpreadsheetAccess(spreadsheetId);
 
     // Ensure default tabs exist on main spreadsheet
-    for (const tab of ['Main Leads', 'Extra Leads']) {
+    for (const tab of ['Main Leads', 'Extra Leads', 'Foxes']) {
       const existing = await sheetExists(spreadsheetId, tab);
       if (!existing) await createSheet(spreadsheetId, tab);
       await writeSheet(spreadsheetId, `${tab}!A1:${colToLetter(ADMIN_HEADERS.length)}1`, [ADMIN_HEADERS]);
@@ -163,5 +163,58 @@ router.get('/officers', isAdmin, async (req, res) => {
 
 // NOTE: POST /:batchName/sync is handled by batchSyncRoutes.js (both pull + push).
 // Do not add a duplicate here — Express will match the first registered route only.
+
+/**
+ * POST /api/batches/migrate/add-foxes-sheet
+ * One-time migration: add the "Foxes" default sheet to all existing batches
+ * that don't already have it.
+ */
+router.post('/migrate/add-foxes-sheet', isAdmin, async (req, res) => {
+  try {
+    const batches = await listBatches();
+    const results = [];
+
+    for (const batch of batches) {
+      const batchName = batch.name;
+      const spreadsheetId = batch.admin_spreadsheet_id;
+
+      if (!spreadsheetId) {
+        results.push({ batchName, status: 'skipped', reason: 'No spreadsheet ID' });
+        continue;
+      }
+
+      try {
+        const existing = await sheetExists(spreadsheetId, 'Foxes');
+        if (!existing) {
+          await createSheet(spreadsheetId, 'Foxes');
+        }
+        await writeSheet(
+          spreadsheetId,
+          `Foxes!A1:${colToLetter(ADMIN_HEADERS.length)}1`,
+          [ADMIN_HEADERS]
+        );
+
+        // Also update the sheets cache for this batch
+        try {
+          const { setCachedSheets, getCachedSheets } = require('../../core/batches/batchSheetsCache');
+          const cached = await getCachedSheets(batchName);
+          if (cached && Array.isArray(cached.sheets)) {
+            const merged = Array.from(new Set([...cached.sheets, 'Foxes']));
+            await setCachedSheets(batchName, merged);
+          }
+        } catch (_) {}
+
+        results.push({ batchName, status: existing ? 'already_exists' : 'created' });
+      } catch (err) {
+        results.push({ batchName, status: 'error', reason: err.message });
+      }
+    }
+
+    res.json({ success: true, results });
+  } catch (e) {
+    console.error('Migration error:', e);
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
 
 module.exports = router;

@@ -68,7 +68,7 @@ async function createOfficerOnlySheet(batchName, officerName, sheetName, userId 
   return { success: true, sheets };
 }
 
-const DEFAULT_SHEETS = ['Main Leads', 'Extra Leads'];
+const DEFAULT_SHEETS = ['Main Leads', 'Extra Leads', 'Foxes'];
 
 async function deleteOfficerOnlySheet(batchName, officerName, sheetName) {
   validateSheetName(sheetName);

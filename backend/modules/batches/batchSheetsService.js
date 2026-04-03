@@ -176,7 +176,7 @@ async function upgradeOfficerHeadersForBatch(batchName) {
 
 const { deleteSheetTab } = require('../../core/sheets/sheetsClient');
 
-const DEFAULT_SHEETS = ['Main Leads', 'Extra Leads'];
+const DEFAULT_SHEETS = ['Main Leads', 'Extra Leads', 'Foxes'];
 
 async function deleteSheetForBatch(batchName, sheetName) {
   validateSheetName(sheetName);
