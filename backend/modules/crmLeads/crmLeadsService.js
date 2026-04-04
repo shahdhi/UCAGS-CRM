@@ -381,7 +381,7 @@ function rowToLead(r) {
     platform: r.platform || '',
     status: r.status || 'New',
     assignedTo: r.assigned_to || '',
-    createdDate: r.created_date || r.created_at || '',
+    createdDate: r.created_at || r.created_date || '',
     notes: r.notes || '',
     source: r.source || '',
 
