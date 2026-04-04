@@ -293,8 +293,9 @@
     ? `<span style="color:#f59e0b;"><i class="fas fa-bolt"></i> ${followUpsDue} remaining today${followUpsOverdue > 0 ? ` &middot; <span style="color:#ef4444;">${followUpsOverdue} overdue</span>` : ''}</span>`
       : '');
 
-    // Active Leads (new + contacted + follow-up from funnel)
-    const activeLeads = (funnel.new || 0) + (funnel.contacted || 0) + (funnel.followUp || 0);
+    // Active Leads: total New + Contacted + Follow-up across ALL current batch leads (no date filter)
+    // kpis.activeLeads is computed server-side from the full current batch, not date-windowed funnel
+    const activeLeads = kpis.activeLeads ?? ((funnel.new || 0) + (funnel.contacted || 0) + (funnel.followUp || 0));
     setText('kpiActiveLeads', activeLeads.toLocaleString());
     setHtml('kpiLeadsTrend', '');
 

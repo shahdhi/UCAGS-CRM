@@ -200,7 +200,7 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
 
     // Short-lived cache: dramatically speeds up repeated dashboard loads
     const cacheKey = JSON.stringify({
-      v: 3, // bumped: conversion rate now uses full batch leads count (no date filter)
+      v: 4, // bumped: activeLeads now server-computed from full current batch (no date filter)
       role: isAdminUser ? 'admin' : 'officer',
       officerName: isAdminUser ? '' : officerName,
       from: String(req.query.from || ''),
@@ -334,19 +334,26 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
     // Conversion rate: confirmed payments out of TOTAL leads assigned in current batch
     // NOTE: No date range filter on leads — leads may have been imported before the selected window.
     // We count all leads in the current batch(es) for the officer, regardless of created_at.
+    // Also compute activeLeads = New + Contacted + Follow-up (all current batch leads, no date filter)
     let leadsCount = 0;
+    let activeLeads = 0;
     try {
       let q = sb
         .from('crm_leads')
-        .select('id', { count: 'exact', head: true });
+        .select('status');
       if (currentBatches.length) q = q.in('batch_name', currentBatches);
       if (!isAdminUser && officerName) q = q.eq('assigned_to', officerName);
-      const { count, error } = await q;
+      const { data: leadsData, error } = await q;
       if (error) throw error;
-      leadsCount = Number(count || 0);
+      leadsCount = (leadsData || []).length;
+      activeLeads = (leadsData || []).filter(r => {
+        const s = String(r.status || '').toLowerCase();
+        return s === 'new' || s === 'contacted' || s === 'follow-up' || s === 'followup';
+      }).length;
     } catch (e) {
       console.warn('Analytics: failed to count crm_leads for conversion rate:', e.message || e);
       leadsCount = 0;
+      activeLeads = 0;
     }
 
     const conversionRate = leadsCount > 0 ? (confirmedPayments / leadsCount) : 0;
@@ -598,9 +605,11 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
       currentBatches,
       kpis: {
         followUpsDue,
+        followUpsOverdue,
         registrationsReceived,
         confirmedPayments,
-        conversionRate
+        conversionRate,
+        activeLeads
       },
       funnel,
       series: {

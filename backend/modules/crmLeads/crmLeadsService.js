@@ -685,6 +685,20 @@ async function createAdminLead({ batchName, sheetName, lead }) {
     }
   }
   
+  // Resolve program_id + program_name from program_batches for this batch
+  let leadProgramId = null;
+  let leadProgramName = null;
+  try {
+    const { data: pb } = await sb
+      .from('program_batches')
+      .select('program_id, programs(name)')
+      .eq('batch_name', batchName)
+      .limit(1)
+      .maybeSingle();
+    leadProgramId = pb?.program_id || null;
+    leadProgramName = pb?.programs?.name || null;
+  } catch (_) {}
+
   const row = {
     batch_name: batchName,
     sheet_name: sheetName,
@@ -697,6 +711,8 @@ async function createAdminLead({ batchName, sheetName, lead }) {
     priority: cleanString(lead?.priority),
     notes: cleanString(lead?.notes),
     assigned_to: assignedTo,
+    program_id: leadProgramId,
+    program_name: leadProgramName,
     created_at: new Date().toISOString(),
     // Keep legacy-compatible created_date (used by UI)
     created_date: new Date().toISOString(),
@@ -1318,7 +1334,21 @@ async function createOfficerLead({ officerName, batchName, sheetName, lead }) {
   // in the UI via applyDuplicateDisplay(), but it remains assigned to the officer
   // so it shows up in their "My Leads" view.
   const assignedTo = officerName;
-  
+
+  // Resolve program_id + program_name from program_batches for this batch
+  let officerLeadProgramId = null;
+  let officerLeadProgramName = null;
+  try {
+    const { data: pb } = await sb
+      .from('program_batches')
+      .select('program_id, programs(name)')
+      .eq('batch_name', batchName)
+      .limit(1)
+      .maybeSingle();
+    officerLeadProgramId = pb?.program_id || null;
+    officerLeadProgramName = pb?.programs?.name || null;
+  } catch (_) {}
+
   const row = {
     batch_name: batchName,
     sheet_name: sheetName,
@@ -1331,6 +1361,8 @@ async function createOfficerLead({ officerName, batchName, sheetName, lead }) {
     priority: cleanString(lead?.priority),
     notes: cleanString(lead?.notes),
     assigned_to: assignedTo,
+    program_id: officerLeadProgramId,
+    program_name: officerLeadProgramName,
     created_at: new Date().toISOString(),
     created_date: new Date().toISOString(),
     updated_at: new Date().toISOString()
@@ -1667,11 +1699,28 @@ async function createSheetForBatch({ batchName, sheetName, scope, user }) {
   const userId = user?.id;  // Supabase Auth user ID
   if (!officerName) throw Object.assign(new Error('Missing officer name'), { status: 400 });
 
+  // Resolve program_id + program_name from program_batches so officer sheets
+  // carry the same program context as normal crm_leads
+  let sheetProgramId = null;
+  let sheetProgramName = null;
+  try {
+    const { data: pb } = await sb
+      .from('program_batches')
+      .select('program_id, programs(name)')
+      .eq('batch_name', b)
+      .limit(1)
+      .maybeSingle();
+    sheetProgramId = pb?.program_id || null;
+    sheetProgramName = pb?.programs?.name || null;
+  } catch (_) {}
+
   await sb.from('officer_custom_sheets').upsert({
     batch_name: b,
     officer_name: officerName,
     sheet_name: s,
     created_by_user_id: userId || null,
+    program_id: sheetProgramId,
+    program_name: sheetProgramName,
     created_at: new Date().toISOString()
   }, { onConflict: 'batch_name,officer_name,sheet_name' });
 

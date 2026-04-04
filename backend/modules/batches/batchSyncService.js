@@ -133,6 +133,20 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
     ? sheetNames
     : await listSheetTabs(spreadsheetId);
 
+  // Resolve program_id + program_name once for the whole batch (same for all sheets)
+  let syncProgramId = null;
+  let syncProgramName = null;
+  try {
+    const { data: pb } = await sb
+      .from('program_batches')
+      .select('program_id, programs(name)')
+      .eq('batch_name', batchName)
+      .limit(1)
+      .maybeSingle();
+    syncProgramId = pb?.program_id || null;
+    syncProgramName = pb?.programs?.name || null;
+  } catch (_) {}
+
   const results = [];
   for (const sheetName of tabs) {
     // Read header
@@ -189,6 +203,8 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
         intake_json: l.intake_json,
         assigned_to: l.assigned_to,
         sheet_row_index: l.sheet_row_index,
+        program_id: syncProgramId,
+        program_name: syncProgramName,
         synced_at: nowIso
       }));
 

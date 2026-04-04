@@ -32,7 +32,7 @@ async function listOfficerSheets(batchName, officerName) {
 
   const { data, error } = await sb
     .from('officer_custom_sheets')
-    .select('sheet_name')
+    .select('sheet_name, program_id, program_name')
     .eq('batch_name', batchName)
     .eq('officer_name', officerName)
     .order('created_at', { ascending: true });
@@ -46,7 +46,7 @@ async function listOfficerSheets(batchName, officerName) {
   return (data || []).map(r => r.sheet_name).filter(Boolean);
 }
 
-async function createOfficerOnlySheet(batchName, officerName, sheetName, userId = null) {
+async function createOfficerOnlySheet(batchName, officerName, sheetName, userId = null, { programId = null, programName = null } = {}) {
   validateSheetName(sheetName);
 
   const sb = getSupabaseAdmin();
@@ -56,11 +56,29 @@ async function createOfficerOnlySheet(batchName, officerName, sheetName, userId 
     throw err;
   }
 
+  // Auto-resolve program_id + program_name from program_batches if not provided
+  let resolvedProgramId = programId;
+  let resolvedProgramName = programName;
+  if (!resolvedProgramId && batchName) {
+    try {
+      const { data: pb } = await sb
+        .from('program_batches')
+        .select('program_id, programs(name)')
+        .eq('batch_name', batchName)
+        .limit(1)
+        .maybeSingle();
+      resolvedProgramId = pb?.program_id || null;
+      resolvedProgramName = pb?.programs?.name || programName || null;
+    } catch (_) {}
+  }
+
   await sb.from('officer_custom_sheets').upsert({
     batch_name: batchName,
     officer_name: officerName,
     sheet_name: sheetName,
     created_by_user_id: userId || null,
+    program_id: resolvedProgramId || null,
+    program_name: resolvedProgramName || null,
     created_at: new Date().toISOString()
   }, { onConflict: 'batch_name,officer_name,sheet_name' });
 
