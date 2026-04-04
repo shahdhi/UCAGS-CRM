@@ -41,7 +41,7 @@ function requireSupabase() {
  * @param {string} [opts.note]
  * @returns {Promise<object>} the saved event row
  */
-async function awardXP({ userId, eventType, xp, referenceId, referenceType, note }) {
+async function awardXP({ userId, eventType, xp, referenceId, referenceType, note, programId, batchName }) {
   if (!userId || !eventType || typeof xp !== 'number' || xp === 0) return null;
 
   const sb = requireSupabase();
@@ -55,7 +55,9 @@ async function awardXP({ userId, eventType, xp, referenceId, referenceType, note
       xp,
       reference_id: referenceId || null,
       reference_type: referenceType || null,
-      note: note || null
+      note: note || null,
+      program_id: programId || null,
+      batch_name: batchName || null
     })
     .select('*')
     .single();

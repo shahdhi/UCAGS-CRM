@@ -284,6 +284,8 @@ router.post('/intake', async (req, res) => {
               xp: 40,
               referenceId: data.id,
               referenceType: 'registration',
+              programId: programRow.id || null,
+              batchName: registrationBatchName,
               note: `Registration received: ${data.name || 'student'}`
             });
           }

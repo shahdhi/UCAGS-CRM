@@ -92,7 +92,7 @@ router.patch('/invites/:id', isAdminOrOfficer, async (req, res) => {
 
     const invite = await svc.updateInvite({ inviteId, patch: req.body || {}, actorUserId });
 
-    // XP: +3 when lead attendance is marked as 'Attended' (once per invite)
+    // XP: +30 when lead attendance is marked as 'Attended' (once per invite)
     try {
       const { awardXPOnce } = require('../xp/xpService');
       const newAttendance = invite?.attendance || req.body?.attendance;
@@ -102,10 +102,26 @@ router.patch('/invites/:id', isAdminOrOfficer, async (req, res) => {
         const sb = getSupabaseAdmin();
         const { data: inviteRow } = await sb
           .from('demo_session_invites')
-          .select('officer_user_id, crm_lead_id')
+          .select('officer_user_id, crm_lead_id, batch_name')
           .eq('id', inviteId)
           .maybeSingle();
         const officerUserId = inviteRow?.officer_user_id || actorUserId;
+        const inviteBatchName = inviteRow?.batch_name || null;
+
+        // Resolve program_id from batch_name
+        let xpProgramId = null;
+        if (inviteBatchName) {
+          try {
+            const { data: pb } = await sb
+              .from('program_batches')
+              .select('program_id')
+              .eq('batch_name', inviteBatchName)
+              .limit(1)
+              .maybeSingle();
+            xpProgramId = pb?.program_id || null;
+          } catch (_) {}
+        }
+
         if (officerUserId) {
           await awardXPOnce({
             userId: officerUserId,
@@ -113,6 +129,8 @@ router.patch('/invites/:id', isAdminOrOfficer, async (req, res) => {
             xp: 30,
             referenceId: inviteId,
             referenceType: 'demo_invite',
+            programId: xpProgramId,
+            batchName: inviteBatchName,
             note: `Demo session attended (invite ${inviteId})`
           });
         }

@@ -567,15 +567,15 @@ router.post('/admin/:id/confirm', isAdmin, async (req, res) => {
       .single();
     if (uErr) throw uErr;
 
-    // XP: +20 for the assigned officer when payment is confirmed
+    // XP: +100 for the assigned officer when payment is confirmed
     try {
       const { awardXPOnce } = require('../xp/xpService');
       const sb2 = getSupabaseAdmin();
-      // Look up registration to find assigned officer
+      // Look up registration to find assigned officer + program context
       if (confirmed?.registration_id) {
         const { data: regRow } = await sb2
           .from('registrations')
-          .select('assigned_to')
+          .select('assigned_to, program_id, batch_name')
           .eq('id', confirmed.registration_id)
           .maybeSingle();
         const assignedOfficerName = cleanString(regRow?.assigned_to);
@@ -592,6 +592,8 @@ router.post('/admin/:id/confirm', isAdmin, async (req, res) => {
               xp: 100,
               referenceId: confirmed.id,
               referenceType: 'payment',
+              programId: regRow?.program_id || confirmed.program_id || null,
+              batchName: regRow?.batch_name || confirmed.batch_name || null,
               note: `Payment confirmed for registration ${confirmed.registration_id}`
             });
           }

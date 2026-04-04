@@ -184,7 +184,21 @@ router.put('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, res
     // XP hooks (best-effort, non-blocking)
     try {
       const { awardXPOnce } = require('../xp/xpService');
+      const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
       const newStatus = lead?.status || req.body?.status;
+
+      // Resolve program_id for this batch (for per-program XP tracking)
+      let xpProgramId = null;
+      try {
+        const sb2 = getSupabaseAdmin();
+        const { data: pb } = await sb2
+          .from('program_batches')
+          .select('program_id')
+          .eq('batch_name', batchName)
+          .limit(1)
+          .maybeSingle();
+        xpProgramId = pb?.program_id || null;
+      } catch (_) {}
 
       // +2 XP: lead contacted (status changed from 'New')
       if (officerUserId && oldStatus === 'New' && newStatus && newStatus !== 'New') {
@@ -194,6 +208,8 @@ router.put('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, res
           xp: 2,
           referenceId: `${batchName}|${sheetName}|${leadId}`,
           referenceType: 'lead',
+          programId: xpProgramId,
+          batchName,
           note: `${req.body?.name || leadId} · Contacted (${newStatus})`
         });
       }

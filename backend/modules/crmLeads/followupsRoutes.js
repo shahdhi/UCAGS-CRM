@@ -87,6 +87,20 @@ router.post('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, re
     // XP hooks (best-effort)
     try {
       const { awardXPOnce, awardXPSafe } = require('../xp/xpService');
+      const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
+
+      // Resolve program_id for per-program XP tracking
+      let xpProgramId = null;
+      try {
+        const sb = getSupabaseAdmin();
+        const { data: pb } = await sb
+          .from('program_batches')
+          .select('program_id')
+          .eq('batch_name', batchName)
+          .limit(1)
+          .maybeSingle();
+        xpProgramId = pb?.program_id || null;
+      } catch (_) {}
 
       // +1 or +2 XP: followup completed when actual_at newly set
       // +2 if answered = Yes, +1 if answered = No / not set
@@ -101,6 +115,8 @@ router.post('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, re
           xp: xpAmount,
           referenceId: row?.id,
           referenceType: 'followup',
+          programId: xpProgramId,
+          batchName,
           note: `Follow-up #${row?.sequence ?? sequence} completed (${answeredYes ? 'answered' : 'no answer'})`
         });
       }
@@ -108,7 +124,6 @@ router.post('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, re
       // +2 XP: speed bonus — first followup within 1h of lead being assigned
       if (officerUserId && row?.actual_at && Number(sequence) === 1 && row?.id) {
         try {
-          const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
           const sb = getSupabaseAdmin();
           const { data: leadRow } = await sb
             .from('crm_leads')
@@ -128,6 +143,8 @@ router.post('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, re
                 xp: 2,
                 referenceId: `${batchName}|${sheetName}|${leadId}`,
                 referenceType: 'lead',
+                programId: xpProgramId,
+                batchName,
                 note: 'Responded within 1h of lead assignment'
               });
             }

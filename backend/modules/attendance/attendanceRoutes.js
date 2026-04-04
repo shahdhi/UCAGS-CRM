@@ -56,6 +56,8 @@ router.post('/me/checkin', isAuthenticated, async (req, res) => {
     const record = await checkIn(staffName);
 
     // XP: +1 if checked in before 10:00 AM Sri Lanka time
+    // Note: attendance XP is not program/batch-specific (it's a general performance metric)
+    // so programId/batchName are intentionally omitted here.
     try {
       const { awardXPOnce } = require('../xp/xpService');
       if (officerUserId && record?.checkInIso) {

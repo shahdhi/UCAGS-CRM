@@ -472,6 +472,19 @@ async function updateMyLeadManagement({ officerName, batchName, sheetName, sheet
       // +2 if answered = Yes, +1 if answered = No / not set
       try {
         const { awardXPOnce } = require('../xp/xpService');
+        // Resolve program_id for per-program XP tracking
+        let xpProgramId = null;
+        try {
+          const sb2 = requireSupabase();
+          const { data: pb } = await sb2
+            .from('program_batches')
+            .select('program_id')
+            .eq('batch_name', batchName)
+            .limit(1)
+            .maybeSingle();
+          xpProgramId = pb?.program_id || null;
+        } catch (_) {}
+
         for (const row of (syncedRows || [])) {
           const prev = prevMap.get(row.sequence);
           const prevActualAt = prev?.actual_at || null;
@@ -487,6 +500,8 @@ async function updateMyLeadManagement({ officerName, batchName, sheetName, sheet
               xp: xpAmount,
               referenceId: row.id,
               referenceType: 'followup',
+              programId: xpProgramId,
+              batchName,
               note: `${leadName} · Follow-up #${row.sequence} (${answeredYes ? 'answered' : 'no answer'})`
             });
           }
