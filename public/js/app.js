@@ -4315,6 +4315,14 @@ async function initSwitchRoleBtn() {
         return;
     }
 
+    // Guard: only initialise once to prevent stacking duplicate event listeners
+    if (btn.__switchRoleInitialised) {
+        // Already set up — just re-render the list to reflect any updated roles/active role
+        renderSwitchRoleList();
+        return;
+    }
+    btn.__switchRoleInitialised = true;
+
     // staff_roles & supervisees are already loaded from user_metadata at login time.
     // If somehow missing (e.g. old session), do a quick refresh from Supabase.
     if (!window.currentUser.staff_roles?.length) {
@@ -4365,16 +4373,22 @@ async function initSwitchRoleBtn() {
     // Toggle popup on button click
     btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const isHidden = popup.classList.contains('hidden');
-        popup.classList.toggle('hidden', !isHidden);
-        if (!isHidden) return;
-        // Re-render to reflect current active role
-        renderSwitchRoleList();
+        const isOpen = !popup.classList.contains('hidden');
+        if (isOpen) {
+            popup.classList.add('hidden');
+        } else {
+            // Re-render to reflect current active role, then show
+            renderSwitchRoleList();
+            popup.classList.remove('hidden');
+        }
     });
 
-    // Close popup when clicking outside
+    // Close popup when clicking outside — registered only once
     document.addEventListener('click', (e) => {
-        if (!popup.contains(e.target) && e.target !== btn) {
+        if (!popup.classList.contains('hidden') &&
+            !popup.contains(e.target) &&
+            e.target !== btn &&
+            !btn.contains(e.target)) {
             popup.classList.add('hidden');
         }
     });
@@ -4425,8 +4439,10 @@ function renderSwitchRoleList() {
             }
 
             // Navigate to the appropriate landing page after role switch
+            // Use navigateToPage only — do NOT also set window.location.hash directly,
+            // as that fires a hashchange event which calls navigateToPage a second time,
+            // causing a double-navigation race condition and visible lag.
             const landingPage = selectedRole === 'supervisor' ? 'supervisor-dashboard' : 'home';
-            window.location.hash = landingPage;
             navigateToPage(landingPage);
 
             // Close popup

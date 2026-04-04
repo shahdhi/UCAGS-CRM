@@ -200,7 +200,7 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
 
     // Short-lived cache: dramatically speeds up repeated dashboard loads
     const cacheKey = JSON.stringify({
-      v: 4, // bumped: activeLeads now server-computed from full current batch (no date filter)
+      v: 5, // bumped: officer funnel no longer date-filtered by created_at
       role: isAdminUser ? 'admin' : 'officer',
       officerName: isAdminUser ? '' : officerName,
       from: String(req.query.from || ''),
@@ -359,15 +359,25 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
     const conversionRate = leadsCount > 0 ? (confirmedPayments / leadsCount) : 0;
 
     // Status (previously Funnel): New -> Contacted -> Follow-up -> Registered -> Enrollments
-    // Officers should see only their own statuses.
+    // Officers: show current status of ALL leads in current batch (no date filter on created_at).
+    //   The date filter would hide leads created before the selected window, making the pipeline
+    //   look empty even though those leads are still active. Officers need a live snapshot.
+    // Admins: apply the date filter so they see trends within the selected window.
     let funnel = { new: 0, contacted: 0, followUp: 0, registered: 0, confirmedPayments };
     try {
       let q = sb
         .from('crm_leads')
         .select('status')
-        .gte('created_at', fromEff.toISOString())
-        .lte('created_at', toEff.toISOString())
         .limit(20000);
+
+      // Only apply date range filter for admin users (trend analysis).
+      // Officers always see their full current-batch pipeline regardless of date.
+      if (isAdminUser) {
+        q = q
+          .gte('created_at', fromEff.toISOString())
+          .lte('created_at', toEff.toISOString());
+      }
+
       if (currentBatches.length) q = q.in('batch_name', currentBatches);
       if (!isAdminUser && officerName) q = q.eq('assigned_to', officerName);
 

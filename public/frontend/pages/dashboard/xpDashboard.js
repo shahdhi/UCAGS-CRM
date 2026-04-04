@@ -294,8 +294,11 @@
       : '');
 
     // Active Leads: total New + Contacted + Follow-up across ALL current batch leads (no date filter)
-    // kpis.activeLeads is computed server-side from the full current batch, not date-windowed funnel
-    const activeLeads = kpis.activeLeads ?? ((funnel.new || 0) + (funnel.contacted || 0) + (funnel.followUp || 0));
+    // kpis.activeLeads is computed server-side from the full current batch, not date-windowed funnel.
+    // Only fall back to funnel sum if the server didn't return the field at all (undefined/null).
+    // Do NOT use (kpis.activeLeads || fallback) because 0 is a valid value and would wrongly
+    // trigger the fallback, showing an inflated count from the date-filtered funnel.
+    const activeLeads = (kpis.activeLeads != null) ? kpis.activeLeads : ((funnel.new || 0) + (funnel.contacted || 0) + (funnel.followUp || 0));
     setText('kpiActiveLeads', activeLeads.toLocaleString());
     setHtml('kpiLeadsTrend', '');
 
