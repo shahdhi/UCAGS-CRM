@@ -663,6 +663,34 @@ async function handleAddPayment(sb: any, id: string, body: any, user: any): Prom
   // Sync CRM lead status → Enrolled
   await updateLeadStatusByPhoneAndBatch(sb, regRow?.phone_number, batchName ?? '', 'Enrolled');
 
+  // XP: +100 for the assigned officer when a payment is added/confirmed
+  try {
+    const { data: regFull } = await sb
+      .from('registrations')
+      .select('assigned_to, program_id, batch_name')
+      .eq('id', id)
+      .maybeSingle();
+    const assignedOfficerName = cleanStr(regFull?.assigned_to);
+    if (assignedOfficerName && saved?.id) {
+      const { data: { users } } = await adminSb().auth.admin.listUsers({ page: 1, perPage: 2000 });
+      const officerUser = (users as any[]).find(u =>
+        String(u.user_metadata?.name ?? '').trim().toLowerCase() === assignedOfficerName.toLowerCase()
+      );
+      if (officerUser?.id) {
+        await awardXPOnce(sb, {
+          userId: officerUser.id,
+          eventType: 'payment_received',
+          xp: 100,
+          referenceId: saved.id,
+          referenceType: 'payment',
+          programId: regFull?.program_id ?? programId ?? null,
+          batchName: regFull?.batch_name ?? batchName ?? null,
+          note: `Payment received for registration ${id}`,
+        });
+      }
+    }
+  } catch (_) { /* non-fatal */ }
+
   return jsonResp({ success: true, payments: saved ? [saved] : [] });
 }
 
