@@ -169,23 +169,32 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
     }
 
     // Determine which leads already exist in Supabase (so we don't overwrite operational fields)
+    // Fetch in chunks to avoid URL length limits with large .in() queries
     const ids = parsed.map(p => p.sheet_lead_id);
-    const { data: existing, error: existingErr } = await sb
-      .from('crm_leads')
-      .select('sheet_lead_id')
-      .eq('batch_name', batchName)
-      .eq('sheet_name', sheetName)
-      .in('sheet_lead_id', ids);
-
-    if (existingErr) {
-      results.push({ sheetName, success: false, error: existingErr.message || String(existingErr) });
+    const existingSet = new Set();
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+      const chunk = ids.slice(i, i + CHUNK_SIZE);
+      const { data: existingChunk, error: existingErr } = await sb
+        .from('crm_leads')
+        .select('sheet_lead_id')
+        .eq('batch_name', batchName)
+        .eq('sheet_name', sheetName)
+        .in('sheet_lead_id', chunk);
+      if (existingErr) {
+        results.push({ sheetName, success: false, error: existingErr.message || String(existingErr) });
+        break;
+      }
+      (existingChunk || []).forEach(r => existingSet.add(String(r.sheet_lead_id)));
+    }
+    // Skip this sheet if we got an error mid-chunk
+    if (results.length && results[results.length - 1].success === false && results[results.length - 1].sheetName === sheetName) {
       continue;
     }
 
-    const existingSet = new Set((existing || []).map(r => String(r.sheet_lead_id)));
-
-    // Insert payload: full intake fields
     const nowIso = new Date().toISOString();
+
+    // New leads: insert in chunks to avoid payload size limits
     const insertPayload = parsed
       .filter(l => !existingSet.has(String(l.sheet_lead_id)))
       .map(l => ({
@@ -208,7 +217,7 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
         synced_at: nowIso
       }));
 
-    // Update payload: ONLY intake fields + synced_at. Do NOT overwrite assigned_to/status/priority/call feedback.
+    // Existing leads: update ONLY intake fields, do NOT overwrite assigned_to/status/priority
     const updatePayload = parsed
       .filter(l => existingSet.has(String(l.sheet_lead_id)))
       .map(l => ({
@@ -228,29 +237,39 @@ async function syncBatchToSupabase(batchName, { sheetNames } = {}) {
         synced_at: nowIso
       }));
 
-    // Inserts
-    if (insertPayload.length > 0) {
-      const { error } = await sb
-        .from('crm_leads')
-        .insert(insertPayload);
+    // Insert new leads in chunks
+    let insertedCount = 0;
+    for (let i = 0; i < insertPayload.length; i += CHUNK_SIZE) {
+      const chunk = insertPayload.slice(i, i + CHUNK_SIZE);
+      const { error } = await sb.from('crm_leads').insert(chunk);
       if (error) {
-        results.push({ sheetName, success: false, error: error.message || String(error) });
-        continue;
+        // Try upsert as fallback (handles race conditions / duplicate sheet_lead_ids)
+        const { error: upsertErr } = await sb
+          .from('crm_leads')
+          .upsert(chunk, { onConflict: 'batch_name,sheet_name,sheet_lead_id', ignoreDuplicates: true });
+        if (upsertErr) {
+          console.error(`[sync] Insert chunk error for ${sheetName}:`, upsertErr.message);
+          continue; // skip bad chunk, don't abort entire sheet
+        }
       }
+      insertedCount += chunk.length;
     }
 
-    // Updates (use upsert but payload excludes operational columns, so they won't be overwritten)
-    if (updatePayload.length > 0) {
+    // Update existing leads in chunks
+    let updatedCount = 0;
+    for (let i = 0; i < updatePayload.length; i += CHUNK_SIZE) {
+      const chunk = updatePayload.slice(i, i + CHUNK_SIZE);
       const { error } = await sb
         .from('crm_leads')
-        .upsert(updatePayload, { onConflict: 'batch_name,sheet_name,sheet_lead_id' });
+        .upsert(chunk, { onConflict: 'batch_name,sheet_name,sheet_lead_id' });
       if (error) {
-        results.push({ sheetName, success: false, error: error.message || String(error) });
-        continue;
+        console.error(`[sync] Update chunk error for ${sheetName}:`, error.message);
+        continue; // skip bad chunk, don't abort entire sheet
       }
+      updatedCount += chunk.length;
     }
 
-    results.push({ sheetName, success: true, inserted: insertPayload.length, updated: updatePayload.length, debug: { headers: headers.length, rowsRead: (rows || []).length } });
+    results.push({ sheetName, success: true, inserted: insertedCount, updated: updatedCount, debug: { headers: headers.length, rowsRead: (rows || []).length } });
   }
 
   return {
