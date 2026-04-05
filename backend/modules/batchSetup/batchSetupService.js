@@ -50,6 +50,7 @@ async function saveBatchSetup({ programId, batchId, batchName, general = {}, pay
   // Set current: ensure only one current batch per program
   if (isCurrent === true) {
     // XP Archive: before flipping is_current, archive + reset XP for the outgoing batch
+    // ONLY if the outgoing batch is different from the one being saved (i.e. a real transition)
     try {
       const { data: outgoing } = await sb
         .from('program_batches')
@@ -58,7 +59,7 @@ async function saveBatchSetup({ programId, batchId, batchName, general = {}, pay
         .eq('is_current', true)
         .maybeSingle();
 
-      if (outgoing?.batch_name) {
+      if (outgoing?.batch_name && outgoing.batch_name !== batchName) {
         const xpArchiveSvc = require('../xp/xpArchiveService');
         await xpArchiveSvc.archiveAndResetXPForBatch(programId, outgoing.batch_name);
         console.log(`[Batch Setup] XP archived for program=${programId} batch=${outgoing.batch_name}`);
