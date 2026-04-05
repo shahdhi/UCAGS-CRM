@@ -100,4 +100,64 @@ router.post('/admin/reset', isAdmin, async (req, res) => {
   }
 });
 
+// ─── XP Overrides (admin-editable XP per officer per batch) ──────────────────
+
+// GET /api/xp/admin/overrides?batchName=Batch14
+// Returns all override rows for a given batch
+router.get('/admin/overrides', isAdmin, async (req, res) => {
+  try {
+    const sb = require('../../core/supabase/supabaseAdmin').getSupabaseAdmin();
+    const { batchName } = req.query;
+    let query = sb.from('officer_xp_overrides').select('*').order('user_name', { ascending: true });
+    if (batchName) query = query.eq('batch_name', batchName);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ success: true, overrides: data || [] });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// PUT /api/xp/admin/overrides
+// Upsert XP for a single officer+batch. Body: { userId, userName, batchName, programId, xp, note }
+router.put('/admin/overrides', isAdmin, async (req, res) => {
+  try {
+    const sb = require('../../core/supabase/supabaseAdmin').getSupabaseAdmin();
+    const { userId, userName, batchName, programId, xp, note } = req.body || {};
+    if (!userId || !batchName || xp === undefined) {
+      return res.status(400).json({ success: false, error: 'userId, batchName, and xp are required' });
+    }
+    const { data, error } = await sb
+      .from('officer_xp_overrides')
+      .upsert({
+        user_id: userId,
+        user_name: userName || '',
+        batch_name: batchName,
+        program_id: programId || null,
+        xp: Number(xp),
+        note: note || null,
+        updated_by: req.user?.id || null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,batch_name' })
+      .select('*')
+      .single();
+    if (error) throw error;
+    res.json({ success: true, override: data });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
+// DELETE /api/xp/admin/overrides/:id
+router.delete('/admin/overrides/:id', isAdmin, async (req, res) => {
+  try {
+    const sb = require('../../core/supabase/supabaseAdmin').getSupabaseAdmin();
+    const { error } = await sb.from('officer_xp_overrides').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
+});
+
 module.exports = router;
