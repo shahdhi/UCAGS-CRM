@@ -189,14 +189,31 @@ async function getCurrentBatchXPMap(sb) {
 // ─── Leaderboard ─────────────────────────────────────────────────────────────
 
 /**
- * Returns all officers ranked by current-batch XP descending.
+ * Returns all officers ranked by XP from officer_xp_overrides for the current batch.
+ * Falls back to officer_xp_events (current batch) if no override row exists for that officer.
  * @returns {Promise<Array<{userId, name, email, totalXp, rank}>>}
  */
 async function getLeaderboard() {
   const sb = requireSupabase();
 
-  // Get XP for current active batches only
+  // Get auto-calculated XP from events (current batch) as fallback
   const xpMap = await getCurrentBatchXPMap(sb);
+
+  // Get current active batches
+  const currentBatches = await getCurrentBatches(sb);
+
+  // Build override map: userId -> xp from officer_xp_overrides
+  const overrideMap = new Map();
+  for (const { batch_name } of currentBatches) {
+    const { data: overrides } = await sb
+      .from('officer_xp_overrides')
+      .select('user_id, xp')
+      .eq('batch_name', batch_name);
+    for (const row of (overrides || [])) {
+      if (!row.user_id) continue;
+      overrideMap.set(row.user_id, (overrideMap.get(row.user_id) || 0) + Number(row.xp || 0));
+    }
+  }
 
   // Fetch user metadata to get names
   const { data: { users }, error: uErr } = await sb.auth.admin.listUsers();
@@ -207,13 +224,13 @@ async function getLeaderboard() {
     u.user_metadata?.role === 'officer' || u.user_metadata?.role === 'admin'
   );
 
-  // Build ranked list — include all officers, defaulting to 0 XP if none this batch
+  // Use override XP if exists, otherwise fall back to auto-calculated XP
   const list = officers.map(u => ({
     userId: u.id,
     name: u.user_metadata?.name || u.email?.split('@')[0] || 'Unknown',
     email: u.email || '',
     role: u.user_metadata?.role || '',
-    totalXp: xpMap.get(u.id) || 0,
+    totalXp: overrideMap.has(u.id) ? overrideMap.get(u.id) : (xpMap.get(u.id) || 0),
     lastUpdated: null
   }));
 
@@ -228,18 +245,35 @@ async function getLeaderboard() {
 
 /**
  * Returns a user's current-batch XP + recent events.
+ * Uses officer_xp_overrides if available, otherwise falls back to officer_xp_events.
  */
 async function getMyXP(userId) {
   const sb = requireSupabase();
 
-  const [xpMap, eventsResult, leaderboardResult] = await Promise.all([
+  const [xpMap, currentBatches, eventsResult, leaderboardResult] = await Promise.all([
     getCurrentBatchXPMap(sb),
+    getCurrentBatches(sb),
     sb.from('officer_xp_events').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(20),
     getLeaderboard()
   ]);
 
+  // Check if an override exists for this user in any current batch
+  let overrideXp = null;
+  for (const { batch_name } of currentBatches) {
+    const { data: override } = await sb
+      .from('officer_xp_overrides')
+      .select('xp')
+      .eq('user_id', userId)
+      .eq('batch_name', batch_name)
+      .maybeSingle();
+    if (override) {
+      overrideXp = (overrideXp || 0) + Number(override.xp || 0);
+    }
+  }
+
   const events = eventsResult.data || [];
-  const totalXp = xpMap.get(userId) || 0;
+  // Use override if set, otherwise use auto-calculated
+  const totalXp = overrideXp !== null ? overrideXp : (xpMap.get(userId) || 0);
   const rank = (leaderboardResult || []).find(r => r.userId === userId)?.rank || null;
   const totalOfficers = (leaderboardResult || []).length;
 
