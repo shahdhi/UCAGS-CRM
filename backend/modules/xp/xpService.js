@@ -140,65 +140,112 @@ async function awardXPOnce(opts) {
   }
 }
 
+// ─── Current-batch XP helpers ─────────────────────────────────────────────────
+
+/**
+ * Returns the current batch name(s) per program (all programs with is_current = true).
+ * Returns a flat array of { program_id, batch_name } objects.
+ */
+async function getCurrentBatches(sb) {
+  const { data, error } = await sb
+    .from('program_batches')
+    .select('program_id, batch_name')
+    .eq('is_current', true);
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Sums XP per user_id from officer_xp_events for all current batches.
+ * Returns a Map<userId, totalXp>.
+ */
+async function getCurrentBatchXPMap(sb) {
+  const currentBatches = await getCurrentBatches(sb);
+  if (!currentBatches.length) return new Map();
+
+  // Build OR filter: (program_id = X AND batch_name = Y) OR ...
+  // Supabase JS doesn't support OR across multiple columns natively,
+  // so we fetch each batch's events and aggregate in JS.
+  const xpMap = new Map();
+
+  for (const { program_id, batch_name } of currentBatches) {
+    const { data: events, error } = await sb
+      .from('officer_xp_events')
+      .select('user_id, xp')
+      .eq('program_id', program_id)
+      .eq('batch_name', batch_name);
+
+    if (error) throw error;
+
+    for (const ev of (events || [])) {
+      if (!ev.user_id) continue;
+      xpMap.set(ev.user_id, (xpMap.get(ev.user_id) || 0) + Number(ev.xp || 0));
+    }
+  }
+
+  return xpMap;
+}
+
 // ─── Leaderboard ─────────────────────────────────────────────────────────────
 
 /**
- * Returns all officers ranked by total XP descending.
+ * Returns all officers ranked by current-batch XP descending.
  * @returns {Promise<Array<{userId, name, email, totalXp, rank}>>}
  */
 async function getLeaderboard() {
   const sb = requireSupabase();
 
-  const { data: summaries, error } = await sb
-    .from('officer_xp_summary')
-    .select('user_id, total_xp, last_updated')
-    .order('total_xp', { ascending: false });
-
-  if (error) throw error;
+  // Get XP for current active batches only
+  const xpMap = await getCurrentBatchXPMap(sb);
 
   // Fetch user metadata to get names
   const { data: { users }, error: uErr } = await sb.auth.admin.listUsers();
   if (uErr) throw uErr;
 
-  const userMap = new Map((users || []).map(u => [u.id, u]));
+  // Only include officers (not admins) with XP > 0, or all officers
+  const officers = (users || []).filter(u =>
+    u.user_metadata?.role === 'officer' || u.user_metadata?.role === 'admin'
+  );
+
+  // Build ranked list — include all officers, defaulting to 0 XP if none this batch
+  const list = officers.map(u => ({
+    userId: u.id,
+    name: u.user_metadata?.name || u.email?.split('@')[0] || 'Unknown',
+    email: u.email || '',
+    role: u.user_metadata?.role || '',
+    totalXp: xpMap.get(u.id) || 0,
+    lastUpdated: null
+  }));
+
+  // Sort by XP descending
+  list.sort((a, b) => b.totalXp - a.totalXp);
 
   let rank = 1;
-  return (summaries || []).map(s => {
-    const u = userMap.get(s.user_id);
-    return {
-      userId: s.user_id,
-      name: u?.user_metadata?.name || u?.email?.split('@')[0] || 'Unknown',
-      email: u?.email || '',
-      role: u?.user_metadata?.role || '',
-      totalXp: s.total_xp || 0,
-      rank: rank++,
-      lastUpdated: s.last_updated
-    };
-  });
+  return list.map(entry => ({ ...entry, rank: rank++ }));
 }
 
 // ─── My XP ───────────────────────────────────────────────────────────────────
 
 /**
- * Returns a user's XP summary + recent events.
+ * Returns a user's current-batch XP + recent events.
  */
 async function getMyXP(userId) {
   const sb = requireSupabase();
 
-  const [summaryResult, eventsResult, leaderboardResult] = await Promise.all([
-    sb.from('officer_xp_summary').select('*').eq('user_id', userId).maybeSingle(),
+  const [xpMap, eventsResult, leaderboardResult] = await Promise.all([
+    getCurrentBatchXPMap(sb),
     sb.from('officer_xp_events').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(20),
     getLeaderboard()
   ]);
 
-  const summary = summaryResult.data;
   const events = eventsResult.data || [];
+  const totalXp = xpMap.get(userId) || 0;
   const rank = (leaderboardResult || []).find(r => r.userId === userId)?.rank || null;
   const totalOfficers = (leaderboardResult || []).length;
 
   return {
     userId,
-    totalXp: summary?.total_xp || 0,
+    totalXp,
     rank,
     totalOfficers,
     recentEvents: events

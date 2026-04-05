@@ -1,18 +1,18 @@
 /**
  * XP Archive Service
  *
- * Handles archiving and resetting officer XP when a program transitions
- * to a new current batch. Each program manages its own XP cycle independently.
+ * Handles archiving officer XP when a program transitions to a new batch.
+ * Each program manages its own XP cycle independently.
  *
  * Flow:
  *  1. Called by batchSetupService.saveBatchSetup() before is_current flip
+ *     (only when switching to a DIFFERENT batch — not on same-batch saves)
  *  2. Sums all XP events tagged with program_id + batch_name for each officer
- *  3. Saves snapshot to officer_xp_archives
- *  4. Subtracts that amount from officer_xp_summary (floors at 0)
- *  5. Inserts an audit event (xp_batch_reset) for traceability
+ *  3. Saves snapshot to officer_xp_archives (historical record only)
  *
- * NOTE: XP events from before this feature (no program_id) are unaffected
- * and remain in officer_xp_summary total. Only going-forward tagged XP is reset.
+ * NOTE: XP is NEVER subtracted or reset. The archive is a read-only snapshot.
+ * The leaderboard and dashboard always show XP for the current active batch
+ * by summing officer_xp_events filtered to the current program+batch.
  */
 
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
@@ -28,8 +28,8 @@ function requireSupabase() {
 }
 
 /**
- * Archives and resets XP for all officers who earned XP in the outgoing batch
- * of a specific program.
+ * Archives XP snapshot for all officers who earned XP in the outgoing batch
+ * of a specific program. XP is NEVER subtracted or reset.
  *
  * @param {string} programId - UUID of the program whose batch is transitioning
  * @param {string} outgoingBatchName - the batch_name that was is_current = true
@@ -72,7 +72,7 @@ async function archiveAndResetXPForBatch(programId, outgoingBatchName) {
 
   for (const [userId, batchXP] of xpByOfficer.entries()) {
     try {
-      // 3) Insert archive snapshot (even if batchXP = 0, for clean audit trail)
+      // 3) Insert archive snapshot as a historical record — XP is never subtracted
       const { error: archErr } = await sb
         .from('officer_xp_archives')
         .insert({
@@ -89,53 +89,14 @@ async function archiveAndResetXPForBatch(programId, outgoingBatchName) {
         continue;
       }
 
-      if (batchXP <= 0) {
-        // Nothing to subtract
-        results.push({ userId, batchXP, status: 'archived_no_reset' });
-        continue;
-      }
-
-      // 4) Read current summary and subtract batch XP (floor at 0)
-      const { data: summary } = await sb
-        .from('officer_xp_summary')
-        .select('total_xp')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      const currentTotal = Number(summary?.total_xp || 0);
-      const newTotal = Math.max(0, currentTotal - batchXP);
-
-      await sb
-        .from('officer_xp_summary')
-        .upsert({
-          user_id: userId,
-          total_xp: newTotal,
-          last_updated: now
-        }, { onConflict: 'user_id' });
-
-      // 5) Insert audit event for the reset
-      await sb
-        .from('officer_xp_events')
-        .insert({
-          user_id: userId,
-          event_type: 'xp_batch_reset',
-          xp: -batchXP,
-          reference_id: `${programId}:${outgoingBatchName}`,
-          reference_type: 'batch',
-          program_id: programId,
-          batch_name: outgoingBatchName,
-          note: `Batch ended: ${outgoingBatchName} (archived ${batchXP} XP)`,
-          created_at: now
-        });
-
-      results.push({ userId, batchXP, previousTotal: currentTotal, newTotal, status: 'reset' });
+      results.push({ userId, batchXP, status: 'archived' });
     } catch (e) {
       console.warn(`[XP Archive] Error processing user ${userId}:`, e.message);
       results.push({ userId, status: 'error', error: e.message });
     }
   }
 
-  const archived = results.filter(r => r.status === 'reset' || r.status === 'archived_no_reset').length;
+  const archived = results.filter(r => r.status === 'archived').length;
   console.log(`[XP Archive] Done for program=${programId} batch=${outgoingBatchName}: archived=${archived} officers=${results.length}`);
 
   return { archived, officers: results };
