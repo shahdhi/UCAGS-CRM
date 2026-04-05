@@ -242,13 +242,13 @@ async function updateLeadStatusByPhoneAndBatch(sb: any, canonicalPhone: string, 
 // XP helper (best-effort, mirrors xpService.js)
 // ---------------------------------------------------------------------------
 
-async function awardXPOnce(sb: any, { userId, eventType, xp, referenceId, referenceType, note }: any) {
+async function awardXPOnce(sb: any, { userId, eventType, xp, referenceId, referenceType, note, programId, batchName }: any) {
   if (!userId || !eventType) return;
   try {
     // Idempotent: check if already awarded for this reference
     if (referenceId) {
       const { data: existing } = await sb
-        .from('xp_events')
+        .from('officer_xp_events')
         .select('id')
         .eq('user_id', userId)
         .eq('event_type', eventType)
@@ -256,15 +256,34 @@ async function awardXPOnce(sb: any, { userId, eventType, xp, referenceId, refere
         .maybeSingle();
       if (existing) return; // already awarded
     }
-    await sb.from('xp_events').insert({
+
+    // Insert XP event
+    await sb.from('officer_xp_events').insert({
       user_id: userId,
       event_type: eventType,
-      xp_awarded: xp ?? 0,
+      xp: xp ?? 0,
       reference_id: referenceId ? String(referenceId) : null,
       reference_type: referenceType ?? null,
       note: note ?? null,
-      created_at: new Date().toISOString(),
+      program_id: programId ?? null,
+      batch_name: batchName ?? null,
     });
+
+    // Upsert XP summary (total_xp counter)
+    const { data: existing } = await sb
+      .from('officer_xp_summary')
+      .select('total_xp')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const currentXP = Number(existing?.total_xp ?? 0);
+    const newXP = Math.max(0, currentXP + (xp ?? 0));
+
+    await sb.from('officer_xp_summary').upsert({
+      user_id: userId,
+      total_xp: newXP,
+      last_updated: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
   } catch (_) { /* non-fatal */ }
 }
 
@@ -488,6 +507,8 @@ async function handleIntake(sb: any, body: any): Promise<Response> {
           await awardXPOnce(sb, {
             userId: officerUser.id, eventType: 'registration_received',
             xp: 40, referenceId: data.id, referenceType: 'registration',
+            programId: programRow.id ?? null,
+            batchName: registrationBatchName,
             note: `Registration received: ${data.name ?? 'student'}`,
           });
         }
