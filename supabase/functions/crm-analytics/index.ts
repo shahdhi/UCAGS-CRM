@@ -156,8 +156,9 @@ async function handleAnalytics(sb: any, user: any, url: URL): Promise<Response> 
   const officerId = url.searchParams.get('officerId');
   if (officerId && (isAdminUser || isSupervisor)) {
     try {
-      const { data: { user: targetUser } } = await sb.auth.admin.getUserById(officerId);
-      if (targetUser) {
+      const { data, error } = await sb.auth.admin.getUserById(officerId);
+      const targetUser = data?.user ?? data;
+      if (!error && targetUser) {
         officerName = cleanStr(targetUser.user_metadata?.name || targetUser.email?.split('@')?.[0]);
       }
     } catch (_) { /* ignore */ }
@@ -172,20 +173,38 @@ async function handleAnalytics(sb: any, user: any, url: URL): Promise<Response> 
   const toDefault = endOfDay(new Date());
   const fromFallback = startOfDay(new Date(Date.now() - 29 * 24 * 3600 * 1000));
 
-  const currentBatches = await getCurrentBatchNames(sb);
+  let currentBatches: string[] = [];
+  try {
+    currentBatches = await getCurrentBatchNames(sb);
+  } catch (e) {
+    console.error('[crm-analytics] getCurrentBatchNames failed:', e?.message);
+    // Continue with empty batches — queries will still run without batch filter
+  }
 
-  // Batch start date for default range
+  // Batch start date for default range (try program_batches first, then batches)
   let batchStart: Date | null = null;
   if (currentBatches.length) {
     try {
-      const { data } = await sb
-        .from('batches')
+      // Try program_batches table first (primary source)
+      const { data: pbData, error: pbErr } = await sb
+        .from('program_batches')
         .select('created_at')
-        .in('name', currentBatches)
+        .in('batch_name', currentBatches)
         .order('created_at', { ascending: true })
         .limit(1);
-      if (data?.[0]?.created_at) batchStart = startOfDay(new Date(data[0].created_at));
-    } catch (_) { /* ignore */ }
+      if (!pbErr && pbData?.[0]?.created_at) {
+        batchStart = startOfDay(new Date(pbData[0].created_at));
+      } else {
+        // Fallback: try batches table
+        const { data } = await sb
+          .from('batches')
+          .select('created_at')
+          .in('name', currentBatches)
+          .order('created_at', { ascending: true })
+          .limit(1);
+        if (data?.[0]?.created_at) batchStart = startOfDay(new Date(data[0].created_at));
+      }
+    } catch (_) { /* ignore — use last 30 days fallback */ }
   }
 
   const fromEff = from ? startOfDay(from) : (batchStart || fromFallback);
