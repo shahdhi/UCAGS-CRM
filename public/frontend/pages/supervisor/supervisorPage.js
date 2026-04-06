@@ -309,8 +309,8 @@
     const headers = await authHeaders();
 
     try {
-      // Fetch all registrations once, then filter to supervised officers client-side
-      const res = await fetch('/api/registrations/admin?limit=500&all=1', { headers });
+      // Fetch all registrations once (current batches only), then filter to supervised officers client-side
+      const res = await fetch('/api/registrations/admin?limit=500', { headers });
       if (!res.ok) throw new Error('Failed to load registrations');
       const json = await res.json();
       const allRegs = json.registrations || json.data || [];
@@ -664,7 +664,7 @@
       // ── Fetch registrations (single call, filter client-side by supervised officer names) ──
       let allRegs = [];
       try {
-        const res = await fetch('/api/registrations/admin?limit=500&all=1', { headers });
+        const res = await fetch('/api/registrations/admin?limit=500', { headers });
         if (res.ok) {
           const json = await res.json();
           const officerMap = new Map(officers.map(o => [o.name.toLowerCase(), o]));
