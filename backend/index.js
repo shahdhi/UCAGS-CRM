@@ -146,6 +146,9 @@ app.get('/api/health', (req, res) => {
 });
 
 // Serve public pages for specific routes
+app.get('/developer', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/developer.html'));
+});
 app.get('/homepage', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/homepage.html'));
 });
