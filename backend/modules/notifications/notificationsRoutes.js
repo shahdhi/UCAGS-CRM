@@ -15,21 +15,34 @@ const { createNotification } = require('./notificationsHelper');
  */
 router.post('/update-release', async (req, res) => {
   try {
-    // Verify auth token
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-    if (!token) return res.status(401).json({ success: false, error: 'Unauthorized' });
-
     const sb = getSupabaseAdmin();
-    const { data: { user }, error: authErr } = await sb.auth.getUser(token);
-    if (authErr || !user) return res.status(401).json({ success: false, error: 'Invalid token' });
-
-    // Only admins can post release notes
-    const { data: userData } = await sb.auth.admin.getUserById(user.id);
-    const role = userData?.user?.user_metadata?.role || '';
     const ADMIN_EMAILS = ['admin@ucags.edu.lk', 'mohamedunais2018@gmail.com'];
-    const isAdmin = role === 'admin' || ADMIN_EMAILS.includes((user.email || '').toLowerCase());
-    if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin only' });
+
+    // Auth: accept either a Supabase Bearer token (CRM admin) or the dev portal header
+    const authHeader = req.headers.authorization || '';
+    const devHeader  = req.headers['x-dev-portal'] || '';
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+
+    let senderName = 'Developer';
+    let authorized = false;
+
+    if (devHeader === 'shadev123') {
+      // Developer portal — trusted internal key
+      authorized = true;
+      senderName = 'Developer Portal';
+    } else if (token) {
+      const { data: { user }, error: authErr } = await sb.auth.getUser(token);
+      if (!authErr && user) {
+        const isAdmin = ADMIN_EMAILS.includes((user.email || '').toLowerCase()) ||
+                        user.user_metadata?.role === 'admin';
+        if (isAdmin) {
+          authorized = true;
+          senderName = user.user_metadata?.name || user.email?.split('@')[0] || 'Admin';
+        }
+      }
+    }
+
+    if (!authorized) return res.status(403).json({ success: false, error: 'Unauthorized' });
 
     const { message, recipients } = req.body;
     if (!message || !message.trim()) {
