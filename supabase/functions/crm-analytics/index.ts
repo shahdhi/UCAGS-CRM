@@ -452,8 +452,13 @@ Deno.serve(async (req: Request) => {
     const sb = adminSb();
     const url = new URL(req.url);
     return await handleAnalytics(sb, user, url);
-  } catch (e) {
-    console.error('[crm-analytics] error:', e);
-    return errResp(e);
+  } catch (e: any) {
+    console.error('[crm-analytics] FATAL error:', e?.message, e?.stack);
+    // Return error details in dev so we can diagnose — safe since auth already passed
+    return jsonResp({
+      success: false,
+      error: e?.message ?? String(e),
+      stack: e?.stack ?? null,
+    }, 500);
   }
 });
