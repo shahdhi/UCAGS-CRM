@@ -309,18 +309,24 @@
     const headers = await authHeaders();
 
     try {
-      // Fetch all registrations (admin endpoint) then filter by supervised officer names
-      const res = await fetch('/api/registrations?limit=500', { headers });
+      // Fetch all registrations once, then filter to supervised officers client-side
+      const res = await fetch('/api/registrations/admin?limit=500&all=1', { headers });
       if (!res.ok) throw new Error('Failed to load registrations');
       const json = await res.json();
       const allRegs = json.registrations || json.data || [];
 
-      // Filter to only registrations assigned to supervised officers (by name)
-      const officerNames = new Set(_regOfficers.map(o => (o.name || '').toLowerCase()));
-      _regAllRegs = allRegs.filter(r => {
-        const assigned = (r.assigned_to || r.payload?.assigned_to || '').toLowerCase();
-        return assigned && officerNames.has(assigned);
-      });
+      // Build a map of officer name (lowercase) → officer object for quick lookup
+      const officerMap = new Map(_regOfficers.map(o => [o.name.toLowerCase(), o]));
+      _regAllRegs = allRegs
+        .filter(r => {
+          const assigned = (r.assigned_to || r.payload?.assigned_to || '').trim().toLowerCase();
+          return assigned && officerMap.has(assigned);
+        })
+        .map(r => {
+          const assigned = (r.assigned_to || r.payload?.assigned_to || '').trim().toLowerCase();
+          const officer = officerMap.get(assigned);
+          return { ...r, _officerName: officer?.name || assigned, _officerId: officer?.id || '' };
+        });
     } catch (e) {
       console.error('[Supervisor Reg] load error:', e);
       _regAllRegs = [];
@@ -655,17 +661,23 @@
         } catch (e) { /* skip */ }
       }));
 
-      // ── Fetch registrations ──
+      // ── Fetch registrations (single call, filter client-side by supervised officer names) ──
       let allRegs = [];
       try {
-        const res = await fetch('/api/registrations?limit=1000', { headers });
+        const res = await fetch('/api/registrations/admin?limit=500&all=1', { headers });
         if (res.ok) {
           const json = await res.json();
-          const officerNames = new Set(officers.map(o => (o.name || '').toLowerCase()));
-          allRegs = (json.registrations || json.data || []).filter(r => {
-            const assigned = (r.assigned_to || r.payload?.assigned_to || '').toLowerCase();
-            return officerNames.has(assigned);
-          });
+          const officerMap = new Map(officers.map(o => [o.name.toLowerCase(), o]));
+          allRegs = (json.registrations || json.data || [])
+            .filter(r => {
+              const assigned = (r.assigned_to || r.payload?.assigned_to || '').trim().toLowerCase();
+              return assigned && officerMap.has(assigned);
+            })
+            .map(r => {
+              const assigned = (r.assigned_to || r.payload?.assigned_to || '').trim().toLowerCase();
+              const officer = officerMap.get(assigned);
+              return { ...r, _officerName: officer?.name || assigned, _officerId: officer?.id || '' };
+            });
         }
       } catch (e) { /* skip */ }
 
