@@ -169,8 +169,35 @@
   // ── Update Release full-screen popup ────────────────────────────────────────
   function showUpdateReleasePopup(notification) {
     try {
-      const popup = document.getElementById('updateReleasePopup');
-      if (!popup) return;
+      // Inject popup into DOM if not already present (for pages other than index.html)
+      let popup = document.getElementById('updateReleasePopup');
+      if (!popup) {
+        popup = document.createElement('div');
+        popup.id = 'updateReleasePopup';
+        popup.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,10,30,0.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;display:none;';
+        popup.innerHTML = `
+          <div style="background:#fff;border-radius:16px;max-width:520px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,0.35);overflow:hidden;display:flex;flex-direction:column;max-height:90vh;">
+            <div style="background:linear-gradient(135deg,#4C1D95 0%,#6D28D9 100%);padding:22px 24px 18px;display:flex;align-items:flex-start;gap:14px;">
+              <div style="width:44px;height:44px;background:rgba(255,255,255,0.18);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fas fa-bullhorn" style="color:#fff;font-size:20px;"></i>
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="color:rgba(255,255,255,0.75);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:3px;">Update Release</div>
+                <div id="updateReleasePopupTitle" style="color:#fff;font-size:18px;font-weight:700;line-height:1.25;">📣 New Update</div>
+                <div id="updateReleasePopupMeta" style="color:rgba(255,255,255,0.6);font-size:12px;margin-top:4px;"></div>
+              </div>
+            </div>
+            <div style="padding:24px;overflow-y:auto;flex:1;">
+              <p id="updateReleasePopupMessage" style="font-size:15px;line-height:1.7;color:#1f2937;white-space:pre-wrap;margin:0;"></p>
+            </div>
+            <div style="padding:16px 24px;border-top:1px solid #f3f4f6;display:flex;justify-content:flex-end;">
+              <button id="updateReleasePopupCloseBtn" type="button" style="background:linear-gradient(135deg,#4C1D95,#6D28D9);color:#fff;border:none;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+                <i class="fas fa-check"></i> Got it
+              </button>
+            </div>
+          </div>`;
+        document.body.appendChild(popup);
+      }
 
       // Fill content
       const titleEl   = document.getElementById('updateReleasePopupTitle');
@@ -567,6 +594,15 @@
       const newest = rows[0];
       const newestTs = newest?.created_at ? new Date(newest.created_at).getTime() : 0;
 
+      // Always check for unread update_release notifications regardless of watermark
+      // so they show as popup even if received while offline/page closed
+      rows.forEach(n => {
+        if (n.category === 'update_release' && !n.read_at && !wasPopped(userId, n.id)) {
+          markPopped(userId, n.id);
+          showUpdateReleasePopup(n);
+        }
+      });
+
       if (!lastSeenTs) {
         // First run: set watermark, don't pop historical notifications
         if (newestTs) saveLastSeenTs(userId, newestTs);
@@ -601,10 +637,8 @@
           if (wasPopped(userId, n.id)) return;
           markPopped(userId, n.id);
 
-          // Update Release: show full-screen popup instead of toast
-          if (n.category === 'update_release') {
-            showUpdateReleasePopup(n);
-          } else {
+          // update_release already handled above via the always-check block
+          if (n.category !== 'update_release') {
             const msg = `${n.title}: ${n.message}`;
             notifyInApp(msg, n.type || 'info');
             notifyNearBell(n.title, n.message, n.type || 'info');
