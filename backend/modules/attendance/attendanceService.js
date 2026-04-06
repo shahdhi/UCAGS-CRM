@@ -1,126 +1,29 @@
 /**
  * Attendance Service
  *
- * Stores daily check-in/check-out records in a dedicated Google Spreadsheet.
- * Rule: Each staff member has their own sheet (sheet name = staff display name).
+ * Stores daily check-in/check-out records in Supabase (attendance_records table).
+ * One row per officer per day.
  */
 
-const { readSheet, appendSheet, writeSheet, sheetExists, createSheet } = require('../../core/sheets/sheetsClient');
-const { config } = require('../../core/config/environment');
+const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
 
-const ATT_HEADERS = [
-  'Date',
-  'Check In',
-  'Check Out',
-  'Check In (ISO)',
-  'Check Out (ISO)',
-  'Created At (ISO)',
-  'Updated At (ISO)',
-  'Location Confirmed At (ISO)',
-  'Location Lat',
-  'Location Lng',
-  'Location Accuracy (m)'
-];
-
-const ATT_COL_COUNT = ATT_HEADERS.length; // 11
-
-// Google Sheets may auto-coerce values into date/time serial numbers depending on cell format.
-// To keep Date + CheckIn/Out stable and human-readable, we write them as TEXT (prefix with apostrophe)
-// and we also normalize reads in case older rows already got coerced.
-function isNumericLike(v) {
-  if (v == null) return false;
-  if (typeof v === 'number') return true;
-  const s = String(v).trim();
-  return s !== '' && /^-?\d+(\.\d+)?$/.test(s);
-}
-
-function serialDateToYMD(serial) {
-  const n = Number(serial);
-  if (!Number.isFinite(n)) return '';
-  // Google Sheets serial date: days since 1899-12-30
-  const ms = Math.round((n - 25569) * 86400 * 1000);
-  const d = new Date(ms);
-  const y = d.getUTCFullYear();
-  const m = pad2(d.getUTCMonth() + 1);
-  const day = pad2(d.getUTCDate());
-  return `${y}-${m}-${day}`;
-}
-
-function serialTimeToHMS(serial) {
-  const n = Number(serial);
-  if (!Number.isFinite(n)) return '';
-  // time-only cells are often fractional days
-  const frac = n % 1;
-  const totalSeconds = Math.round(frac * 86400);
-  const hh = pad2(Math.floor(totalSeconds / 3600) % 24);
-  const mm = pad2(Math.floor((totalSeconds % 3600) / 60));
-  const ss = pad2(totalSeconds % 60);
-  return `${hh}:${mm}:${ss}`;
-}
-
-function normalizeDateCell(v) {
-  if (!v) return '';
-  if (isNumericLike(v)) return serialDateToYMD(v);
-  return String(v).trim();
-}
-
-function normalizeTimeCell(v) {
-  if (!v) return '';
-  if (isNumericLike(v)) return serialTimeToHMS(v);
-  return String(v).trim();
-}
-
-function asTextCell(v) {
-  if (!v) return '';
-  const s = String(v);
-  // If already text-forced, keep it
-  if (s.startsWith("'")) return s;
-  return `'${s}`;
-}
-
-async function requireAttendanceSheetId() {
-  const { getAttendanceSheetId } = require('../../core/config/appSettings');
-  const spreadsheetId = await getAttendanceSheetId();
-  if (!spreadsheetId) {
-    throw new Error('Attendance spreadsheet not configured. Set Supabase app_settings.attendance_sheet_id or ATTENDANCE_SHEET_ID');
-  }
-  return spreadsheetId;
-}
+const SRI_LANKA_TZ = 'Asia/Colombo';
 
 function pad2(n) {
   return String(n).padStart(2, '0');
 }
 
-const SRI_LANKA_TZ = 'Asia/Colombo';
-
 function getSriLankaDateParts(d) {
-  // Use Intl to avoid relying on server timezone.
-  // Returns { year, month, day, hour, minute, second } in Asia/Colombo.
   const dtf = new Intl.DateTimeFormat('en-GB', {
     timeZone: SRI_LANKA_TZ,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
     hour12: false
   });
-
   const parts = dtf.formatToParts(d);
   const map = {};
-  for (const p of parts) {
-    if (p.type !== 'literal') map[p.type] = p.value;
-  }
-
-  return {
-    year: map.year,
-    month: map.month,
-    day: map.day,
-    hour: map.hour,
-    minute: map.minute,
-    second: map.second
-  };
+  for (const p of parts) if (p.type !== 'literal') map[p.type] = p.value;
+  return map;
 }
 
 function formatDateSriLanka(d) {
@@ -133,238 +36,214 @@ function formatTimeSriLanka(d) {
   return `${p.hour}:${p.minute}:${p.second}`;
 }
 
+function requireSb() {
+  const sb = getSupabaseAdmin();
+  if (!sb) throw new Error('Supabase admin client not available');
+  return sb;
+}
+
+async function getUserId(officerName) {
+  // Lookup user_id from auth.users by display name
+  const sb = requireSb();
+  const { data: { users }, error } = await sb.auth.admin.listUsers({ page: 1, perPage: 2000 });
+  if (error) throw error;
+  const match = (users || []).find(u =>
+    String(u.user_metadata?.name || '').trim().toLowerCase() === String(officerName || '').trim().toLowerCase()
+  );
+  return match?.id || null;
+}
+
+async function getTodayRecord(userId, dateStr) {
+  const sb = requireSb();
+  const { data, error } = await sb
+    .from('attendance_records')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('date', dateStr)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+function recordToResponse(row, locationRow) {
+  if (!row) return null;
+  return {
+    date: row.date,
+    checkIn: row.check_in || '',
+    checkOut: row.check_out || '',
+    checkInIso: row.check_in_iso || '',
+    checkOutIso: row.check_out_iso || '',
+    createdAt: row.created_at || '',
+    updatedAt: row.updated_at || '',
+    // Location comes from the attendance_locations table (may be null)
+    locationConfirmedAt: locationRow?.confirmed_at || '',
+    locationLat: locationRow?.lat != null ? String(locationRow.lat) : '',
+    locationLng: locationRow?.lng != null ? String(locationRow.lng) : '',
+    locationAccuracy: locationRow?.accuracy != null ? String(locationRow.accuracy) : ''
+  };
+}
+
+// Kept for backward compat (routes call ensureStaffSheet on first use)
 async function ensureStaffSheet(staffName) {
-  const spreadsheetId = await requireAttendanceSheetId();
-  if (!staffName) throw new Error('staffName is required');
-
-  const existing = await sheetExists(spreadsheetId, staffName);
-  const actualName = existing || staffName;
-
-  if (!existing) {
-    await createSheet(spreadsheetId, staffName);
-    await writeSheet(spreadsheetId, `${staffName}!A1:K1`, [ATT_HEADERS]);
-    return { created: true, sheetName: staffName };
-  }
-
-  // Ensure headers exist (safe no-op if present)
-  const headers = await readSheet(spreadsheetId, `${actualName}!A1:K1`);
-  if (!headers || headers.length === 0 || (headers[0] || []).join('|') !== ATT_HEADERS.join('|')) {
-    await writeSheet(spreadsheetId, `${actualName}!A1:K1`, [ATT_HEADERS]);
-  }
-
-  return { created: false, sheetName: actualName };
+  return { created: false, sheetName: staffName };
 }
 
-async function getStaffRecords(staffName, { fromDate, toDate, limit } = {}) {
-  const spreadsheetId = await requireAttendanceSheetId();
-  const { sheetName } = await ensureStaffSheet(staffName);
+async function getStaffRecords(officerName, { fromDate, toDate, limit } = {}) {
+  const sb = requireSb();
+  let query = sb
+    .from('attendance_records')
+    .select('*, attendance_locations(*)')
+    .eq('officer_name', officerName)
+    .order('date', { ascending: true });
 
-  const rows = await readSheet(spreadsheetId, `${sheetName}!A2:K`);
-  const records = (rows || []).map((row) => ({
-    date: normalizeDateCell(row[0]),
-    checkIn: normalizeTimeCell(row[1]),
-    checkOut: normalizeTimeCell(row[2]),
-    checkInIso: row[3] || '',
-    checkOutIso: row[4] || '',
-    createdAt: row[5] || '',
-    updatedAt: row[6] || '',
-    locationConfirmedAt: row[7] || '',
-    locationLat: row[8] || '',
-    locationLng: row[9] || '',
-    locationAccuracy: row[10] || ''
-  }));
+  if (fromDate) query = query.gte('date', fromDate);
+  if (toDate)   query = query.lte('date', toDate);
+  if (limit)    query = query.limit(limit);
 
-  let filtered = records;
-  if (fromDate) filtered = filtered.filter(r => r.date >= fromDate);
-  if (toDate) filtered = filtered.filter(r => r.date <= toDate);
-  if (limit) filtered = filtered.slice(Math.max(filtered.length - limit, 0));
-
-  return filtered;
-}
-
-async function findRowIndexByDate(staffName, dateStr) {
-  const spreadsheetId = await requireAttendanceSheetId();
-  const { sheetName } = await ensureStaffSheet(staffName);
-
-  const rows = await readSheet(spreadsheetId, `${sheetName}!A2:A`);
-  const idx = (rows || []).findIndex(r => normalizeDateCell(r[0]) === dateStr);
-  if (idx === -1) return { sheetName, rowNumber: null };
-  return { sheetName, rowNumber: idx + 2 }; // +2 for header + 0-based
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map(row => recordToResponse(row, row.attendance_locations?.[0] ?? null));
 }
 
 async function checkIn(staffName, now = new Date()) {
-  const spreadsheetId = await requireAttendanceSheetId();
-  const { sheetName } = await ensureStaffSheet(staffName);
+  const sb = requireSb();
+  const userId = await getUserId(staffName);
+  if (!userId) throw Object.assign(new Error('Officer account not found'), { status: 404 });
 
   const dateStr = formatDateSriLanka(now);
   const timeStr = formatTimeSriLanka(now);
   const nowIso = now.toISOString();
 
-  const { rowNumber } = await findRowIndexByDate(staffName, dateStr);
-  if (rowNumber) {
-    // Existing record for today: ensure check-in not set
-    const existing = await readSheet(spreadsheetId, `${sheetName}!A${rowNumber}:K${rowNumber}`);
-    const row = (existing && existing[0]) || [];
-    if (row[1]) {
-      const err = new Error('Already checked in for today');
-      err.status = 409;
-      throw err;
-    }
+  const existing = await getTodayRecord(userId, dateStr);
+  if (existing?.check_in) {
+    throw Object.assign(new Error('Already checked in for today'), { status: 409 });
+  }
 
-    const updated = [
-      asTextCell(dateStr),
-      asTextCell(timeStr),
-      row[2] ? asTextCell(normalizeTimeCell(row[2])) : '',
-      nowIso,
-      row[4] || '',
-      row[5] || nowIso,
-      nowIso,
-      row[7] || '',
-      row[8] || '',
-      row[9] || '',
-      row[10] || ''
-    ];
-    await writeSheet(spreadsheetId, `${sheetName}!A${rowNumber}:K${rowNumber}`, [updated]);
+  if (existing) {
+    const { data, error } = await sb
+      .from('attendance_records')
+      .update({ check_in: timeStr, check_in_iso: nowIso, updated_at: nowIso })
+      .eq('id', existing.id)
+      .select('*')
+      .single();
+    if (error) throw error;
     return { date: dateStr, checkIn: timeStr, checkInIso: nowIso };
   }
 
-  const newRow = [asTextCell(dateStr), asTextCell(timeStr), '', nowIso, '', nowIso, nowIso, '', '', '', ''];
-  await appendSheet(spreadsheetId, `${sheetName}!A:K`, [newRow]);
+  const { data, error } = await sb
+    .from('attendance_records')
+    .insert({
+      user_id: userId,
+      officer_name: staffName,
+      date: dateStr,
+      check_in: timeStr,
+      check_in_iso: nowIso,
+      created_at: nowIso,
+      updated_at: nowIso
+    })
+    .select('*')
+    .single();
+  if (error) throw error;
   return { date: dateStr, checkIn: timeStr, checkInIso: nowIso };
 }
 
 async function checkOut(staffName, now = new Date()) {
-  const spreadsheetId = await requireAttendanceSheetId();
-  const { sheetName } = await ensureStaffSheet(staffName);
+  const sb = requireSb();
+  const userId = await getUserId(staffName);
+  if (!userId) throw Object.assign(new Error('Officer account not found'), { status: 404 });
 
   const dateStr = formatDateSriLanka(now);
   const timeStr = formatTimeSriLanka(now);
   const nowIso = now.toISOString();
 
-  const { rowNumber } = await findRowIndexByDate(staffName, dateStr);
-  if (!rowNumber) {
-    const err = new Error('No check-in found for today');
-    err.status = 409;
-    throw err;
+  const existing = await getTodayRecord(userId, dateStr);
+  if (!existing?.check_in) {
+    throw Object.assign(new Error('No check-in found for today'), { status: 409 });
+  }
+  if (existing?.check_out) {
+    throw Object.assign(new Error('Already checked out for today'), { status: 409 });
   }
 
-  const existing = await readSheet(spreadsheetId, `${sheetName}!A${rowNumber}:K${rowNumber}`);
-  const row = (existing && existing[0]) || [];
-
-  if (!row[1]) {
-    const err = new Error('No check-in found for today');
-    err.status = 409;
-    throw err;
-  }
-  if (row[2]) {
-    const err = new Error('Already checked out for today');
-    err.status = 409;
-    throw err;
-  }
-
-  const updated = [
-    asTextCell(normalizeDateCell(row[0]) || dateStr),
-    row[1] ? asTextCell(normalizeTimeCell(row[1])) : '',
-    asTextCell(timeStr),
-    row[3] || '',
-    nowIso,
-    row[5] || row[3] || nowIso,
-    nowIso,
-    row[7] || '',
-    row[8] || '',
-    row[9] || '',
-    row[10] || ''
-  ];
-
-  await writeSheet(spreadsheetId, `${sheetName}!A${rowNumber}:K${rowNumber}`, [updated]);
+  const { error } = await sb
+    .from('attendance_records')
+    .update({ check_out: timeStr, check_out_iso: nowIso, updated_at: nowIso })
+    .eq('id', existing.id);
+  if (error) throw error;
   return { date: dateStr, checkOut: timeStr, checkOutIso: nowIso };
 }
 
 async function getTodayStatus(staffName, now = new Date()) {
-  const spreadsheetId = await requireAttendanceSheetId();
-  const { sheetName } = await ensureStaffSheet(staffName);
+  const sb = requireSb();
+  const userId = await getUserId(staffName);
+  if (!userId) return { date: formatDateSriLanka(now), checkedIn: false, checkedOut: false, record: null };
 
   const dateStr = formatDateSriLanka(now);
-  const { rowNumber } = await findRowIndexByDate(staffName, dateStr);
-  if (!rowNumber) {
-    return { date: dateStr, checkedIn: false, checkedOut: false, record: null };
+  const row = await getTodayRecord(userId, dateStr);
+
+  // Fetch location for today's record if it exists
+  let locationRow = null;
+  if (row?.id) {
+    const { data: locData } = await sb
+      .from('attendance_locations')
+      .select('*')
+      .eq('attendance_record_id', row.id)
+      .maybeSingle();
+    locationRow = locData || null;
   }
 
-  const existing = await readSheet(spreadsheetId, `${sheetName}!A${rowNumber}:K${rowNumber}`);
-  const row = (existing && existing[0]) || [];
-
-  const record = {
-    date: normalizeDateCell(row[0]) || dateStr,
-    checkIn: normalizeTimeCell(row[1]),
-    checkOut: normalizeTimeCell(row[2]),
-    checkInIso: row[3] || '',
-    checkOutIso: row[4] || '',
-    createdAt: row[5] || '',
-    updatedAt: row[6] || '',
-    locationConfirmedAt: row[7] || '',
-    locationLat: row[8] || '',
-    locationLng: row[9] || '',
-    locationAccuracy: row[10] || ''
-  };
+  const record = recordToResponse(row, locationRow);
 
   return {
     date: dateStr,
-    checkedIn: !!record.checkIn,
-    checkedOut: !!record.checkOut,
+    checkedIn: !!(record?.checkIn),
+    checkedOut: !!(record?.checkOut),
     record
   };
 }
 
 async function confirmLocation(staffName, { lat, lng, accuracy } = {}, now = new Date()) {
-  const spreadsheetId = await requireAttendanceSheetId();
-  const { sheetName } = await ensureStaffSheet(staffName);
-
-  const dateStr = formatDateSriLanka(now);
-  const { rowNumber } = await findRowIndexByDate(staffName, dateStr);
-  if (!rowNumber) {
-    const err = new Error('No attendance record found for today');
-    err.status = 409;
-    throw err;
-  }
-
-  const existing = await readSheet(spreadsheetId, `${sheetName}!A${rowNumber}:K${rowNumber}`);
-  const row = (existing && existing[0]) || [];
-
-  if (!row[1]) {
-    const err = new Error('Please check in first');
-    err.status = 409;
-    throw err;
-  }
-
-  // If already confirmed, block duplicate confirm
-  if (row[7] || row[8] || row[9]) {
-    const err = new Error('Location already confirmed for today');
-    err.status = 409;
-    throw err;
-  }
+  const sb = requireSb();
+  const userId = await getUserId(staffName);
+  if (!userId) throw Object.assign(new Error('Officer account not found'), { status: 404 });
 
   if (lat == null || lng == null) {
-    const err = new Error('lat and lng are required');
-    err.status = 400;
-    throw err;
+    throw Object.assign(new Error('lat and lng are required'), { status: 400 });
+  }
+
+  const dateStr = formatDateSriLanka(now);
+  const existing = await getTodayRecord(userId, dateStr);
+
+  if (!existing?.check_in) {
+    throw Object.assign(new Error('Please check in first'), { status: 409 });
+  }
+
+  // Check if location already confirmed for today (in attendance_locations table)
+  const { data: existingLoc } = await sb
+    .from('attendance_locations')
+    .select('id')
+    .eq('attendance_record_id', existing.id)
+    .maybeSingle();
+
+  if (existingLoc) {
+    throw Object.assign(new Error('Location already confirmed for today'), { status: 409 });
   }
 
   const confirmedAtIso = now.toISOString();
-  const updated = [
-    row[0] ? asTextCell(normalizeDateCell(row[0])) : asTextCell(dateStr),
-    row[1] ? asTextCell(normalizeTimeCell(row[1])) : '',
-    row[2] ? asTextCell(normalizeTimeCell(row[2])) : '',
-    row[3] || '',
-    row[4] || '',
-    row[5] || confirmedAtIso,
-    confirmedAtIso,
-    confirmedAtIso,
-    String(lat),
-    String(lng),
-    accuracy != null ? String(accuracy) : ''
-  ];
 
-  await writeSheet(spreadsheetId, `${sheetName}!A${rowNumber}:K${rowNumber}`, [updated]);
+  // Insert into the dedicated attendance_locations table
+  const { error } = await sb
+    .from('attendance_locations')
+    .insert({
+      attendance_record_id: existing.id,
+      user_id: userId,
+      officer_name: staffName,
+      date: dateStr,
+      lat,
+      lng,
+      accuracy: accuracy ?? null,
+      confirmed_at: confirmedAtIso
+    });
+  if (error) throw error;
 
   return {
     date: dateStr,
@@ -376,11 +255,11 @@ async function confirmLocation(staffName, { lat, lng, accuracy } = {}, now = new
 }
 
 module.exports = {
-  ATT_HEADERS,
   ensureStaffSheet,
   getStaffRecords,
   checkIn,
   checkOut,
   confirmLocation,
-  getTodayStatus
+  getTodayStatus,
+  formatDateSriLanka
 };

@@ -2,7 +2,9 @@
  * Attendance Routes
  *
  * Officers: check-in/check-out and view own status.
- * Admins: view staff attendance records.
+ * Admins: view staff attendance records, manage overrides, leave requests.
+ *
+ * All data is stored in Supabase (attendance_records, leave_requests, attendance_overrides).
  */
 
 const express = require('express');
@@ -24,7 +26,12 @@ const {
   decideLeaveRequest
 } = require('./leaveRequestsService');
 
-// Officer: ensure their sheet exists (helps first run)
+const { getOfficerMonthCalendar } = require('./attendanceCalendarService');
+const { getAdminMonthSummary, listAllOfficers } = require('./adminAttendanceSummaryService');
+const { upsertOverride } = require('./adminAttendanceOverridesService');
+const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
+
+// Officer: ensure their sheet exists (no-op now — kept for backward compat)
 router.post('/me/ensure-sheet', isAuthenticated, async (req, res) => {
   try {
     const staffName = req.user?.name;
@@ -56,8 +63,6 @@ router.post('/me/checkin', isAuthenticated, async (req, res) => {
     const record = await checkIn(staffName);
 
     // XP: +1 if checked in before 10:00 AM Sri Lanka time
-    // Note: attendance XP is not program/batch-specific (it's a general performance metric)
-    // so programId/batchName are intentionally omitted here.
     try {
       const { awardXPOnce } = require('../xp/xpService');
       if (officerUserId && record?.checkInIso) {
@@ -89,6 +94,18 @@ router.post('/me/checkin', isAuthenticated, async (req, res) => {
   }
 });
 
+// Officer: check out
+router.post('/me/checkout', isAuthenticated, async (req, res) => {
+  try {
+    const staffName = req.user?.name;
+    const record = await checkOut(staffName);
+    res.status(201).json({ success: true, record });
+  } catch (error) {
+    console.error('POST /api/attendance/me/checkout error:', error);
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
 // Officer: confirm location for today (optional)
 router.post('/me/confirm-location', isAuthenticated, async (req, res) => {
   try {
@@ -102,32 +119,29 @@ router.post('/me/confirm-location', isAuthenticated, async (req, res) => {
   }
 });
 
-const { getOfficerMonthCalendar } = require('./attendanceCalendarService');
-const { getSpreadsheetInfo } = require('../../core/sheets/sheetsClient');
-const { getAttendanceSheetId } = require('../../core/config/appSettings');
-const { upsertOverride } = require('./adminAttendanceOverridesService');
-
-async function listOfficerSheets() {
-  const spreadsheetId = await getAttendanceSheetId();
-  if (!spreadsheetId) return [];
-  const info = await getSpreadsheetInfo(spreadsheetId);
-  const titles = (info.sheets || []).map(s => s.properties.title).filter(Boolean);
-  return titles.filter(t => t !== 'LeaveRequests' && t !== 'AttendanceOverrides' && t !== 'Sheet1' && !t.startsWith('_'));
-}
-
-// Officer: check out
-router.post('/me/checkout', isAuthenticated, async (req, res) => {
+// Officer: calendar summary for a month
+router.get('/me/calendar', isAuthenticated, async (req, res) => {
   try {
-    const staffName = req.user?.name;
-    const record = await checkOut(staffName);
-    res.status(201).json({ success: true, record });
+    const officerName = req.user?.name;
+    let month = req.query.month;
+
+    if (!month) {
+      const dtf = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Colombo', year: 'numeric', month: '2-digit' });
+      const parts = dtf.formatToParts(new Date());
+      const map = {};
+      for (const p of parts) if (p.type !== 'literal') map[p.type] = p.value;
+      month = `${map.year}-${map.month}`;
+    }
+
+    const data = await getOfficerMonthCalendar({ officerName, month });
+    res.json({ success: true, ...data });
   } catch (error) {
-    console.error('POST /api/attendance/me/checkout error:', error);
+    console.error('GET /api/attendance/me/calendar error:', error);
     res.status(error.status || 500).json({ success: false, error: error.message });
   }
 });
 
-// Officer: submit leave request (single day)
+// Officer: submit leave request
 router.post('/me/leave-requests', isAuthenticated, async (req, res) => {
   try {
     const officerName = req.user?.name;
@@ -149,9 +163,7 @@ router.post('/me/leave-requests', isAuthenticated, async (req, res) => {
           type: 'warning'
         });
       }
-    } catch (e) {
-      // ignore notification failures
-    }
+    } catch (e) { /* ignore notification failures */ }
 
     res.status(201).json({ success: true, request: record });
   } catch (error) {
@@ -216,31 +228,6 @@ router.post('/leave-requests/:id/reject', isAdmin, async (req, res) => {
   }
 });
 
-// Officer: calendar summary for a month
-// Query param: month=YYYY-MM (optional; defaults to current month in Asia/Colombo)
-router.get('/me/calendar', isAuthenticated, async (req, res) => {
-  try {
-    const officerName = req.user?.name;
-    let month = req.query.month;
-
-    if (!month) {
-      const dtf = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Colombo', year: 'numeric', month: '2-digit' });
-      const parts = dtf.formatToParts(new Date());
-      const map = {};
-      for (const p of parts) if (p.type !== 'literal') map[p.type] = p.value;
-      month = `${map.year}-${map.month}`;
-    }
-
-    const data = await getOfficerMonthCalendar({ officerName, month });
-    res.json({ success: true, ...data });
-  } catch (error) {
-    console.error('GET /api/attendance/me/calendar error:', error);
-    res.status(error.status || 500).json({ success: false, error: error.message });
-  }
-});
-
-const { getAdminMonthSummary } = require('./adminAttendanceSummaryService');
-
 // Admin: monthly attendance summary per officer
 router.get('/summary', isAdmin, async (req, res) => {
   try {
@@ -258,46 +245,42 @@ router.get('/summary', isAdmin, async (req, res) => {
 // Query params: date=YYYY-MM-DD (optional), from=YYYY-MM-DD, to=YYYY-MM-DD
 router.get('/records', isAdmin, async (req, res) => {
   try {
-    const { getSpreadsheetInfo } = require('../../core/sheets/sheetsClient');
-    const { getAttendanceSheetId } = require('../../core/config/appSettings');
-
-    const spreadsheetId = await getAttendanceSheetId();
-    if (!spreadsheetId) {
-      return res.json({ success: true, records: [] });
-    }
-
+    const sb = getSupabaseAdmin();
     const date = req.query.date;
     const fromDate = req.query.from;
     const toDate = req.query.to;
 
-    const info = await getSpreadsheetInfo(spreadsheetId);
-    const sheetTitles = (info.sheets || []).map(s => s.properties.title);
+    // Join attendance_locations so location data comes from its own table
+    let query = sb
+      .from('attendance_records')
+      .select('*, attendance_locations(*)')
+      .order('date', { ascending: false })
+      .order('officer_name', { ascending: true });
 
-    const records = [];
-    for (const staffSheet of sheetTitles) {
-      // Ignore hidden/empty/system sheets if any
-      if (!staffSheet || staffSheet.startsWith('_')) continue;
-
-      const staffRecords = await getStaffRecords(staffSheet, {
-        fromDate: date || fromDate,
-        toDate: date || toDate
-      });
-
-      if (date) {
-        const rec = staffRecords.find(r => r.date === date);
-        if (rec) records.push({ staffName: staffSheet, ...rec });
-      } else {
-        for (const r of staffRecords) {
-          records.push({ staffName: staffSheet, ...r });
-        }
-      }
+    if (date) {
+      query = query.eq('date', date);
+    } else {
+      if (fromDate) query = query.gte('date', fromDate);
+      if (toDate)   query = query.lte('date', toDate);
     }
 
-    // Sort by date desc then staff name
-    records.sort((a, b) => {
-      const d = (b.date || '').localeCompare(a.date || '');
-      if (d !== 0) return d;
-      return (a.staffName || '').localeCompare(b.staffName || '');
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const records = (data || []).map(row => {
+      const loc = row.attendance_locations?.[0] ?? null;
+      return {
+        staffName: row.officer_name,
+        date: row.date,
+        checkIn: row.check_in || '',
+        checkOut: row.check_out || '',
+        checkInIso: row.check_in_iso || '',
+        checkOutIso: row.check_out_iso || '',
+        locationLat: loc?.lat != null ? String(loc.lat) : '',
+        locationLng: loc?.lng != null ? String(loc.lng) : '',
+        locationAccuracy: loc?.accuracy != null ? String(loc.accuracy) : '',
+        locationConfirmedAt: loc?.confirmed_at || ''
+      };
     });
 
     res.json({ success: true, count: records.length, records });
@@ -307,10 +290,10 @@ router.get('/records', isAdmin, async (req, res) => {
   }
 });
 
-// Admin: list officers (sheet names)
+// Admin: list officers (from auth.users)
 router.get('/admin/officers', isAdmin, async (req, res) => {
   try {
-    const officers = await listOfficerSheets();
+    const officers = await listAllOfficers();
     res.json({ success: true, officers });
   } catch (error) {
     console.error('GET /api/attendance/admin/officers error:', error);
@@ -318,8 +301,7 @@ router.get('/admin/officers', isAdmin, async (req, res) => {
   }
 });
 
-// Admin: calendar for an officer + month
-// Query params: officerName=..., month=YYYY-MM
+// Admin: calendar for a specific officer + month
 router.get('/admin/calendar', isAdmin, async (req, res) => {
   try {
     const officerName = String(req.query.officerName || '').trim();
@@ -335,14 +317,14 @@ router.get('/admin/calendar', isAdmin, async (req, res) => {
   }
 });
 
-// Admin: mark a date as holiday for ALL officers at once
+// Admin: mark a date as holiday for ALL officers
 router.post('/admin/calendar/holiday', isAdmin, async (req, res) => {
   try {
     const adminName = req.user?.name || 'Admin';
     const date = String(req.body?.date || '').trim();
     if (!date) return res.status(400).json({ success: false, error: 'date is required' });
 
-    const officers = await listOfficerSheets();
+    const officers = await listAllOfficers();
     const results = [];
     for (const officerName of officers) {
       try {
@@ -359,7 +341,7 @@ router.post('/admin/calendar/holiday', isAdmin, async (req, res) => {
   }
 });
 
-// Admin: set a day status override
+// Admin: set a day status override for one officer
 router.put('/admin/calendar', isAdmin, async (req, res) => {
   try {
     const adminName = req.user?.name || 'Admin';
