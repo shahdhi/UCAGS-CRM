@@ -187,10 +187,24 @@ async function getConfirmedPaymentsRegistrationIds(sb, opts) {
 }
 
 /**
- * GET /api/dashboard/analytics?from=YYYY-MM-DD&to=YYYY-MM-DD
- * Admin analytics for Home page
+ * GET /api/dashboard/analytics — migrated to Supabase Edge Function (crm-analytics).
+ * Stub kept for backward compatibility with any non-updated clients.
  */
-router.get('/analytics', isAuthenticated, async (req, res) => {
+router.get('/analytics', isAuthenticated, (req, res) => {
+  return res.json({
+    success: true,
+    _note: 'Migrated to Supabase Edge Function: /functions/v1/crm-analytics',
+    range: {}, currentBatches: [],
+    kpis: { followUpsDue: 0, followUpsOverdue: 0, registrationsReceived: 0, confirmedPayments: 0, conversionRate: 0, activeLeads: 0 },
+    funnel: { new: 0, contacted: 0, followUp: 0, registered: 0, confirmedPayments: 0 },
+    series: { confirmedPaymentsPerDay: [] },
+    leaderboard: { enrollmentsCurrentBatch: [] },
+    actionCenter: null
+  });
+});
+
+// LEGACY handler kept for reference — remove after full migration verified
+router.get('/analytics-legacy', isAuthenticated, async (req, res) => {
   try {
     const sb = getSupabaseAdmin();
 
@@ -464,83 +478,10 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
       seriesDays.push(...days.map(day => ({ day, count: counts.get(day) || 0 })));
     }
 
-    // Leaderboard: enrollments (confirmed payments) per officer for ENTIRE current batch
-    // Always include all officers, even if 0.
-    const officerNames = [];
-    try {
-      if (Date.now() < (__officerNamesCache.at + __officerNamesCache.ttlMs) && Array.isArray(__officerNamesCache.value)) {
-        officerNames.push(...__officerNamesCache.value);
-      } else {
-        const { data: uData, error: uErr } = await sb.auth.admin.listUsers({ page: 1, perPage: 2000 });
-        if (uErr) throw uErr;
-        const names = [];
-        (uData?.users || []).forEach(u => {
-          const role = u.user_metadata?.role || 'officer';
-          const isOfficer = role === 'officer' || role === 'admission_officer';
-          if (!isOfficer) return;
-          if (role === 'admin') return;
-          const name = u.user_metadata?.name || u.email?.split('@')?.[0] || '';
-          if (name) names.push(String(name));
-        });
-        __officerNamesCache.value = names;
-        __officerNamesCache.at = Date.now();
-        officerNames.push(...names);
-      }
-    } catch (e) {
-      // If auth admin not available, just fall back to officers discovered from data
-    }
-
-    // enrollments map: officer -> confirmed-payment registrations count
-    const enrollmentsMap = new Map();
-    for (const n of officerNames) enrollmentsMap.set(n, 0);
-
-    const batchConfirmedIds = await getPaymentReceivedRegistrationIds(sb);
-    if (batchConfirmedIds.length) {
-      let q = sb
-        .from('registrations')
-        .select('id, assigned_to, payload, batch_name')
-        .in('id', batchConfirmedIds)
-        .limit(20000);
-      if (currentBatches.length) q = q.in('batch_name', currentBatches);
-      const { data, error } = await q;
-      if (!error) {
-        for (const r of (data || [])) {
-          const payload = r?.payload && typeof r.payload === 'object' ? r.payload : {};
-          const officer = String(r?.assigned_to || payload?.assigned_to || payload?.assignedTo || 'Unassigned').trim() || 'Unassigned';
-          enrollmentsMap.set(officer, (enrollmentsMap.get(officer) || 0) + 1);
-        }
-      }
-    }
-
-    // leads map: officer -> leads assigned count (current batch)
-    const leadsMap = new Map();
-    for (const n of officerNames) leadsMap.set(n, 0);
-    try {
-      let q = sb
-        .from('crm_leads')
-        .select('assigned_to, batch_name')
-        .limit(20000);
-      if (currentBatches.length) q = q.in('batch_name', currentBatches);
-      const { data, error } = await q;
-      if (error) throw error;
-
-      for (const r of (data || [])) {
-        const officer = String(r?.assigned_to || 'Unassigned').trim() || 'Unassigned';
-        leadsMap.set(officer, (leadsMap.get(officer) || 0) + 1);
-      }
-    } catch (e) {
-      // ignore; conversion will be 0 if leads unknown
-    }
-
-    const leaderboard = Array.from(new Set([...enrollmentsMap.keys(), ...leadsMap.keys()]))
-      .map((officer) => {
-        const count = enrollmentsMap.get(officer) || 0;
-        const leadsAssigned = leadsMap.get(officer) || 0;
-        const conversionRate = leadsAssigned > 0 ? (count / leadsAssigned) : 0;
-        return { officer, count, leadsAssigned, conversionRate };
-      })
-      .filter(r => String(r.officer || '').toLowerCase() !== 'admin')
-      .sort((a, b) => b.count - a.count || b.conversionRate - a.conversionRate || a.officer.localeCompare(b.officer));
+    // Leaderboard: moved to Supabase Edge Function (crm-leaderboard) to reduce Vercel CPU.
+    // The frontend fetches leaderboard data directly from the edge function in parallel.
+    // Return empty array here for backward compatibility with any clients still reading it.
+    const leaderboard = [];
 
     // Action center (admin only)
     let paymentsToBeConfirmed = 0;
