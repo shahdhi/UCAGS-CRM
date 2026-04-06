@@ -52,7 +52,6 @@ router.post('/update-release', async (req, res) => {
       return res.status(400).json({ success: false, error: 'At least one recipient is required' });
     }
 
-    const senderName = user.user_metadata?.name || user.email?.split('@')[0] || 'Admin';
     const title = '📣 Update Release';
     const now = new Date().toISOString();
 
