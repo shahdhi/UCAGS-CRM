@@ -517,7 +517,7 @@
           : '<span style="color:#98a2b3;">-</span>';
 
         const enrolled = isEnrolled(r);
-        const isSupervisor = (window.currentUser?.role || '').toLowerCase() === 'supervisor';
+        const isSupervisor = (window.currentUser?.active_role || window.currentUser?.role || '').toLowerCase() === 'supervisor';
         const enrolledCell = enrolled
           ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Enrolled</span>'
           : isSupervisor
