@@ -3314,7 +3314,8 @@ async function loadDashboard() {
             (async () => {
                 try {
                     const EDGE_URL = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-leaderboard';
-                    const headers = await getAuthHeadersWithRetry();
+                    const _anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
+                    const headers = { ...(await getAuthHeadersWithRetry()), 'apikey': _anonKey };
                     const res = await fetch(EDGE_URL, { headers });
                     const json = await res.json();
                     const lb = json.leaderboard || [];

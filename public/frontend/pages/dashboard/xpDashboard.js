@@ -106,11 +106,15 @@
     return `${Math.floor(h / 24)}d ago`;
   }
 
+  const _EDGE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
+
   async function authHeaders() {
     try {
-      return window.getAuthHeadersWithRetry ? await window.getAuthHeadersWithRetry() : {};
+      const h = window.getAuthHeadersWithRetry ? await window.getAuthHeadersWithRetry() : {};
+      // Always include apikey for Supabase Edge Function calls
+      return { ...h, 'apikey': _EDGE_ANON_KEY };
     } catch (e) {
-      return {};
+      return { 'apikey': _EDGE_ANON_KEY };
     }
   }
 

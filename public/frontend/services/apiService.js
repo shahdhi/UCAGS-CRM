@@ -559,7 +559,7 @@ const dashboardAPI = {
     const session = window._supabaseSession || (await window.supabaseClient?.auth?.getSession())?.data?.session;
     const token = session?.access_token || '';
     const res = await fetch(`${ANALYTICS_EDGE}${qs ? `?${qs}` : ''}`, {
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'apikey': EDGE_ANON_KEY }
     });
     return res.json();
   },
