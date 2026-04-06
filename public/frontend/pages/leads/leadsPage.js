@@ -720,10 +720,50 @@ function renderLeadsTable() {
     bulkBar.remove();
   }
 
-  // Render rows - clickable rows
-  tbody.innerHTML = paginatedLeads.map(lead => {
+  // Helper: format a date value to a simple YYYY-MM-DD label for grouping
+  const toDateLabel = (dateVal) => {
+    if (!dateVal) return '';
+    try {
+      const d = new Date(dateVal);
+      if (isNaN(d)) return '';
+      return d.toISOString().slice(0, 10); // "YYYY-MM-DD"
+    } catch { return ''; }
+  };
+
+  // Helper: format a date label to a human-friendly display string
+  const formatDateLabel = (label) => {
+    if (!label) return 'Unknown Date';
+    try {
+      const d = new Date(label + 'T00:00:00');
+      if (isNaN(d)) return label;
+      const today = new Date(); today.setHours(0,0,0,0);
+      const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+      if (d.getTime() === today.getTime()) return 'Today';
+      if (d.getTime() === yesterday.getTime()) return 'Yesterday';
+      return d.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    } catch { return label; }
+  };
+
+  // Render rows - clickable rows, grouped by date with dividers
+  let lastDateLabel = null;
+  const rows = [];
+  paginatedLeads.forEach(lead => {
+    const dateLabel = toDateLabel(lead.createdDate);
+    if (dateLabel !== lastDateLabel) {
+      lastDateLabel = dateLabel;
+      rows.push(`
+        <tr class="leads-date-divider" style="pointer-events:none;">
+          <td colspan="6" style="padding: 6px 12px; background: #f8f8fc; border-top: 1px solid #e9ecef; border-bottom: 1px solid #e9ecef;">
+            <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#592c88; letter-spacing:0.03em;">
+              <i class="fas fa-calendar-alt" style="font-size:11px; opacity:0.7;"></i>
+              ${escapeHtml(formatDateLabel(dateLabel))}
+            </span>
+          </td>
+        </tr>
+      `);
+    }
     const isSelected = Boolean(window.__selectedLeadIds && window.__selectedLeadIds.has(String(lead.id)));
-    return `
+    rows.push(`
       <tr class="lead-row" data-lead-id="${escapeHtml(String(lead.id))}" style="cursor: pointer;" title="Click to view details">
         <td style="width:40px;">
           ${isCustomOfficerSheet
@@ -737,8 +777,9 @@ function renderLeadsTable() {
         <td>${(String(lead.assignedTo||'').toLowerCase()==='duplicate' || lead.isDuplicate) ? '<span style="color:#d92d20; font-weight:700;">Duplicate</span>' : (escapeHtml(lead.assignedTo) || '-') }</td>
         <td>${escapeHtml(formatDate(lead.createdDate)) || '-'}</td>
       </tr>
-    `;
-  }).join('');
+    `);
+  });
+  tbody.innerHTML = rows.join('');
 
   // Row click opens details modal
   tbody.querySelectorAll('tr.lead-row').forEach(tr => {

@@ -574,21 +574,64 @@ function renderManagementTable() {
     return;
   }
   
-  tbody.innerHTML = filteredManagementLeads.map(lead => `
-    <tr data-lead-id="${escapeHtml(String(lead.id))}">
-      <td><strong>${escapeHtml(lead.name)}</strong></td>
-      <td>${lead.phone ? `<a href="tel:${lead.phone}">${escapeHtml(lead.phone)}</a>` : '-'}</td>
-      <td><span class="badge badge-${getStatusColor(lead.status)}">${escapeHtml(normalizeLeadStatus(lead.status) || 'New')}</span></td>
-      <td><span class="badge badge-${getPriorityColor(lead.priority)}">${escapeHtml(lead.priority || '-')}</span></td>
-      <td>${escapeHtml(getLastFollowUpComment(lead)) || '-'}</td>
-      <td>${getNextFollowUpSchedule(lead) ? formatDate(getNextFollowUpSchedule(lead)) : '-'}</td>
-      <td>
-        <button class="btn btn-sm btn-primary" onclick="openManageLeadModal('${lead.id}')" title="Manage Lead">
-          <i class="fas fa-edit"></i>
-        </button>
-      </td>
-    </tr>
-  `).join('');
+  // Helper: extract YYYY-MM-DD label from a date value
+  const toDateLabel = (dateVal) => {
+    if (!dateVal) return '';
+    try {
+      const d = new Date(dateVal);
+      if (isNaN(d)) return '';
+      return d.toISOString().slice(0, 10);
+    } catch { return ''; }
+  };
+
+  // Helper: human-friendly date label
+  const formatDateLabel = (label) => {
+    if (!label) return 'Unknown Date';
+    try {
+      const d = new Date(label + 'T00:00:00');
+      if (isNaN(d)) return label;
+      const today = new Date(); today.setHours(0,0,0,0);
+      const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+      if (d.getTime() === today.getTime()) return 'Today';
+      if (d.getTime() === yesterday.getTime()) return 'Yesterday';
+      return d.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    } catch { return label; }
+  };
+
+  let lastDateLabel = null;
+  const rows = [];
+  filteredManagementLeads.forEach(lead => {
+    const dateLabel = toDateLabel(lead.createdDate);
+    if (dateLabel !== lastDateLabel) {
+      lastDateLabel = dateLabel;
+      rows.push(`
+        <tr class="leads-date-divider" style="pointer-events:none;">
+          <td colspan="9" style="padding: 6px 12px; background: #f8f8fc; border-top: 1px solid #e9ecef; border-bottom: 1px solid #e9ecef;">
+            <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#592c88; letter-spacing:0.03em;">
+              <i class="fas fa-calendar-alt" style="font-size:11px; opacity:0.7;"></i>
+              ${escapeHtml(formatDateLabel(dateLabel))}
+            </span>
+          </td>
+        </tr>
+      `);
+    }
+    rows.push(`
+      <tr data-lead-id="${escapeHtml(String(lead.id))}">
+        <td><strong>${escapeHtml(lead.name)}</strong></td>
+        <td>${lead.phone ? `<a href="tel:${lead.phone}">${escapeHtml(lead.phone)}</a>` : '-'}</td>
+        <td><span class="badge badge-${getStatusColor(lead.status)}">${escapeHtml(normalizeLeadStatus(lead.status) || 'New')}</span></td>
+        <td><span class="badge badge-${getPriorityColor(lead.priority)}">${escapeHtml(lead.priority || '-')}</span></td>
+        <td>${escapeHtml(getLastFollowUpComment(lead)) || '-'}</td>
+        <td>${getNextFollowUpSchedule(lead) ? formatDate(getNextFollowUpSchedule(lead)) : '-'}</td>
+        <td>
+          <button class="btn btn-sm btn-primary" onclick="openManageLeadModal('${lead.id}')" title="Manage Lead">
+            <i class="fas fa-edit"></i>
+          </button>
+        </td>
+      </tr>
+    `);
+  });
+  tbody.innerHTML = rows.join('');
 }
 
 /**
