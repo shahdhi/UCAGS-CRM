@@ -517,9 +517,12 @@
           : '<span style="color:#98a2b3;">-</span>';
 
         const enrolled = isEnrolled(r);
+        const isSupervisor = (window.currentUser?.role || '').toLowerCase() === 'supervisor';
         const enrolledCell = enrolled
           ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6;">Enrolled</span>'
-          : `<button type="button" class="btn btn-primary btn-sm reg-enroll-btn" data-enroll-id="${escapeHtml(r.id)}">Enroll</button>`;
+          : isSupervisor
+            ? '<span style="color:#98a2b3;">—</span>'
+            : `<button type="button" class="btn btn-primary btn-sm reg-enroll-btn" data-enroll-id="${escapeHtml(r.id)}">Enroll</button>`;
 
         return `
           <tr class="clickable" data-row-key="${escapeHtml(r.id)}" data-registration-id="${escapeHtml(r.id)}" style="cursor:pointer;">
