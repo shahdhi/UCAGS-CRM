@@ -214,100 +214,90 @@ async function handleAnalytics(sb: any, user: any, url: URL): Promise<Response> 
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
 
-  // Run all independent queries in parallel
-  const [
-    followUpResult,
-    registrationsResult,
-    paymentRegIds,
-    leadsResult,
-    funnelResult,
-  ] = await Promise.all([
+  // Run queries — sequential to avoid Deno Promise.all IIFE issues
+  // ── Follow-ups due / overdue ──
+  let followUpResult = { due: 0, overdue: 0 };
+  try {
+    let q = sb.from('crm_leads').select('id, assigned_to, management_json').limit(20000);
+    if (scopedToOfficer) q = q.eq('assigned_to', officerName);
+    const { data } = await q;
+    let due = 0, overdue = 0;
+    for (const lead of (data || [])) {
+      const mgmt = lead.management_json || {};
+      for (let n = 1; n <= 5; n++) {
+        const schedule = mgmt[`followUp${n}Schedule`];
+        const actual = mgmt[`followUp${n}Date`];
+        if (!schedule || actual) continue;
+        const schedDate = String(schedule).slice(0, 10);
+        if (schedDate === todayStr) due++;
+        else if (schedDate < todayStr) overdue++;
+      }
+    }
+    followUpResult = { due, overdue };
+  } catch (e) { console.error('[crm-analytics] followUp query error:', e?.message); }
 
-    // ── Follow-ups due / overdue ──
-    (async () => {
-      let due = 0, overdue = 0;
-      try {
-        let q = sb.from('crm_leads').select('id, assigned_to, management_json').limit(20000);
-        if (scopedToOfficer) q = q.eq('assigned_to', officerName);
-        const { data } = await q;
-        for (const lead of (data || [])) {
-          const mgmt = lead.management_json || {};
-          for (let n = 1; n <= 5; n++) {
-            const schedule = mgmt[`followUp${n}Schedule`];
-            const actual = mgmt[`followUp${n}Date`];
-            if (!schedule || actual) continue;
-            const schedDate = String(schedule).slice(0, 10);
-            if (schedDate === todayStr) due++;
-            else if (schedDate < todayStr) overdue++;
-          }
-        }
-      } catch (_) { /* ignore */ }
-      return { due, overdue };
-    })(),
+  // ── Registrations received ──
+  let registrationsResult = { count: 0, missing: 0 };
+  try {
+    let q = sb.from('registrations')
+      .select('id, assigned_to, payload, created_at, batch_name')
+      .gte('created_at', fromEff.toISOString())
+      .lte('created_at', toEff.toISOString())
+      .limit(20000);
+    if (currentBatches.length) q = q.in('batch_name', currentBatches);
+    if (scopedToOfficer) q = q.eq('assigned_to', officerName);
+    const { data } = await q;
+    let missing = 0;
+    if (isAdminUser) {
+      for (const r of (data || [])) {
+        const payload = r?.payload && typeof r.payload === 'object' ? r.payload : {};
+        if (!r?.assigned_to && !payload?.assigned_to && !payload?.assignedTo) missing++;
+      }
+    }
+    registrationsResult = { count: (data || []).length, missing };
+  } catch (e) { console.error('[crm-analytics] registrations query error:', e?.message); }
 
-    // ── Registrations received ──
-    (async () => {
-      try {
-        let q = sb.from('registrations')
-          .select('id, assigned_to, payload, created_at, batch_name')
-          .gte('created_at', fromEff.toISOString())
-          .lte('created_at', toEff.toISOString())
-          .limit(20000);
-        if (currentBatches.length) q = q.in('batch_name', currentBatches);
-        if (scopedToOfficer) q = q.eq('assigned_to', officerName);
-        const { data } = await q;
-        let missing = 0;
-        if (isAdminUser) {
-          for (const r of (data || [])) {
-            const payload = r?.payload && typeof r.payload === 'object' ? r.payload : {};
-            if (!r?.assigned_to && !payload?.assigned_to && !payload?.assignedTo) missing++;
-          }
-        }
-        return { count: (data || []).length, missing };
-      } catch (_) { return { count: 0, missing: 0 }; }
-    })(),
+  // ── Payment-received reg IDs ──
+  let paymentRegIds: string[] = [];
+  try {
+    paymentRegIds = await getPaymentReceivedRegIds(sb, { from: fromEff, to: toEff });
+  } catch (e) { console.error('[crm-analytics] payments query error:', e?.message); }
 
-    // ── Payment-received reg IDs ──
-    getPaymentReceivedRegIds(sb, { from: fromEff, to: toEff }).catch(() => []),
+  // ── Leads count + active leads ──
+  let leadsResult = { total: 0, active: 0 };
+  try {
+    let q = sb.from('crm_leads').select('status');
+    if (currentBatches.length) q = q.in('batch_name', currentBatches);
+    if (scopedToOfficer) q = q.eq('assigned_to', officerName);
+    const { data } = await q;
+    const total = (data || []).length;
+    const active = (data || []).filter((r: any) => {
+      const s = String(r.status || '').toLowerCase();
+      return s === 'new' || s === 'contacted' || s === 'follow-up' || s === 'followup';
+    }).length;
+    leadsResult = { total, active };
+  } catch (e) { console.error('[crm-analytics] leads query error:', e?.message); }
 
-    // ── Leads count + active leads ──
-    (async () => {
-      try {
-        let q = sb.from('crm_leads').select('status');
-        if (currentBatches.length) q = q.in('batch_name', currentBatches);
-        if (scopedToOfficer) q = q.eq('assigned_to', officerName);
-        const { data } = await q;
-        const total = (data || []).length;
-        const active = (data || []).filter((r: any) => {
-          const s = String(r.status || '').toLowerCase();
-          return s === 'new' || s === 'contacted' || s === 'follow-up' || s === 'followup';
-        }).length;
-        return { total, active };
-      } catch (_) { return { total: 0, active: 0 }; }
-    })(),
-
-    // ── Funnel (lead pipeline) ──
-    (async () => {
-      try {
-        let q = sb.from('crm_leads').select('status').limit(20000);
-        if (isAdminUser) {
-          q = q.gte('created_at', fromEff.toISOString()).lte('created_at', toEff.toISOString());
-        }
-        if (currentBatches.length) q = q.in('batch_name', currentBatches);
-        if (scopedToOfficer) q = q.eq('assigned_to', officerName);
-        const { data } = await q;
-        const funnel = { new: 0, contacted: 0, followUp: 0, registered: 0 };
-        for (const r of (data || [])) {
-          const s = String(r.status || '').toLowerCase();
-          if (s === 'new') funnel.new++;
-          else if (s === 'contacted') funnel.contacted++;
-          else if (s === 'follow-up' || s === 'followup') funnel.followUp++;
-          else if (s === 'registered') funnel.registered++;
-        }
-        return funnel;
-      } catch (_) { return { new: 0, contacted: 0, followUp: 0, registered: 0 }; }
-    })(),
-  ]);
+  // ── Funnel (lead pipeline) ──
+  let funnelResult = { new: 0, contacted: 0, followUp: 0, registered: 0 };
+  try {
+    let q = sb.from('crm_leads').select('status').limit(20000);
+    if (isAdminUser) {
+      q = q.gte('created_at', fromEff.toISOString()).lte('created_at', toEff.toISOString());
+    }
+    if (currentBatches.length) q = q.in('batch_name', currentBatches);
+    if (scopedToOfficer) q = q.eq('assigned_to', officerName);
+    const { data } = await q;
+    const funnel = { new: 0, contacted: 0, followUp: 0, registered: 0 };
+    for (const r of (data || [])) {
+      const s = String(r.status || '').toLowerCase();
+      if (s === 'new') funnel.new++;
+      else if (s === 'contacted') funnel.contacted++;
+      else if (s === 'follow-up' || s === 'followup') funnel.followUp++;
+      else if (s === 'registered') funnel.registered++;
+    }
+    funnelResult = funnel;
+  } catch (e) { console.error('[crm-analytics] funnel query error:', e?.message); }
 
   // Confirmed payments — officer-scope if needed
   let confirmedPayments = paymentRegIds.length;
