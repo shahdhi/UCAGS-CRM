@@ -98,7 +98,7 @@ async function getLeaderboard(sb: any): Promise<any> {
     return { success: true, currentBatches: [], leaderboard: [] };
   }
 
-  // 2. Get all officer names from auth (only officer/admission_officer roles)
+  // 2. Get all staff names from auth (officers, admission officers, admins — anyone who can be assigned leads)
   const officerNames: string[] = [];
   try {
     const { data: uData, error: uErr } = await sb.auth.admin.listUsers({
@@ -111,12 +111,16 @@ async function getLeaderboard(sb: any): Promise<any> {
         const staffRoles: string[] = Array.isArray(u?.user_metadata?.staff_roles)
           ? u.user_metadata.staff_roles
           : [];
-        const isOfficer =
+        // Include anyone who could be assigned leads: officers, admission officers, admins, supervisors
+        const isStaff =
           role === 'officer' ||
           role === 'admission_officer' ||
+          role === 'admin' ||
+          role === 'supervisor' ||
           staffRoles.includes('officer') ||
-          staffRoles.includes('admission_officer');
-        if (!isOfficer) return;
+          staffRoles.includes('admission_officer') ||
+          staffRoles.includes('admin');
+        if (!isStaff) return;
         const name = cleanStr(u?.user_metadata?.name || u?.email?.split('@')?.[0]);
         if (name) officerNames.push(name);
       });
@@ -224,7 +228,7 @@ async function getLeaderboard(sb: any): Promise<any> {
   ]);
 
   const leaderboard = Array.from(allOfficers)
-    .filter((o) => o.toLowerCase() !== 'admin' && o !== 'Unassigned' && o !== 'Duplicate')
+    .filter((o) => o !== 'Unassigned' && o !== 'Duplicate' && o !== '')
     .map((officer) => {
       const enrollments = enrollmentsMap.get(officer) || 0;
       const leadsAssigned = leadsMap.get(officer) || 0;
