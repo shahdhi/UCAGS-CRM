@@ -166,8 +166,8 @@
   }
 
   /**
-   * Fetch leads for each supervised officer via the staff lead management API.
-   * The API endpoint GET /api/crm-leads?scope=officer&officerId=<id> returns leads for that officer.
+   * Fetch leads for each supervised officer via the admin CRM leads endpoint.
+   * Uses GET /api/crm-leads/admin?assignedTo=<officerName> which filters by name.
    */
   async function _lmLoadLeads() {
     const tbody = document.getElementById('supLmTableBody');
@@ -178,8 +178,7 @@
 
     await Promise.all(_lmOfficers.map(async (officer) => {
       try {
-        // Use the staff lead management endpoint (admin can view any officer's leads)
-        const res = await fetch(`/api/crm-leads?officerId=${encodeURIComponent(officer.id)}`, { headers });
+        const res = await fetch(`/api/crm-leads/admin?assignedTo=${encodeURIComponent(officer.name)}`, { headers });
         if (!res.ok) return;
         const json = await res.json();
         const leads = (json.leads || json.data || []).map(l => ({ ...l, _officerName: officer.name, _officerId: officer.id }));
@@ -231,9 +230,14 @@
     }
 
     function nextFollowup(lead) {
+      const today = new Date();
       for (let i = 1; i <= 30; i++) {
-        const d = lead[`followUp${i}Date`] || lead[`follow_up_${i}_date`] || '';
-        if (d && new Date(d) >= new Date()) return `<span style="color:#8b5cf6;">${esc(fmtDate(d))}</span>`;
+        const scheduled = lead[`followUp${i}Schedule`] || '';
+        const actual    = lead[`followUp${i}Date`]     || '';
+        // Show the next scheduled follow-up that hasn't been completed yet
+        if (scheduled && !actual && new Date(scheduled.slice(0,10)) >= today) {
+          return `<span style="color:#8b5cf6;">${esc(fmtDate(scheduled))}</span>`;
+        }
       }
       return '<span style="color:#aaa;">—</span>';
     }
@@ -643,7 +647,7 @@
       let allLeads = [];
       await Promise.all(officers.map(async (officer) => {
         try {
-          const res = await fetch(`/api/crm-leads?officerId=${encodeURIComponent(officer.id)}`, { headers });
+          const res = await fetch(`/api/crm-leads/admin?assignedTo=${encodeURIComponent(officer.name)}`, { headers });
           if (!res.ok) return;
           const json = await res.json();
           const leads = (json.leads || json.data || []).map(l => ({ ...l, _officerName: officer.name, _officerId: officer.id }));
@@ -718,12 +722,14 @@
   function _renderStatCards(leads, regs, officers, matrix, today) {
     const hot = leads.filter(l => ['interested','awaiting decision'].includes((l.status||'').toLowerCase())).length;
 
-    // Overdue follow-ups: any lead with a follow-up date in the past that isn't registered/enrolled
+    // Overdue follow-ups: scheduled date is in the past AND no actual follow-up date recorded
     let overdue = 0;
     leads.forEach(l => {
+      if (['registered','enrolled'].includes((l.status||'').toLowerCase())) return;
       for (let i = 1; i <= 30; i++) {
-        const d = l[`followUp${i}Date`] || l[`follow_up_${i}_date`] || '';
-        if (d && new Date(d) < new Date(today) && !['registered','enrolled'].includes((l.status||'').toLowerCase())) {
+        const scheduled = l[`followUp${i}Schedule`] || '';
+        const actual    = l[`followUp${i}Date`]     || '';
+        if (scheduled && !actual && new Date(scheduled.slice(0,10)) < new Date(today)) {
           overdue++;
           break;
         }
@@ -1032,13 +1038,14 @@
       }
     });
 
-    // 2. Officers with overdue follow-ups
+    // 2. Officers with overdue follow-ups (scheduled past + no actual date recorded)
     const overdueCounts = {};
     leads.forEach(l => {
       if (['registered','enrolled'].includes((l.status||'').toLowerCase())) return;
       for (let i = 1; i <= 30; i++) {
-        const d = l[`followUp${i}Date`] || l[`follow_up_${i}_date`] || '';
-        if (d && new Date(d) < new Date(today)) {
+        const scheduled = l[`followUp${i}Schedule`] || '';
+        const actual    = l[`followUp${i}Date`]     || '';
+        if (scheduled && !actual && new Date(scheduled.slice(0,10)) < new Date(today)) {
           overdueCounts[l._officerName] = (overdueCounts[l._officerName] || 0) + 1;
           break;
         }
