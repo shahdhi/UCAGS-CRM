@@ -554,14 +554,7 @@ const dashboardAPI = {
     if (from) params.set('from', String(from));
     if (to) params.set('to', String(to));
     const qs = params.toString();
-    // Migrated to Supabase Edge Function — runs close to DB, no Vercel CPU
-    const ANALYTICS_EDGE = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-analytics';
-    const session = window._supabaseSession || (await window.supabaseClient?.auth?.getSession())?.data?.session;
-    const token = session?.access_token || '';
-    const res = await fetch(`${ANALYTICS_EDGE}${qs ? `?${qs}` : ''}`, {
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'apikey': EDGE_ANON_KEY }
-    });
-    return res.json();
+    return fetchAPI(`/dashboard/analytics${qs ? `?${qs}` : ''}`);
   },
 
   /**

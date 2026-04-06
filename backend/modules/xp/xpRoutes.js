@@ -17,38 +17,50 @@ const { isAuthenticated, isAdmin, isAdminOrOfficer } = require('../../../server/
 const xpSvc = require('./xpService');
 const xpArchiveSvc = require('./xpArchiveService');
 
-// GET /api/xp/leaderboard — migrated to Supabase Edge Function (crm-xp/leaderboard)
-// Kept here as a redirect/fallback for any non-updated clients.
+// GET /api/xp/leaderboard
 router.get('/leaderboard', isAdminOrOfficer, async (req, res) => {
-  res.json({
-    success: true,
-    leaderboard: [],
-    _note: 'Migrated to Supabase Edge Function: /functions/v1/crm-xp/leaderboard'
-  });
+  try {
+    const leaderboard = await xpSvc.getLeaderboard();
+    res.json({ success: true, leaderboard });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
 });
 
-// GET /api/xp/me — migrated to Supabase Edge Function (crm-xp/me)
-// Kept here as a redirect/fallback for any non-updated clients.
+// GET /api/xp/me
 router.get('/me', isAuthenticated, async (req, res) => {
-  res.json({
-    success: true,
-    totalXp: 0,
-    rank: null,
-    totalOfficers: 0,
-    leaderboard: [],
-    recentEvents: [],
-    _note: 'Migrated to Supabase Edge Function: /functions/v1/crm-xp/me'
-  });
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+    const data = await xpSvc.getMyXP(userId);
+    res.json({ success: true, ...data });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
 });
 
-// GET /api/xp/trend — migrated to Supabase Edge Function (crm-xp/trend)
-router.get('/trend', isAuthenticated, (req, res) => {
-  res.json({ success: true, trend: [], _note: 'Migrated to Supabase Edge Function: /functions/v1/crm-xp/trend' });
+// GET /api/xp/trend?days=30
+router.get('/trend', isAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+    const days = Math.min(parseInt(req.query.days || '30', 10) || 30, 90);
+    const trend = await xpSvc.getXPTrend({ userId, days });
+    res.json({ success: true, trend });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
 });
 
-// GET /api/xp/global-trend — migrated to Supabase Edge Function (crm-xp/global-trend)
-router.get('/global-trend', isAdmin, (req, res) => {
-  res.json({ success: true, trend: [], _note: 'Migrated to Supabase Edge Function: /functions/v1/crm-xp/global-trend' });
+// GET /api/xp/global-trend?days=30  (admin only)
+router.get('/global-trend', isAdmin, async (req, res) => {
+  try {
+    const days = Math.min(parseInt(req.query.days || '30', 10) || 30, 90);
+    const trend = await xpSvc.getGlobalXPTrend({ days });
+    res.json({ success: true, trend });
+  } catch (e) {
+    res.status(e.status || 500).json({ success: false, error: e.message });
+  }
 });
 
 // POST /api/xp/cron/overdue  — manually trigger or called by cron

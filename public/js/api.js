@@ -98,15 +98,7 @@ const API = {
             if (from) params.set('from', from);
             if (to) params.set('to', to);
             const qs = params.toString();
-            // Migrated to Supabase Edge Function — runs close to DB, no Vercel CPU
-            const ANALYTICS_EDGE = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-analytics';
-            const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
-            const session = window._supabaseSession || (await window.supabaseClient?.auth?.getSession())?.data?.session;
-            const token = session?.access_token || '';
-            const res = await fetch(`${ANALYTICS_EDGE}${qs ? `?${qs}` : ''}`, {
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'apikey': ANON_KEY }
-            });
-            return res.json();
+            return API.request(`/dashboard/analytics${qs ? `?${qs}` : ''}`);
         },
 
         // Admin-only: enrollments per officer for current batch

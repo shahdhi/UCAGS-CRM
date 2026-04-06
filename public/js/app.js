@@ -3306,55 +3306,39 @@ async function loadDashboard() {
             });
         }
 
-        // Leaderboard — fetched from Supabase Edge Function (runs close to DB, no Vercel CPU)
+        // Leaderboard
+        const lb = analytics.leaderboard?.enrollmentsCurrentBatch || [];
         const lbEl = document.getElementById('homeLeaderboard');
         if (lbEl) {
-            lbEl.innerHTML = '<p class="loading">Loading leaderboard…</p>';
-            // Fire-and-forget: fetch edge function in parallel, update when ready
-            (async () => {
-                try {
-                    const EDGE_URL = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-leaderboard';
-                    const _anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
-                    const headers = { ...(await getAuthHeadersWithRetry()), 'apikey': _anonKey };
-                    const res = await fetch(EDGE_URL, { headers });
-                    const json = await res.json();
-                    const lb = json.leaderboard || [];
-
-                    const medal = (idx) => {
-                        if (idx === 0) return '<i class="fas fa-medal" style="color:#d4af37;"></i>';
-                        if (idx === 1) return '<i class="fas fa-medal" style="color:#c0c0c0;"></i>';
-                        if (idx === 2) return '<i class="fas fa-medal" style="color:#cd7f32;"></i>';
-                        return `<span style="display:inline-block;width:18px;text-align:right;color:#667085;font-weight:700;">${idx + 1}</span>`;
-                    };
-
-                    if (!lb.length) {
-                        lbEl.innerHTML = '<p class="loading">No enrollments yet this batch.</p>';
-                    } else {
-                        lbEl.innerHTML = lb.map((r, i) => {
-                            const name = String(r.officer || 'Unassigned');
-                            const count = Number(r.enrollments || r.count || 0);
-                            const cr = Number(r.conversionRate || 0);
-                            const leadsAssigned = Number(r.leadsAssigned || 0);
-                            const crText = `${(cr * 100).toFixed(1)}%`;
-                            return `
-                              <div class="officer-stat leaderboard-row">
-                                <div class="officer-name">
-                                  <span class="leaderboard-rank">${medal(i)}</span>
-                                  <span class="leaderboard-name" title="${name}">${name}</span>
-                                </div>
-                                <div class="leaderboard-metrics" title="Leads assigned: ${leadsAssigned}">
-                                  <div class="officer-count">${count}</div>
-                                  <div class="leaderboard-cr">${crText}</div>
-                                </div>
-                              </div>
-                            `;
-                        }).join('');
-                    }
-                } catch (e) {
-                    console.warn('[Leaderboard] Edge function fetch failed:', e?.message);
-                    lbEl.innerHTML = '<p class="loading" style="color:#b42318;">Failed to load leaderboard.</p>';
-                }
-            })();
+            const medal = (idx) => {
+                if (idx === 0) return '<i class="fas fa-medal" style="color:#d4af37;"></i>'; // gold
+                if (idx === 1) return '<i class="fas fa-medal" style="color:#c0c0c0;"></i>'; // silver
+                if (idx === 2) return '<i class="fas fa-medal" style="color:#cd7f32;"></i>'; // bronze
+                return `<span style="display:inline-block; width:18px; text-align:right; color:#667085; font-weight:700;">${idx + 1}</span>`;
+            };
+            if (!lb.length) {
+                lbEl.innerHTML = '<p class="loading">No confirmed payments yet this week.</p>';
+            } else {
+                lbEl.innerHTML = lb.map((r, i) => {
+                    const name = String(r.officer || 'Unassigned');
+                    const count = Number(r.count || 0);
+                    const cr = Number(r.conversionRate || 0);
+                    const leadsAssigned = Number(r.leadsAssigned || 0);
+                    const crText = `${(cr * 100).toFixed(1)}%`;
+                    return `
+                      <div class="officer-stat leaderboard-row">
+                        <div class="officer-name">
+                          <span class="leaderboard-rank">${medal(i)}</span>
+                          <span class="leaderboard-name" title="${name}">${name}</span>
+                        </div>
+                        <div class="leaderboard-metrics" title="Leads assigned: ${leadsAssigned}">
+                          <div class="officer-count">${count}</div>
+                          <div class="leaderboard-cr">${crText}</div>
+                        </div>
+                      </div>
+                    `;
+                }).join('');
+            }
         }
 
         // Performer of the week (overall tasks) - derived from Daily Checklist leader

@@ -106,15 +106,11 @@
     return `${Math.floor(h / 24)}d ago`;
   }
 
-  const _EDGE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
-
   async function authHeaders() {
     try {
-      const h = window.getAuthHeadersWithRetry ? await window.getAuthHeadersWithRetry() : {};
-      // Always include apikey for Supabase Edge Function calls
-      return { ...h, 'apikey': _EDGE_ANON_KEY };
+      return window.getAuthHeadersWithRetry ? await window.getAuthHeadersWithRetry() : {};
     } catch (e) {
-      return { 'apikey': _EDGE_ANON_KEY };
+      return {};
     }
   }
 
@@ -142,16 +138,13 @@
     if (to)   params.set('to', to);
     if (officerId) params.set('officerId', officerId);
     const qs = params.toString();
-    return `https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-analytics${qs ? '?' + qs : ''}`;
+    return `/api/dashboard/analytics${qs ? '?' + qs : ''}`;
   }
-
-  // Edge function base URL — runs close to DB, no Vercel CPU
-  const XP_EDGE_URL = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-xp';
 
   // --- Data Fetchers ---
   async function fetchXPData() {
     const headers = await authHeaders();
-    const r = await fetch(`${XP_EDGE_URL}/me`, { headers });
+    const r = await fetch('/api/xp/me', { headers });
     if (!r.ok) throw new Error('XP fetch failed');
     return r.json();
   }
@@ -166,7 +159,7 @@
 
   async function fetchLeaderboardData() {
     const headers = await authHeaders();
-    const r = await fetch(`${XP_EDGE_URL}/leaderboard`, { headers });
+    const r = await fetch('/api/xp/leaderboard', { headers });
     if (!r.ok) return null;
     const j = await r.json();
     return j;
@@ -174,10 +167,10 @@
 
   async function fetchXPTrend(days) {
     const headers = await authHeaders();
-    const isAdminUser = (window.currentUser?.active_role || window.currentUser?.role || '') === 'admin';
-    const url = isAdminUser
-      ? `${XP_EDGE_URL}/global-trend?days=${days}`
-      : `${XP_EDGE_URL}/trend?days=${days}`;
+    const isAdmin = window.currentUser?.role === 'admin';
+    const url = isAdmin
+      ? `/api/xp/global-trend?days=${days}`
+      : `/api/xp/trend?days=${days}`;
     const r = await fetch(url, { headers });
     if (!r.ok) throw new Error('XP trend fetch failed');
     return r.json();
@@ -581,7 +574,7 @@
       const headers = await authHeaders();
       let j = prefetchedData;
       if (!j) {
-        const r = await fetch(`${XP_EDGE_URL}/leaderboard`, { headers });
+        const r = await fetch('/api/xp/leaderboard', { headers });
         j = await r.json();
       }
       const list = j.leaderboard || [];
@@ -773,7 +766,7 @@
         // Admin: use prefetched leaderboard data or fetch if not available
         let j = prefetchedLeaderboard;
         if (!j) {
-          const r = await fetch(`${XP_EDGE_URL}/leaderboard`, { headers });
+          const r = await fetch('/api/xp/leaderboard', { headers });
           j = await r.json();
         }
         const leaderboard = j.leaderboard || [];
@@ -788,7 +781,7 @@
         // Officer: use prefetched XP data or fetch if not available
         let j = prefetchedXP;
         if (!j) {
-          const r = await fetch(`${XP_EDGE_URL}/me`, { headers });
+          const r = await fetch('/api/xp/me', { headers });
           j = await r.json();
         }
         events = (j.recentEvents || []).slice(0, 12);
@@ -916,7 +909,7 @@
 
       // Fetch fresh if no cache
       if (!data.length) {
-        const r = await fetch(`https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-analytics`, { headers });
+        const r = await fetch('/api/dashboard/analytics', { headers });
         const j = await r.json();
         data = j.leaderboard?.enrollmentsCurrentBatch || [];
         __enrollLeaderboardData = data;
@@ -925,9 +918,10 @@
       // Apply batch filter if selected
       let filtered = data;
       if (batchFilter) {
+        // Re-fetch with batch filter via analytics
         const params = new URLSearchParams();
         params.set('batch', batchFilter);
-        const r = await fetch(`https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-analytics?${params}`, { headers });
+        const r = await fetch(`/api/dashboard/analytics?${params}`, { headers });
         const j = await r.json();
         filtered = j.leaderboard?.enrollmentsCurrentBatch || [];
       }
@@ -1088,7 +1082,7 @@
     (leaderboard || []).forEach(e => { if (e.officer && e.officer !== 'Unassigned') officers.add(e.officer); });
     try {
       const h = await authHeaders();
-      const r = await fetch(`${XP_EDGE_URL}/leaderboard`, { headers: h });
+      const r = await fetch('/api/xp/leaderboard', { headers: h });
       const j = await r.json();
       (j.leaderboard || []).forEach(e => { if (e.name && e.name !== 'Unassigned') officers.add(e.name); });
     } catch(e) { /* ignore */ }
@@ -1599,7 +1593,7 @@
       if (!window.currentUser || window.currentUser.role === 'admin') return;
       try {
         const headers = await authHeaders();
-        const r = await fetch(`${XP_EDGE_URL}/me`, { headers });
+        const r = await fetch('/api/xp/me', { headers });
         if (!r.ok) return;
         const j = await r.json();
         const newTotal = j.totalXp || 0;
