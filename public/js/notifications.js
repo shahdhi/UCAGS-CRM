@@ -166,6 +166,53 @@
     } catch (e) {}
   }
 
+  // ── Update Release full-screen popup ────────────────────────────────────────
+  function showUpdateReleasePopup(notification) {
+    try {
+      const popup = document.getElementById('updateReleasePopup');
+      if (!popup) return;
+
+      // Fill content
+      const titleEl   = document.getElementById('updateReleasePopupTitle');
+      const metaEl    = document.getElementById('updateReleasePopupMeta');
+      const msgEl     = document.getElementById('updateReleasePopupMessage');
+
+      if (titleEl) titleEl.textContent = notification.title || '📣 New Update';
+      if (msgEl)   msgEl.textContent   = notification.message || '';
+      if (metaEl) {
+        const ts = notification.created_at
+          ? new Date(notification.created_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+          : '';
+        metaEl.textContent = ts ? `Posted ${ts}` : '';
+      }
+
+      // Show popup (use flex)
+      popup.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+
+      // "Got it" button — close & restore scroll
+      const closeBtn = document.getElementById('updateReleasePopupCloseBtn');
+      function closePopup() {
+        popup.style.display = 'none';
+        document.body.style.overflow = '';
+      }
+      if (closeBtn) {
+        // Remove previous listeners to avoid stacking
+        const newBtn = closeBtn.cloneNode(true);
+        closeBtn.parentNode.replaceChild(newBtn, closeBtn);
+        newBtn.addEventListener('click', closePopup);
+      }
+
+      // Escape key closes too
+      function onKey(e) {
+        if (e.key === 'Escape') { closePopup(); document.removeEventListener('keydown', onKey); }
+      }
+      document.addEventListener('keydown', onKey);
+    } catch (e) {
+      console.warn('[UpdateReleasePopup] error:', e);
+    }
+  }
+
   function notifyInApp(message, type = 'info') {
     // "Pop" + sound
     playNotificationSound();
@@ -554,10 +601,15 @@
           if (wasPopped(userId, n.id)) return;
           markPopped(userId, n.id);
 
-          const msg = `${n.title}: ${n.message}`;
-          notifyInApp(msg, n.type || 'info');
-          notifyNearBell(n.title, n.message, n.type || 'info');
-          notifyBrowser(n.title, n.message);
+          // Update Release: show full-screen popup instead of toast
+          if (n.category === 'update_release') {
+            showUpdateReleasePopup(n);
+          } else {
+            const msg = `${n.title}: ${n.message}`;
+            notifyInApp(msg, n.type || 'info');
+            notifyNearBell(n.title, n.message, n.type || 'info');
+            notifyBrowser(n.title, n.message);
+          }
 
           // Refresh bell badge/dropdown immediately
           try {
@@ -608,10 +660,15 @@
             if (wasPopped(userId, n.id)) return;
             markPopped(userId, n.id);
 
-            const msg = `${n.title}: ${n.message}`;
-            notifyInApp(msg, n.type || 'info');
-            notifyNearBell(n.title, n.message, n.type || 'info');
-            notifyBrowser(n.title, n.message);
+            // Update Release: show full-screen popup instead of toast
+            if (n.category === 'update_release') {
+              showUpdateReleasePopup(n);
+            } else {
+              const msg = `${n.title}: ${n.message}`;
+              notifyInApp(msg, n.type || 'info');
+              notifyNearBell(n.title, n.message, n.type || 'info');
+              notifyBrowser(n.title, n.message);
+            }
 
             // Refresh bell badge/dropdown immediately
             try {

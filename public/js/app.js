@@ -1,4 +1,212 @@
 // Main Application Logic
+
+// ── Update Release Modal ─────────────────────────────────────────────────────
+(function initUpdateReleaseModal() {
+
+    function updateRecipientCount() {
+        const checked = document.querySelectorAll('.ur-recipient-cb:checked');
+        const total   = document.querySelectorAll('.ur-recipient-cb');
+        const countEl = document.getElementById('updateReleaseRecipientsCount');
+        const selAll  = document.getElementById('updateReleaseSelectAll');
+        if (countEl) {
+            const n = checked.length;
+            countEl.textContent = `${n} recipient${n !== 1 ? 's' : ''} selected`;
+            countEl.style.color = n > 0 ? '#7c3aed' : '#9ca3af';
+        }
+        if (selAll) {
+            selAll.checked = total.length > 0 && checked.length === total.length;
+            selAll.indeterminate = checked.length > 0 && checked.length < total.length;
+        }
+    }
+
+    async function loadRecipients() {
+        const list = document.getElementById('updateReleaseRecipientsList');
+        if (!list) return;
+        list.innerHTML = '<div style="color:#9ca3af;font-size:13px;padding:8px 4px;"><i class="fas fa-spinner fa-spin"></i> Loading users...</div>';
+
+        try {
+            let authHeaders = {};
+            if (window.supabaseClient) {
+                const { data: { session } } = await window.supabaseClient.auth.getSession();
+                if (session && session.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+            }
+            const res  = await fetch('/api/users', { headers: authHeaders });
+            const data = await res.json();
+            const users = (data.users || []).filter(u => u.id !== (window.currentUser && window.currentUser.id));
+
+            if (users.length === 0) {
+                list.innerHTML = '<div style="color:#9ca3af;font-size:13px;padding:8px 4px;">No other users found.</div>';
+                return;
+            }
+
+            // Sort: admins first, then officers alphabetically
+            users.sort((a, b) => {
+                if (a.role === 'admin' && b.role !== 'admin') return -1;
+                if (b.role === 'admin' && a.role !== 'admin') return 1;
+                return (a.name || a.email).localeCompare(b.name || b.email);
+            });
+
+            list.innerHTML = users.map(u => {
+                const isAdmin  = u.role === 'admin';
+                const label    = u.name || u.email;
+                const badgeBg  = isAdmin ? '#7c3aed' : '#6b7280';
+                const badgeTxt = isAdmin ? 'Admin' : 'Officer';
+                return `<label style="display:flex;align-items:center;gap:10px;padding:7px 6px;cursor:pointer;border-radius:6px;transition:background 0.12s;"
+                               onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background=''">
+                    <input type="checkbox" class="ur-recipient-cb" value="${u.id}"
+                           data-name="${(u.name||u.email).replace(/"/g,'&quot;')}"
+                           data-email="${u.email}"
+                           style="accent-color:#7c3aed;width:15px;height:15px;cursor:pointer;flex-shrink:0;">
+                    <span style="font-size:13px;font-weight:500;color:#111827;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${label}</span>
+                    <span style="font-size:10px;font-weight:600;background:${badgeBg};color:#fff;padding:2px 7px;border-radius:999px;flex-shrink:0;">${badgeTxt}</span>
+                </label>`;
+            }).join('');
+
+            // Wire individual checkboxes → count update
+            list.querySelectorAll('.ur-recipient-cb').forEach(cb => {
+                cb.addEventListener('change', updateRecipientCount);
+            });
+
+            updateRecipientCount();
+        } catch (err) {
+            list.innerHTML = `<div style="color:#ef4444;font-size:13px;padding:8px 4px;">Failed to load users: ${err.message}</div>`;
+        }
+    }
+
+    function openModal() {
+        const modal = document.getElementById('updateReleaseModal');
+        if (!modal) return;
+        modal.style.display = 'flex';
+        const ta = document.getElementById('updateReleaseText');
+        if (ta) { ta.value = ''; ta.focus(); }
+        const cc = document.getElementById('updateReleaseCharCount');
+        if (cc) cc.textContent = '0 characters';
+        // Reset select-all
+        const selAll = document.getElementById('updateReleaseSelectAll');
+        if (selAll) { selAll.checked = false; selAll.indeterminate = false; }
+        loadRecipients();
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('updateReleaseModal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    async function sendUpdate() {
+        const ta = document.getElementById('updateReleaseText');
+        const text = ta ? ta.value.trim() : '';
+        if (!text) {
+            if (ta) { ta.style.borderColor = '#ef4444'; ta.focus(); }
+            if (window.showToast) showToast('Please enter an update description.', 'error');
+            return;
+        }
+        if (ta) ta.style.borderColor = '';
+
+        const selectedCbs = document.querySelectorAll('.ur-recipient-cb:checked');
+        if (selectedCbs.length === 0) {
+            const list = document.getElementById('updateReleaseRecipientsList');
+            if (list) { list.style.borderColor = '#ef4444'; setTimeout(() => { list.style.borderColor = '#e5e7eb'; }, 1500); }
+            if (window.showToast) showToast('Please select at least one recipient.', 'error');
+            return;
+        }
+
+        const recipients = Array.from(selectedCbs).map(cb => ({
+            id: cb.value,
+            name: cb.dataset.name,
+            email: cb.dataset.email
+        }));
+
+        const sendBtn = document.getElementById('sendUpdateReleaseBtn');
+        if (sendBtn) {
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        }
+
+        try {
+            let authHeaders = { 'Content-Type': 'application/json' };
+            if (window.supabaseClient) {
+                const { data: { session } } = await window.supabaseClient.auth.getSession();
+                if (session && session.access_token) {
+                    authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+                }
+            }
+
+            const res = await fetch('/api/notifications/update-release', {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify({ message: text, recipients })
+            });
+
+            if (res.ok) {
+                if (window.showToast) showToast(`Update release sent to ${recipients.length} recipient${recipients.length !== 1 ? 's' : ''}!`, 'success');
+                closeModal();
+            } else {
+                const json = await res.json().catch(() => ({}));
+                throw new Error(json.error || `Server error ${res.status}`);
+            }
+        } catch (err) {
+            console.error('Update release error:', err);
+            if (window.showToast) showToast(err.message || 'Failed to send update.', 'error');
+        } finally {
+            if (sendBtn) {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Update';
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Open button
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('#openUpdateReleaseModalBtn')) openModal();
+        });
+
+        // Close buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('#closeUpdateReleaseModalBtn') || e.target.closest('#cancelUpdateReleaseBtn')) {
+                closeModal();
+            }
+        });
+
+        // Click backdrop to close
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('updateReleaseModal');
+            if (modal && e.target === modal) closeModal();
+        });
+
+        // Escape key to close
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('updateReleaseModal');
+                if (modal && modal.style.display !== 'none') closeModal();
+            }
+        });
+
+        // Send button
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('#sendUpdateReleaseBtn')) sendUpdate();
+        });
+
+        // Select All toggle
+        document.addEventListener('change', (e) => {
+            if (e.target.id === 'updateReleaseSelectAll') {
+                document.querySelectorAll('.ur-recipient-cb').forEach(cb => {
+                    cb.checked = e.target.checked;
+                });
+                updateRecipientCount();
+            }
+        });
+
+        // Character count
+        document.addEventListener('input', (e) => {
+            if (e.target.id === 'updateReleaseText') {
+                const cc = document.getElementById('updateReleaseCharCount');
+                if (cc) cc.textContent = `${e.target.value.length} character${e.target.value.length !== 1 ? 's' : ''}`;
+                e.target.style.borderColor = '';
+            }
+        });
+    });
+})();
 let currentUser = null;
 let currentEnquiries = [];
 

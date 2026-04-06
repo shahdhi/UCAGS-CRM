@@ -121,6 +121,9 @@ app.use('/api/receipts', require('./modules/receipts/receiptsRoutes'));
 // XP System
 app.use('/api/xp', require('./modules/xp/xpRoutes'));
 
+// Notifications (update-release + future admin notifications)
+app.use('/api/notifications', require('./modules/notifications/notificationsRoutes'));
+
 // WhatsApp (disabled): previously used Meta Cloud API routes.
 // Replaced with simple WhatsApp Web popup panel in the frontend.
 //
