@@ -261,7 +261,7 @@ async function handleAnalytics(sb: any, user: any, url: URL): Promise<Response> 
   let paymentRegIds: string[] = [];
   try {
     paymentRegIds = await getPaymentReceivedRegIds(sb, { from: fromEff, to: toEff });
-  } catch (e) { console.error('[crm-analytics] payments query error:', e?.message); }
+  } catch (e: any) { console.error('[crm-analytics] payments query error:', e?.message); }
 
   // ── Leads count + active leads ──
   let leadsResult = { total: 0, active: 0 };
@@ -363,14 +363,18 @@ async function handleAnalytics(sb: any, user: any, url: URL): Promise<Response> 
     let paymentsToBeConfirmed = 0;
     let toBeEnrolled = 0;
 
-    const [actionPayments, allPayIds] = await Promise.all([
-      sb.from('payments')
+    let actionPayments = { data: [] as any[] };
+    let allPayIds: string[] = [];
+    try {
+      const { data: apData } = await sb.from('payments')
         .select('id, is_confirmed, installment_no, amount, payment_date, slip_received, receipt_received')
         .eq('installment_no', 1)
-        .limit(20000)
-        .catch(() => ({ data: [] })),
-      getPaymentReceivedRegIds(sb).catch(() => []),
-    ]);
+        .limit(20000);
+      actionPayments = { data: apData || [] };
+    } catch (_) {}
+    try {
+      allPayIds = await getPaymentReceivedRegIds(sb);
+    } catch (_) {}
 
     paymentsToBeConfirmed = (actionPayments.data || []).filter((p: any) => {
       const amt = Number(p.amount || 0);
