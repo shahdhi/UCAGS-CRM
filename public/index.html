@@ -478,24 +478,15 @@
                     </div>
                 </div>
 
-                <!-- ── Row 1: XP Trend + Achievements ─────────────────────────── -->
+                <!-- ── Row 1: Action Center + Achievements ─────────────────────────── -->
                 <div class="nd-row nd-row-2-1">
-                    <!-- XP Trend Chart -->
-                    <div class="nd-card">
+                    <!-- Action Center (swapped from Admin Action Center row) -->
+                    <div class="nd-card admin-only">
                         <div class="nd-card-header">
-                            <div class="nd-card-title"><i class="fas fa-chart-bar"></i> XP Performance Trend</div>
-                            <div class="nd-toggle-group">
-                                <button id="xpTrend7Btn" class="nd-toggle-btn" type="button">7d</button>
-                                <button id="xpTrend30Btn" class="nd-toggle-btn active" type="button">30d</button>
-                            </div>
+                            <div class="nd-card-title"><i class="fas fa-exclamation-circle"></i> Action Center</div>
                         </div>
-                        <div class="nd-chart-wrap" style="position:relative;height:220px;width:100%;">
-                            <canvas id="xpTrendChart" style="display:block;width:100%;height:100%;"></canvas>
-                        </div>
-                        <div class="nd-xp-chart-stats" id="ndXpChartStats">
-                            <div class="nd-xp-stat"><span class="nd-xp-stat-label">Current XP</span><span class="nd-xp-stat-val" id="statCurrentXp">—</span></div>
-                            <div class="nd-xp-stat"><span class="nd-xp-stat-label">Highest Day</span><span class="nd-xp-stat-val" id="statHighestXp">—</span></div>
-                            <div class="nd-xp-stat"><span class="nd-xp-stat-label">Average</span><span class="nd-xp-stat-val" id="statAvgXp">—</span></div>
+                        <div id="homeActionCenter" class="nd-action-center-list">
+                            <div class="nd-loading">Loading...</div>
                         </div>
                     </div>
 
@@ -639,13 +630,22 @@
                         <canvas id="homeConfirmedLineChart" style="width:100%; height:160px;"></canvas>
                     </div>
 
-                    <!-- Admin Tasks / Action Center -->
+                    <!-- XP Performance Trend (swapped from Row 1) -->
                     <div class="nd-card">
                         <div class="nd-card-header">
-                            <div class="nd-card-title"><i class="fas fa-exclamation-circle"></i> Action Center</div>
+                            <div class="nd-card-title"><i class="fas fa-chart-bar"></i> XP Performance Trend</div>
+                            <div class="nd-toggle-group">
+                                <button id="xpTrend7Btn" class="nd-toggle-btn" type="button">7d</button>
+                                <button id="xpTrend30Btn" class="nd-toggle-btn active" type="button">30d</button>
+                            </div>
                         </div>
-                        <div id="homeActionCenter" class="nd-action-center-list">
-                            <div class="nd-loading">Loading...</div>
+                        <div class="nd-chart-wrap" style="position:relative;height:220px;width:100%;">
+                            <canvas id="xpTrendChart" style="display:block;width:100%;height:100%;"></canvas>
+                        </div>
+                        <div class="nd-xp-chart-stats" id="ndXpChartStats">
+                            <div class="nd-xp-stat"><span class="nd-xp-stat-label">Current XP</span><span class="nd-xp-stat-val" id="statCurrentXp">—</span></div>
+                            <div class="nd-xp-stat"><span class="nd-xp-stat-label">Highest Day</span><span class="nd-xp-stat-val" id="statHighestXp">—</span></div>
+                            <div class="nd-xp-stat"><span class="nd-xp-stat-label">Average</span><span class="nd-xp-stat-val" id="statAvgXp">—</span></div>
                         </div>
                     </div>
                 </div>
