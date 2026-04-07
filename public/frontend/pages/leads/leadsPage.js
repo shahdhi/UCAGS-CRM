@@ -746,6 +746,7 @@ function renderLeadsTable() {
 
   // Render rows - clickable rows, grouped by date with dividers
   let lastDateLabel = null;
+  let rowNum = 0;
   const rows = [];
   paginatedLeads.forEach(lead => {
     const dateLabel = toDateLabel(lead.createdDate);
@@ -763,6 +764,7 @@ function renderLeadsTable() {
       `);
     }
     const isSelected = Boolean(window.__selectedLeadIds && window.__selectedLeadIds.has(String(lead.id)));
+    rowNum++;
     rows.push(`
       <tr class="lead-row" data-lead-id="${escapeHtml(String(lead.id))}" style="cursor: pointer;" title="Click to view details">
         <td style="width:40px;">
@@ -771,6 +773,7 @@ function renderLeadsTable() {
             : `<input type="checkbox" class="lead-select-checkbox" data-lead-id="${escapeHtml(String(lead.id))}" ${isSelected ? 'checked' : ''}>`
           }
         </td>
+        <td style="width:36px; text-align:center; color:#aaa; font-size:12px; font-weight:500; user-select:none;">${rowNum}</td>
         <td><strong>${escapeHtml(lead.name)}</strong></td>
         <td>${escapeHtml(lead.email)}</td>
         <td>${lead.phone ? `<a href="tel:${lead.phone}" class="lead-phone-link">${escapeHtml(lead.phone)}</a>` : '-'}</td>

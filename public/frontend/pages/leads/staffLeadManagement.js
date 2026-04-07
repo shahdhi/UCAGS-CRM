@@ -676,6 +676,7 @@
     };
 
     let lastDateLabel = null;
+    let rowNum = 0;
     const rows = [];
     filteredStaffLeads.forEach(lead => {
       const dateLabel = toDateLabel(lead.createdDate);
@@ -692,8 +693,10 @@
           </tr>
         `);
       }
+      rowNum++;
       rows.push(`
         <tr>
+          <td style="width:36px; text-align:center; color:#aaa; font-size:12px; font-weight:500; user-select:none;">${rowNum}</td>
           <td><strong>${escapeHtml(lead.name)}</strong></td>
           <td>${lead.phone ? `<a href="tel:${escapeHtml(lead.phone)}">${escapeHtml(lead.phone)}</a>` : '-'}</td>
           <td><span class="badge badge-${getStatusColor(lead.status)}">${escapeHtml(normalizeLeadStatus(lead.status) || 'New')}</span></td>

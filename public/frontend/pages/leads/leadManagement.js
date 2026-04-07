@@ -599,6 +599,7 @@ function renderManagementTable() {
   };
 
   let lastDateLabel = null;
+  let rowNum = 0;
   const rows = [];
   filteredManagementLeads.forEach(lead => {
     const dateLabel = toDateLabel(lead.createdDate);
@@ -615,8 +616,10 @@ function renderManagementTable() {
         </tr>
       `);
     }
+    rowNum++;
     rows.push(`
       <tr data-lead-id="${escapeHtml(String(lead.id))}">
+        <td style="width:36px; text-align:center; color:#aaa; font-size:12px; font-weight:500; user-select:none;">${rowNum}</td>
         <td><strong>${escapeHtml(lead.name)}</strong></td>
         <td>${lead.phone ? `<a href="tel:${lead.phone}">${escapeHtml(lead.phone)}</a>` : '-'}</td>
         <td><span class="badge badge-${getStatusColor(lead.status)}">${escapeHtml(normalizeLeadStatus(lead.status) || 'New')}</span></td>
