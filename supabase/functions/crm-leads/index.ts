@@ -76,20 +76,20 @@ function errResp(e: any): Response {
 // ---------------------------------------------------------------------------
 
 function normalizePhoneToSL(raw: unknown): string {
-  let p = String(raw ?? '').replace(/[\s\-().+]/g, '');
-  if (!p) return '';
-  // remove country code prefix
-  if (p.startsWith('94') && p.length >= 11) p = '0' + p.slice(2);
-  if (p.startsWith('00') && p.length >= 12) p = '0' + p.slice(4);
-  if (!p.startsWith('0') && p.length === 9) p = '0' + p;
-  return p;
+  const digits = String(raw ?? '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.length === 11 && digits.startsWith('94')) return digits;
+  if (digits.length === 10 && digits.startsWith('0')) return `94${digits.slice(1)}`;
+  if (digits.length === 9) return `94${digits}`;
+  if (digits.length > 11) return `94${digits.slice(-9)}`;
+  return digits;
 }
 
 // ---------------------------------------------------------------------------
 // Supabase clients
 // ---------------------------------------------------------------------------
 
-/** Service-role client — can do anything, used for all DB ops */
+/** Service-role client ï¿½ can do anything, used for all DB ops */
 function adminSb() {
   return createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
@@ -286,7 +286,7 @@ async function notifyAssignment(sb: any, officerName: string, leadCount: number,
       user_id: found.id,
       category: 'lead_assignment',
       title: 'New leads assigned',
-      message: `${leadCount} lead(s) assigned — ${cleanStr(batchName)}${sheetName ? ' / ' + cleanStr(sheetName) : ''}`,
+      message: `${leadCount} lead(s) assigned ï¿½ ${cleanStr(batchName)}${sheetName ? ' / ' + cleanStr(sheetName) : ''}`,
       type: 'info',
       is_read: false,
       created_at: new Date().toISOString(),
@@ -833,7 +833,7 @@ async function importCsv(sb: any, { batchName, sheetName, csvText }: any) {
 }
 
 // ---------------------------------------------------------------------------
-// METADATA – batches / sheets
+// METADATA ï¿½ batches / sheets
 // ---------------------------------------------------------------------------
 
 async function listAdminBatches(sb: any, { assignedTo }: any): Promise<string[]> {

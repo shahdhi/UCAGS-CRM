@@ -62,12 +62,13 @@ function errResp(e: any): Response {
 // ---------------------------------------------------------------------------
 
 function normalizePhoneToSL(raw: unknown): string {
-  let p = String(raw ?? '').replace(/[\s\-().+]/g, '');
-  if (!p) return '';
-  if (p.startsWith('94') && p.length >= 11) p = '0' + p.slice(2);
-  if (p.startsWith('00') && p.length >= 12) p = '0' + p.slice(4);
-  if (!p.startsWith('0') && p.length === 9) p = '0' + p;
-  return p;
+  const digits = String(raw ?? '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.length === 11 && digits.startsWith('94')) return digits;
+  if (digits.length === 10 && digits.startsWith('0')) return `94${digits.slice(1)}`;
+  if (digits.length === 9) return `94${digits}`;
+  if (digits.length > 11) return `94${digits.slice(-9)}`;
+  return digits;
 }
 
 // ---------------------------------------------------------------------------
