@@ -46,11 +46,13 @@ async function findDuplicateAssigneeInBatch({ batchName, phone, excludeLeadId })
 
   // Query a small set of candidates by suffix match then confirm canonical match.
   // (phone values in sheets may contain +, spaces, or may miss country code)
+  // Use last 7 digits for broader matching to handle various phone formats
+  const searchDigits = last9.slice(-7);
   const { data, error } = await sb
     .from('crm_leads')
     .select('sheet_lead_id, phone, assigned_to, sheet_name')
     .eq('batch_name', batchName)
-    .ilike('phone', `%${last9}`)
+    .ilike('phone', `%${searchDigits}%`)
     .order('updated_at', { ascending: false })
     .limit(50);
 

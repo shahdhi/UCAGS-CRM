@@ -10,6 +10,7 @@
 const { readSheet, getSpreadsheetInfo } = require('../../core/sheets/sheetsClient');
 const { getBatch } = require('../../core/batches/batchesStore');
 const { getSupabaseAdmin } = require('../../core/supabase/supabaseAdmin');
+const { normalizePhoneToSL } = require('./duplicatePhoneResolver');
 
 function requireSupabase() {
   const sb = getSupabaseAdmin();
@@ -91,10 +92,14 @@ function parseLeadRow(row, idxFn, rowNumber, headers) {
   });
 
   // Core fields (best-effort mapping)
+  // Normalize phone number to canonical Sri Lanka format for consistent matching
+  const rawPhone = String(getCell(row, idxFn('phone')) || '').trim();
+  const normalizedPhone = normalizePhoneToSL(rawPhone) || rawPhone;
+  
   return {
     sheet_lead_id: sheetLeadId,
     name: fullName,
-    phone: String(getCell(row, idxFn('phone')) || '').trim(),
+    phone: normalizedPhone,
     email: String(getCell(row, idxFn('email')) || '').trim(),
     platform: String(getCell(row, idxFn('platform')) || '').trim(),
     status: String(getCell(row, idxFn('status')) || '').trim() || 'New',
