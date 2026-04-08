@@ -653,8 +653,7 @@ async function createAdminLead({ batchName, sheetName, lead }) {
 
   // Sheet lead id: use timestamp-like unique string if not provided
   const sheetLeadId = cleanString(lead?.id) || String(Date.now());
-  const rawPhone = cleanString(lead?.phone);
-  const phone = normalizePhoneToSL(rawPhone) || rawPhone;
+  const phone = cleanString(lead?.phone);
   
   // Check for duplicate phone in the batch BEFORE creating
   let assignedTo = cleanString(lead?.assignedTo);
@@ -1328,8 +1327,7 @@ async function createOfficerLead({ officerName, batchName, sheetName, lead }) {
   await assertOfficerCanUseSheet({ sb, batchName, sheetName, officerName });
 
   const sheetLeadId = cleanString(lead?.id) || String(Date.now());
-  const rawPhone = cleanString(lead?.phone);
-  const phone = normalizePhoneToSL(rawPhone) || rawPhone;
+  const phone = cleanString(lead?.phone);
   
   // IMPORTANT: Officers should still see leads they create in their custom sheets,
   // even if the phone is a duplicate. The duplicate will still be MARKED as duplicate
@@ -1736,18 +1734,17 @@ async function updateLeadStatusByPhoneAndBatch({ canonicalPhone, batchName, next
   const status = cleanString(nextStatus);
   if (!phone || !batch || !status) return { updatedCount: 0 };
 
-  // Match by last 7 digits (broader), then update by batch + phone ilike
-  // Using last 7 digits instead of last 9 to handle various phone formats with spaces
-  const searchDigits = String(phone).replace(/\D/g, '').slice(-7);
-  if (!searchDigits) return { updatedCount: 0 };
+  // Match by last 9 digits (fast), then update by batch + phone ilike
+  const last9 = String(phone).replace(/\D/g, '').slice(-9);
+  if (!last9) return { updatedCount: 0 };
 
   try {
-    // Update any leads in this batch where phone contains searchDigits
+    // Update any leads in this batch where phone ends with last9
     const { data, error } = await sb
       .from('crm_leads')
       .update({ status, updated_at: new Date().toISOString() })
       .eq('batch_name', batch)
-      .ilike('phone', `%${searchDigits}%`)
+      .ilike('phone', `%${last9}`)
       .select('id');
 
     if (error) {

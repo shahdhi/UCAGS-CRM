@@ -24,13 +24,11 @@ async function findAssigneeByPhoneInSupabase(canonicalPhone, { batchName } = {})
   if (!last9) return '';
 
   // Candidate search by suffix (fast), then confirm by canonical normalization.
-  // Use a broader ILIKE search that accounts for phones with spaces or dashes.
-  // This searches for any phone containing the last 7+ digits (accommodating various formats)
-  const searchDigits = last9.slice(-7);
+  // crm_leads is the main synced leads table.
   let q = sb
     .from('crm_leads')
     .select('phone, assigned_to, updated_at, created_at, batch_name')
-    .ilike('phone', `%${searchDigits}%`);
+    .ilike('phone', `%${last9}`);
 
   if (batchName) q = q.eq('batch_name', String(batchName));
 
@@ -47,7 +45,6 @@ async function findAssigneeByPhoneInSupabase(canonicalPhone, { batchName } = {})
   }
 
   for (const r of (data || [])) {
-    // Normalize the phone from the database before comparison
     const rCanon = normalizePhoneToSL(r.phone);
     if (rCanon === canonicalPhone && r.assigned_to && String(r.assigned_to).trim()) {
       return String(r.assigned_to).trim();
