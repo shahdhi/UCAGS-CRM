@@ -4556,23 +4556,13 @@ async function initUserSwitchBtn() {
     if (stored) {
         try {
             const parsed = JSON.parse(stored);
-            // Restore viewingAs with original role
+            // Restore viewingAs (keep role as admin for API permissions)
             window.currentUser.viewingAs = parsed;
             
-            // If there's a valid viewingAs, apply the full officer UI immediately
-            if (parsed && parsed.name && parsed.originalRole === 'admin') {
-                // Apply officer role and body class
-                window.currentUser.role = 'officer';
-                document.body.classList.remove('admin');
+            // If there's a valid viewingAs, apply the officer UI
+            if (parsed && parsed.name) {
+                // Add body class to switch CSS (hides admin-only, shows officer-only)
                 document.body.classList.add('officer');
-                
-                // Hide admin-only elements
-                const adminOnlySections = document.querySelectorAll('.admin-only');
-                adminOnlySections.forEach(el => el.style.display = 'none');
-                
-                // Show officer-only elements
-                const officerOnlyEls = document.querySelectorAll('.officer-only');
-                officerOnlyEls.forEach(el => el.style.display = '');
                 
                 // Update header user display
                 const userDisplayEl = document.getElementById('userDisplay');
@@ -4752,30 +4742,19 @@ function _removeViewingAsBanner() {
  * Select an officer to view as. Updates currentUser.viewingAs,
  * persists to localStorage, reloads current view.
  * Changes the UI to look exactly like an officer (sidebar, tabs, header).
+ * Keeps currentUser.role as 'admin' but uses viewingAs for API filters.
  */
 function selectSwitchedUser(officer) {
-    // Store original role before switching
-    const originalRole = window.currentUser.role; // should be 'admin'
+    // Store the viewing-as info (keep role as admin for API permission checks)
     window.currentUser.viewingAs = { 
         id: officer.id, 
         name: officer.name, 
-        email: officer.email,
-        originalRole: originalRole
+        email: officer.email
     };
     localStorage.setItem(`viewingAsOfficer_${window.currentUser.id}`, JSON.stringify(window.currentUser.viewingAs));
 
-    // Change role to 'officer' so CSS shows officer-only items and hides admin-only
-    window.currentUser.role = 'officer';
-    
-    // Update body class to switch UI from admin to officer mode
-    document.body.classList.remove('admin');
+    // Add body class to switch CSS (hides admin-only, shows officer-only)
     document.body.classList.add('officer');
-
-    // Hide admin-only elements directly (CSS handles most, but some need JS)
-    const adminOnlySections = document.querySelectorAll('.admin-only');
-    adminOnlySections.forEach(el => el.style.display = 'none');
-    const officerOnlyEls = document.querySelectorAll('.officer-only');
-    officerOnlyEls.forEach(el => el.style.display = '');
 
     // Update header user display to show officer name
     const userDisplayEl = document.getElementById('userDisplay');
@@ -4785,7 +4764,7 @@ function selectSwitchedUser(officer) {
     const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
     if (sidebarUserRoleEl) sidebarUserRoleEl.textContent = 'Academic Advisor';
 
-    // Hide the User Switch button when in officer mode (can't switch further)
+    // Hide the User Switch button when viewing as officer (can't switch further)
     const userSwitchBtn = document.getElementById('userSwitchBtn');
     if (userSwitchBtn) userSwitchBtn.style.display = 'none';
 
@@ -4803,37 +4782,21 @@ function selectSwitchedUser(officer) {
 
 /**
  * Clear the viewing-as selection, return to full admin view.
- * Restores the original admin role and body class.
+ * Restores the full admin UI.
  */
 function clearUserSwitch() {
     if (!window.currentUser || !window.currentUser.viewingAs) return;
     
-    // Restore original role
-    const originalRole = window.currentUser.viewingAs.originalRole || 'admin';
-    window.currentUser.role = originalRole;
-    
-    // Restore body class
-    document.body.classList.remove('officer');
-    if (originalRole === 'admin') {
-        document.body.classList.add('admin');
-    }
-    
+    // Remove viewing-as
     delete window.currentUser.viewingAs;
     localStorage.removeItem(`viewingAsOfficer_${window.currentUser.id}`);
 
-    // Show admin-only elements, hide officer-only if not an actual officer
-    const adminOnlySections = document.querySelectorAll('.admin-only');
-    adminOnlySections.forEach(el => el.style.display = '');
-    
-    // If user is truly an admin, also show admin-only sections
-    if (window.currentUser.role === 'admin') {
-        const adminOnlyEls = document.querySelectorAll('.admin-only');
-        adminOnlyEls.forEach(el => el.style.display = '');
-    }
+    // Remove body class
+    document.body.classList.remove('officer');
 
     // Show the User Switch button again
     const userSwitchBtn = document.getElementById('userSwitchBtn');
-    if (userSwitchBtn && window.currentUser.role === 'admin') {
+    if (userSwitchBtn) {
         userSwitchBtn.style.display = 'flex';
     }
 
@@ -4857,8 +4820,28 @@ function clearUserSwitch() {
     if (typeof navigateToPage === 'function') navigateToPage(currentPage);
 }
 
+/**
+ * Returns true if the current user is viewing as an officer (admin impersonating).
+ */
+function isViewingAsOfficer() {
+    return window.currentUser && window.currentUser.viewingAs && window.currentUser.viewingAs.name;
+}
+
+/**
+ * Returns true if the current user is in officer mode (actual officer OR admin impersonating).
+ * This is the key helper for checking UI/API behavior.
+ */
+function isOfficerMode() {
+    return window.currentUser && (
+        window.currentUser.role === 'officer' || 
+        (window.currentUser.viewingAs && window.currentUser.viewingAs.name)
+    );
+}
+
 window.getViewingAsOfficerName = getViewingAsOfficerName;
 window.getViewingAsOfficerId   = getViewingAsOfficerId;
+window.isViewingAsOfficer       = isViewingAsOfficer;
+window.isOfficerMode            = isOfficerMode;
 window.initUserSwitchBtn       = initUserSwitchBtn;
 window.selectSwitchedUser      = selectSwitchedUser;
 window.clearUserSwitch         = clearUserSwitch;

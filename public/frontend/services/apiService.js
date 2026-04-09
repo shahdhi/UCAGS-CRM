@@ -114,6 +114,9 @@ const leadsAPI = {
     if (window.currentUser && window.currentUser.role && window.currentUser.role !== 'admin') {
       return leadsAPI.getMyLeads(filters);
     }
+
+    // Admin impersonating officer - use admin endpoint with assignedTo filter
+    const viewingAsName = window.currentUser?.viewingAs?.name || null;
     
     // Use new Supabase-backed endpoint for admin
     if (batch && batch !== 'all' && batch !== 'myLeads') {
@@ -124,6 +127,8 @@ const leadsAPI = {
       if (filters.search) params.append('search', filters.search);
       // Pass programId to scope batch_name to the correct program
       if (filters.programId) params.append('programId', filters.programId);
+      // When impersonating an officer, filter to that officer's leads
+      if (viewingAsName) params.append('assignedTo', viewingAsName);
       
       console.log('📊 Loading leads from Supabase:', `/crm-leads/admin?${params.toString()}`);
       return fetchAPI(`/crm-leads/admin?${params.toString()}`);
@@ -134,6 +139,8 @@ const leadsAPI = {
     if (filters.status) params.append('status', filters.status);
     if (filters.search) params.append('search', filters.search);
     if (filters.programId) params.append('programId', filters.programId);
+    // When impersonating an officer, filter to that officer's leads
+    if (viewingAsName) params.append('assignedTo', viewingAsName);
     
     console.log('📊 Loading all leads from Supabase:', `/crm-leads/admin?${params.toString()}`);
     return fetchAPI(`/crm-leads/admin?${params.toString()}`);
@@ -151,6 +158,13 @@ const leadsAPI = {
     if (filters.search) params.append('search', filters.search);
     // Pass programId to scope batch_name to the correct program
     if (filters.programId) params.append('programId', filters.programId);
+    
+    // If admin is impersonating an officer, they need the officer endpoint with their name
+    const viewingAsName = window.currentUser?.viewingAs?.name;
+    if (viewingAsName) {
+      // Pass the viewing-as officer name so backend can filter to their leads
+      params.append('viewingAs', viewingAsName);
+    }
     
     return fetchAPI(`/crm-leads/my?${params.toString()}`);
   },
@@ -445,6 +459,14 @@ const registrationsAPI = {
     params.set('limit', String(limit));
     if (programId) params.set('programId', String(programId));
     if (batchName) params.set('batchName', String(batchName));
+    
+    // When admin is impersonating an officer, use admin endpoint with assignedTo filter
+    const viewingAsName = window.currentUser?.viewingAs?.name;
+    if (viewingAsName) {
+      params.set('assignedTo', viewingAsName);
+      return fetchAPI(`/registrations/admin?${params.toString()}`);
+    }
+    
     return fetchAPI(`/registrations/my?${params.toString()}`);
   },
   adminAssign: async (id, assignedTo) => {

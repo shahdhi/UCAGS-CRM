@@ -768,7 +768,9 @@
 
       // Determine admin using same signal as the rest of the app (body.admin),
       // but also allow explicit role === 'admin'.
-      const isAdminUser = (currentUser?.role === 'admin') || document.body.classList.contains('admin');
+      // If admin is viewing as officer, treat as officer.
+      const isViewingAsOfficer = window.currentUser?.viewingAs?.name;
+      const isAdminUser = (currentUser?.role === 'admin') && !isViewingAsOfficer;
 
       // Hide both sections first (avoid stale state across navigation)
       const adminSec = $('reportsAdminSection');

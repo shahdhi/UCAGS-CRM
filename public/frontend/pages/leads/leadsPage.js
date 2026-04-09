@@ -72,7 +72,7 @@ async function initLeadsPage(modeOrBatch) {
     window.__leadsCurrentBatchListenerBound = true;
     window.addEventListener('currentBatchChanged', async () => {
       try {
-        const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+        const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.isViewingAsOfficer && window.isViewingAsOfficer());
         // Reset batch selection so dropdown defaults to new current batch
         if (isOfficerView) {
           window.officerBatchFilter = '';
@@ -99,7 +99,7 @@ async function initLeadsPage(modeOrBatch) {
   updateSelectionUI();
 
   // Update header title: show only sheet name
-  const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+  const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.isViewingAsOfficer && window.isViewingAsOfficer());
   const batch = isOfficerView ? window.officerBatchFilter : window.adminBatchFilter;
   const sheet = (isOfficerView ? window.officerSheetFilter : window.adminSheetFilter) || 'Main Leads';
   const titleEl = document.getElementById('leadsViewTitle');
@@ -151,7 +151,7 @@ function setupLeadsEventListeners() {
     programBatchSelect.addEventListener('change', () => {
       const v = programBatchSelect.value;
       if (v) {
-        if (window.currentUser && window.currentUser.role === 'admin') {
+        if (window.currentUser && window.currentUser.role === 'admin' && !(window.isViewingAsOfficer && window.isViewingAsOfficer())) {
           window.adminBatchFilter = v;
           window.adminSheetFilter = 'Main Leads';
           // Encode programId into URL to disambiguate same-named batches across programs
@@ -286,7 +286,7 @@ async function loadLeads() {
     showLeadsLoading();
 
     // Officer view: always use /crm-leads/my (never admin endpoint)
-    const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+    const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.isViewingAsOfficer && window.isViewingAsOfficer());
 
     // Program context batch dropdown (admin + officer) — only rebuild if program changed
     {
@@ -690,7 +690,7 @@ function renderLeadsTable() {
   const paginatedLeads = leadsToDisplay.slice(startIndex, endIndex);
 
   // Determine if officer is on a custom sheet (show delete checkboxes + bulk bar)
-  const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+  const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.isViewingAsOfficer && window.isViewingAsOfficer());
   const currentSheet = (isOfficerView ? window.officerSheetFilter : window.adminSheetFilter) || 'Main Leads';
   const isCustomOfficerSheet = isOfficerView && !['main leads', 'extra leads'].includes(currentSheet.toLowerCase());
 
@@ -835,7 +835,7 @@ function updateLeadsBulkBar() {
  */
 async function deleteOfficerLead(lead) {
   if (!lead) return;
-  const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+  const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.isViewingAsOfficer && window.isViewingAsOfficer());
   const sheetName = (isOfficerView ? window.officerSheetFilter : window.adminSheetFilter) || 'Main Leads';
   const batchName = lead.batch || (isOfficerView ? window.officerBatchFilter : window.adminBatchFilter) || '';
   const displayName = lead.name ? `"${escapeHtml(lead.name)}"` : 'this lead';
@@ -1080,7 +1080,7 @@ function viewLeadDetails(leadId) {
           <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: space-between; flex-wrap: wrap; align-items: center;">
             <div>
               ${(() => {
-                const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+                const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.isViewingAsOfficer && window.isViewingAsOfficer());
                 const currentSheet = (isOfficerView ? window.officerSheetFilter : window.adminSheetFilter) || 'Main Leads';
                 const isCustomSheet = isOfficerView && !['main leads', 'extra leads'].includes(currentSheet.toLowerCase());
                 return isCustomSheet ? `<button class="btn btn-danger" id="leadsPageDeleteLeadBtn" style="padding: 12px 24px;">
@@ -1166,7 +1166,7 @@ async function saveLeadContact(leadId) {
     const lead = currentLeads.find(l => String(l.id) == String(leadId));
     if (!lead) throw new Error('Lead not found');
 
-    const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+    const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.isViewingAsOfficer && window.isViewingAsOfficer());
     let batchName = isOfficerView ? window.officerBatchFilter : window.adminBatchFilter;
     if (!batchName || batchName === 'all') batchName = lead.batch || lead.batchName || lead.batch_name || '';
 
@@ -1209,7 +1209,7 @@ async function openCopyLeadModal(lead) {
   const modalId = 'copyLeadModal';
   document.getElementById(modalId)?.remove();
 
-  const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+  const isAdmin = window.currentUser && window.currentUser.role === 'admin' && !(window.isViewingAsOfficer && window.isViewingAsOfficer());
 
   const html = `
     <div class="modal-overlay" id="${modalId}" onclick="closeLeadsActionModalOnOverlayClick(event, '${modalId}')">
@@ -1467,7 +1467,7 @@ async function saveLeadChanges(event, leadId) {
     
     // Call API to update lead
     // Admin updates go via Supabase CRM endpoint and require batch+sheet context
-    const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+    const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.isViewingAsOfficer && window.isViewingAsOfficer());
     if (isOfficerView) {
       // officers should edit in Lead Management page; keep read-only here
       throw new Error('Officers cannot edit leads from this screen. Use Lead Management.');
@@ -1772,7 +1772,7 @@ async function bulkCopyLeads() {
   const modalId = 'copyLeadModal';
   document.getElementById(modalId)?.remove();
 
-  const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+  const isAdmin = window.currentUser && window.currentUser.role === 'admin' && !(window.isViewingAsOfficer && window.isViewingAsOfficer());
 
   const html = `
     <div class="modal-overlay" id="${modalId}" onclick="closeLeadsActionModalOnOverlayClick(event, '${modalId}')">
@@ -2200,7 +2200,7 @@ function closeLeadsActionModalOnOverlayClick(event, modalId) {
 }
 
 async function openNewLeadModal() {
-  const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+  const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.isViewingAsOfficer && window.isViewingAsOfficer());
 
   const batchName = isOfficerView ? window.officerBatchFilter : window.adminBatchFilter;
   const sheetName = (isOfficerView ? window.officerSheetFilter : window.adminSheetFilter) || 'Main Leads';

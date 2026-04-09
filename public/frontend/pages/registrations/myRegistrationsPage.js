@@ -433,7 +433,10 @@
   }
 
   async function initMyRegistrationsPage() {
-    if (!window.currentUser || window.currentUser.role === 'admin') return;
+    // Allow access for officers OR admins impersonating officers
+    const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+    const isViewingAsOfficer = window.currentUser?.viewingAs?.name;
+    if (!window.currentUser || (isAdmin && !isViewingAsOfficer)) return;
 
     const refreshBtn = qs('registrationsMyRefreshBtn');
     const limitEl = qs('registrationsMyLimit');
