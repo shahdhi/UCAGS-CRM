@@ -467,13 +467,19 @@ async function loadLeadManagement() {
     // Pass programId to scope batch_name to the correct program
     const programIdForQuery = isAdmin ? window.adminProgramId : window.officerProgramId;
     if (programIdForQuery) params.set('programId', programIdForQuery);
-    // Admin "View as Officer": filter to selected officer
-    if (isAdmin && window.currentUser?.viewingAs?.name) {
-      params.set('assignedTo', window.currentUser.viewingAs.name);
+
+    // Determine endpoint: if viewing as an officer (admin impersonating), use admin endpoint with assignedTo
+    const viewingAsName = window.currentUser?.viewingAs?.name;
+    let endpoint;
+    if (viewingAsName) {
+        // Admin viewing as officer - use admin endpoint with assignedTo filter
+        endpoint = '/api/crm-leads/admin';
+        params.set('assignedTo', viewingAsName);
+    } else {
+        // Normal case: admin uses /admin, officer uses /my
+        endpoint = isAdmin ? '/api/crm-leads/admin' : '/api/crm-leads/my';
     }
 
-    // Admin uses /all endpoint, officers use /my endpoint
-    const endpoint = isAdmin ? '/api/crm-leads/admin' : '/api/crm-leads/my';
     const res = await fetch(`${endpoint}?${params.toString()}`, { headers: authHeaders });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Failed to load leads');

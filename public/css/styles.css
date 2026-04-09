@@ -2799,33 +2799,44 @@ body.admin .nav-section.admin-only {
     display: block !important;
 }
 
-/* Show officer-only items for non-admins */
+/* Officer impersonation (admin viewing as officer) */
+body.officer .admin-only {
+    display: none !important;
+}
+
+/* Show officer-only items for non-admins (or officer impersonation) */
 .officer-only {
     display: none !important;
 }
 
 /* Default officer-only content should be block layout (cards/sections) */
-body:not(.admin) .officer-only {
+body:not(.admin):not(.officer) .officer-only,
+body.officer .officer-only {
     display: block !important;
 }
 
 /* Officer nav items should be flex rows */
-body:not(.admin) .nav-item.officer-only,
-body:not(.admin) .nav-link.officer-only {
+body:not(.admin):not(.officer) .nav-item.officer-only,
+body:not(.admin):not(.officer) .nav-link.officer-only,
+body.officer .nav-item.officer-only,
+body.officer .nav-link.officer-only {
     display: flex !important;
 }
 
 /* Officer nav sections should behave like sections (not flex rows) */
-body:not(.admin) .nav-section.officer-only {
+body:not(.admin):not(.officer) .nav-section.officer-only,
+body.officer .nav-section.officer-only {
     display: block !important;
 }
 
 /* Ensure content views also show/hide properly */
-body:not(.admin) .content-view.officer-only {
+body:not(.admin):not(.officer) .content-view.officer-only,
+body.officer .content-view.officer-only {
     display: block !important;
 }
 
-body:not(.admin) .content-view.admin-only {
+body:not(.admin):not(.officer) .content-view.admin-only,
+body.officer .content-view.admin-only {
     display: none !important;
 }
 
@@ -2835,6 +2846,10 @@ body.admin .content-view.admin-only {
 
 body.admin .content-view.officer-only {
     display: none !important;
+}
+
+body.officer .content-view.admin-only {
+    display: block !important;
 }
 
 /* Responsive Design */

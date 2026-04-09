@@ -4555,7 +4555,36 @@ async function initUserSwitchBtn() {
     const stored = localStorage.getItem(`viewingAsOfficer_${window.currentUser.id}`);
     if (stored) {
         try {
-            window.currentUser.viewingAs = JSON.parse(stored);
+            const parsed = JSON.parse(stored);
+            // Restore viewingAs with original role
+            window.currentUser.viewingAs = parsed;
+            
+            // If there's a valid viewingAs, apply the full officer UI immediately
+            if (parsed && parsed.name && parsed.originalRole === 'admin') {
+                // Apply officer role and body class
+                window.currentUser.role = 'officer';
+                document.body.classList.remove('admin');
+                document.body.classList.add('officer');
+                
+                // Hide admin-only elements
+                const adminOnlySections = document.querySelectorAll('.admin-only');
+                adminOnlySections.forEach(el => el.style.display = 'none');
+                
+                // Show officer-only elements
+                const officerOnlyEls = document.querySelectorAll('.officer-only');
+                officerOnlyEls.forEach(el => el.style.display = '');
+                
+                // Update header user display
+                const userDisplayEl = document.getElementById('userDisplay');
+                if (userDisplayEl) userDisplayEl.textContent = parsed.name;
+                const sidebarUserNameEl = document.getElementById('sidebarUserName');
+                if (sidebarUserNameEl) sidebarUserNameEl.textContent = parsed.name;
+                const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+                if (sidebarUserRoleEl) sidebarUserRoleEl.textContent = 'Academic Advisor';
+                
+                // Hide User Switch button in officer mode
+                btn.style.display = 'none';
+            }
         } catch { /* ignore */ }
     }
 
@@ -4721,17 +4750,50 @@ function _removeViewingAsBanner() {
 
 /**
  * Select an officer to view as. Updates currentUser.viewingAs,
- * persists to localStorage, updates UI, reloads current view.
+ * persists to localStorage, reloads current view.
+ * Changes the UI to look exactly like an officer (sidebar, tabs, header).
  */
 function selectSwitchedUser(officer) {
-    window.currentUser.viewingAs = { id: officer.id, name: officer.name, email: officer.email };
+    // Store original role before switching
+    const originalRole = window.currentUser.role; // should be 'admin'
+    window.currentUser.viewingAs = { 
+        id: officer.id, 
+        name: officer.name, 
+        email: officer.email,
+        originalRole: originalRole
+    };
     localStorage.setItem(`viewingAsOfficer_${window.currentUser.id}`, JSON.stringify(window.currentUser.viewingAs));
+
+    // Change role to 'officer' so CSS shows officer-only items and hides admin-only
+    window.currentUser.role = 'officer';
+    
+    // Update body class to switch UI from admin to officer mode
+    document.body.classList.remove('admin');
+    document.body.classList.add('officer');
+
+    // Hide admin-only elements directly (CSS handles most, but some need JS)
+    const adminOnlySections = document.querySelectorAll('.admin-only');
+    adminOnlySections.forEach(el => el.style.display = 'none');
+    const officerOnlyEls = document.querySelectorAll('.officer-only');
+    officerOnlyEls.forEach(el => el.style.display = '');
+
+    // Update header user display to show officer name
+    const userDisplayEl = document.getElementById('userDisplay');
+    if (userDisplayEl) userDisplayEl.textContent = officer.name;
+    const sidebarUserNameEl = document.getElementById('sidebarUserName');
+    if (sidebarUserNameEl) sidebarUserNameEl.textContent = officer.name;
+    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+    if (sidebarUserRoleEl) sidebarUserRoleEl.textContent = 'Academic Advisor';
+
+    // Hide the User Switch button when in officer mode (can't switch further)
+    const userSwitchBtn = document.getElementById('userSwitchBtn');
+    if (userSwitchBtn) userSwitchBtn.style.display = 'none';
 
     _applyUserSwitchIndicator();
     _renderUserSwitchList();
 
     if (window.UI && typeof UI.showToast === 'function') {
-        UI.showToast(`Viewing as: ${officer.name}`, 'info');
+        UI.showToast(`Switched to: ${officer.name}`, 'info');
     }
 
     // Reload current view to reflect filter
@@ -4741,11 +4803,47 @@ function selectSwitchedUser(officer) {
 
 /**
  * Clear the viewing-as selection, return to full admin view.
+ * Restores the original admin role and body class.
  */
 function clearUserSwitch() {
-    if (!window.currentUser) return;
+    if (!window.currentUser || !window.currentUser.viewingAs) return;
+    
+    // Restore original role
+    const originalRole = window.currentUser.viewingAs.originalRole || 'admin';
+    window.currentUser.role = originalRole;
+    
+    // Restore body class
+    document.body.classList.remove('officer');
+    if (originalRole === 'admin') {
+        document.body.classList.add('admin');
+    }
+    
     delete window.currentUser.viewingAs;
     localStorage.removeItem(`viewingAsOfficer_${window.currentUser.id}`);
+
+    // Show admin-only elements, hide officer-only if not an actual officer
+    const adminOnlySections = document.querySelectorAll('.admin-only');
+    adminOnlySections.forEach(el => el.style.display = '');
+    
+    // If user is truly an admin, also show admin-only sections
+    if (window.currentUser.role === 'admin') {
+        const adminOnlyEls = document.querySelectorAll('.admin-only');
+        adminOnlyEls.forEach(el => el.style.display = '');
+    }
+
+    // Show the User Switch button again
+    const userSwitchBtn = document.getElementById('userSwitchBtn');
+    if (userSwitchBtn && window.currentUser.role === 'admin') {
+        userSwitchBtn.style.display = 'flex';
+    }
+
+    // Restore header display
+    const userDisplayEl = document.getElementById('userDisplay');
+    if (userDisplayEl) userDisplayEl.textContent = window.currentUser.name;
+    const sidebarUserNameEl = document.getElementById('sidebarUserName');
+    if (sidebarUserNameEl) sidebarUserNameEl.textContent = window.currentUser.name;
+    const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
+    if (sidebarUserRoleEl) sidebarUserRoleEl.textContent = 'Administrator';
 
     _applyUserSwitchIndicator();
     _renderUserSwitchList();
