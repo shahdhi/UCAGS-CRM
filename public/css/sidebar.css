@@ -582,6 +582,257 @@ body:has(#dashboardPage.active) {
     align-items: center;
 }
 
+/* ── User Switch (Admin "View as Officer") ─────────────────────────────────── */
+
+.user-switch-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.user-switch-popup {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    background: #1e1b2e;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 12px;
+    min-width: 270px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    z-index: 9999;
+    overflow: hidden;
+    animation: srPopupIn 0.18s ease;
+}
+
+.user-switch-popup.hidden {
+    display: none;
+}
+
+.user-switch-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.user-switch-header i {
+    color: #8b5cf6;
+    font-size: 13px;
+}
+
+.user-switch-search-wrap {
+    position: relative;
+    padding: 10px 12px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.user-switch-search-icon {
+    position: absolute;
+    left: 22px;
+    top: 50%;
+    transform: translateY(-30%);
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+    pointer-events: none;
+}
+
+.user-switch-search {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 7px;
+    padding: 7px 10px 7px 28px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.85);
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+}
+
+.user-switch-search::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.user-switch-search:focus {
+    border-color: rgba(139, 92, 246, 0.55);
+}
+
+.user-switch-list {
+    padding: 6px 0;
+    max-height: 300px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(139, 92, 246, 0.4) transparent;
+}
+
+.user-switch-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.user-switch-list::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.4);
+    border-radius: 4px;
+}
+
+.user-switch-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.user-switch-item:hover {
+    background: rgba(139, 92, 246, 0.18);
+}
+
+.user-switch-item.active {
+    background: rgba(139, 92, 246, 0.28);
+    color: #fff;
+    font-weight: 600;
+}
+
+.user-switch-item.reset-item {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    margin-bottom: 2px;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 13px;
+}
+
+.user-switch-item.reset-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.user-switch-item .us-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(139, 92, 246, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #8b5cf6;
+    flex-shrink: 0;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.user-switch-item.active .us-icon {
+    background: #8b5cf6;
+    color: #fff;
+}
+
+.user-switch-item.reset-item .us-icon {
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.user-switch-item .us-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-switch-item .us-name {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-switch-item .us-email {
+    display: block;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.35);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 1px;
+}
+
+.user-switch-item.active .us-email {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.user-switch-item .us-check {
+    font-size: 11px;
+    color: #8b5cf6;
+    opacity: 0;
+    flex-shrink: 0;
+}
+
+.user-switch-item.active .us-check {
+    opacity: 1;
+}
+
+/* Active badge dot on the button icon */
+#userSwitchBtn {
+    position: relative;
+}
+
+.user-switch-badge {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 8px;
+    height: 8px;
+    background: #8b5cf6;
+    border-radius: 50%;
+    border: 2px solid var(--bg-primary, #0f0c1e);
+}
+
+#userSwitchBtn.viewing-active {
+    color: #8b5cf6;
+}
+
+/* Viewing-As Banner */
+.viewing-as-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(139, 92, 246, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0 4px;
+}
+
+.viewing-as-banner i {
+    color: #8b5cf6;
+    font-size: 11px;
+}
+
+.viewing-as-banner .va-name {
+    font-weight: 600;
+    color: #c4b5fd;
+}
+
+.viewing-as-banner .va-clear {
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 10px;
+    margin-left: 4px;
+    transition: color 0.15s;
+}
+
+.viewing-as-banner .va-clear:hover {
+    color: rgba(255, 255, 255, 0.8);
+}
+
 /* ── Supervisor Role Mode ──────────────────────────────────────────────────── */
 
 /* ── Role-specific nav items: hidden by default for everyone ──────────────── */

@@ -467,6 +467,10 @@ async function loadLeadManagement() {
     // Pass programId to scope batch_name to the correct program
     const programIdForQuery = isAdmin ? window.adminProgramId : window.officerProgramId;
     if (programIdForQuery) params.set('programId', programIdForQuery);
+    // Admin "View as Officer": filter to selected officer
+    if (isAdmin && window.currentUser?.viewingAs?.name) {
+      params.set('assignedTo', window.currentUser.viewingAs.name);
+    }
 
     // Admin uses /all endpoint, officers use /my endpoint
     const endpoint = isAdmin ? '/api/crm-leads/admin' : '/api/crm-leads/my';

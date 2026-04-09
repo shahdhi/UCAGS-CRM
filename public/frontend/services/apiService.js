@@ -114,6 +114,9 @@ const leadsAPI = {
     if (window.currentUser && window.currentUser.role && window.currentUser.role !== 'admin') {
       return leadsAPI.getMyLeads(filters);
     }
+
+    // Admin "View as Officer": inject assignedTo filter when admin is viewing as a specific officer
+    const viewingAsName = window.currentUser?.viewingAs?.name || null;
     
     // Use new Supabase-backed endpoint for admin
     if (batch && batch !== 'all' && batch !== 'myLeads') {
@@ -124,6 +127,8 @@ const leadsAPI = {
       if (filters.search) params.append('search', filters.search);
       // Pass programId to scope batch_name to the correct program
       if (filters.programId) params.append('programId', filters.programId);
+      // View-as-officer filter
+      if (viewingAsName) params.append('assignedTo', viewingAsName);
       
       console.log('📊 Loading leads from Supabase:', `/crm-leads/admin?${params.toString()}`);
       return fetchAPI(`/crm-leads/admin?${params.toString()}`);
@@ -134,6 +139,8 @@ const leadsAPI = {
     if (filters.status) params.append('status', filters.status);
     if (filters.search) params.append('search', filters.search);
     if (filters.programId) params.append('programId', filters.programId);
+    // View-as-officer filter
+    if (viewingAsName) params.append('assignedTo', viewingAsName);
     
     console.log('📊 Loading all leads from Supabase:', `/crm-leads/admin?${params.toString()}`);
     return fetchAPI(`/crm-leads/admin?${params.toString()}`);
@@ -931,7 +938,7 @@ window.API = {
   dashboard: dashboardAPI,
   contacts: contactsAPI,
   google: googleAPI,
-  officers: officersAPI,
+  officers: officersAPI,  
   email: emailAPI,
   calendar: calendarAPI,
   attendance: attendanceAPI,

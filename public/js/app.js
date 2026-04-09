@@ -471,6 +471,15 @@ async function showDashboard() {
         console.warn('SwitchRole init error:', e);
     }
 
+    // Initialize User Switch button (admin only)
+    try {
+        if (typeof initUserSwitchBtn === 'function') {
+            initUserSwitchBtn();
+        }
+    } catch (e) {
+        console.warn('UserSwitch init error:', e);
+    }
+
     // One-time background migration: ensure all users have default staff_roles set
     // Runs once per browser session regardless of role
     if (!sessionStorage.getItem('__rolesMigrated')) {
@@ -4018,9 +4027,22 @@ async function loadCalendar() {
         let url = '/api/calendar/followups';
         let tasksParams = {};
 
-        if (currentUser && currentUser.role === 'admin' && select && select.value) {
-            url += `?officer=${encodeURIComponent(select.value)}`;
-            tasksParams = { mode: 'officer', officer: select.value };
+        // When admin is "viewing as" a specific officer, override the calendar filter
+        const _calViewingAs = (currentUser && currentUser.role === 'admin' && currentUser.viewingAs)
+            ? currentUser.viewingAs.name : null;
+
+        if (currentUser && currentUser.role === 'admin') {
+            const officerName = _calViewingAs || (select && select.value ? select.value : null);
+            if (officerName) {
+                url += `?officer=${encodeURIComponent(officerName)}`;
+                tasksParams = { mode: 'officer', officer: officerName };
+                // Sync the dropdown to reflect the viewingAs selection
+                if (_calViewingAs && select && select.value !== _calViewingAs) {
+                    // Try to find the matching option and select it
+                    const matchOpt = Array.from(select.options).find(o => o.value === _calViewingAs);
+                    if (matchOpt) select.value = _calViewingAs;
+                }
+            }
         }
 
         const response = await fetchAPI(url.replace('/api', ''));
@@ -4497,6 +4519,251 @@ setInterval(async () => {
         }
     } catch (e) { /* silent */ }
 }, 60000);
+
+// ── User Switch Feature (Admin "View as Officer") ────────────────────────────
+
+let _cachedOfficers = [];
+
+/**
+ * Returns the name of the officer the admin is currently viewing as, or null.
+ */
+function getViewingAsOfficerName() {
+    return window.currentUser?.viewingAs?.name || null;
+}
+
+/**
+ * Returns the UUID of the officer the admin is currently viewing as, or null.
+ */
+function getViewingAsOfficerId() {
+    return window.currentUser?.viewingAs?.id || null;
+}
+
+/**
+ * Initialise the User Switch button and popup. Admin-only.
+ * Called from showDashboard().
+ */
+async function initUserSwitchBtn() {
+    const btn   = document.getElementById('userSwitchBtn');
+    const popup = document.getElementById('userSwitchPopup');
+    const list  = document.getElementById('userSwitchList');
+    if (!btn || !popup || !list) return;
+
+    // Only for admins
+    if (!window.currentUser || window.currentUser.role !== 'admin') return;
+
+    // Restore persisted viewingAs selection
+    const stored = localStorage.getItem(`viewingAsOfficer_${window.currentUser.id}`);
+    if (stored) {
+        try {
+            window.currentUser.viewingAs = JSON.parse(stored);
+        } catch { /* ignore */ }
+    }
+
+    // Prevent double-init
+    if (btn.__userSwitchInitialised) {
+        _renderUserSwitchList();
+        _applyUserSwitchIndicator();
+        return;
+    }
+    btn.__userSwitchInitialised = true;
+
+    // Fetch officers list
+    try {
+        const token = window.supabaseClient
+            ? (await window.supabaseClient.auth.getSession())?.data?.session?.access_token
+            : null;
+
+        const res = await fetch('/api/users/officers', {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.officers)) {
+            _cachedOfficers = data.officers;
+        }
+    } catch (e) {
+        console.warn('UserSwitch: could not fetch officers', e);
+    }
+
+    _renderUserSwitchList();
+    _applyUserSwitchIndicator();
+
+    // Toggle popup on button click
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = !popup.classList.contains('hidden');
+        if (isOpen) {
+            popup.classList.add('hidden');
+        } else {
+            _renderUserSwitchList();
+            popup.classList.remove('hidden');
+            // Focus search
+            setTimeout(() => {
+                const search = document.getElementById('userSwitchSearch');
+                if (search) search.focus();
+            }, 50);
+        }
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+        if (!popup.classList.contains('hidden') &&
+            !popup.contains(e.target) &&
+            e.target !== btn && !btn.contains(e.target)) {
+            popup.classList.add('hidden');
+        }
+    });
+
+    // Search input filtering
+    document.addEventListener('input', (e) => {
+        if (e.target && e.target.id === 'userSwitchSearch') {
+            _renderUserSwitchList(e.target.value.trim());
+        }
+    });
+}
+
+function _renderUserSwitchList(filter = '') {
+    const list = document.getElementById('userSwitchList');
+    if (!list) return;
+
+    const active = window.currentUser?.viewingAs;
+    const lc     = filter.toLowerCase();
+
+    const officers = filter
+        ? _cachedOfficers.filter(o => o.name.toLowerCase().includes(lc) || (o.email || '').toLowerCase().includes(lc))
+        : _cachedOfficers;
+
+    const resetItem = `
+        <div class="user-switch-item reset-item ${!active ? 'active' : ''}" data-reset="true">
+            <div class="us-icon"><i class="fas fa-user-shield"></i></div>
+            <div class="us-info">
+                <span class="us-name">Admin View (All Data)</span>
+            </div>
+            <i class="fas fa-check us-check"></i>
+        </div>`;
+
+    const officerItems = officers.map(o => {
+        const isActive = active && active.id === o.id;
+        const initials = (o.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+        return `
+        <div class="user-switch-item ${isActive ? 'active' : ''}" data-officer-id="${o.id}" data-officer-name="${o.name}" data-officer-email="${o.email || ''}">
+            <div class="us-icon">${initials}</div>
+            <div class="us-info">
+                <span class="us-name">${o.name}</span>
+                <span class="us-email">${o.email || ''}</span>
+            </div>
+            <i class="fas fa-check us-check"></i>
+        </div>`;
+    }).join('');
+
+    list.innerHTML = resetItem + (officers.length
+        ? officerItems
+        : `<div style="padding:12px 16px;font-size:13px;color:rgba(255,255,255,0.35);">No officers found</div>`);
+
+    // Click handlers
+    list.querySelectorAll('.user-switch-item').forEach(item => {
+        item.addEventListener('click', () => {
+            if (item.dataset.reset) {
+                clearUserSwitch();
+            } else {
+                selectSwitchedUser({
+                    id:    item.dataset.officerId,
+                    name:  item.dataset.officerName,
+                    email: item.dataset.officerEmail
+                });
+            }
+            const popup = document.getElementById('userSwitchPopup');
+            if (popup) popup.classList.add('hidden');
+        });
+    });
+}
+
+function _applyUserSwitchIndicator() {
+    const btn   = document.getElementById('userSwitchBtn');
+    const badge = document.getElementById('userSwitchBadge');
+    if (!btn) return;
+
+    const active = window.currentUser?.viewingAs;
+    if (active) {
+        btn.classList.add('viewing-active');
+        if (badge) badge.style.display = 'block';
+        _showViewingAsBanner(active.name);
+    } else {
+        btn.classList.remove('viewing-active');
+        if (badge) badge.style.display = 'none';
+        _removeViewingAsBanner();
+    }
+}
+
+function _showViewingAsBanner(name) {
+    _removeViewingAsBanner();
+    const topBarRight = document.querySelector('.top-bar-right');
+    if (!topBarRight) return;
+    const banner = document.createElement('div');
+    banner.id = 'viewingAsBanner';
+    banner.className = 'viewing-as-banner';
+    banner.innerHTML = `
+        <i class="fas fa-user-secret"></i>
+        Viewing as: <span class="va-name">${name}</span>
+        <i class="fas fa-times va-clear" title="Reset to Admin view" id="viewingAsClearBtn"></i>`;
+    // Insert before the XP widget (last child)
+    const xpWidget = document.getElementById('headerXpWidget');
+    topBarRight.insertBefore(banner, xpWidget || null);
+
+    document.getElementById('viewingAsClearBtn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        clearUserSwitch();
+    });
+}
+
+function _removeViewingAsBanner() {
+    document.getElementById('viewingAsBanner')?.remove();
+}
+
+/**
+ * Select an officer to view as. Updates currentUser.viewingAs,
+ * persists to localStorage, updates UI, reloads current view.
+ */
+function selectSwitchedUser(officer) {
+    window.currentUser.viewingAs = { id: officer.id, name: officer.name, email: officer.email };
+    localStorage.setItem(`viewingAsOfficer_${window.currentUser.id}`, JSON.stringify(window.currentUser.viewingAs));
+
+    _applyUserSwitchIndicator();
+    _renderUserSwitchList();
+
+    if (window.UI && typeof UI.showToast === 'function') {
+        UI.showToast(`Viewing as: ${officer.name}`, 'info');
+    }
+
+    // Reload current view to reflect filter
+    const currentPage = window.location.hash.replace('#', '') || 'home';
+    if (typeof navigateToPage === 'function') navigateToPage(currentPage);
+}
+
+/**
+ * Clear the viewing-as selection, return to full admin view.
+ */
+function clearUserSwitch() {
+    if (!window.currentUser) return;
+    delete window.currentUser.viewingAs;
+    localStorage.removeItem(`viewingAsOfficer_${window.currentUser.id}`);
+
+    _applyUserSwitchIndicator();
+    _renderUserSwitchList();
+
+    if (window.UI && typeof UI.showToast === 'function') {
+        UI.showToast('Switched back to Admin view', 'success');
+    }
+
+    // Reload current view
+    const currentPage = window.location.hash.replace('#', '') || 'home';
+    if (typeof navigateToPage === 'function') navigateToPage(currentPage);
+}
+
+window.getViewingAsOfficerName = getViewingAsOfficerName;
+window.getViewingAsOfficerId   = getViewingAsOfficerId;
+window.initUserSwitchBtn       = initUserSwitchBtn;
+window.selectSwitchedUser      = selectSwitchedUser;
+window.clearUserSwitch         = clearUserSwitch;
 
 // ── Switch Role Feature ─────────────────────────────────────────────────────
 

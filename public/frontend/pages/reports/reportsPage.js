@@ -648,7 +648,12 @@
   }
 
   async function initAdmin(schedule) {
-    const officers = await fetchOfficers().catch(() => []);
+    let officers = await fetchOfficers().catch(() => []);
+    // When admin is "viewing as" a specific officer, filter the reports table to that officer only
+    const viewingAsName = window.currentUser?.viewingAs?.name || null;
+    if (viewingAsName) {
+      officers = officers.filter(o => o.name === viewingAsName);
+    }
     const sec = $('reportsAdminSection');
     if (!sec) return;
     sec.style.display = 'block';
