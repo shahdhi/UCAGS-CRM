@@ -460,8 +460,9 @@ async function loadLeadManagement() {
       }
     }
 
-    const batchFilter = isAdmin ? window.adminBatchFilter : window.officerBatchFilter;
-    const sheet = isAdmin ? (window.adminSheetFilter || 'Main Leads') : (window.officerSheetFilter || 'Main Leads');
+    // Use officer filters when in officer mode (actual officer OR admin impersonating)
+    const batchFilter = isOfficerMode ? window.officerBatchFilter : window.adminBatchFilter;
+    const sheet = isOfficerMode ? (window.officerSheetFilter || 'Main Leads') : (window.adminSheetFilter || 'Main Leads');
 
     const params = new URLSearchParams();
     if (batchFilter && batchFilter !== 'all') params.set('batch', decodeURIComponent(batchFilter));
@@ -472,14 +473,15 @@ async function loadLeadManagement() {
 
     // Determine endpoint: if viewing as an officer (admin impersonating), use admin endpoint with assignedTo
     const viewingAsName = window.currentUser?.viewingAs?.name;
+    const isOfficerMode = !isAdmin; // officers and admins impersonating officers use officer filters
+    
     let endpoint;
-    if (viewingAsName) {
-        // Admin viewing as officer - use admin endpoint with assignedTo filter
-        endpoint = '/api/crm-leads/admin';
-        params.set('assignedTo', viewingAsName);
+    if (isOfficerMode) {
+        // Officer mode (including admin impersonating) - use officer filters and endpoint
+        endpoint = '/api/crm-leads/my';
     } else {
-        // Normal case: admin uses /admin, officer uses /my
-        endpoint = isAdmin ? '/api/crm-leads/admin' : '/api/crm-leads/my';
+        // Pure admin mode
+        endpoint = '/api/crm-leads/admin';
     }
 
     const res = await fetch(`${endpoint}?${params.toString()}`, { headers: authHeaders });
