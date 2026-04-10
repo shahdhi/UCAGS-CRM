@@ -471,13 +471,16 @@ async function loadLeadManagement() {
     const programIdForQuery = isOfficerMode ? window.officerProgramId : window.adminProgramId;
     if (programIdForQuery) params.set('programId', programIdForQuery);
 
-    // Use officer endpoint when in officer mode (actual officer OR admin impersonating)
-    let endpoint = isOfficerMode ? '/api/crm-leads/my' : '/api/crm-leads/admin';
-    
-    // If admin impersonating officer, add assignedTo filter to get their leads
+    // If admin impersonating officer, always use admin endpoint with assignedTo filter
     const viewingAsName = window.currentUser?.viewingAs?.name;
+    let endpoint;
     if (viewingAsName) {
+        // Admin viewing as officer - ALWAYS use admin endpoint with assignedTo
+        endpoint = '/api/crm-leads/admin';
         params.set('assignedTo', viewingAsName);
+    } else {
+        // Normal case: officer uses /my, admin uses /admin
+        endpoint = isOfficerMode ? '/api/crm-leads/my' : '/api/crm-leads/admin';
     }
 
     const res = await fetch(`${endpoint}?${params.toString()}`, { headers: authHeaders });
