@@ -1335,9 +1335,16 @@ async function navigateToPage(page) {
             loadEnquiries();
             break;
         case 'leads-myLeads':
-            // Officer's personal leads page (all batches)
-            // Initialization already handled in leads view setup (line ~843)
-            // Removed duplicate initLeadsPage() call to prevent double loading
+            // Force officer mode when admin is viewing as officer
+            if (currentUser?.viewingAs?.name) {
+                window.leadsModeOrBatch = 'myLeads';
+                // Ensure officer batch menu is loaded
+                if (window.__officerBatchesMenuLoadInFlight) {
+                    window.__officerBatchesMenuLoadInFlight = false;
+                    window.__officerBatchesRenderVersion = 0;
+                }
+                loadOfficerLeadsBatchesMenu();
+            }
             break;
         case 'leads-batch14':
             if (window.initLeadsPage) {
@@ -1345,8 +1352,17 @@ async function navigateToPage(page) {
             }
             break;
         case 'lead-management':
-            // Initialization already handled in lead-management view setup (line ~878)
-            // Removed duplicate initLeadManagementPage() call to prevent double loading
+            // Force officer mode when admin is viewing as officer
+            if (currentUser?.viewingAs?.name) {
+                window.leadsModeOrBatch = 'myLeads';
+                // Ensure officer batch menu is loaded
+                if (window.__officerBatchesMenuLoadInFlight) {
+                    window.__officerBatchesMenuLoadInFlight = false;
+                    window.__officerBatchesRenderVersion = 0;
+                }
+                loadOfficerLeadsBatchesMenu();
+            }
+            // Initialization already handled in lead-management view setup
             break;
         case 'staff-lead-management':
             if (window.initStaffLeadManagementPage) {
