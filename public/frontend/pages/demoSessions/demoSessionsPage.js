@@ -427,15 +427,8 @@
     if (window.currentUser?.viewingAs?.id) {
       state.officerId = window.currentUser.viewingAs.id;
     }
-
-    // Reset session selection so loadSessions() always picks the correct first session
-    // (stale selectedSessionId from previous admin/officer visit causes empty invites)
-    state.selectedSessionId = '';
-    state.sessions = [];
-    state.invites = [];
-    state.remindersByInvite = new Map();
-
     // Bind reminder modal buttons once
+    const remSave = qs('demoReminderSaveBtn');
     const remCancel = qs('demoReminderCancelBtn');
     if (remSave && !remSave.__bound) {
       remSave.__bound = true;
