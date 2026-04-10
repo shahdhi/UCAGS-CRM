@@ -399,6 +399,7 @@ router.get('/admin', isAdminOrOfficer, async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit || '100', 10) || 100, 500);
     const programId = req.query.programId ? String(req.query.programId).trim() : '';
     const batchName = req.query.batchName ? String(req.query.batchName).trim() : '';
+    const assignedTo = req.query.assignedTo ? String(req.query.assignedTo).trim() : '';
 
     // By default, show only current batches (one per program). Use ?all=1 to disable.
     const showAll = String(req.query.all || '').trim() === '1';
@@ -408,6 +409,7 @@ router.get('/admin', isAdminOrOfficer, async (req, res) => {
       .from('registrations')
       .select('*');
 
+    if (assignedTo) q = q.eq('assigned_to', assignedTo);
     if (programId) q = q.eq('program_id', programId);
     if (batchName) q = q.eq('batch_name', batchName);
     else if (currentBatches.length) q = q.in('batch_name', currentBatches);

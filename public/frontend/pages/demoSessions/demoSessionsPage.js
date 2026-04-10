@@ -297,6 +297,13 @@
     const isSupervisor = window.currentUser?.active_role === 'supervisor';
     if (!sel) return;
 
+    // In switch mode: act as the switched officer — hide dropdown, keep officerId from viewingAs
+    if (window.currentUser?.viewingAs?.id) {
+      sel.style.display = 'none';
+      state.officerId = window.currentUser.viewingAs.id;
+      return;
+    }
+
     if (!isAdmin && !isSupervisor) {
       sel.style.display = 'none';
       state.officerId = '';
@@ -416,8 +423,8 @@
   }
 
   async function initDemoSessionsPage() {
-    // If admin is viewing as officer, set officerId accordingly
-    if (window.currentUser && window.currentUser.role === 'admin' && window.currentUser.viewingAs && window.currentUser.viewingAs.id) {
+    // If in switch mode (admin viewing as officer), pre-set officerId from viewingAs
+    if (window.currentUser?.viewingAs?.id) {
       state.officerId = window.currentUser.viewingAs.id;
     }
     // Bind reminder modal buttons once

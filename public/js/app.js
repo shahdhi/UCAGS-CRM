@@ -4617,8 +4617,7 @@ async function initUserSwitchBtn() {
                 const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
                 if (sidebarUserRoleEl) sidebarUserRoleEl.textContent = 'Academic Advisor';
                 
-                // Hide User Switch button in officer mode
-                btn.style.display = 'none';
+                // Keep User Switch button visible so admin can switch back or to another officer
             }
         } catch { /* ignore */ }
     }
@@ -4832,10 +4831,6 @@ function selectSwitchedUser(officer) {
     if (sidebarUserNameEl) sidebarUserNameEl.textContent = officer.name;
     const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
     if (sidebarUserRoleEl) sidebarUserRoleEl.textContent = 'Academic Advisor';
-
-    // Hide the User Switch button when viewing as officer (can't switch further)
-    const userSwitchBtn = document.getElementById('userSwitchBtn');
-    if (userSwitchBtn) userSwitchBtn.style.display = 'none';
 
     // Also hide admin-only nav items via JS to ensure they're gone
     document.querySelectorAll('.nav-item.admin-only, .nav-section.admin-only, .nav-divider.admin-only').forEach(el => {
