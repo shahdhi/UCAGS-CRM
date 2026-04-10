@@ -608,6 +608,10 @@
   }
 
   async function initRegistrationsPage() {
+    // If admin is viewing as officer, filter registrations to that officer
+    if (window.currentUser && window.currentUser.role === 'admin' && window.currentUser.viewingAs && window.currentUser.viewingAs.id) {
+      window.selectedOfficerId = window.currentUser.viewingAs.id;
+    }
     // Admin and supervisor allowed
     const isSupervisor = window.currentUser?.active_role === 'supervisor';
     if (!window.currentUser || (window.currentUser.role !== 'admin' && !isSupervisor)) {
