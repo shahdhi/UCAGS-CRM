@@ -416,6 +416,10 @@
   }
 
   async function initDemoSessionsPage() {
+    // If admin is viewing as officer, set officerId accordingly
+    if (window.currentUser && window.currentUser.role === 'admin' && window.currentUser.viewingAs && window.currentUser.viewingAs.id) {
+      state.officerId = window.currentUser.viewingAs.id;
+    }
     // Bind reminder modal buttons once
     const remSave = qs('demoReminderSaveBtn');
     const remCancel = qs('demoReminderCancelBtn');
