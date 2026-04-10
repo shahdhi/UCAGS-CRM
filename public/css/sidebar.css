@@ -916,7 +916,26 @@ body.finance-manager #officerLeadManagementSection { display: none !important; }
 /* Hide shared dividers */
 body.finance-manager .nav-divider:not(.finance-manager-only):not(.admin-only) { display: none !important; }
 
-/* ── Supervisor content views ─────────────────────────────────────────────── */
+/* ── OFFICER mode (body.officer) - for admin impersonating officer ───────────── */
+body.officer .admin-only { display: none !important; }
+body.officer .nav-item.admin-only,
+body.officer .nav-subitem.admin-only { display: none !important; }
+body.officer div.nav-divider.admin-only { display: none !important; }
+
+/* Show officer-only nav items */
+body.officer .officer-only { display: block !important; }
+body.officer .nav-item.officer-only,
+body.officer .nav-subitem.officer-only { display: flex !important; }
+body.officer div.nav-divider.officer-only { display: block !important; }
+
+/* Hide nav items that are admin-only specific pages */
+body.officer .nav-item[data-page="officers"],
+body.officer .nav-item[data-page="users"] { display: none !important; }
+
+/* Hide shared dividers in officer mode */
+body.officer .nav-divider:not(.officer-only):not(.academic-advisor-only) { display: none !important; }
+
+/* Supervisor content views ─────────────────────────────────────────────── */
 .content-view.supervisor-only { display: none; }
 .content-view.supervisor-only.active { display: block !important; }
 

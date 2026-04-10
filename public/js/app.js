@@ -517,8 +517,11 @@ async function loadOfficerLeadsBatchesMenu() {
     // Prevent duplicate renders when init/login triggers this multiple times
     const renderVersion = (window.__officerBatchesRenderVersion = (window.__officerBatchesRenderVersion || 0) + 1);
     try {
-        if (!currentUser || currentUser.role === 'admin') {
-            // Admin uses the admin batch system (separate sheets)
+        // Skip loading officer menu for:
+        // 1. Admin users (they use admin batch system)
+        // 2. Admin impersonating officer (viewingAs is set) - they should use officer menu
+        const isViewingAsOfficer = currentUser?.viewingAs?.name;
+        if (!currentUser || (currentUser.role === 'admin' && !isViewingAsOfficer)) {
             return;
         }
 
@@ -601,8 +604,9 @@ async function loadBatchesMenu() {
     // Prevent duplicate renders when init/login triggers this multiple times
     const renderVersion = (window.__adminBatchesRenderVersion = (window.__adminBatchesRenderVersion || 0) + 1);
 
-    // Only load batches for admins
-    if (!currentUser || currentUser.role !== 'admin') {
+    // Only load batches for admins OR admins impersonating officers
+    const isViewingAsOfficer = currentUser?.viewingAs?.name;
+    if (!currentUser || (currentUser.role !== 'admin' && !isViewingAsOfficer)) {
         console.log('Skipping batch loading for non-admin user');
         window.__adminBatchesMenuLoadInFlight = false;
         return;

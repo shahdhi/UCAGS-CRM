@@ -159,11 +159,12 @@ const leadsAPI = {
     // Pass programId to scope batch_name to the correct program
     if (filters.programId) params.append('programId', filters.programId);
     
-    // If admin is impersonating an officer, they need the officer endpoint with their name
+    // If admin is impersonating an officer, route to admin endpoint with assignedTo filter
     const viewingAsName = window.currentUser?.viewingAs?.name;
     if (viewingAsName) {
-      // Pass the viewing-as officer name so backend can filter to their leads
-      params.append('viewingAs', viewingAsName);
+      params.append('assignedTo', viewingAsName);
+      console.log('📊 Loading leads as officer from Supabase:', `/crm-leads/admin?${params.toString()}`);
+      return fetchAPI(`/crm-leads/admin?${params.toString()}`);
     }
     
     return fetchAPI(`/crm-leads/my?${params.toString()}`);
