@@ -921,16 +921,28 @@ body.officer .admin-only { display: none !important; }
 body.officer .nav-item.admin-only,
 body.officer .nav-subitem.admin-only { display: none !important; }
 body.officer div.nav-divider.admin-only { display: none !important; }
+body.officer .nav-section.admin-only { display: none !important; }
+body.officer .nav-section-header.admin-only { display: none !important; }
 
 /* Show officer-only nav items */
 body.officer .officer-only { display: block !important; }
 body.officer .nav-item.officer-only,
 body.officer .nav-subitem.officer-only { display: flex !important; }
 body.officer div.nav-divider.officer-only { display: block !important; }
+body.officer .nav-section.officer-only { display: block !important; }
 
 /* Hide nav items that are admin-only specific pages */
 body.officer .nav-item[data-page="officers"],
-body.officer .nav-item[data-page="users"] { display: none !important; }
+body.officer .nav-item[data-page="users"],
+body.officer .nav-item[data-page="programs"],
+body.officer .nav-item[data-page="payments"],
+body.officer .nav-item[data-page="students"],
+body.officer .nav-item[data-page="receipts"],
+body.officer .nav-item[data-page="staff-lead-management"] { display: none !important; }
+
+/* Hide the admin leads section completely */
+body.officer #leadsBatchesMenu,
+body.officer .nav-section:has(#leadsBatchesMenu) { display: none !important; }
 
 /* Hide shared dividers in officer mode */
 body.officer .nav-divider:not(.officer-only):not(.academic-advisor-only) { display: none !important; }

@@ -4568,6 +4568,27 @@ async function initUserSwitchBtn() {
                 // Add body class to switch CSS (hides admin-only, shows officer-only)
                 document.body.classList.add('officer');
                 
+                // Hide ALL admin-only content views explicitly
+                document.querySelectorAll('.content-view.admin-only').forEach(el => {
+                    el.style.display = 'none';
+                    el.classList.remove('active');
+                });
+                
+                // Show ALL officer-only content views
+                document.querySelectorAll('.content-view.officer-only').forEach(el => {
+                    el.style.display = '';
+                });
+
+                // Hide admin-only nav items
+                document.querySelectorAll('.nav-item.admin-only, .nav-section.admin-only, .nav-divider.admin-only').forEach(el => {
+                    el.style.display = 'none';
+                });
+                
+                // Ensure officer-only nav items are visible
+                document.querySelectorAll('.nav-item.officer-only, .nav-section.officer-only, .nav-divider.officer-only').forEach(el => {
+                    el.style.display = '';
+                });
+                
                 // Update header user display
                 const userDisplayEl = document.getElementById('userDisplay');
                 if (userDisplayEl) userDisplayEl.textContent = parsed.name;
@@ -4760,6 +4781,17 @@ function selectSwitchedUser(officer) {
     // Add body class to switch CSS (hides admin-only, shows officer-only)
     document.body.classList.add('officer');
 
+    // Hide ALL admin-only content views explicitly
+    document.querySelectorAll('.content-view.admin-only').forEach(el => {
+        el.style.display = 'none';
+        el.classList.remove('active');
+    });
+    
+    // Show ALL officer-only content views
+    document.querySelectorAll('.content-view.officer-only').forEach(el => {
+        el.style.display = '';
+    });
+
     // Update header user display to show officer name
     const userDisplayEl = document.getElementById('userDisplay');
     if (userDisplayEl) userDisplayEl.textContent = officer.name;
@@ -4772,6 +4804,16 @@ function selectSwitchedUser(officer) {
     const userSwitchBtn = document.getElementById('userSwitchBtn');
     if (userSwitchBtn) userSwitchBtn.style.display = 'none';
 
+    // Also hide admin-only nav items via JS to ensure they're gone
+    document.querySelectorAll('.nav-item.admin-only, .nav-section.admin-only, .nav-divider.admin-only').forEach(el => {
+        el.style.display = 'none';
+    });
+    
+    // Ensure officer-only nav items are visible
+    document.querySelectorAll('.nav-item.officer-only, .nav-section.officer-only, .nav-divider.officer-only').forEach(el => {
+        el.style.display = '';
+    });
+
     _applyUserSwitchIndicator();
     _renderUserSwitchList();
 
@@ -4779,9 +4821,9 @@ function selectSwitchedUser(officer) {
         UI.showToast(`Switched to: ${officer.name}`, 'info');
     }
 
-    // Reload current view to reflect filter
-    const currentPage = window.location.hash.replace('#', '') || 'home';
-    if (typeof navigateToPage === 'function') navigateToPage(currentPage);
+    // Force navigate to home to start fresh in officer mode
+    window.location.hash = '#home';
+    if (typeof navigateToPage === 'function') navigateToPage('home');
 }
 
 /**
@@ -4793,16 +4835,36 @@ function clearUserSwitch() {
     
     // Remove viewing-as
     delete window.currentUser.viewingAs;
-    localStorage.removeItem(`viewingAsOfficer_${window.currentUser.id}`);
+    localStorage.removeItem(`viewingAsOfficer_${window.currentUser.id}');
 
     // Remove body class
     document.body.classList.remove('officer');
+
+    // Restore admin-only content views
+    document.querySelectorAll('.content-view.admin-only').forEach(el => {
+        el.style.display = '';
+    });
+    
+    // Hide officer-only content views
+    document.querySelectorAll('.content-view.officer-only').forEach(el => {
+        el.style.display = 'none';
+        el.classList.remove('active');
+    });
 
     // Show the User Switch button again
     const userSwitchBtn = document.getElementById('userSwitchBtn');
     if (userSwitchBtn) {
         userSwitchBtn.style.display = 'flex';
     }
+
+    // Restore nav items visibility
+    document.querySelectorAll('.nav-item.admin-only, .nav-section.admin-only, .nav-divider.admin-only').forEach(el => {
+        el.style.display = '';
+    });
+    
+    document.querySelectorAll('.nav-item.officer-only, .nav-section.officer-only, .nav-divider.officer-only').forEach(el => {
+        el.style.display = '';
+    });
 
     // Restore header display
     const userDisplayEl = document.getElementById('userDisplay');
@@ -4819,9 +4881,9 @@ function clearUserSwitch() {
         UI.showToast('Switched back to Admin view', 'success');
     }
 
-    // Reload current view
-    const currentPage = window.location.hash.replace('#', '') || 'home';
-    if (typeof navigateToPage === 'function') navigateToPage(currentPage);
+    // Force navigate to home to start fresh in admin mode
+    window.location.hash = '#home';
+    if (typeof navigateToPage === 'function') navigateToPage('home');
 }
 
 /**
