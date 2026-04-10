@@ -107,16 +107,15 @@ const leadsAPI = {
    * Get all leads (Supabase-backed)
    * @param {Object} filters - Optional filters (status, search, batch)
    */
-  getAll: async (filters = {}) => {
+   getAll: async (filters = {}) => {
     const batch = filters.batch;
+    const viewingAsName = window.currentUser?.viewingAs?.name || null;
 
-    // If logged-in user is an officer (not admin), default to "my leads"
-    if (window.currentUser && window.currentUser.role && window.currentUser.role !== 'admin') {
+    // If logged-in user is an officer OR admin impersonating officer, use officer endpoint
+    if (window.currentUser && (window.currentUser.role !== 'admin' || viewingAsName)) {
+      // Pass the batch filter to getMyLeads so it respects the selected batch/sheet
       return leadsAPI.getMyLeads(filters);
     }
-
-    // Admin impersonating officer - use admin endpoint with assignedTo filter
-    const viewingAsName = window.currentUser?.viewingAs?.name || null;
     
     // Use new Supabase-backed endpoint for admin
     if (batch && batch !== 'all' && batch !== 'myLeads') {
@@ -127,8 +126,6 @@ const leadsAPI = {
       if (filters.search) params.append('search', filters.search);
       // Pass programId to scope batch_name to the correct program
       if (filters.programId) params.append('programId', filters.programId);
-      // When impersonating an officer, filter to that officer's leads
-      if (viewingAsName) params.append('assignedTo', viewingAsName);
       
       console.log('📊 Loading leads from Supabase:', `/crm-leads/admin?${params.toString()}`);
       return fetchAPI(`/crm-leads/admin?${params.toString()}`);
@@ -139,8 +136,6 @@ const leadsAPI = {
     if (filters.status) params.append('status', filters.status);
     if (filters.search) params.append('search', filters.search);
     if (filters.programId) params.append('programId', filters.programId);
-    // When impersonating an officer, filter to that officer's leads
-    if (viewingAsName) params.append('assignedTo', viewingAsName);
     
     console.log('📊 Loading all leads from Supabase:', `/crm-leads/admin?${params.toString()}`);
     return fetchAPI(`/crm-leads/admin?${params.toString()}`);

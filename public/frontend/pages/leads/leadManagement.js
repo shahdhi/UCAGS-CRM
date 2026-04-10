@@ -343,9 +343,11 @@ async function loadLeadManagement() {
     }
     
     // Supabase CRM: load leads
-    const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+    // Use isOfficerMode to detect actual officers OR admins impersonating officers
+    const isAdmin = window.currentUser && window.currentUser.role === 'admin' && !(window.currentUser.viewingAs?.name);
+    const isOfficerMode = window.currentUser && (window.currentUser.role !== 'admin' || window.currentUser.viewingAs?.name);
     
-    // Program selector (admin only)
+    // Program selector (admin only - hide for officers including impersonating admins)
     const programSelect = document.getElementById('managementProgramSelect');
     if (programSelect && !programSelect.__bound) {
       programSelect.__bound = true;
