@@ -609,8 +609,9 @@
 
   async function initRegistrationsPage() {
     // If admin is viewing as officer, filter registrations to that officer
-    if (window.currentUser && window.currentUser.role === 'admin' && window.currentUser.viewingAs && window.currentUser.viewingAs.id) {
-      window.selectedOfficerId = window.currentUser.viewingAs.id;
+    if (window.currentUser && window.currentUser.role === 'admin' && window.currentUser.viewingAs && window.currentUser.viewingAs.name) {
+      // Set the officer filter dropdown to the officer's name after it is rendered
+      window.__setOfficerFilterAfterRender = window.currentUser.viewingAs.name;
     }
     // Admin and supervisor allowed
     const isSupervisor = window.currentUser?.active_role === 'supervisor';
@@ -768,6 +769,15 @@
     }
 
     await renderProgramTabs();
+    // If we need to set the officer filter, do it now
+    if (window.__setOfficerFilterAfterRender) {
+      const officerSel = qs('registrationsOfficerSelect');
+      if (officerSel) {
+        officerSel.value = window.__setOfficerFilterAfterRender;
+        // Remove so it doesn't repeat
+        window.__setOfficerFilterAfterRender = undefined;
+      }
+    }
     const hasRows = !!qs('registrationsTableBody')?.querySelector('tr[data-row-key]');
     await loadRegistrations({ showSkeleton: !hasRows });
   }
