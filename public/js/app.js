@@ -1492,6 +1492,10 @@ async function navigateToPage(page) {
             }
             break;
         case 'registrations-my':
+            // Force officer mode when admin is viewing as officer
+            if (currentUser?.viewingAs?.name) {
+                window.leadsModeOrBatch = 'myLeads';
+            }
             if (window.initMyRegistrationsPage) {
                 await window.initMyRegistrationsPage();
             }

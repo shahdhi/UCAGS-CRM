@@ -2848,10 +2848,6 @@ body.admin .content-view.officer-only {
     display: none !important;
 }
 
-body.officer .content-view.admin-only {
-    display: block !important;
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
     .navbar {
