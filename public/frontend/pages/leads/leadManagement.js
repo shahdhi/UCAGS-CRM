@@ -473,6 +473,12 @@ async function loadLeadManagement() {
 
     // Use officer endpoint when in officer mode (actual officer OR admin impersonating)
     let endpoint = isOfficerMode ? '/api/crm-leads/my' : '/api/crm-leads/admin';
+    
+    // If admin impersonating officer, add assignedTo filter to get their leads
+    const viewingAsName = window.currentUser?.viewingAs?.name;
+    if (viewingAsName) {
+        params.set('assignedTo', viewingAsName);
+    }
 
     const res = await fetch(`${endpoint}?${params.toString()}`, { headers: authHeaders });
     const data = await res.json();
