@@ -468,21 +468,12 @@ async function loadLeadManagement() {
     if (batchFilter && batchFilter !== 'all') params.set('batch', decodeURIComponent(batchFilter));
     if (sheet) params.set('sheet', sheet);
     // Pass programId to scope batch_name to the correct program
-    const programIdForQuery = isAdmin ? window.adminProgramId : window.officerProgramId;
+    const programIdForQuery = isOfficerMode ? window.officerProgramId : window.adminProgramId;
     if (programIdForQuery) params.set('programId', programIdForQuery);
 
-    // Determine endpoint: if viewing as an officer (admin impersonating), use admin endpoint with assignedTo
-    const viewingAsName = window.currentUser?.viewingAs?.name;
-    const isOfficerMode = !isAdmin; // officers and admins impersonating officers use officer filters
-    
-    let endpoint;
-    if (isOfficerMode) {
-        // Officer mode (including admin impersonating) - use officer filters and endpoint
-        endpoint = '/api/crm-leads/my';
-    } else {
-        // Pure admin mode
-        endpoint = '/api/crm-leads/admin';
-    }
+    // Use officer endpoint when in officer mode (actual officer OR admin impersonating)
+    const isOfficerMode = !isAdmin;
+    let endpoint = isOfficerMode ? '/api/crm-leads/my' : '/api/crm-leads/admin';
 
     const res = await fetch(`${endpoint}?${params.toString()}`, { headers: authHeaders });
     const data = await res.json();
