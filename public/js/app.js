@@ -4781,9 +4781,17 @@ function selectSwitchedUser(officer) {
     // Add body class to switch CSS (hides admin-only, shows officer-only)
     document.body.classList.add('officer');
 
-    // Clear admin filters and reset officer filters to trigger proper initialization
+    // Clear admin filters and set officer mode flag to force proper initialization
     window.adminBatchFilter = '';
     window.adminSheetFilter = '';
+    window.leadsModeOrBatch = 'myLeads'; // Force officer mode for leads
+    
+    // Reset officer menu flags so they reload with correct state
+    window.__officerBatchesMenuLoadInFlight = false;
+    window.__officerBatchesRenderVersion = 0;
+    window.__adminBatchesMenuLoadInFlight = false;
+    window.__adminBatchesRenderVersion = 0;
+    
     // Don't reset officerBatchFilter - let them keep their last selected batch
 
     // Hide ALL admin-only content views explicitly
