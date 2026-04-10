@@ -4781,6 +4781,11 @@ function selectSwitchedUser(officer) {
     // Add body class to switch CSS (hides admin-only, shows officer-only)
     document.body.classList.add('officer');
 
+    // Clear admin filters and reset officer filters to trigger proper initialization
+    window.adminBatchFilter = '';
+    window.adminSheetFilter = '';
+    // Don't reset officerBatchFilter - let them keep their last selected batch
+
     // Hide ALL admin-only content views explicitly
     document.querySelectorAll('.content-view.admin-only').forEach(el => {
         el.style.display = 'none';

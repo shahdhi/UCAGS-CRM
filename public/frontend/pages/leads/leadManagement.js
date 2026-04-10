@@ -472,7 +472,6 @@ async function loadLeadManagement() {
     if (programIdForQuery) params.set('programId', programIdForQuery);
 
     // Use officer endpoint when in officer mode (actual officer OR admin impersonating)
-    const isOfficerMode = !isAdmin;
     let endpoint = isOfficerMode ? '/api/crm-leads/my' : '/api/crm-leads/admin';
 
     const res = await fetch(`${endpoint}?${params.toString()}`, { headers: authHeaders });
