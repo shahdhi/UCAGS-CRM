@@ -4835,7 +4835,7 @@ function clearUserSwitch() {
     
     // Remove viewing-as
     delete window.currentUser.viewingAs;
-    localStorage.removeItem(`viewingAsOfficer_${window.currentUser.id}');
+    localStorage.removeItem(`viewingAsOfficer_${window.currentUser.id}`);
 
     // Remove body class
     document.body.classList.remove('officer');
