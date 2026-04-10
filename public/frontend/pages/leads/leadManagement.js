@@ -614,7 +614,13 @@ function renderManagementTable() {
   let lastDateLabel = null;
   let rowNum = 0;
   const rows = [];
-  filteredManagementLeads.forEach(lead => {
+  // Sort by createdDate descending so same-date leads are consecutive and dividers appear once
+  const sortedManagementLeads = [...filteredManagementLeads].sort((a, b) => {
+    const da = String(a.createdDate || '');
+    const db = String(b.createdDate || '');
+    return db.localeCompare(da);
+  });
+  sortedManagementLeads.forEach(lead => {
     const dateLabel = toDateLabel(lead.createdDate);
     if (dateLabel !== lastDateLabel) {
       lastDateLabel = dateLabel;

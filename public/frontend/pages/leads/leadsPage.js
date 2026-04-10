@@ -676,10 +676,13 @@ function renderLeadsTable() {
   }
 
   // Use filteredLeads for display, not currentLeads
-  // If user clicked a header, apply client-side sorting.
-  let leadsToDisplay = filteredLeads;
+  // If user clicked a header, apply client-side sorting; otherwise default to
+  // createdDate desc so same-date leads are consecutive and date dividers appear once.
+  let leadsToDisplay;
   if (sortColumn) {
     leadsToDisplay = [...filteredLeads].sort((a, b) => compareLeads(a, b, sortColumn, sortDirection));
+  } else {
+    leadsToDisplay = [...filteredLeads].sort((a, b) => compareLeads(a, b, 'createdDate', 'desc'));
   }
 
   // Pagination

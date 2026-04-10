@@ -678,7 +678,13 @@
     let lastDateLabel = null;
     let rowNum = 0;
     const rows = [];
-    filteredStaffLeads.forEach(lead => {
+    // Sort by createdDate descending so same-date leads are consecutive and dividers appear once
+    const sortedStaffLeads = [...filteredStaffLeads].sort((a, b) => {
+      const da = String(a.createdDate || '');
+      const db = String(b.createdDate || '');
+      return db.localeCompare(da);
+    });
+    sortedStaffLeads.forEach(lead => {
       const dateLabel = toDateLabel(lead.createdDate);
       if (dateLabel !== lastDateLabel) {
         lastDateLabel = dateLabel;
