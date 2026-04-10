@@ -4585,7 +4585,8 @@ async function initUserSwitchBtn() {
             
             // If there's a valid viewingAs, apply the officer UI
             if (parsed && parsed.name) {
-                // Add body class to switch CSS (hides admin-only, shows officer-only)
+                // Add officer class, remove admin class (same as selectSwitchedUser)
+                document.body.classList.remove('admin');
                 document.body.classList.add('officer');
                 
                 // Hide ALL admin-only content views explicitly
@@ -4797,7 +4798,9 @@ function selectSwitchedUser(officer) {
     };
     localStorage.setItem(`viewingAsOfficer_${window.currentUser.id}`, JSON.stringify(window.currentUser.viewingAs));
 
-    // Add body class to switch CSS (hides admin-only, shows officer-only)
+    // Add officer class, remove admin class — prevents CSS conflict where body.admin
+    // wins over body.officer for .content-view.officer-only visibility rules
+    document.body.classList.remove('admin');
     document.body.classList.add('officer');
 
     // Clear admin filters and set officer mode flag to force proper initialization
@@ -4865,8 +4868,9 @@ function clearUserSwitch() {
     delete window.currentUser.viewingAs;
     localStorage.removeItem(`viewingAsOfficer_${window.currentUser.id}`);
 
-    // Remove body class
+    // Remove officer class, restore admin class
     document.body.classList.remove('officer');
+    document.body.classList.add('admin');
 
     // Restore admin-only content views
     document.querySelectorAll('.content-view.admin-only').forEach(el => {
