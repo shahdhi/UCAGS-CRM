@@ -4555,7 +4555,7 @@ async function initUserSwitchBtn() {
     // Only for admins
     if (!window.currentUser || window.currentUser.role !== 'admin') return;
 
-    // Restore persisted viewingAs selection
+    // Restore persisted viewingAs selection - only if current user matches stored user
     const stored = localStorage.getItem(`viewingAsOfficer_${window.currentUser.id}`);
     if (stored) {
         try {
