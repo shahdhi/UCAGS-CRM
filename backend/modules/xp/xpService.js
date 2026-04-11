@@ -217,63 +217,62 @@ async function getCurrentBatchXPMap(sb) {
 // ─── Leaderboard ─────────────────────────────────────────────────────────────
 
 /**
- * Returns all officers ranked by current-batch XP descending.
+ * Returns all officers ranked by total XP descending.
  * @returns {Promise<Array<{userId, name, email, totalXp, rank}>>}
  */
 async function getLeaderboard() {
   const sb = requireSupabase();
 
-  // Get XP for current active batches only
-  const xpMap = await getCurrentBatchXPMap(sb);
+  const { data: summaries, error } = await sb
+    .from('officer_xp_summary')
+    .select('user_id, total_xp, last_updated')
+    .order('total_xp', { ascending: false });
+
+  if (error) throw error;
 
   // Fetch user metadata to get names
   const { data: { users }, error: uErr } = await sb.auth.admin.listUsers();
   if (uErr) throw uErr;
 
-  // Only include officers and admins
-  const officers = (users || []).filter(u =>
-    u.user_metadata?.role === 'officer' || u.user_metadata?.role === 'admin'
-  );
-
-  // Build ranked list — include all officers, defaulting to 0 XP if none this batch
-  const list = officers.map(u => ({
-    userId: u.id,
-    name: u.user_metadata?.name || u.email?.split('@')[0] || 'Unknown',
-    email: u.email || '',
-    role: u.user_metadata?.role || '',
-    totalXp: xpMap.get(u.id) || 0,
-    lastUpdated: null
-  }));
-
-  // Sort by XP descending
-  list.sort((a, b) => b.totalXp - a.totalXp);
+  const userMap = new Map((users || []).map(u => [u.id, u]));
 
   let rank = 1;
-  return list.map(entry => ({ ...entry, rank: rank++ }));
+  return (summaries || []).map(s => {
+    const u = userMap.get(s.user_id);
+    return {
+      userId: s.user_id,
+      name: u?.user_metadata?.name || u?.email?.split('@')[0] || 'Unknown',
+      email: u?.email || '',
+      role: u?.user_metadata?.role || '',
+      totalXp: s.total_xp || 0,
+      rank: rank++,
+      lastUpdated: s.last_updated
+    };
+  });
 }
 
 // ─── My XP ───────────────────────────────────────────────────────────────────
 
 /**
- * Returns a user's current-batch XP + recent events.
+ * Returns a user's XP summary + recent events.
  */
 async function getMyXP(userId) {
   const sb = requireSupabase();
 
-  const [xpMap, eventsResult, leaderboardResult] = await Promise.all([
-    getCurrentBatchXPMap(sb),
+  const [summaryResult, eventsResult, leaderboardResult] = await Promise.all([
+    sb.from('officer_xp_summary').select('*').eq('user_id', userId).maybeSingle(),
     sb.from('officer_xp_events').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(20),
     getLeaderboard()
   ]);
 
+  const summary = summaryResult.data;
   const events = eventsResult.data || [];
-  const totalXp = xpMap.get(userId) || 0;
   const rank = (leaderboardResult || []).find(r => r.userId === userId)?.rank || null;
   const totalOfficers = (leaderboardResult || []).length;
 
   return {
     userId,
-    totalXp,
+    totalXp: summary?.total_xp || 0,
     rank,
     totalOfficers,
     recentEvents: events
