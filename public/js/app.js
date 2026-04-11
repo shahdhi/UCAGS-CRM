@@ -1487,6 +1487,11 @@ async function navigateToPage(page) {
             }
             break;
         case 'registrations':
+            // If admin is viewing as officer, redirect to officer's registrations page
+            if (currentUser?.role === 'admin' && currentUser?.viewingAs?.name) {
+                window.location.hash = 'registrations-my';
+                return;
+            }
             if (window.initRegistrationsPage) {
                 await window.initRegistrationsPage();
             }
