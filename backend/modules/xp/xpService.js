@@ -77,13 +77,21 @@ async function awardXP({ userId, eventType, xp, referenceId, referenceType, note
   const currentXP = Number(existing?.total_xp || 0);
   const newXP = Math.max(0, currentXP + xp); // floor at 0 — XP never goes negative
 
-  await sb
+  const { error: summaryErr, data: summaryData } = await sb
     .from('officer_xp_summary')
     .upsert({
       user_id: userId,
       total_xp: newXP,
       last_updated: new Date().toISOString()
-    }, { onConflict: 'user_id' });
+    }, { onConflict: 'user_id' })
+    .select('*')
+    .single();
+
+  if (summaryErr) {
+    console.error(`[XP] Failed to upsert xp summary for user ${userId}:`, summaryErr.message);
+  } else {
+    console.log(`[XP] XP summary upserted for user ${userId}:`, summaryData);
+  }
 
   return event;
 }
@@ -168,7 +176,9 @@ async function getCurrentBatchXPMap(sb) {
   // so we fetch each batch's events and aggregate in JS.
   const xpMap = new Map();
 
+  const seenNullBatches = new Set();
   for (const { program_id, batch_name } of currentBatches) {
+    // Match events with exact program_id + batch_name
     const { data: events, error } = await sb
       .from('officer_xp_events')
       .select('user_id, xp')
@@ -180,6 +190,24 @@ async function getCurrentBatchXPMap(sb) {
     for (const ev of (events || [])) {
       if (!ev.user_id) continue;
       xpMap.set(ev.user_id, (xpMap.get(ev.user_id) || 0) + Number(ev.xp || 0));
+    }
+
+    // Also match events where program_id is null but batch_name matches
+    // (handles cases where program_id lookup failed during XP award)
+    if (!seenNullBatches.has(batch_name)) {
+      seenNullBatches.add(batch_name);
+      const { data: nullProgramEvents, error: nullErr } = await sb
+        .from('officer_xp_events')
+        .select('user_id, xp')
+        .is('program_id', null)
+        .eq('batch_name', batch_name);
+
+      if (nullErr) throw nullErr;
+
+      for (const ev of (nullProgramEvents || [])) {
+        if (!ev.user_id) continue;
+        xpMap.set(ev.user_id, (xpMap.get(ev.user_id) || 0) + Number(ev.xp || 0));
+      }
     }
   }
 

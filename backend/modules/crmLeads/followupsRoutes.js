@@ -100,7 +100,10 @@ router.post('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, re
           .limit(1)
           .maybeSingle();
         xpProgramId = pb?.program_id || null;
-      } catch (_) {}
+        console.log(`[XP] Followup XP hook: batchName=${batchName}, xpProgramId=${xpProgramId}, pb=`, pb);
+      } catch (progErr) {
+        console.warn('[XP] Failed to resolve program_id for batch:', batchName, progErr.message);
+      }
 
       // +1 or +2 XP: followup completed when actual_at newly set
       // +2 if answered = Yes, +1 if answered = No / not set
