@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "api/**/*.js", "use": "@vercel/node" },
+    { "src": "public/**", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/api/health", "dest": "/api/health.js" },
+    { "src": "/api/(.*)", "dest": "/api/[...path].js" },
+    { "src": "/Register", "dest": "/public/register.html" },
+    { "src": "/developer", "dest": "/public/developer.html" },
+    { "src": "/homepage", "dest": "/public/homepage.html" },
+    { "src": "/privacy_policy", "dest": "/public/privacy_policy.html" },
+    { "src": "/terms_of_service", "dest": "/public/terms_of_service.html" },
+    { "src": "/(.*\\..*)", "dest": "/public/$1" },
+    { "src": "/(.*)", "dest": "/public/index.html" }
+  ]
+}

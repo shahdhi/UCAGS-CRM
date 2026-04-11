@@ -198,7 +198,10 @@ router.put('/my/:batchName/:sheetName/:leadId', isAuthenticated, async (req, res
           .limit(1)
           .maybeSingle();
         xpProgramId = pb?.program_id || null;
-      } catch (_) {}
+        console.log(`[XP] lead_contacted hook: batchName=${batchName}, xpProgramId=${xpProgramId}`);
+      } catch (progErr) {
+        console.warn('[XP] Failed to resolve program_id for batch:', batchName, progErr.message);
+      }
 
       // +2 XP: lead contacted (status changed from 'New')
       if (officerUserId && oldStatus === 'New' && newStatus && newStatus !== 'New') {

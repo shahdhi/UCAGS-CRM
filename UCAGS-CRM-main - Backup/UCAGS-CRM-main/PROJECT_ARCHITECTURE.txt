@@ -1,0 +1,276 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    UCAGS CRM - MODULAR ARCHITECTURE v2.0                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ BACKEND STRUCTURE - Modular, Scalable, Production-Ready                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+backend/
+│
+├── index.js                          ⚙️  Main server entry point
+│                                          - Loads all modules
+│                                          - Express configuration
+│                                          - Error handling
+│
+├── core/                             🔧  Core shared services
+│   ├── config/
+│   │   └── environment.js                 - Centralized configuration
+│   │                                      - Environment variables
+│   │                                      - Validation
+│   │
+│   └── sheets/
+│       └── sheetsClient.js                - Reusable Google Sheets client
+│                                          - Service account auth
+│                                          - Read/Write operations
+│
+└── modules/                          📦  Feature modules (add more easily)
+    │
+    ├── leads/                        ✅  ACTIVE MODULE
+    │   ├── leadsService.js                - Business logic
+    │   │                                  - Data transformation
+    │   │                                  - Filtering/searching
+    │   │
+    │   └── leadsRoutes.js                 - API endpoints
+    │                                      - GET /api/leads
+    │                                      - GET /api/leads/:id
+    │                                      - GET /api/leads/stats
+    │
+    ├── dashboard/                    ✅  ACTIVE MODULE
+    │   └── dashboardRoutes.js             - Dashboard statistics
+    │                                      - GET /api/dashboard/stats
+    │
+    ├── users/                        ⊙  PLACEHOLDER (Future)
+    │   └── usersRoutes.js                 - User management
+    │                                      - Authentication
+    │
+    ├── admissions/                   ⊙  PLACEHOLDER (Future)
+    │   └── admissionsRoutes.js            - Admissions processing
+    │                                      - Application tracking
+    │
+    ├── students/                     ⊙  PLACEHOLDER (Future)
+    │   └── studentsRoutes.js              - Student records
+    │                                      - Enrollment management
+    │
+    └── analytics/                    ⊙  PLACEHOLDER (Future)
+        └── analyticsRoutes.js             - Reports & analytics
+                                           - Data visualization
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ FRONTEND STRUCTURE - Modular JavaScript                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+frontend/
+│
+├── services/
+│   └── apiService.js                 🔌  Centralized API layer
+│                                          - window.API.leads.*
+│                                          - window.API.dashboard.*
+│                                          - Error handling
+│
+└── pages/
+    └── leads/
+        └── leadsPage.js              📄  Leads page module
+                                          - initLeadsPage()
+                                          - loadLeads()
+                                          - Auto-refresh
+                                          - Search/filter
+
+public/
+│
+├── index.html                        🌐  Main SPA
+│                                          - Sidebar navigation
+│                                          - Placeholder modules
+│                                          - Preserved design
+│
+├── css/                              🎨  Stylesheets
+│   ├── styles.css                         - Main styles (preserved)
+│   ├── sidebar.css                        - Enhanced navigation
+│   └── animations.css                     - Animations (preserved)
+│
+└── js/                               ⚡  Application logic
+    ├── app.js                             - Main app (updated)
+    ├── ui.js                              - UI helpers (preserved)
+    └── [loads frontend modules]
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ API ENDPOINTS                                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+✅ ACTIVE ENDPOINTS:
+
+  GET  /api/health                    System health & module status
+  GET  /api/leads                     Get all leads (with filters)
+       ?status=New&search=john        - Filter by status
+                                      - Search by text
+  GET  /api/leads/:id                 Get specific lead
+  GET  /api/leads/stats               Lead statistics
+  GET  /api/dashboard/stats           Dashboard data
+
+⊙ PLACEHOLDER ENDPOINTS (501 Not Implemented):
+
+  *    /api/users                     User management
+  *    /api/admissions                Admissions processing
+  *    /api/students                  Student records
+  *    /api/analytics                 Analytics & reports
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ DATA FLOW                                                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Browser                Frontend              Backend                Google
+    │                       │                     │                   Sheets
+    │                       │                     │                     │
+    │  1. Load Leads Page   │                     │                     │
+    ├──────────────────────>│                     │                     │
+    │                       │                     │                     │
+    │                       │  2. API Call        │                     │
+    │                       │   /api/leads        │                     │
+    │                       ├────────────────────>│                     │
+    │                       │                     │                     │
+    │                       │                     │  3. Read Sheet      │
+    │                       │                     │   (sheetsClient)    │
+    │                       │                     ├────────────────────>│
+    │                       │                     │                     │
+    │                       │                     │  4. Return Data     │
+    │                       │                     │<────────────────────┤
+    │                       │                     │                     │
+    │                       │  5. Transform Data  │                     │
+    │                       │     (leadsService)  │                     │
+    │                       │                     │                     │
+    │                       │  6. JSON Response   │                     │
+    │                       │<────────────────────┤                     │
+    │                       │                     │                     │
+    │  7. Render Table      │                     │                     │
+    │<──────────────────────┤                     │                     │
+    │                       │                     │                     │
+    │  (Auto-refresh every 30s)                   │                     │
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ GOOGLE SHEETS INTEGRATION                                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Service Account Authentication:
+  📄 ucags-crm-d8465dffdfea.json
+     └─> Contains credentials
+     └─> Email: [service-account]@[project].iam.gserviceaccount.com
+
+Sheet Structure:
+  Column A: Name
+  Column B: Phone
+  Column C: Email
+  Column D: Course
+  Column E: Status (New, Contacted, Follow-up, Registered, Closed)
+  Column F: Notes
+  Column G: Created Date
+  Column H: Source
+  Column I: Assigned To
+
+Configuration:
+  SHEET_ID=[from sheet URL]
+  SHEET_NAME=Sheet1
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ADDING NEW MODULES - STEP BY STEP                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Example: Adding "Admissions" Module
+
+1. Create Backend Service:
+   backend/modules/admissions/admissionsService.js
+   └─> Business logic for admissions
+
+2. Create Backend Routes:
+   backend/modules/admissions/admissionsRoutes.js
+   └─> API endpoints
+
+3. Register Routes:
+   backend/index.js
+   └─> app.use('/api/admissions', require('./modules/admissions/admissionsRoutes'));
+
+4. Create Frontend Page:
+   frontend/pages/admissions/admissionsPage.js
+   └─> Page-specific logic
+
+5. Update HTML:
+   public/index.html
+   └─> Add script tag: <script src="/frontend/pages/admissions/admissionsPage.js"></script>
+   └─> Add view: <div id="admissionsView" class="content-view">
+
+6. Update Navigation:
+   public/js/app.js
+   └─> Add case for 'admissions' in navigateToPage()
+
+7. Enable Menu Item:
+   public/index.html
+   └─> Remove "nav-disabled" class from admissions link
+
+That's it! Module is ready to use.
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ CONFIGURATION FILES                                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+.env                                  Environment variables
+  ├─ PORT=3000
+  ├─ GOOGLE_APPLICATION_CREDENTIALS=./ucags-crm-d8465dffdfea.json
+  ├─ SHEET_ID=[your-sheet-id]
+  └─ SHEET_NAME=Sheet1
+
+package.json                          Dependencies & scripts
+  ├─ npm start  → node backend/index.js
+  └─ npm run dev → nodemon backend/index.js
+
+ucags-crm-d8465dffdfea.json          Service account credentials
+  └─ Keep secure, never commit to git
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ KEY FEATURES                                                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+✅ Leads Management
+   - View all leads from Google Sheets
+   - Real-time search (name, email, phone, course)
+   - Filter by status
+   - Sort by any column (click header)
+   - Auto-refresh every 30 seconds
+   - Responsive design
+
+✅ Modular Architecture
+   - Easy to add new features
+   - Clean separation of concerns
+   - Reusable components
+   - Scalable structure
+
+✅ Modern UI
+   - Professional academic theme
+   - Sidebar navigation
+   - Clean, responsive layout
+   - All original design preserved
+
+✅ Production Ready
+   - Error handling
+   - Logging
+   - Environment configuration
+   - Security best practices
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ DOCUMENTATION                                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📘 QUICK_START.md               → 5-minute setup guide
+📗 SETUP_INSTRUCTIONS.md        → Detailed setup & troubleshooting
+📙 IMPLEMENTATION_SUMMARY.md    → What was built & why
+📕 README_NEW.md                → Architecture overview & features
+📄 PROJECT_ARCHITECTURE.txt     → This file - Visual structure
+
+Legacy Docs (preserved):
+  - API.md
+  - DEPLOYMENT.md
+  - QUICKSTART.md
+  - README.md
+  - etc.
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  STATUS: ✅ COMPLETE - Ready to use after configuring SHEET_ID              ║
+╚══════════════════════════════════════════════════════════════════════════════╝

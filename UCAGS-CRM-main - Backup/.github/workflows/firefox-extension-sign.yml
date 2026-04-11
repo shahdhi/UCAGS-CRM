@@ -1,0 +1,55 @@
+name: Sign Firefox Extension (UCAGS WA Containers)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'ext-v*'
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install web-ext
+        run: npm i -g web-ext
+
+      - name: Build unsigned zip
+        working-directory: firefox-extension/ucags-wa-containers
+        run: |
+          web-ext build --overwrite-dest --artifacts-dir ../../web-ext-artifacts
+
+      - name: Sign (AMO unlisted)
+        working-directory: firefox-extension/ucags-wa-containers
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          if [ -z "$AMO_JWT_ISSUER" ] || [ -z "$AMO_JWT_SECRET" ]; then
+            echo "Missing AMO_JWT_ISSUER/AMO_JWT_SECRET GitHub secrets." >&2
+            exit 1
+          fi
+
+          # Produces a signed .xpi in ../../web-ext-artifacts
+          web-ext sign \
+            --channel unlisted \
+            --api-key "$AMO_JWT_ISSUER" \
+            --api-secret "$AMO_JWT_SECRET" \
+            --artifacts-dir ../../web-ext-artifacts \
+            --timeout 300000
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ucags-wa-containers-artifacts
+          path: firefox-extension/web-ext-artifacts/*

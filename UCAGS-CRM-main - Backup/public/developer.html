@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <title>Developer Portal — UCAGS CRM</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0f0f1a;
+            --surface: #16162a;
+            --surface2: #1e1e35;
+            --border: #2a2a4a;
+            --accent: #7c3aed;
+            --accent2: #a78bfa;
+            --accent-glow: rgba(124, 58, 237, 0.25);
+            --green: #22c55e;
+            --red: #ef4444;
+            --amber: #f59e0b;
+            --blue: #3b82f6;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --radius: 12px;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ── LOGIN PAGE ─────────────────────────────────────── */
+        #devLoginPage {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: var(--bg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #devLoginPage::before {
+            content: '';
+            position: absolute;
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%);
+            top: -150px; left: -150px;
+            pointer-events: none;
+        }
+        #devLoginPage::after {
+            content: '';
+            position: absolute;
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(167,139,250,0.1) 0%, transparent 70%);
+            bottom: -100px; right: -100px;
+            pointer-events: none;
+        }
+
+        .dev-login-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 40px 36px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            position: relative;
+            z-index: 1;
+        }
+
+        .dev-login-brand {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .dev-login-brand .dev-icon {
+            width: 64px; height: 64px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border-radius: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: #fff;
+            margin-bottom: 14px;
+            box-shadow: 0 8px 24px var(--accent-glow);
+        }
+
+        .dev-login-brand h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .dev-login-brand p {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .dev-form-group {
+            margin-bottom: 18px;
+        }
+
+        .dev-form-group label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .dev-form-group input {
+            width: 100%;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: var(--text);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .dev-form-group input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .dev-form-group input::placeholder {
+            color: #4a4a6a;
+        }
+
+        .dev-btn-primary {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent), #6d28d9);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            margin-top: 4px;
+        }
+
+        .dev-btn-primary:hover { opacity: 0.92; }
+        .dev-btn-primary:active { transform: scale(0.98); }
+        .dev-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .dev-error {
+            color: var(--red);
+            font-size: 13px;
+            margin-top: 10px;
+            text-align: center;
+            display: none;
+        }
+
+        /* ── DASHBOARD ──────────────────────────────────────── */
+        #devDashboard {
+            display: none;
+            min-height: 100vh;
+        }
+
+        /* Topbar */
+        .dev-topbar {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 28px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .dev-topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .dev-topbar-icon {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: #fff;
+        }
+
+        .dev-topbar-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .dev-topbar-subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .dev-topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .dev-user-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 5px 14px 5px 8px;
+            font-size: 13px;
+        }
+
+        .dev-user-avatar {
+            width: 26px; height: 26px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .dev-logout-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dev-logout-btn:hover {
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        /* Main content */
+        .dev-main {
+            padding: 32px 28px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Welcome banner */
+        .dev-welcome {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 28px 32px;
+            margin-bottom: 28px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dev-welcome::after {
+            content: '</>';
+            position: absolute;
+            right: 32px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 64px;
+            font-weight: 800;
+            color: rgba(124,58,237,0.12);
+            font-family: monospace;
+        }
+
+        .dev-welcome h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .dev-welcome p {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .dev-welcome .dev-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(124,58,237,0.2);
+            border: 1px solid rgba(124,58,237,0.4);
+            color: var(--accent2);
+            border-radius: 20px;
+            padding: 3px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        /* Stats grid */
+        .dev-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .dev-stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: border-color 0.2s;
+        }
+
+        .dev-stat-card:hover { border-color: var(--accent); }
+
+        .dev-stat-icon {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+        }
+
+        .dev-stat-icon.purple { background: rgba(124,58,237,0.15); color: var(--accent2); }
+        .dev-stat-icon.green  { background: rgba(34,197,94,0.15);   color: var(--green); }
+        .dev-stat-icon.blue   { background: rgba(59,130,246,0.15);  color: var(--blue); }
+        .dev-stat-icon.amber  { background: rgba(245,158,11,0.15);  color: var(--amber); }
+
+        .dev-stat-value {
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .dev-stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Cards grid */
+        .dev-cards-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .dev-cards-grid { grid-template-columns: 1fr; }
+            .dev-welcome::after { display: none; }
+        }
+
+        .dev-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .dev-card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dev-card-header h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .dev-card-header i {
+            color: var(--accent2);
+            font-size: 14px;
+        }
+
+        .dev-card-body {
+            padding: 20px;
+        }
+
+        /* Coming soon placeholder */
+        .dev-coming-soon {
+            text-align: center;
+            padding: 32px 16px;
+            color: var(--text-muted);
+        }
+
+        .dev-coming-soon i {
+            font-size: 32px;
+            color: var(--border);
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .dev-coming-soon span {
+            font-size: 13px;
+            display: block;
+        }
+
+        /* System info list */
+        .dev-info-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .dev-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .dev-info-key { color: var(--text-muted); }
+
+        .dev-info-val {
+            color: var(--text);
+            font-weight: 500;
+            font-family: monospace;
+            font-size: 12px;
+            background: var(--surface2);
+            border-radius: 6px;
+            padding: 2px 8px;
+        }
+
+        .dev-status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+        .dev-status-dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+        .dev-status-dot.amber { background: var(--amber); }
+        .dev-status-dot.red   { background: var(--red); }
+    </style>
+</head>
+<body>
+
+    <!-- ── LOGIN PAGE ───────────────────────────────────────── -->
+    <div id="devLoginPage">
+        <div class="dev-login-box">
+            <div class="dev-login-brand">
+                <div class="dev-icon"><i class="fas fa-code"></i></div>
+                <h1>Developer Portal</h1>
+                <p>UCAGS CRM — Internal Dev Access</p>
+            </div>
+
+            <form id="devLoginForm">
+                <div class="dev-form-group">
+                    <label for="devUsername">Username</label>
+                    <input type="text" id="devUsername" placeholder="Enter username" autocomplete="username" required />
+                </div>
+                <div class="dev-form-group">
+                    <label for="devPassword">Password</label>
+                    <input type="password" id="devPassword" placeholder="Enter password" autocomplete="current-password" required />
+                </div>
+                <button type="submit" class="dev-btn-primary" id="devLoginBtn">
+                    <i class="fas fa-sign-in-alt"></i> Access Portal
+                </button>
+                <div class="dev-error" id="devLoginError">Invalid username or password.</div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── DEVELOPER DASHBOARD ──────────────────────────────── -->
+    <div id="devDashboard">
+
+        <!-- Topbar -->
+        <div class="dev-topbar">
+            <div class="dev-topbar-left">
+                <div class="dev-topbar-icon"><i class="fas fa-code"></i></div>
+                <div>
+                    <div class="dev-topbar-title">Developer Portal</div>
+                    <div class="dev-topbar-subtitle">UCAGS CRM</div>
+                </div>
+            </div>
+            <div class="dev-topbar-right">
+                <div class="dev-user-badge">
+                    <div class="dev-user-avatar" id="devUserInitial">S</div>
+                    <span id="devUserName">Shahdhi</span>
+                </div>
+                <button class="dev-logout-btn" id="devLogoutBtn">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+
+        <!-- Main content -->
+        <div class="dev-main">
+
+            <!-- Welcome banner -->
+            <div class="dev-welcome">
+                <div class="dev-badge">
+                    <i class="fas fa-shield-halved"></i> Developer Access
+                </div>
+                <h2>Welcome back, <span id="devWelcomeName">Shahdhi</span> 👋</h2>
+                <p>You are logged into the UCAGS CRM Developer Portal. Features will be added here progressively.</p>
+            </div>
+
+            <!-- Stats -->
+            <div class="dev-stats-grid">
+                <div class="dev-stat-card">
+                    <div class="dev-stat-icon purple"><i class="fas fa-server"></i></div>
+                    <div class="dev-stat-value" id="devStatApi">—</div>
+                    <div class="dev-stat-label">API Status</div>
+                </div>
+                <div class="dev-stat-card">
+                    <div class="dev-stat-icon green"><i class="fas fa-database"></i></div>
+                    <div class="dev-stat-value">Live</div>
+                    <div class="dev-stat-label">Database</div>
+                </div>
+                <div class="dev-stat-card">
+                    <div class="dev-stat-icon blue"><i class="fas fa-code-branch"></i></div>
+                    <div class="dev-stat-value">v2.0</div>
+                    <div class="dev-stat-label">Version</div>
+                </div>
+                <div class="dev-stat-card">
+                    <div class="dev-stat-icon amber"><i class="fas fa-clock"></i></div>
+                    <div class="dev-stat-value" id="devStatTime">—</div>
+                    <div class="dev-stat-label">Local Time</div>
+                </div>
+            </div>
+
+            <!-- Cards -->
+            <div class="dev-cards-grid">
+
+                <!-- System Info -->
+                <div class="dev-card">
+                    <div class="dev-card-header">
+                        <i class="fas fa-circle-info"></i>
+                        <h3>System Info</h3>
+                    </div>
+                    <div class="dev-card-body">
+                        <div class="dev-info-list">
+                            <div class="dev-info-row">
+                                <span class="dev-info-key">API Health</span>
+                                <span class="dev-info-val" id="devApiStatus">Checking...</span>
+                            </div>
+                            <div class="dev-info-row">
+                                <span class="dev-info-key">Environment</span>
+                                <span class="dev-info-val" id="devEnv">—</span>
+                            </div>
+                            <div class="dev-info-row">
+                                <span class="dev-info-key">Portal</span>
+                                <span class="dev-info-val">/developer</span>
+                            </div>
+                            <div class="dev-info-row">
+                                <span class="dev-info-key">Logged in as</span>
+                                <span class="dev-info-val" id="devLoggedInAs">Shahdhi</span>
+                            </div>
+                            <div class="dev-info-row">
+                                <span class="dev-info-key">Session</span>
+                                <span class="dev-info-val" id="devSessionStart">—</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Update Release -->
+                <div class="dev-card">
+                    <div class="dev-card-header">
+                        <i class="fas fa-bullhorn"></i>
+                        <h3>Update Release</h3>
+                    </div>
+                    <div class="dev-card-body">
+                        <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px; line-height:1.6;">
+                            Post a release note or announcement to notify selected staff members. They will receive a full-screen popup on their next page load.
+                        </p>
+                        <button class="dev-btn-primary" id="devOpenUpdateReleaseBtn" style="display:inline-flex; align-items:center; gap:8px; width:auto; padding:10px 22px; font-size:14px;">
+                            <i class="fas fa-paper-plane"></i> Write Update
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quick Links -->
+                <div class="dev-card">
+                    <div class="dev-card-header">
+                        <i class="fas fa-link"></i>
+                        <h3>Quick Links</h3>
+                    </div>
+                    <div class="dev-card-body">
+                        <div class="dev-coming-soon">
+                            <i class="fas fa-compass"></i>
+                            <span>Quick links coming soon</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activity Log -->
+                <div class="dev-card">
+                    <div class="dev-card-header">
+                        <i class="fas fa-terminal"></i>
+                        <h3>Activity Log</h3>
+                    </div>
+                    <div class="dev-card-body">
+                        <div class="dev-coming-soon">
+                            <i class="fas fa-scroll"></i>
+                            <span>Activity log coming soon</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Update Release Modal ─────────────────────────────── -->
+    <div id="devUpdateReleaseModal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.7); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); align-items:center; justify-content:center; padding:20px;">
+        <div style="background:#16162a; border:1px solid #2a2a4a; border-radius:16px; max-width:540px; width:100%; box-shadow:0 24px 64px rgba(0,0,0,0.6); display:flex; flex-direction:column; max-height:90vh; overflow:hidden;">
+            <!-- Header -->
+            <div style="background:linear-gradient(135deg,#4C1D95 0%,#6D28D9 100%); padding:20px 24px; display:flex; align-items:center; gap:14px; border-radius:16px 16px 0 0;">
+                <div style="width:42px;height:42px;background:rgba(255,255,255,0.18);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fas fa-bullhorn" style="color:#fff;font-size:18px;"></i>
+                </div>
+                <div style="flex:1;">
+                    <div style="color:rgba(255,255,255,0.7);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">Developer Portal</div>
+                    <div style="color:#fff;font-size:17px;font-weight:700;">Post Update Release</div>
+                </div>
+                <button id="devCloseUpdateReleaseBtn" style="background:rgba(255,255,255,0.15);border:none;width:32px;height:32px;border-radius:50%;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.28)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <!-- Body -->
+            <div style="padding:22px 24px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:18px;">
+                <!-- Message -->
+                <div>
+                    <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-bottom:8px;">Update Description</label>
+                    <textarea id="devUpdateReleaseText" rows="5" placeholder="Describe the update, new feature, bug fix, or announcement..."
+                        style="width:100%;background:#1e1e35;border:1px solid #2a2a4a;border-radius:8px;padding:12px;color:#e2e8f0;font-size:14px;line-height:1.6;resize:vertical;font-family:inherit;outline:none;transition:border-color 0.2s;"
+                        onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#2a2a4a'"></textarea>
+                    <div id="devUpdateReleaseCharCount" style="font-size:11px;color:#4a4a6a;text-align:right;margin-top:4px;">0 characters</div>
+                </div>
+                <!-- Recipients -->
+                <div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;">Send To</label>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#a78bfa;font-weight:600;user-select:none;">
+                            <input type="checkbox" id="devUpdateReleaseSelectAll" style="accent-color:#7c3aed;width:14px;height:14px;cursor:pointer;">
+                            Select All
+                        </label>
+                    </div>
+                    <div id="devUpdateReleaseRecipientsList" style="background:#1e1e35;border:1px solid #2a2a4a;border-radius:8px;max-height:190px;overflow-y:auto;padding:6px 8px;">
+                        <div style="color:#4a4a6a;font-size:13px;padding:8px 4px;"><i class="fas fa-spinner fa-spin"></i> Loading users...</div>
+                    </div>
+                    <div id="devUpdateReleaseRecipientsCount" style="font-size:11px;color:#4a4a6a;margin-top:4px;">0 recipients selected</div>
+                </div>
+            </div>
+            <!-- Footer -->
+            <div style="padding:16px 24px;border-top:1px solid #2a2a4a;display:flex;justify-content:flex-end;gap:10px;background:#16162a;border-radius:0 0 16px 16px;">
+                <button id="devCancelUpdateReleaseBtn" style="background:transparent;border:1px solid #2a2a4a;color:#94a3b8;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#2a2a4a'">Cancel</button>
+                <button id="devSendUpdateReleaseBtn" class="dev-btn-primary" style="width:auto;padding:9px 22px;font-size:13px;display:inline-flex;align-items:center;gap:7px;">
+                    <i class="fas fa-paper-plane"></i> Send Update
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── CREDENTIALS ─────────────────────────────────────────
+        const DEV_CREDENTIALS = {
+            username: 'Shahdhi',
+            password: 'shadev123'
+        };
+
+        const SESSION_KEY = 'dev_portal_session';
+
+        // ── HELPERS ──────────────────────────────────────────────
+        function showDashboard(username) {
+            document.getElementById('devLoginPage').style.display = 'none';
+            document.getElementById('devDashboard').style.display = 'block';
+
+            const initial = username.charAt(0).toUpperCase();
+            document.getElementById('devUserInitial').textContent = initial;
+            document.getElementById('devUserName').textContent = username;
+            document.getElementById('devWelcomeName').textContent = username;
+            document.getElementById('devLoggedInAs').textContent = username;
+
+            const now = new Date();
+            document.getElementById('devSessionStart').textContent = now.toLocaleTimeString();
+
+            startClock();
+            checkApiHealth();
+        }
+
+        function showLogin() {
+            document.getElementById('devDashboard').style.display = 'none';
+            document.getElementById('devLoginPage').style.display = 'flex';
+            document.getElementById('devLoginForm').reset();
+            document.getElementById('devLoginError').style.display = 'none';
+        }
+
+        function startClock() {
+            function tick() {
+                const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const el = document.getElementById('devStatTime');
+                if (el) el.textContent = t;
+            }
+            tick();
+            setInterval(tick, 30000);
+        }
+
+        async function checkApiHealth() {
+            try {
+                const res = await fetch('/api/health');
+                const data = await res.json();
+                const statusEl = document.getElementById('devApiStatus');
+                const statEl = document.getElementById('devStatApi');
+                const envEl = document.getElementById('devEnv');
+                if (data.success) {
+                    if (statusEl) statusEl.innerHTML = '<span class="dev-status-dot green"></span>Online';
+                    if (statEl) statEl.textContent = 'Online';
+                    if (envEl) envEl.textContent = data.version || '2.0.0';
+                } else {
+                    if (statusEl) statusEl.innerHTML = '<span class="dev-status-dot amber"></span>Degraded';
+                    if (statEl) statEl.textContent = 'Degraded';
+                }
+            } catch (e) {
+                const statusEl = document.getElementById('devApiStatus');
+                const statEl = document.getElementById('devStatApi');
+                if (statusEl) statusEl.innerHTML = '<span class="dev-status-dot red"></span>Offline';
+                if (statEl) statEl.textContent = 'Offline';
+            }
+        }
+
+        // ── LOGIN FORM ───────────────────────────────────────────
+        document.getElementById('devLoginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const username = document.getElementById('devUsername').value.trim();
+            const password = document.getElementById('devPassword').value;
+            const errorEl  = document.getElementById('devLoginError');
+            const btn      = document.getElementById('devLoginBtn');
+
+            errorEl.style.display = 'none';
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+
+            setTimeout(() => {
+                if (username === DEV_CREDENTIALS.username && password === DEV_CREDENTIALS.password) {
+                    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ username, loginAt: Date.now() }));
+                    showDashboard(username);
+                } else {
+                    errorEl.style.display = 'block';
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Access Portal';
+                }
+            }, 600); // small delay for UX feel
+        });
+
+        // ── LOGOUT ───────────────────────────────────────────────
+        document.getElementById('devLogoutBtn').addEventListener('click', function() {
+            sessionStorage.removeItem(SESSION_KEY);
+            showLogin();
+        });
+
+        // ── AUTO-LOGIN if session exists ─────────────────────────
+        (function init() {
+            try {
+                const session = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
+                if (session && session.username) {
+                    showDashboard(session.username);
+                    return;
+                }
+            } catch (e) {}
+            showLogin();
+        })();
+
+        // ── UPDATE RELEASE ───────────────────────────────────────
+        const devModal = () => document.getElementById('devUpdateReleaseModal');
+
+        function devOpenUpdateRelease() {
+            const modal = devModal();
+            if (!modal) return;
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            const ta = document.getElementById('devUpdateReleaseText');
+            if (ta) { ta.value = ''; ta.focus(); }
+            const cc = document.getElementById('devUpdateReleaseCharCount');
+            if (cc) cc.textContent = '0 characters';
+            const selAll = document.getElementById('devUpdateReleaseSelectAll');
+            if (selAll) { selAll.checked = false; selAll.indeterminate = false; }
+            devLoadRecipients();
+        }
+
+        function devCloseUpdateRelease() {
+            const modal = devModal();
+            if (modal) modal.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+
+        function devUpdateRecipientCount() {
+            const checked = document.querySelectorAll('.dev-ur-cb:checked');
+            const total   = document.querySelectorAll('.dev-ur-cb');
+            const countEl = document.getElementById('devUpdateReleaseRecipientsCount');
+            const selAll  = document.getElementById('devUpdateReleaseSelectAll');
+            if (countEl) {
+                const n = checked.length;
+                countEl.textContent = `${n} recipient${n !== 1 ? 's' : ''} selected`;
+                countEl.style.color = n > 0 ? '#a78bfa' : '#4a4a6a';
+            }
+            if (selAll) {
+                selAll.checked = total.length > 0 && checked.length === total.length;
+                selAll.indeterminate = checked.length > 0 && checked.length < total.length;
+            }
+        }
+
+        async function devLoadRecipients() {
+            const list = document.getElementById('devUpdateReleaseRecipientsList');
+            if (!list) return;
+            list.innerHTML = '<div style="color:#4a4a6a;font-size:13px;padding:8px 4px;"><i class="fas fa-spinner fa-spin"></i> Loading users...</div>';
+            try {
+                const res  = await fetch('/api/users');
+                const data = await res.json();
+                const users = (data.users || []);
+
+                if (!users.length) {
+                    list.innerHTML = '<div style="color:#4a4a6a;font-size:13px;padding:8px 4px;">No users found.</div>';
+                    return;
+                }
+
+                // Sort: admins first, then alphabetically
+                users.sort((a, b) => {
+                    if (a.role === 'admin' && b.role !== 'admin') return -1;
+                    if (b.role === 'admin' && a.role !== 'admin') return 1;
+                    return (a.name || a.email).localeCompare(b.name || b.email);
+                });
+
+                list.innerHTML = users.map(u => {
+                    const isAdmin  = u.role === 'admin';
+                    const label    = u.name || u.email;
+                    const badgeBg  = isAdmin ? '#7c3aed' : '#374151';
+                    const badgeTxt = isAdmin ? 'Admin' : 'Officer';
+                    return `<label style="display:flex;align-items:center;gap:10px;padding:7px 6px;cursor:pointer;border-radius:6px;transition:background 0.12s;"
+                                   onmouseover="this.style.background='#2a2a4a'" onmouseout="this.style.background=''">
+                        <input type="checkbox" class="dev-ur-cb" value="${u.id}"
+                               data-name="${(u.name||u.email).replace(/"/g,'&quot;')}"
+                               data-email="${u.email}"
+                               style="accent-color:#7c3aed;width:15px;height:15px;cursor:pointer;flex-shrink:0;">
+                        <span style="font-size:13px;font-weight:500;color:#e2e8f0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${label}</span>
+                        <span style="font-size:10px;font-weight:600;background:${badgeBg};color:#fff;padding:2px 8px;border-radius:999px;flex-shrink:0;">${badgeTxt}</span>
+                    </label>`;
+                }).join('');
+
+                list.querySelectorAll('.dev-ur-cb').forEach(cb => {
+                    cb.addEventListener('change', devUpdateRecipientCount);
+                });
+                devUpdateRecipientCount();
+            } catch (err) {
+                list.innerHTML = `<div style="color:#ef4444;font-size:13px;padding:8px 4px;">Failed to load users: ${err.message}</div>`;
+            }
+        }
+
+        async function devSendUpdateRelease() {
+            const ta   = document.getElementById('devUpdateReleaseText');
+            const text = ta ? ta.value.trim() : '';
+            if (!text) {
+                if (ta) { ta.style.borderColor = '#ef4444'; ta.focus(); }
+                alert('Please enter an update description.');
+                return;
+            }
+            if (ta) ta.style.borderColor = '#2a2a4a';
+
+            const selectedCbs = document.querySelectorAll('.dev-ur-cb:checked');
+            if (!selectedCbs.length) {
+                const list = document.getElementById('devUpdateReleaseRecipientsList');
+                if (list) { list.style.borderColor = '#ef4444'; setTimeout(() => list.style.borderColor = '#2a2a4a', 1500); }
+                alert('Please select at least one recipient.');
+                return;
+            }
+
+            const recipients = Array.from(selectedCbs).map(cb => ({
+                id: cb.value, name: cb.dataset.name, email: cb.dataset.email
+            }));
+
+            const sendBtn = document.getElementById('devSendUpdateReleaseBtn');
+            if (sendBtn) { sendBtn.disabled = true; sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...'; }
+
+            try {
+                const res = await fetch('/api/notifications/update-release', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-dev-portal': 'shadev123' },
+                    body: JSON.stringify({ message: text, recipients })
+                });
+                const json = await res.json();
+                if (json.success) {
+                    devCloseUpdateRelease();
+                    // Show a success toast-style banner
+                    const banner = document.createElement('div');
+                    banner.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#22c55e;color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,0.3);display:flex;align-items:center;gap:8px;';
+                    banner.innerHTML = `<i class="fas fa-check-circle"></i> Sent to ${recipients.length} recipient${recipients.length !== 1 ? 's' : ''}!`;
+                    document.body.appendChild(banner);
+                    setTimeout(() => banner.remove(), 3500);
+                } else {
+                    throw new Error(json.error || 'Failed to send');
+                }
+            } catch (err) {
+                alert('Error: ' + err.message);
+            } finally {
+                if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Update'; }
+            }
+        }
+
+        // Wire up Update Release events
+        document.getElementById('devOpenUpdateReleaseBtn').addEventListener('click', devOpenUpdateRelease);
+        document.getElementById('devCloseUpdateReleaseBtn').addEventListener('click', devCloseUpdateRelease);
+        document.getElementById('devCancelUpdateReleaseBtn').addEventListener('click', devCloseUpdateRelease);
+        document.getElementById('devSendUpdateReleaseBtn').addEventListener('click', devSendUpdateRelease);
+
+        // Backdrop click closes
+        document.getElementById('devUpdateReleaseModal').addEventListener('click', function(e) {
+            if (e.target === this) devCloseUpdateRelease();
+        });
+
+        // Escape key closes
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && devModal()?.style.display === 'flex') devCloseUpdateRelease();
+        });
+
+        // Select All
+        document.getElementById('devUpdateReleaseSelectAll').addEventListener('change', function() {
+            document.querySelectorAll('.dev-ur-cb').forEach(cb => cb.checked = this.checked);
+            devUpdateRecipientCount();
+        });
+
+        // Character count
+        document.getElementById('devUpdateReleaseText').addEventListener('input', function() {
+            const cc = document.getElementById('devUpdateReleaseCharCount');
+            if (cc) cc.textContent = `${this.value.length} character${this.value.length !== 1 ? 's' : ''}`;
+            this.style.borderColor = '#2a2a4a';
+        });
+    </script>
+
+</body>
+</html>

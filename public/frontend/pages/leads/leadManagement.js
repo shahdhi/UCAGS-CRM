@@ -1222,6 +1222,25 @@ async function saveLeadManagement(event, leadId) {
         }
 
         showToast('Saved successfully!', 'success');
+
+        // Refresh header XP display (followup XP may have been awarded)
+        try {
+          const xpHeaders = { ...authHeaders };
+          const xpRes = await fetch('/api/xp/me', { headers: xpHeaders });
+          if (xpRes.ok) {
+            const xpJson = await xpRes.json();
+            const newTotal = xpJson.totalXp || 0;
+            const oldTotal = window.__hxpLastTotal ?? 0;
+            if (newTotal > oldTotal && window.triggerHeaderXpReward) {
+              window.triggerHeaderXpReward(newTotal - oldTotal, newTotal);
+            } else if (window.updateHeaderXpDisplay) {
+              window.updateHeaderXpDisplay(newTotal);
+            }
+            window.__hxpLastTotal = newTotal;
+          }
+        } catch (xpErr) {
+          console.warn('[XP] Failed to refresh header XP after save:', xpErr.message);
+        }
       } catch (err) {
         console.error('Background save failed:', err);
         showToast('Save failed: ' + (err.message || err), 'error');

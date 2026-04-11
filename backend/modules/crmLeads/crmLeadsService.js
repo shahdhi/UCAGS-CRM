@@ -483,7 +483,10 @@ async function updateMyLeadManagement({ officerName, batchName, sheetName, sheet
             .limit(1)
             .maybeSingle();
           xpProgramId = pb?.program_id || null;
-        } catch (_) {}
+          console.log(`[XP] Followup sync XP hook: batchName=${batchName}, xpProgramId=${xpProgramId}, pb=`, pb);
+        } catch (progErr) {
+          console.warn('[XP] Failed to resolve program_id for batch:', batchName, progErr.message);
+        }
 
         for (const row of (syncedRows || [])) {
           const prev = prevMap.get(row.sequence);

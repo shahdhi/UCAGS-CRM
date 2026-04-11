@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UCAGS – Universal College of Applied & General Studies</title>
+  <meta name="description" content="UCAGS is a leading institution offering diploma and certificate programmes. Our student management system helps staff manage leads, registrations, payments, and communications." />
+  <link rel="icon" href="/favicon.png" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --purple: #7C3AED;
+      --purple-light: #8B5CF6;
+      --purple-dark: #6D28D9;
+      --bg: #0F0F1A;
+      --card-bg: rgba(255,255,255,0.05);
+      --border: rgba(255,255,255,0.1);
+      --text: #E5E7EB;
+      --muted: #9CA3AF;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      background-image:
+        radial-gradient(at 20% 20%, rgba(124,58,237,0.18) 0, transparent 50%),
+        radial-gradient(at 80% 80%, rgba(139,92,246,0.12) 0, transparent 50%);
+    }
+
+    /* NAV */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 48px;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(15,15,26,0.85);
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+    .nav-brand img { height: 40px; width: auto; }
+    .nav-brand span {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+    .nav-links { display: flex; gap: 24px; }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: #fff; }
+    .btn-login {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--purple) 0%, var(--purple-light) 100%);
+      color: #fff;
+      padding: 8px 22px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 2px 12px rgba(124,58,237,0.3);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-login:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 18px rgba(124,58,237,0.45);
+      color: #fff;
+    }
+
+    /* HERO */
+    .hero {
+      text-align: center;
+      padding: 100px 24px 80px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(124,58,237,0.2);
+      border: 1px solid rgba(124,58,237,0.4);
+      color: var(--purple-light);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 5px 14px;
+      border-radius: 999px;
+      margin-bottom: 24px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .hero h1 {
+      font-size: clamp(36px, 6vw, 58px);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, #fff 30%, #C4B5FD 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 20px;
+    }
+    .hero p {
+      font-size: 18px;
+      color: var(--muted);
+      line-height: 1.7;
+      margin-bottom: 40px;
+    }
+    .btn-primary {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--purple) 0%, var(--purple-light) 100%);
+      color: #fff;
+      padding: 14px 32px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 4px 20px rgba(124,58,237,0.35);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(124,58,237,0.45);
+    }
+
+    /* FEATURES */
+    .section {
+      padding: 80px 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .section-title {
+      text-align: center;
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #fff;
+    }
+    .section-subtitle {
+      text-align: center;
+      color: var(--muted);
+      font-size: 16px;
+      margin-bottom: 56px;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+    }
+    .feature-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .feature-card:hover {
+      border-color: rgba(124,58,237,0.4);
+      transform: translateY(-3px);
+    }
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      background: rgba(124,58,237,0.15);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      margin-bottom: 16px;
+    }
+    .feature-card h3 {
+      font-size: 17px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .feature-card p {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    /* HOW WE USE GOOGLE */
+    .google-section {
+      background: rgba(124,58,237,0.07);
+      border: 1px solid rgba(124,58,237,0.2);
+      border-radius: 20px;
+      padding: 48px;
+      max-width: 900px;
+      margin: 0 auto 80px;
+    }
+    .google-section h2 {
+      font-size: 26px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 16px;
+    }
+    .google-section p, .google-section li {
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.75;
+    }
+    .google-section ul {
+      margin: 16px 0 16px 20px;
+    }
+    .google-section li { margin-bottom: 8px; }
+
+    /* CONTACT */
+    .contact-section {
+      text-align: center;
+      padding: 80px 24px;
+      border-top: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+    .contact-section h2 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+    .contact-section p { color: var(--muted); font-size: 15px; margin-bottom: 8px; }
+    .contact-section a { color: var(--purple-light); text-decoration: none; }
+    .contact-section a:hover { text-decoration: underline; }
+
+    /* FOOTER */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 48px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    footer p { color: var(--muted); font-size: 13px; }
+    .footer-links { display: flex; gap: 20px; }
+    .footer-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: #fff; }
+
+    @media (max-width: 600px) {
+      nav { padding: 16px 20px; }
+      .nav-links { display: flex; gap: 12px; }
+      .nav-links a:not(.btn-login) { display: none; }
+      .google-section { padding: 28px 20px; }
+      footer { padding: 20px; flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <a class="nav-brand" href="/homepage">
+      <img src="/Unversal-logo-2025-05-16.png" alt="UCAGS Logo" onerror="this.style.display='none'" />
+      <span>UCAGS</span>
+    </a>
+    <div class="nav-links">
+      <a href="/privacy_policy">Privacy Policy</a>
+      <a href="/terms_of_service">Terms of Service</a>
+      <a href="mailto:info@ucags.edu.lk">Contact</a>
+      <a href="/index.html" class="btn-login">Login</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="badge">Student Management System</div>
+    <h1>Universal College of Applied &amp; General Studies</h1>
+    <p>UCAGS is a recognised higher education institution in Sri Lanka offering diploma and certificate programmes. Our internal management platform helps our admissions and academic staff deliver a seamless student experience.</p>
+    <a href="mailto:info@ucags.edu.lk" class="btn-primary">Contact Us</a>
+  </section>
+
+  <!-- FEATURES -->
+  <div class="section">
+    <h2 class="section-title">What Our Platform Does</h2>
+    <p class="section-subtitle">An all-in-one system built for our admissions, academic, and operations teams.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🎓</div>
+        <h3>Lead &amp; Admissions Management</h3>
+        <p>Track prospective student enquiries, follow-ups, and admissions progress from initial contact to enrolment.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📋</div>
+        <h3>Registrations &amp; Enrolments</h3>
+        <p>Manage student registrations, batch assignments, and course enrolment records in one place.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💳</div>
+        <h3>Payment Tracking</h3>
+        <p>Monitor instalment payments, generate receipts, and keep accurate financial records for all students.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📅</div>
+        <h3>Attendance &amp; Calendar</h3>
+        <p>Record student attendance, manage leave requests, and schedule tasks and follow-ups on a shared calendar.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💬</div>
+        <h3>WhatsApp Communications</h3>
+        <p>Send and receive WhatsApp messages with students and leads directly within the platform.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3>Reports &amp; Analytics</h3>
+        <p>Generate daily checklists, performance reports, and data exports for management decision-making.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOW WE USE GOOGLE -->
+  <div class="section" style="padding-top:0;">
+    <div class="google-section">
+      <h2>🔒 How We Use Google Services</h2>
+      <p>Our platform integrates with Google Workspace to improve productivity for authorised UCAGS staff members only. Specifically, we use:</p>
+      <ul>
+        <li><strong>Google Sheets</strong> — to sync lead and student data with shared internal spreadsheets used by our admissions officers.</li>
+        <li><strong>Google Drive</strong> — to store and retrieve documents related to student records and batch management.</li>
+        <li><strong>Google Calendar</strong> — to create and manage follow-up tasks and scheduling reminders for staff.</li>
+        <li><strong>Google Sign-In (OAuth 2.0)</strong> — to allow authorised staff to securely authenticate with their institutional Google accounts.</li>
+      </ul>
+      <p>We only access the minimum data required to perform these functions. We do not share, sell, or distribute any Google user data to third parties. All access is limited to verified UCAGS staff accounts.</p>
+      <p style="margin-top:16px;">For full details, please read our <a href="/privacy_policy" style="color:#8B5CF6;">Privacy Policy</a>.</p>
+    </div>
+  </div>
+
+  <!-- CONTACT -->
+  <div class="contact-section">
+    <h2>Get in Touch</h2>
+    <p>Universal College of Applied &amp; General Studies</p>
+    <p>Sri Lanka</p>
+    <p><a href="mailto:info@ucags.edu.lk">info@ucags.edu.lk</a></p>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>&copy; 2025 Universal College of Applied &amp; General Studies. All rights reserved.</p>
+    <div class="footer-links">
+      <a href="/privacy_policy">Privacy Policy</a>
+      <a href="/terms_of_service">Terms of Service</a>
+      <a href="/homepage">Home</a>
+    </div>
+  </footer>
+
+</body>
+</html>

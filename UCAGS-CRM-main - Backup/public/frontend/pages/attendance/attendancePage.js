@@ -1,0 +1,1096 @@
+/**
+ * Attendance Page (Officer + Admin)
+ */
+
+(function () {
+  'use strict';
+
+  async function getAuthHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    if (window.supabaseClient) {
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+    }
+    return headers;
+  }
+
+  function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function fmt(ts) {
+    if (!ts) return '-';
+    try {
+      // Accept ISO or time strings
+      if (/^\d{2}:\d{2}/.test(ts)) return ts;
+      return new Date(ts).toLocaleString();
+    } catch {
+      return ts;
+    }
+  }
+
+  async function loadMyStatus({ allowCache = true } = {}) {
+    const statusEl = document.getElementById('attendanceMyStatus');
+    if (statusEl) statusEl.textContent = 'Loading…';
+
+    const ttlMs = 2 * 60 * 1000; // 2 minutes
+    const cacheKey = 'attendance:me:today';
+
+    if (allowCache && window.Cache) {
+      const cached = window.Cache.getFresh(cacheKey, ttlMs);
+      if (cached && cached.success) {
+        // use cached response
+        const json = cached;
+
+        const rec = json.record;
+        const checkedIn = json.checkedIn;
+        const checkedOut = json.checkedOut;
+
+        if (statusEl) {
+          statusEl.innerHTML = `
+            <div><strong>Date:</strong> ${escapeHtml(json.date)}</div>
+            <div><strong>Check In:</strong> ${escapeHtml(rec?.checkIn || '-')}</div>
+            <div><strong>Check Out:</strong> ${escapeHtml(rec?.checkOut || '-')}</div>
+          `;
+        }
+
+        const btnIn = document.getElementById('attendanceCheckInBtn');
+        const btnOut = document.getElementById('attendanceCheckOutBtn');
+        const btnLoc = document.getElementById('attendanceConfirmLocationBtn');
+        const locStatus = document.getElementById('attendanceLocationStatus');
+
+        if (btnIn) btnIn.disabled = checkedIn;
+        if (btnOut) btnOut.disabled = !checkedIn || checkedOut;
+
+        const hasLoc = !!(rec?.locationLat && rec?.locationLng);
+        if (btnLoc) btnLoc.disabled = !checkedIn || hasLoc;
+
+        if (locStatus) {
+          locStatus.innerHTML = hasLoc
+            ? `Location confirmed. <a target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(rec.locationLat)},${encodeURIComponent(rec.locationLng)}">View on map</a>`
+            : '';
+        }
+        return;
+      }
+    }
+
+    const headers = await getAuthHeaders();
+    const res = await fetch('/api/attendance/me/today', { headers, cache: 'no-store' });
+    const json = await res.json();
+    if (window.Cache && json && json.success) window.Cache.setWithTs(cacheKey, json);
+
+    if (!json?.success) {
+      if (statusEl) statusEl.textContent = 'Failed to load status';
+      if (window.UI?.showToast) UI.showToast(json?.error || 'Failed to load attendance status', 'error');
+      return;
+    }
+
+    const rec = json.record;
+    const checkedIn = json.checkedIn;
+    const checkedOut = json.checkedOut;
+
+    if (statusEl) {
+      statusEl.innerHTML = `
+        <div><strong>Date:</strong> ${escapeHtml(json.date)}</div>
+        <div><strong>Check In:</strong> ${escapeHtml(rec?.checkIn || '-')}</div>
+        <div><strong>Check Out:</strong> ${escapeHtml(rec?.checkOut || '-')}</div>
+      `;
+    }
+
+    const btnIn = document.getElementById('attendanceCheckInBtn');
+    const btnOut = document.getElementById('attendanceCheckOutBtn');
+    const btnLoc = document.getElementById('attendanceConfirmLocationBtn');
+    const locStatus = document.getElementById('attendanceLocationStatus');
+
+    if (btnIn) btnIn.disabled = checkedIn;
+    if (btnOut) btnOut.disabled = !checkedIn || checkedOut;
+
+    const hasLoc = !!(rec?.locationLat && rec?.locationLng);
+    if (btnLoc) btnLoc.disabled = !checkedIn || hasLoc;
+
+    if (locStatus) {
+      locStatus.innerHTML = hasLoc
+        ? `Location confirmed. <a target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(rec.locationLat)},${encodeURIComponent(rec.locationLng)}">View on map</a>`
+        : '';
+    }
+  }
+
+  async function doCheckIn() {
+    const btnIn = document.getElementById('attendanceCheckInBtn');
+    if (btnIn) btnIn.disabled = true;
+
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/attendance/me/checkin', { method: 'POST', headers, cache: 'no-store' });
+      const json = await res.json();
+      if (!json?.success) throw new Error(json?.error || 'Check-in failed');
+
+      if (window.UI?.showToast) UI.showToast('Checked in successfully', 'success');
+      if (window.Cache) window.Cache.invalidatePrefix('attendance:');
+      await loadMyStatus({ allowCache: false });
+    } catch (e) {
+      if (window.UI?.showToast) UI.showToast(e.message || 'Check-in failed', 'error');
+      if (window.Cache) window.Cache.invalidatePrefix('attendance:');
+      await loadMyStatus({ allowCache: false });
+    }
+  }
+
+  function getBrowserLocation() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Location not supported on this device/browser'));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          resolve({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy
+          });
+        },
+        (err) => {
+          reject(new Error(err.message || 'Failed to get location'));
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    });
+  }
+
+  async function doConfirmLocation() {
+    const btn = document.getElementById('attendanceConfirmLocationBtn');
+    if (btn) btn.disabled = true;
+
+    try {
+      const loc = await getBrowserLocation();
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/attendance/me/confirm-location', {
+        method: 'POST',
+        headers,
+        cache: 'no-store',
+        body: JSON.stringify(loc)
+      });
+      const json = await res.json();
+      if (!json?.success) throw new Error(json?.error || 'Confirm location failed');
+
+      if (window.UI?.showToast) UI.showToast('Location confirmed', 'success');
+      if (window.Cache) window.Cache.invalidatePrefix('attendance:');
+      await loadMyStatus({ allowCache: false });
+    } catch (e) {
+      if (window.UI?.showToast) UI.showToast(e.message || 'Confirm location failed', 'error');
+      if (window.Cache) window.Cache.invalidatePrefix('attendance:');
+      await loadMyStatus({ allowCache: false });
+    }
+  }
+
+  async function doCheckOut() {
+    const btnOut = document.getElementById('attendanceCheckOutBtn');
+    if (btnOut) btnOut.disabled = true;
+
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/attendance/me/checkout', { method: 'POST', headers, cache: 'no-store' });
+      const json = await res.json();
+      if (!json?.success) throw new Error(json?.error || 'Check-out failed');
+
+      if (window.UI?.showToast) UI.showToast('Checked out successfully', 'success');
+      if (window.Cache) window.Cache.invalidatePrefix('attendance:');
+      await loadMyStatus({ allowCache: false });
+    } catch (e) {
+      if (window.UI?.showToast) UI.showToast(e.message || 'Check-out failed', 'error');
+      if (window.Cache) window.Cache.invalidatePrefix('attendance:');
+      await loadMyStatus({ allowCache: false });
+    }
+  }
+
+  async function loadAdminSummary() {
+    const tbody = document.getElementById('attendanceAdminSummaryTableBody');
+    if (!tbody) return;
+    const skelRow = () => `
+      <tr class="table-skel-row">
+        <td><div class="table-skel-line" style="width:55%"></div></td>
+        <td><div class="table-skel-line" style="width:35%"></div></td>
+        <td><div class="table-skel-line" style="width:45%"></div></td>
+        <td><div class="table-skel-line" style="width:30%"></div></td>
+      </tr>
+    `;
+    tbody.innerHTML = Array.from({ length: 6 }).map(skelRow).join('');
+
+    const monthInput = document.getElementById('attendanceAdminSummaryMonth');
+    const month = monthInput?.value;
+
+    try {
+      if (!month) throw new Error('Select a month');
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/attendance/summary?month=${encodeURIComponent(month)}`, { headers, cache: 'no-store' });
+      const json = await res.json();
+      if (!json?.success) throw new Error(json?.error || 'Failed to load summary');
+
+      const list = json.officers || [];
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color:#666;">No officers found</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(r => {
+        const pct = (r.totalDays && typeof r.percentage === 'number') ? `${r.percentage}%` : '-';
+        return `
+          <tr>
+            <td>${escapeHtml(r.officerName)}</td>
+            <td style="font-weight:600;">${escapeHtml(pct)}</td>
+            <td>${escapeHtml(String(r.presentDays || 0))}</td>
+            <td>${escapeHtml(String(r.totalDays || 0))}</td>
+          </tr>
+        `;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px; color:#b00;">${escapeHtml(e.message || 'Failed')}</td></tr>`;
+    }
+  }
+
+  async function loadAdminRecords({ showSkeleton = true } = {}) {
+    const tbody = document.getElementById('attendanceAdminTableBody');
+    if (!tbody) return;
+
+    const dateInput = document.getElementById('attendanceAdminDate');
+    const date = dateInput ? dateInput.value : '';
+
+    const ttlMs = 2 * 60 * 1000; // 2 minutes
+    const cacheKey = `attendance:admin:records:${encodeURIComponent(date || 'all')}`;
+
+    if (!showSkeleton && window.Cache) {
+      const cached = window.Cache.getFresh(cacheKey, ttlMs);
+      if (cached && cached.success) {
+        const json = cached;
+        const records = json.records || [];
+        if (records.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px; color:#666;">No records found</td></tr>';
+          return;
+        }
+        tbody.innerHTML = records.slice(0, 500).map(r => {
+          const hasLoc = !!(r.locationLat && r.locationLng);
+          const mapBtn = hasLoc
+            ? `<a class="btn btn-secondary btn-sm" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(r.locationLat)},${encodeURIComponent(r.locationLng)}">View on map</a>`
+            : '';
+
+          return `
+            <tr>
+              <td>${escapeHtml(r.date)}</td>
+              <td>${escapeHtml(r.staffName)}</td>
+              <td>${escapeHtml(r.checkIn || '-')}</td>
+              <td>${escapeHtml(r.checkOut || '-')}</td>
+              <td>${mapBtn}</td>
+            </tr>
+          `;
+        }).join('');
+        return;
+      }
+    }
+
+    if (showSkeleton) {
+      const skelRow = () => `
+        <tr class="table-skel-row">
+          <td><div class="table-skel-line" style="width:55%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:45%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:30%"></div></td>
+        </tr>
+      `;
+      tbody.innerHTML = Array.from({ length: 6 }).map(skelRow).join('');
+    }
+
+    const headers = await getAuthHeaders();
+    const url = date ? `/api/attendance/records?date=${encodeURIComponent(date)}` : '/api/attendance/records';
+
+    const res = await fetch(url, { headers, cache: 'no-store' });
+    const json = await res.json();
+    if (window.Cache && json && json.success) window.Cache.setWithTs(cacheKey, json);
+
+    if (!json?.success) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color:#b00;">${escapeHtml(json?.error || 'Failed to load records')}</td></tr>`;
+      return;
+    }
+
+    const records = json.records || [];
+    if (records.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px; color:#666;">No records found</td></tr>';
+      return;
+    }
+
+    const rows = records.slice(0, 500);
+    const trHtmlFn = (r) => {
+      const hasLoc = !!(r.locationLat && r.locationLng);
+      const mapBtn = hasLoc
+        ? `<a class="btn btn-secondary btn-sm" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(r.locationLat)},${encodeURIComponent(r.locationLng)}">View on map</a>`
+        : '';
+
+      const key = `${r.date || ''}__${r.staffName || ''}`;
+      return `
+        <tr data-row-key="${escapeHtml(key)}">
+          <td>${escapeHtml(r.date)}</td>
+          <td>${escapeHtml(r.staffName)}</td>
+          <td>${escapeHtml(r.checkIn || '-')}</td>
+          <td>${escapeHtml(r.checkOut || '-')}</td>
+          <td>${mapBtn}</td>
+        </tr>
+      `;
+    };
+
+    if (window.DOMPatcher?.patchTableBody) {
+      window.DOMPatcher.patchTableBody(tbody, rows, (x) => `${x.date || ''}__${x.staffName || ''}`, trHtmlFn);
+    } else {
+      tbody.innerHTML = rows.map(trHtmlFn).join('');
+    }
+  }
+
+  // ---- Officer calendar + leave requests ----
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const ymdToday = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+  };
+  const ymToday = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
+  };
+
+  let currentMonth = ymToday();
+
+  function monthAdd(ym, delta) {
+    const [y, m] = ym.split('-').map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+  }
+
+  function monthLabel(ym) {
+    const [y, m] = ym.split('-').map(Number);
+    const d = new Date(y, m - 1, 1);
+    return d.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+  }
+
+  function renderAttendanceCalendarSkeleton() {
+    const grid = document.getElementById('attendanceCalendarGrid');
+    const label = document.getElementById('attendanceMonthLabel');
+    if (label) label.textContent = 'Loading…';
+    if (!grid) return;
+
+    const headers = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const cells = [];
+    for (const h of headers) {
+      cells.push(`<div class="followup-calendar-cell" style="font-weight:600; background:#f9fafb;">${h}</div>`);
+    }
+    for (let i = 0; i < 42; i++) {
+      cells.push(`
+        <div class="followup-calendar-cell loading-shimmer" style="min-height:78px; background-color:#f3f4f6; border:1px solid #e5e7eb;">
+          <div style="height:12px; width:40%; background:rgba(255,255,255,0.35); border-radius:6px;"></div>
+          <div style="height:10px; width:60%; margin-top:10px; background:rgba(255,255,255,0.25); border-radius:6px;"></div>
+        </div>
+      `);
+    }
+    grid.innerHTML = cells.join('');
+  }
+
+  function renderAttendanceCalendar(days) {
+    const grid = document.getElementById('attendanceCalendarGrid');
+    const label = document.getElementById('attendanceMonthLabel');
+    if (label) label.textContent = monthLabel(currentMonth);
+    if (!grid) return;
+
+    // Build 7-column grid similar to calendar
+    const [y, m] = currentMonth.split('-').map(Number);
+    const first = new Date(y, m - 1, 1);
+    const startDow = first.getDay(); // 0 Sun
+
+    const statusByDate = new Map((days || []).map(d => [d.date, d.status]));
+
+    const cells = [];
+    const headers = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    for (const h of headers) {
+      cells.push(`<div class="followup-calendar-cell header" style="font-weight:600; background:#f9fafb;">${h}</div>`);
+    }
+
+    // blanks
+    for (let i = 0; i < startDow; i++) {
+      cells.push(`<div class="followup-calendar-cell" style="background:#fff; border:1px solid #f0f0f0;"></div>`);
+    }
+
+    // days
+    const daysInThisMonth = new Date(y, m, 0).getDate();
+    for (let d = 1; d <= daysInThisMonth; d++) {
+      const date = `${currentMonth}-${pad2(d)}`;
+      // If API didn't return a day record, infer status from today's date
+      const today = ymdToday();
+      const status = statusByDate.get(date) || (date > today ? 'future' : 'absent');
+
+      let bg = '#fff';
+      let border = '#e5e7eb';
+      if (status === 'present') bg = '#dcfce7';
+      else if (status === 'absent') bg = '#fee2e2';
+      else if (status === 'leave') bg = '#dbeafe';
+      else if (status === 'holiday') { bg = '#fef9c3'; border = '#fde047'; }
+      else if (status === 'future' || status === 'before_start') bg = '#f3f4f6';
+
+      const labelText = status === 'leave' ? 'Leave' : status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : status === 'holiday' ? '🏖️ Holiday' : '';
+
+      cells.push(
+        `<div class="followup-calendar-cell" data-date="${date}" style="background:${bg}; border:1px solid ${border}; cursor:default;">` +
+          `<div style="display:flex; justify-content: space-between; align-items:center;">` +
+            `<span style="font-weight:600;">${d}</span>` +
+            `<span style="font-size:11px; color:#555;">${labelText}</span>` +
+          `</div>` +
+        `</div>`
+      );
+    }
+
+    grid.innerHTML = cells.join('');
+  }
+
+  async function loadMyCalendar({ showSkeleton = true } = {}) {
+    try {
+      const officerSection = document.getElementById('attendanceOfficerSection');
+      if (!officerSection || officerSection.classList.contains('hidden')) return;
+
+      const ttlMs = 2 * 60 * 1000; // 2 minutes
+      const cacheKey = `attendance:me:calendar:${currentMonth}`;
+
+      if (!showSkeleton && window.Cache) {
+        const cached = window.Cache.getFresh(cacheKey, ttlMs);
+        if (cached && cached.days) {
+          const res = cached;
+          const pctEl = document.getElementById('attendanceMonthPct');
+          if (pctEl) {
+            const today = ymdToday();
+            const considered = (res.days || []).filter(d => d.date <= today && d.status !== 'before_start' && d.status !== 'holiday');
+            const presentish = considered.filter(d => d.status === 'present' || d.status === 'leave').length;
+            const denom = considered.length || 0;
+            const pct = denom ? Math.round((presentish / denom) * 100) : 0;
+            pctEl.textContent = denom ? `${pct}% attendance (${presentish}/${denom})` : '';
+          }
+          renderAttendanceCalendar(res.days || []);
+          return;
+        }
+      }
+
+      if (showSkeleton) renderAttendanceCalendarSkeleton();
+      const res = await API.attendance.getMyCalendar(currentMonth);
+      if (window.Cache && res) window.Cache.setWithTs(cacheKey, res);
+
+      const pctEl = document.getElementById('attendanceMonthPct');
+      if (pctEl) {
+        const today = ymdToday();
+        const considered = (res.days || []).filter(d => d.date <= today && d.status !== 'before_start' && d.status !== 'holiday');
+        const presentish = considered.filter(d => d.status === 'present' || d.status === 'leave').length;
+        const denom = considered.length || 0;
+        const pct = denom ? Math.round((presentish / denom) * 100) : 0;
+        pctEl.textContent = denom ? `${pct}% attendance (${presentish}/${denom})` : '';
+      }
+
+      renderAttendanceCalendar(res.days || []);
+    } catch (e) {
+      console.error(e);
+      if (window.UI?.showToast) UI.showToast(e.message, 'error');
+    }
+  }
+
+  async function loadMyLeaveRequests({ showSkeleton = true } = {}) {
+    const tbody = document.getElementById('attendanceMyLeaveTableBody');
+    if (!tbody) return;
+
+    const ttlMs = 2 * 60 * 1000; // 2 minutes
+    const cacheKey = 'attendance:me:leaveRequests';
+
+    if (!showSkeleton && window.Cache) {
+      const cached = window.Cache.getFresh(cacheKey, ttlMs);
+      if (cached && cached.requests) {
+        const res = cached;
+        const list = res.requests || [];
+        if (!list.length) {
+          tbody.innerHTML = `<tr><td colspan="5" style="color:#666;">No leave requests</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = list.map(r => {
+          const admin = r.admin_name ? `${escapeHtml(r.admin_name)}${r.admin_comment ? ' - ' + escapeHtml(r.admin_comment) : ''}` : '';
+          return `
+            <tr>
+              <td>${escapeHtml(r.leave_date)}</td>
+              <td>${escapeHtml(leaveTypeLabel(r.leave_type))}</td>
+              <td>${escapeHtml(r.reason || '')}</td>
+              <td>${escapeHtml(r.status)}</td>
+              <td>${admin}</td>
+            </tr>
+          `;
+        }).join('');
+        return;
+      }
+    }
+
+    if (showSkeleton) {
+      const skelRow = () => `
+        <tr class="table-skel-row">
+          <td><div class="table-skel-line" style="width:55%"></div></td>
+          <td><div class="table-skel-line" style="width:40%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:45%"></div></td>
+          <td><div class="table-skel-line" style="width:30%"></div></td>
+        </tr>
+      `;
+      tbody.innerHTML = Array.from({ length: 6 }).map(skelRow).join('');
+    }
+    try {
+      const res = await API.attendance.getMyLeaveRequests({});
+      if (window.Cache && res) window.Cache.setWithTs(cacheKey, res);
+      const list = res.requests || [];
+      if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="color:#666;">No leave requests</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = list.map(r => {
+        const admin = r.admin_name ? `${escapeHtml(r.admin_name)}${r.admin_comment ? ' - ' + escapeHtml(r.admin_comment) : ''}` : '';
+        return `
+          <tr>
+            <td>${escapeHtml(r.leave_date)}</td>
+            <td>${escapeHtml(leaveTypeLabel(r.leave_type))}</td>
+            <td>${escapeHtml(r.reason || '')}</td>
+            <td>${escapeHtml(r.status)}</td>
+            <td>${admin}</td>
+          </tr>
+        `;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="5" style="color:#ef4444;">${escapeHtml(e.message)}</td></tr>`;
+    }
+  }
+
+  function leaveTypeLabel(leaveType) {
+    if (leaveType === 'morning') return 'Morning (9:00 AM – 1:00 PM)';
+    if (leaveType === 'afternoon') return 'Afternoon (1:00 PM – 5:00 PM)';
+    return 'Full Day';
+  }
+
+  async function submitLeaveRequest() {
+    const dateEl = document.getElementById('attendanceLeaveDate');
+    const reasonEl = document.getElementById('attendanceLeaveReason');
+    const msg = document.getElementById('attendanceLeaveSubmitMsg');
+    const leaveTypeEl = document.querySelector('input[name="attendanceLeaveType"]:checked');
+
+    const date = dateEl?.value;
+    const reason = reasonEl?.value || '';
+    const leaveType = leaveTypeEl?.value || 'full_day';
+
+    try {
+      if (!date) throw new Error('Please select a date');
+      if (!reason.trim()) throw new Error('Please enter a reason');
+
+      if (msg) msg.textContent = 'Submitting...';
+      await API.attendance.submitLeaveRequest({ date, reason, leaveType });
+      if (msg) msg.textContent = 'Leave request submitted';
+      if (reasonEl) reasonEl.value = '';
+      // Reset leave type to full day
+      const fullDayEl = document.getElementById('attendanceLeaveTypeFull');
+      if (fullDayEl) fullDayEl.checked = true;
+
+      if (window.Cache) window.Cache.invalidatePrefix('attendance:');
+      await loadMyLeaveRequests();
+      await loadMyCalendar();
+    } catch (e) {
+      if (msg) msg.textContent = e.message;
+      if (window.UI?.showToast) UI.showToast(e.message, 'error');
+    }
+  }
+
+  // ---- Admin calendar (staff attendance) ----
+  let adminCalMonth = ymToday();
+  let adminOfficerName = '';
+
+  function renderAdminCalendarSkeleton() {
+    const grid = document.getElementById('attendanceAdminCalendarGrid');
+    const label = document.getElementById('attendanceAdminMonthLabel');
+    if (label) label.textContent = 'Loading…';
+    if (!grid) return;
+
+    const headers = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const cells = [];
+    for (const h of headers) {
+      cells.push(`<div class="followup-calendar-cell" style="font-weight:600; background:#f9fafb;">${h}</div>`);
+    }
+    for (let i = 0; i < 42; i++) {
+      cells.push(`
+        <div class="followup-calendar-cell loading-shimmer" style="min-height:78px; background-color:#f3f4f6; border:1px solid #e5e7eb;">
+          <div style="height:12px; width:40%; background:rgba(255,255,255,0.35); border-radius:6px;"></div>
+          <div style="height:10px; width:60%; margin-top:10px; background:rgba(255,255,255,0.25); border-radius:6px;"></div>
+        </div>
+      `);
+    }
+    grid.innerHTML = cells.join('');
+  }
+
+  function renderAdminCalendar(days) {
+    const grid = document.getElementById('attendanceAdminCalendarGrid');
+    const label = document.getElementById('attendanceAdminMonthLabel');
+    if (label) label.textContent = monthLabel(adminCalMonth);
+    if (!grid) return;
+
+    const [y, m] = adminCalMonth.split('-').map(Number);
+    const first = new Date(y, m - 1, 1);
+    const startDow = first.getDay();
+
+    const statusByDate = new Map((days || []).map(d => [d.date, d.status]));
+
+    const cells = [];
+    const headers = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    for (const h of headers) {
+      cells.push(`<div class="followup-calendar-cell header" style="font-weight:600; background:#f9fafb;">${h}</div>`);
+    }
+
+    for (let i = 0; i < startDow; i++) {
+      cells.push(`<div class="followup-calendar-cell" style="background:#fff; border:1px solid #f0f0f0;"></div>`);
+    }
+
+    const daysInThisMonth = new Date(y, m, 0).getDate();
+    for (let d = 1; d <= daysInThisMonth; d++) {
+      const date = `${adminCalMonth}-${pad2(d)}`;
+      const status = statusByDate.get(date) || 'absent';
+
+      let bg = '#fff';
+      let border = '#e5e7eb';
+      const isBeforeStart = status === 'before_start';
+      if (status === 'present') bg = '#dcfce7';
+      else if (status === 'absent') bg = '#fee2e2';
+      else if (status === 'leave') bg = '#dbeafe';
+      else if (status === 'holiday') { bg = '#fef9c3'; border = '#fde047'; }
+      else if (status === 'future' || isBeforeStart) bg = '#f3f4f6';
+
+      const labelText = status === 'leave' ? 'Leave' : status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : status === 'holiday' ? '🏖️ Holiday' : '';
+
+      // Before-start and future cells are not clickable (no override allowed)
+      const cursor = (status === 'future' || isBeforeStart) ? 'default' : 'pointer';
+
+      cells.push(
+        `<div class="followup-calendar-cell" data-date="${date}" data-status="${escapeHtml(status)}" style="background:${bg}; border:1px solid ${border}; cursor:${cursor};">` +
+          `<div style="display:flex; justify-content: space-between; align-items:center;">` +
+            `<span style="font-weight:600;">${d}</span>` +
+            `<span style="font-size:11px; color:#555;">${labelText}</span>` +
+          `</div>` +
+        `</div>`
+      );
+    }
+
+    grid.innerHTML = cells.join('');
+  }
+
+  async function loadAdminCalendar({ showSkeleton = true } = {}) {
+    try {
+      const sec = document.getElementById('attendanceAdminCalendarSection');
+      if (!sec || sec.classList.contains('hidden')) return;
+      if (!adminOfficerName) return;
+
+      if (showSkeleton) renderAdminCalendarSkeleton();
+      const res = await API.attendance.adminGetOfficerCalendar({ officerName: adminOfficerName, month: adminCalMonth });
+      renderAdminCalendar(res.days || []);
+
+      // Attendance percentage for this officer/month
+      const pctEl = document.getElementById('attendanceAdminCalPct');
+      if (pctEl) {
+        const today = ymdToday();
+        const considered = (res.days || []).filter(d => d.date <= today && d.status !== 'before_start' && d.status !== 'holiday' && d.status !== 'future');
+        const presentish = considered.filter(d => d.status === 'present' || d.status === 'leave').length;
+        const denom = considered.length || 0;
+        const pct = denom ? Math.round((presentish / denom) * 100) : 0;
+        pctEl.textContent = denom ? `${pct}% attendance (${presentish}/${denom} days)` : '';
+      }
+    } catch (e) {
+      console.error(e);
+      if (window.UI?.showToast) UI.showToast(e.message || 'Failed to load calendar', 'error');
+    }
+  }
+
+  let __adminDayModalState = { date: '', status: 'present' };
+
+  function openAdminDayModal({ date, currentStatus }) {
+    __adminDayModalState = { date: String(date || ''), status: String(currentStatus || 'present') };
+
+    const subtitle = document.getElementById('attendanceAdminDayModalSubtitle');
+    const sel = document.getElementById('attendanceAdminDayStatus');
+    const saveBtn = document.getElementById('attendanceAdminDaySaveBtn');
+
+    if (subtitle) subtitle.textContent = `${adminOfficerName || ''} • ${__adminDayModalState.date}`;
+    if (sel) sel.value = __adminDayModalState.status;
+    if (saveBtn) saveBtn.disabled = false;
+
+    openModal('attendanceAdminDayModal');
+  }
+
+  async function initAdminCalendar() {
+    const sec = document.getElementById('attendanceAdminCalendarSection');
+    if (!sec) return;
+
+    const officerSel = document.getElementById('attendanceAdminOfficerSelect');
+    const prevBtn = document.getElementById('attendanceAdminCalPrevBtn');
+    const nextBtn = document.getElementById('attendanceAdminCalNextBtn');
+    const thisBtn = document.getElementById('attendanceAdminCalThisBtn');
+    const grid = document.getElementById('attendanceAdminCalendarGrid');
+
+    if (prevBtn && !prevBtn.__bound) {
+      prevBtn.__bound = true;
+      prevBtn.addEventListener('click', () => { adminCalMonth = monthAdd(adminCalMonth, -1); loadAdminCalendar({ showSkeleton: false }); });
+    }
+    if (nextBtn && !nextBtn.__bound) {
+      nextBtn.__bound = true;
+      nextBtn.addEventListener('click', () => { adminCalMonth = monthAdd(adminCalMonth, 1); loadAdminCalendar({ showSkeleton: false }); });
+    }
+    if (thisBtn && !thisBtn.__bound) {
+      thisBtn.__bound = true;
+      thisBtn.addEventListener('click', () => { adminCalMonth = ymToday(); loadAdminCalendar({ showSkeleton: false }); });
+    }
+
+    if (grid && !grid.__delegated) {
+      grid.__delegated = true;
+      grid.addEventListener('click', async (e) => {
+        const cell = e.target?.closest?.('.followup-calendar-cell[data-date]');
+        if (!cell) return;
+        const date = cell.getAttribute('data-date');
+        const current = cell.getAttribute('data-status') || '';
+        if (!date) return;
+
+        // Don't allow overrides on before_start or future dates
+        if (current === 'before_start' || current === 'future') return;
+
+        openAdminDayModal({ date, currentStatus: current || 'present' });
+      });
+    }
+
+    const saveBtn = document.getElementById('attendanceAdminDaySaveBtn');
+    const statusSel = document.getElementById('attendanceAdminDayStatus');
+    if (saveBtn && !saveBtn.__bound) {
+      saveBtn.__bound = true;
+      saveBtn.addEventListener('click', async () => {
+        try {
+          const date = __adminDayModalState.date;
+          const status = statusSel?.value || 'present';
+          if (!date) throw new Error('Missing date');
+
+          saveBtn.disabled = true;
+          await API.attendance.adminSetDayStatus({ officerName: adminOfficerName, date, status });
+          closeModal('attendanceAdminDayModal');
+          await loadAdminCalendar({ showSkeleton: false });
+          if (window.UI?.showToast) UI.showToast('Updated', 'success');
+        } catch (e) {
+          console.error(e);
+          if (window.UI?.showToast) UI.showToast(e.message || 'Failed to update', 'error');
+        } finally {
+          saveBtn.disabled = false;
+        }
+      });
+    }
+
+    const holidayBtn = document.getElementById('attendanceMarkAllHolidayBtn');
+    if (holidayBtn && !holidayBtn.__bound) {
+      holidayBtn.__bound = true;
+      holidayBtn.addEventListener('click', async () => {
+        const date = __adminDayModalState.date;
+        if (!date) return;
+        if (!confirm(`Mark ${date} as Holiday for ALL officers? This will override their status for that day.`)) return;
+        try {
+          holidayBtn.disabled = true;
+          holidayBtn.textContent = 'Saving…';
+          const headers = await getAuthHeaders();
+          const res = await fetch('/api/attendance/admin/calendar/holiday', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ date })
+          });
+          const json = await res.json();
+          if (!json.success) throw new Error(json.error || 'Failed');
+          closeModal('attendanceAdminDayModal');
+          if (window.Cache) window.Cache.invalidatePrefix('attendance:');
+          await loadAdminCalendar({ showSkeleton: false });
+          if (window.UI?.showToast) UI.showToast(`${date} marked as Holiday for all officers`, 'success');
+        } catch (e) {
+          if (window.UI?.showToast) UI.showToast(e.message || 'Failed to mark holiday', 'error');
+        } finally {
+          holidayBtn.disabled = false;
+          holidayBtn.textContent = 'Mark Holiday for All';
+        }
+      });
+    }
+
+    if (officerSel && !officerSel.__bound) {
+      officerSel.__bound = true;
+      officerSel.addEventListener('change', () => {
+        adminOfficerName = officerSel.value;
+        loadAdminCalendar({ showSkeleton: true }).catch(console.error);
+      });
+
+      // load officers list
+      officerSel.innerHTML = '<option value="">Loading…</option>';
+      const res = await API.attendance.adminListOfficers();
+      const officers = (res.officers || []).slice().sort((a, b) => String(a).localeCompare(String(b)));
+      officerSel.innerHTML = ['<option value="">Select officer</option>']
+        .concat(officers.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`))
+        .join('');
+
+      if (officers.length) {
+        adminOfficerName = adminOfficerName || officers[0];
+        officerSel.value = adminOfficerName;
+        await loadAdminCalendar({ showSkeleton: true });
+      }
+    }
+  }
+
+  // ---- Admin leave approvals ----
+  async function loadAdminLeaveRequests({ showSkeleton = true } = {}) {
+    const tbody = document.getElementById('attendanceAdminLeaveTableBody');
+    const statusSel = document.getElementById('attendanceAdminLeaveStatus');
+    if (!tbody) return;
+
+    const status = statusSel?.value || 'pending';
+    const ttlMs = 2 * 60 * 1000; // 2 minutes
+    const cacheKey = `attendance:admin:leaveRequests:${encodeURIComponent(status)}`;
+
+    if (!showSkeleton && window.Cache) {
+      const cached = window.Cache.getFresh(cacheKey, ttlMs);
+      if (cached && cached.requests) {
+        const res = cached;
+        const list = res.requests || [];
+        if (!list.length) {
+          tbody.innerHTML = `<tr><td colspan="6" style="color:#666;">No requests</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = list.map(r => {
+          const actions = status === 'pending'
+            ? `<button class="btn btn-success btn-sm" data-act="approve" data-id="${escapeHtml(r.id)}">Approve</button>
+               <button class="btn btn-danger btn-sm" data-act="reject" data-id="${escapeHtml(r.id)}">Reject</button>`
+            : '';
+          return `
+            <tr>
+              <td>${escapeHtml(r.leave_date)}</td>
+              <td>${escapeHtml(r.officer_name)}</td>
+              <td>${escapeHtml(leaveTypeLabel(r.leave_type))}</td>
+              <td>${escapeHtml(r.reason || '')}</td>
+              <td>${escapeHtml(r.status)}</td>
+              <td style="display:flex; gap:6px; flex-wrap: wrap;">${actions}</td>
+            </tr>
+          `;
+        }).join('');
+
+        // bind actions
+        tbody.querySelectorAll('button[data-act]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
+            const act = btn.getAttribute('data-act');
+            if (!id || !act) return;
+            const comment = prompt('Admin comment (optional):') || '';
+            try {
+              if (act === 'approve') await API.attendance.approveLeaveRequest(id, comment);
+              if (act === 'reject') await API.attendance.rejectLeaveRequest(id, comment);
+              // Invalidate all attendance caches so officer calendar reflects the new leave status
+              if (window.Cache) window.Cache.invalidatePrefix('attendance:');
+
+              const row = btn.closest('tr');
+              if (row) {
+                const statusCell = row.children[4];
+                if (statusCell) statusCell.textContent = act === 'approve' ? 'approved' : 'rejected';
+                const actionsCell = row.children[5];
+                if (actionsCell) actionsCell.innerHTML = '';
+              }
+
+              const statusSelNow = document.getElementById('attendanceAdminLeaveStatus');
+              if (statusSelNow && statusSelNow.value && statusSelNow.value !== 'pending') {
+                await loadAdminLeaveRequests();
+              }
+            } catch (e) {
+              if (window.UI?.showToast) UI.showToast(e.message, 'error');
+            }
+          });
+        });
+
+        return;
+      }
+    }
+
+    if (showSkeleton) {
+      const skelRow = () => `
+        <tr class="table-skel-row">
+          <td><div class="table-skel-line" style="width:55%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:40%"></div></td>
+          <td><div class="table-skel-line" style="width:45%"></div></td>
+          <td><div class="table-skel-line" style="width:35%"></div></td>
+          <td><div class="table-skel-line" style="width:30%"></div></td>
+        </tr>
+      `;
+      tbody.innerHTML = Array.from({ length: 6 }).map(skelRow).join('');
+    }
+    try {
+      const res = await API.attendance.getLeaveRequests({ status });
+      if (window.Cache && res) window.Cache.setWithTs(cacheKey, res);
+      const list = res.requests || [];
+
+      if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="6" style="color:#666;">No requests</td></tr>`;
+        return;
+      }
+
+      const trHtmlFn = (r) => {
+        const actions = status === 'pending'
+          ? `<button class="btn btn-success btn-sm" data-act="approve" data-id="${escapeHtml(r.id)}">Approve</button>
+             <button class="btn btn-danger btn-sm" data-act="reject" data-id="${escapeHtml(r.id)}">Reject</button>`
+          : '';
+        return `
+          <tr data-row-key="${escapeHtml(r.id)}">
+            <td>${escapeHtml(r.leave_date)}</td>
+            <td>${escapeHtml(r.officer_name)}</td>
+            <td>${escapeHtml(leaveTypeLabel(r.leave_type))}</td>
+            <td>${escapeHtml(r.reason || '')}</td>
+            <td>${escapeHtml(r.status)}</td>
+            <td style="display:flex; gap:6px; flex-wrap: wrap;">${actions}</td>
+          </tr>
+        `;
+      };
+
+      if (window.DOMPatcher?.patchTableBody) {
+        window.DOMPatcher.patchTableBody(tbody, list, (x) => x.id, trHtmlFn);
+      } else {
+        tbody.innerHTML = list.map(trHtmlFn).join('');
+      }
+
+      // bind actions
+      tbody.querySelectorAll('button[data-act]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.getAttribute('data-id');
+          const act = btn.getAttribute('data-act');
+          if (!id || !act) return;
+          const comment = prompt('Admin comment (optional):') || '';
+          try {
+            if (act === 'approve') await API.attendance.approveLeaveRequest(id, comment);
+            if (act === 'reject') await API.attendance.rejectLeaveRequest(id, comment);
+
+            // Invalidate all attendance caches so officer calendar reflects the new leave status
+            if (window.Cache) window.Cache.invalidatePrefix('attendance:');
+
+            // Keep the row visible even if filtering by pending
+            const row = btn.closest('tr');
+            if (row) {
+              const statusCell = row.children[4];
+              if (statusCell) statusCell.textContent = act === 'approve' ? 'approved' : 'rejected';
+              const actionsCell = row.children[5];
+              if (actionsCell) actionsCell.innerHTML = '';
+            }
+
+            // Optionally refresh if user is not in pending filter
+            const statusSelNow = document.getElementById('attendanceAdminLeaveStatus');
+            if (statusSelNow && statusSelNow.value && statusSelNow.value !== 'pending') {
+              await loadAdminLeaveRequests();
+            }
+          } catch (e) { 
+            if (window.UI?.showToast) UI.showToast(e.message, 'error');
+          }
+        });
+      });
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="6" style="color:#ef4444;">${escapeHtml(e.message)}</td></tr>`;
+    }
+  }
+
+  function init() {
+    const btnIn = document.getElementById('attendanceCheckInBtn');
+    const btnOut = document.getElementById('attendanceCheckOutBtn');
+    const btnLoc = document.getElementById('attendanceConfirmLocationBtn');
+    if (btnIn) btnIn.addEventListener('click', doCheckIn);
+    if (btnOut) btnOut.addEventListener('click', doCheckOut);
+    if (btnLoc) btnLoc.addEventListener('click', doConfirmLocation);
+
+    const adminBtn = document.getElementById('attendanceAdminRefreshBtn');
+    if (adminBtn) adminBtn.addEventListener('click', loadAdminRecords);
+
+    // Monthly Attendance Summary removed (will be reintroduced in a separate tab later)
+
+    const dateInput = document.getElementById('attendanceAdminDate');
+    if (dateInput) {
+      dateInput.addEventListener('change', loadAdminRecords);
+    }
+
+    // Officer calendar controls
+    const prevBtn = document.getElementById('attendancePrevMonthBtn');
+    const nextBtn = document.getElementById('attendanceNextMonthBtn');
+    const thisBtn = document.getElementById('attendanceThisMonthBtn');
+    if (prevBtn) prevBtn.addEventListener('click', () => { currentMonth = monthAdd(currentMonth, -1); loadMyCalendar({ showSkeleton: false }); });
+    if (nextBtn) nextBtn.addEventListener('click', () => { currentMonth = monthAdd(currentMonth, 1); loadMyCalendar({ showSkeleton: false }); });
+    if (thisBtn) thisBtn.addEventListener('click', () => { currentMonth = ymToday(); loadMyCalendar({ showSkeleton: false }); });
+
+    // Officer leave submit
+    const leaveBtn = document.getElementById('attendanceLeaveSubmitBtn');
+    if (leaveBtn) leaveBtn.addEventListener('click', submitLeaveRequest);
+
+    const leaveDate = document.getElementById('attendanceLeaveDate');
+    if (leaveDate && !leaveDate.value) leaveDate.value = ymdToday();
+
+    // Admin leave approvals
+    const adminLeaveRefresh = document.getElementById('attendanceAdminLeaveRefreshBtn');
+    const adminLeaveStatus = document.getElementById('attendanceAdminLeaveStatus');
+    if (adminLeaveRefresh) adminLeaveRefresh.addEventListener('click', loadAdminLeaveRequests);
+    if (adminLeaveStatus) adminLeaveStatus.addEventListener('change', loadAdminLeaveRequests);
+  }
+
+  window.initAttendancePage = async function () {
+    init();
+
+    // If admin: hide the entire "My Today" card (admins don't do check-in/out)
+    const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+    if (isAdmin) {
+      const myCard = document.getElementById('attendanceMyTodayCard');
+      if (myCard) myCard.style.display = 'none';
+
+      // Monthly Attendance Summary removed (will be reintroduced in a separate tab later)
+
+      const officerSection = document.getElementById('attendanceOfficerSection');
+      if (officerSection) officerSection.classList.add('hidden');
+
+      const adminCal = document.getElementById('attendanceAdminCalendarSection');
+      if (adminCal) adminCal.classList.remove('hidden');
+      await initAdminCalendar();
+
+      const adminLeave = document.getElementById('attendanceAdminLeaveSection');
+      if (adminLeave) adminLeave.classList.remove('hidden');
+      const hasLeaveRows = !!document.getElementById('attendanceAdminLeaveTableBody')?.querySelector('tr[data-row-key]');
+      await loadAdminLeaveRequests({ showSkeleton: !hasLeaveRows });
+    } else {
+      // Ensure My Today card is visible for officers (in case a previous admin session hid it)
+      const myCard = document.getElementById('attendanceMyTodayCard');
+      if (myCard) myCard.style.display = '';
+
+      await loadMyStatus();
+
+      const officerSection = document.getElementById('attendanceOfficerSection');
+      if (officerSection) officerSection.classList.remove('hidden');
+      const adminLeave = document.getElementById('attendanceAdminLeaveSection');
+      if (adminLeave) adminLeave.classList.add('hidden');
+
+      const hasCal = !!document.getElementById('attendanceCalendarGrid')?.querySelector('.followup-calendar-cell');
+      await loadMyCalendar({ showSkeleton: !hasCal });
+      const hasMyLeaveRows = !!document.getElementById('attendanceMyLeaveTableBody')?.querySelector('tr');
+      await loadMyLeaveRequests({ showSkeleton: !hasMyLeaveRows });
+    }
+
+    // Load admin table only if visible
+    const adminSection = document.getElementById('attendanceAdminSection');
+    if (adminSection && adminSection.style.display !== 'none') {
+      // Default to today's date if empty
+      const dateInput = document.getElementById('attendanceAdminDate');
+      if (dateInput && !dateInput.value) {
+        const now = new Date();
+        const pad2 = (n) => String(n).padStart(2, '0');
+        dateInput.value = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+      }
+      const hasAdminRows = !!document.getElementById('attendanceAdminTableBody')?.querySelector('tr[data-row-key]');
+      await loadAdminRecords({ showSkeleton: !hasAdminRows });
+    }
+  };
+})();

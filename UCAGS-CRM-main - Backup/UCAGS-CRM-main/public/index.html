@@ -1,0 +1,2501 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <title>Student Enquiry &amp; Admissions</title>
+    <link rel="stylesheet" href="css/styles.css?v=6">
+    <link rel="stylesheet" href="css/animations.css?v=3">
+    <link rel="stylesheet" href="css/sidebar.css?v=4">
+    <link rel="stylesheet" href="css/modal.css?v=3">
+    <link rel="stylesheet" href="css/receipts.css?v=3">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="loginPage" class="page active">
+        <div class="login-container">
+            <div class="login-box">
+                <div class="logo">
+                    <img class="brand-logo" src="/logo-purple.png" alt="UCAGS CRM" onerror="this.style.display='none'" draggable="false" oncontextmenu="return false" />
+                    <p>Student Enquiry & Admissions System</p>
+                </div>
+                
+                <!-- Login Form -->
+                <form id="loginForm" style="display: block;">
+                    <div class="form-group">
+                        <label for="loginEmail">Email</label>
+                        <input type="email" id="loginEmail" name="email" required placeholder="your@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Password</label>
+                        <input type="password" id="loginPassword" name="password" required placeholder="Enter your password">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                    <div id="loginError" class="error-message"></div>
+                </form>
+                
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Page -->
+    <div id="dashboardPage" class="page">
+        <!-- Mobile Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <img class="brand-logo" src="/logo.png" alt="UCAGS CRM" onerror="this.style.display='none'" />
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+
+            <div class="sidebar-user">
+                <div class="user-avatar">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <div class="user-info">
+                    <span class="user-name" id="sidebarUserName">Admin User</span>
+                    <span class="user-role" id="sidebarUserRole">Administrator</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-page="home">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+
+                <a href="#" class="nav-item" data-page="calendar">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Calendar</span>
+                </a>
+
+                <a href="#" class="nav-item" data-page="contacts">
+                    <i class="fas fa-address-book"></i>
+                    <span>Contacts</span>
+                </a>
+
+                <!-- Leads -->
+                <div class="nav-section officer-only" id="officerLeadsSection">
+                    <div class="nav-section-header">
+                        <i class="fas fa-users"></i>
+                        <span>Leads</span>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="nav-submenu" id="officerLeadsBatchesMenu">
+                        <a href="#" class="nav-subitem" data-page="leads-myLeads">
+                            <i class="fas fa-list"></i>
+                            <span>All</span>
+                        </a>
+                        <!-- Batch subitems injected dynamically -->
+                    </div>
+                </div>
+
+                <div class="nav-section admin-only">
+                    <div class="nav-section-header">
+                        <i class="fas fa-users"></i>
+                        <span>Leads</span>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="nav-submenu" id="leadsBatchesMenu"></div>
+                </div>
+
+                <!-- Lead Management -->
+                <div class="nav-section officer-only" id="officerLeadManagementSection">
+                    <div class="nav-section-header">
+                        <i class="fas fa-tasks"></i>
+                        <span>Lead Management</span>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="nav-submenu" id="officerLeadManagementBatchesMenu">
+                        <a href="#" class="nav-subitem" data-page="lead-management">
+                            <i class="fas fa-list"></i>
+                            <span>All</span>
+                        </a>
+                        <!-- Batch subitems injected dynamically -->
+                    </div>
+                </div>
+
+                <a href="#" class="nav-item admin-only" data-page="staff-lead-management">
+                    <i class="fas fa-tasks"></i>
+                    <span>Lead Management</span>
+                </a>
+
+                <a href="#" class="nav-item" data-page="demo-sessions">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                    <span>Demo Sessions</span>
+                </a>
+
+                <a href="#" class="nav-item admin-only" data-page="registrations">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Registrations</span>
+                </a>
+
+                <a href="#" class="nav-item officer-only" data-page="registrations-my">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Registrations</span>
+                </a>
+
+                <a href="#" class="nav-item admin-only" data-page="payments">
+                    <i class="fas fa-money-check-dollar"></i>
+                    <span>Payments</span>
+                </a>
+
+                <a href="#" class="nav-item officer-only" data-page="batch-management">
+                    <i class="fas fa-money-check-dollar"></i>
+                    <span>Batch management</span>
+                </a>
+
+                <a href="#" class="nav-item admin-only" data-page="students">
+                    <i class="fas fa-user-graduate"></i>
+                    <span>Students</span>
+                </a>
+
+                <div class="nav-divider admin-only"></div>
+                <div class="nav-divider officer-only"></div>
+
+                <a href="#" class="nav-item" data-page="whatsapp">
+                    <i class="fab fa-whatsapp"></i>
+                    <span>Whatsapp</span>
+                </a>
+
+                <a href="#" class="nav-item nav-disabled" data-page="gmail" title="Coming Soon">
+                    <i class="fas fa-envelope"></i>
+                    <span>Gmail</span>
+                    <span class="badge badge-secondary">Soon</span>
+                </a>
+
+                <a href="#" class="nav-item nav-disabled" data-page="call" title="Coming Soon">
+                    <i class="fas fa-phone"></i>
+                    <span>Call Center</span>
+                    <span class="badge badge-secondary">Soon</span>
+                </a>
+
+                <div class="nav-divider admin-only"></div>
+                <div class="nav-divider officer-only"></div>
+
+                <a href="#" class="nav-item officer-only" data-page="attendance">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Staff Attendance</span>
+                </a>
+
+                <a href="#" class="nav-item admin-only" data-page="attendance">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Staff Attendance</span>
+                </a>
+
+                <a href="#" class="nav-item" data-page="reports">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Reports</span>
+                </a>
+
+                <a href="#" class="nav-item admin-only" data-page="daily-checklist">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Daily Checklist</span>
+                </a>
+
+                <div class="nav-divider admin-only"></div>
+                <div class="nav-divider officer-only"></div>
+
+                <a href="#" class="nav-item admin-only" data-page="users">
+                    <i class="fas fa-users-cog"></i>
+                    <span>Staff Management</span>
+                </a>
+
+                <a href="#" class="nav-item admin-only" data-page="programs">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Programs</span>
+                </a>
+
+                <a href="#" class="nav-item admin-only" data-page="receipts">
+                    <i class="fas fa-receipt"></i>
+                    <span>Receipts</span>
+                </a>
+
+                <a href="#" class="nav-item" data-page="notifications">
+                    <i class="fas fa-bell"></i>
+                    <span>Notifications</span>
+                </a>
+
+                <a href="#" class="nav-item" data-page="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+
+            </nav>
+
+            <div class="sidebar-footer">
+                <button id="logoutBtn" class="btn btn-secondary btn-block">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-wrapper">
+
+            <!-- WhatsApp Drawer (in-app side panel) -->
+            <div id="waDrawerOverlay" class="wa-drawer-overlay" style="display:none;"></div>
+            <aside id="waDrawer" class="wa-drawer" aria-hidden="true">
+                <div class="wa-drawer-header">
+                    <div class="wa-drawer-title">
+                        <i class="fab fa-whatsapp" style="color:#25D366;"></i>
+                        <span>WhatsApp</span>
+                    </div>
+                    <button id="waDrawerCloseBtn" class="wa-drawer-close" type="button" aria-label="Close WhatsApp">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="waDrawerBody" class="wa-drawer-body">
+                    <!-- WhatsApp inbox injected here -->
+                </div>
+            </aside>
+            <!-- /WhatsApp Drawer -->
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <div class="top-bar-left">
+                    <button class="mobile-menu-btn" id="mobileMenuBtn">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 class="page-title" id="pageTitle">Home</h1>
+                </div>
+                <div class="top-bar-right">
+                    <button class="icon-btn" id="notificationsBtn">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge" style="display:none;">0</span>
+                    </button>
+                    <button class="icon-btn" id="searchBtn">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <div class="user-menu">
+                        <span id="userDisplay"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="main-content">
+            <!-- Home View — New Dashboard -->
+            <div id="homeView" class="content-view active">
+
+                <!-- ── Dashboard Background Blobs ──────────────────────────────── -->
+                <div class="nd-bg-blobs" aria-hidden="true">
+                    <div class="nd-blob nd-blob-1"></div>
+                    <div class="nd-blob nd-blob-2"></div>
+                    <div class="nd-blob nd-blob-3"></div>
+                </div>
+
+                <!-- ── Profile Section ─────────────────────────────────────────── -->
+                <div class="nd-profile-section">
+                    <div class="nd-profile-left">
+                        <div class="nd-avatar-wrap" id="ndAvatarWrap">
+                            <svg class="nd-level-ring" viewBox="0 0 64 64" width="64" height="64">
+                                <circle class="nd-level-ring-bg" cx="32" cy="32" r="28" />
+                                <circle class="nd-level-ring-fill" id="ndLevelRingFill" cx="32" cy="32" r="28" />
+                            </svg>
+                            <div class="nd-avatar-inner" id="ndAvatar">
+                                <span class="nd-level-num" id="ndLevelNum">1</span>
+                                <span class="nd-level-tag">LVL</span>
+                            </div>
+                        </div>
+                        <div class="nd-profile-info">
+                            <div class="nd-profile-name" id="ndProfileName">Loading...</div>
+                            <div class="nd-profile-role" id="ndProfileRole">Academic Advisor</div>
+                            <div class="nd-profile-meta" id="ndProfileMeta"></div>
+                        </div>
+                    </div>
+                    <div class="nd-profile-center">
+                        <div class="nd-rank-badge" id="ndRankBadge">
+                            <i class="fas fa-trophy"></i>
+                            <span id="ndRankText">—</span>
+                        </div>
+                        <div class="nd-xp-block">
+                            <div class="nd-xp-label">
+                                <span>XP Progress <button id="ndXpHistoryBtn" title="View XP scoring rules" style="background:none;border:none;cursor:pointer;padding:0 4px;color:#a78bfa;font-size:13px;vertical-align:middle;"><i class="fas fa-info-circle"></i></button></span>
+                                <span id="ndXpNumbers">0 / 500</span>
+                            </div>
+                            <div class="nd-xp-bar-bg">
+                                <div class="nd-xp-bar-fill" id="ndXpBarFill" style="width:0%">
+                                        </div>
+                            </div>
+                            <div class="nd-level-label" id="ndLevelLabel">Level 1</div>
+                        </div>
+                    </div>
+                    <div class="nd-profile-right">
+                        <!-- Admin: officer selector for metrics -->
+                        <div class="nd-officer-filter admin-only" id="ndOfficerFilterWrap">
+                            <label class="nd-filter-label"><i class="fas fa-user-tie"></i> View Officer</label>
+                            <select id="ndOfficerSelect" class="nd-select">
+                                <option value="">All Officers</option>
+                            </select>
+                        </div>
+                        <!-- Date range -->
+                        <div class="nd-date-range">
+                            <input id="homeFromDate" type="date" class="nd-date-input" />
+                            <span class="nd-date-sep">→</span>
+                            <input id="homeToDate" type="date" class="nd-date-input" />
+                            <button id="homeApplyRangeBtn" class="nd-btn-ghost" type="button"><i class="fas fa-filter"></i></button>
+                            <button id="homeThisMonthBtn" class="nd-btn-ghost" type="button">30d</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── KPI Metrics Cards (6) ────────────────────────────────────── -->
+                <div class="nd-metrics-grid">
+                    <div class="nd-metric-card nd-metric-purple">
+                        <div class="nd-metric-icon-wrap"><i class="fas fa-user-graduate"></i></div>
+                        <div class="nd-metric-body">
+                            <div class="nd-metric-value" id="kpiConfirmedPayments">—</div>
+                            <div class="nd-metric-label">Enrollments</div>
+                            <div class="nd-metric-trend" id="kpiEnrollmentsTrend"></div>
+                        </div>
+                        <div class="nd-metric-glow"></div>
+                    </div>
+                    <div class="nd-metric-card nd-metric-green">
+                        <div class="nd-metric-icon-wrap"><i class="fas fa-percent"></i></div>
+                        <div class="nd-metric-body">
+                            <div class="nd-metric-value" id="kpiConversionRate">—</div>
+                            <div class="nd-metric-label">Conversion Rate</div>
+                            <div class="nd-metric-trend" id="kpiConversionTrend"></div>
+                        </div>
+                        <div class="nd-metric-glow"></div>
+                    </div>
+                    <div class="nd-metric-card nd-metric-amber">
+                        <div class="nd-metric-icon-wrap"><i class="fas fa-calendar-day"></i></div>
+                        <div class="nd-metric-body">
+                            <div class="nd-metric-value" id="kpiFollowUpsDue">—</div>
+                            <div class="nd-metric-label">Follow-ups Today</div>
+                            <div class="nd-metric-trend" id="kpiFollowupsTrend"></div>
+                        </div>
+                        <div class="nd-metric-glow"></div>
+                    </div>
+                    <div class="nd-metric-card nd-metric-blue">
+                        <div class="nd-metric-icon-wrap"><i class="fas fa-users"></i></div>
+                        <div class="nd-metric-body">
+                            <div class="nd-metric-value" id="kpiActiveLeads">—</div>
+                            <div class="nd-metric-label">Active Leads</div>
+                            <div class="nd-metric-trend" id="kpiLeadsTrend"></div>
+                        </div>
+                        <div class="nd-metric-glow"></div>
+                    </div>
+                    <div class="nd-metric-card nd-metric-indigo">
+                        <div class="nd-metric-icon-wrap"><i class="fas fa-clipboard-list"></i></div>
+                        <div class="nd-metric-body">
+                            <div class="nd-metric-value" id="kpiRegistrations">—</div>
+                            <div class="nd-metric-label">Registrations</div>
+                            <div class="nd-metric-trend" id="kpiRegistrationsTrend"></div>
+                        </div>
+                        <div class="nd-metric-glow"></div>
+                    </div>
+                    <div class="nd-metric-card nd-metric-rose">
+                        <div class="nd-metric-icon-wrap"><i class="fas fa-star"></i></div>
+                        <div class="nd-metric-body">
+                            <div class="nd-metric-value" id="kpiXpTotal">—</div>
+                            <div class="nd-metric-label">Total XP</div>
+                            <div class="nd-metric-trend" id="kpiXpTrend"></div>
+                        </div>
+                        <div class="nd-metric-glow"></div>
+                    </div>
+                </div>
+
+                <!-- ── Row 1: XP Trend + Achievements ─────────────────────────── -->
+                <div class="nd-row nd-row-2-1">
+                    <!-- XP Trend Chart -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-chart-bar"></i> XP Performance Trend</div>
+                            <div class="nd-toggle-group">
+                                <button id="xpTrend7Btn" class="nd-toggle-btn" type="button">7d</button>
+                                <button id="xpTrend30Btn" class="nd-toggle-btn active" type="button">30d</button>
+                            </div>
+                        </div>
+                        <div class="nd-chart-wrap" style="position:relative;height:220px;width:100%;">
+                            <canvas id="xpTrendChart" style="display:block;width:100%;height:100%;"></canvas>
+                        </div>
+                        <div class="nd-xp-chart-stats" id="ndXpChartStats">
+                            <div class="nd-xp-stat"><span class="nd-xp-stat-label">Current XP</span><span class="nd-xp-stat-val" id="statCurrentXp">—</span></div>
+                            <div class="nd-xp-stat"><span class="nd-xp-stat-label">Highest Day</span><span class="nd-xp-stat-val" id="statHighestXp">—</span></div>
+                            <div class="nd-xp-stat"><span class="nd-xp-stat-label">Average</span><span class="nd-xp-stat-val" id="statAvgXp">—</span></div>
+                        </div>
+                    </div>
+
+                    <!-- XP Leaderboard (moved from Row 3) -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-trophy"></i> XP Leaderboard</div>
+                            <div class="nd-leaderboard-badge" id="ndLeaderboardBadge"></div>
+                        </div>
+                        <div id="xpLeaderboardList" class="nd-leaderboard-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                        </div>
+                        <!-- Officer personal XP summary -->
+                        <div id="xpPersonalContent" class="officer-only nd-personal-xp"></div>
+                    </div>
+                </div>
+
+                <!-- ── Row 2: Activity Feed + Quick Actions ──────────────────────── -->
+                <div class="nd-row nd-row-2-1">
+                    <!-- Activity Feed (swapped from Row 3) -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-stream"></i> Activity Feed</div>
+                            <span id="ndActivityFeedViewAll" style="font-size:12px;color:#7c3aed;cursor:pointer;font-weight:500;text-decoration:underline;text-underline-offset:2px;">Scoring</span>
+                        </div>
+                        <div id="ndActivityFeed" class="nd-activity-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                        </div>
+                    </div>
+
+                    <!-- Enrollment Leaderboard -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-graduation-cap"></i> Enrollment Leaderboard</div>
+                            <select id="ndEnrollBatchSelect" class="nd-select-sm">
+                                <option value="">All Batches</option>
+                            </select>
+                        </div>
+                        <div id="ndEnrollLeaderboard" class="nd-leaderboard-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Row 3: Lead Pipeline + Targets ──────────────────────────── -->
+                <div class="nd-row nd-row-2-1">
+                    <!-- Lead Status / Funnel (swapped from Row 2) -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-filter"></i> Lead Pipeline</div>
+                            <div class="nd-pipeline-summary" id="ndPipelineSummary"></div>
+                        </div>
+                        <div id="ndFunnelBars" class="nd-funnel-bars">
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                            <div class="nd-skeleton-bar"></div>
+                        </div>
+                        <div class="nd-funnel-footer" id="ndFunnelFooter"></div>
+                    </div>
+
+                    <!-- Targets vs Achievements -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-bullseye"></i> Targets</div>
+                            <select id="ndTargetsOfficerSelect" class="nd-select nd-select-sm admin-only">
+                                <option value="">All Officers</option>
+                            </select>
+                        </div>
+                        <div id="ndTargets" class="nd-targets-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                        </div>
+                        <div class="nd-targets-overall" id="ndTargetsOverall"></div>
+                    </div>
+                </div>
+
+                <!-- ── Row 4: Achievements + Tasks ───────────────────────────── -->
+                <div class="nd-row nd-row-equal">
+                    <!-- Achievements / Badges (moved from Row 3) -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-medal"></i> Achievements</div>
+                        </div>
+                        <div id="ndAchievements" class="nd-badges-grid">
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                            <div class="nd-skeleton-badge"></div>
+                        </div>
+                        <div class="nd-badges-summary" id="ndBadgesSummary"></div>
+                    </div>
+
+                    <!-- Tasks -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-tasks"></i> My Tasks</div>
+                            <button class="nd-btn-ghost officer-only" id="ndAddTaskBtn" type="button"><i class="fas fa-plus"></i> Add</button>
+                        </div>
+                        <div id="ndTaskAddForm" class="nd-task-add-form" style="display:none;">
+                            <input type="text" id="ndTaskTitle" class="nd-task-input" placeholder="Task title..." />
+                            <input type="datetime-local" id="ndTaskDue" class="nd-task-input" />
+                            <select id="ndTaskPriority" class="nd-task-input">
+                                <option value="low">Low Priority</option>
+                                <option value="medium" selected>Medium Priority</option>
+                                <option value="high">High Priority</option>
+                            </select>
+                            <button class="nd-btn-save" id="ndTaskSaveBtn" type="button">Save Task</button>
+                        </div>
+                        <div id="ndTasksList" class="nd-tasks-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Admin Action Center ────────────────────────────────────── -->
+                <div class="nd-row nd-row-equal admin-only" id="ndAdminActionRow">
+                    <!-- Enrollments Trend -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-chart-area"></i> Enrollments per Day</div>
+                        </div>
+                        <canvas id="homeConfirmedLineChart" style="width:100%; height:160px;"></canvas>
+                    </div>
+
+                    <!-- Admin Tasks / Action Center -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-exclamation-circle"></i> Action Center</div>
+                        </div>
+                        <div id="homeActionCenter" class="nd-action-center-list">
+                            <div class="nd-loading">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Officer Action Center (officer only) -->
+                <div class="nd-row officer-only" id="ndOfficerActionRow" style="display:none;">
+                    <div class="nd-card" style="width:100%;">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-chart-area"></i> Enrollments per Day</div>
+                        </div>
+                        <div style="position:relative; height:180px; width:100%;">
+                            <canvas id="homeConfirmedLineChartOfficer" style="display:block;width:100%;height:100%;"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hidden legacy elements for backward compat -->
+                <div style="display:none;">
+                    <div id="homeLeaderboard"></div>
+                    <div id="homeLeaderboardDivider"></div>
+                    <div id="homePerformerOfWeek"></div>
+                    <div id="homeOfficerActionCenter"></div>
+                    <div id="xpLeaderboardCard"></div>
+                    <div id="xpPersonalCard"></div>
+                    <div id="xpTrendCard"></div>
+                </div>
+
+            </div>
+
+            <!-- Contacts View -->
+            <div id="contactsView" class="content-view">
+                <div class="page-header contacts-page-header">
+                    <h1><i class="fas fa-address-book"></i> Contacts</h1>
+                    <div class="contacts-toolbar">
+                        <!-- Row 1: Google buttons + Refresh -->
+                        <div class="contacts-toolbar-row1">
+                            <div class="google-contacts-toolbar" title="Google Contacts">
+                                <span id="googleContactsStatus" class="google-contacts-status"></span>
+                                <button id="googleContactsConnectBtn" class="btn btn-secondary btn-sm" type="button"><i class="fab fa-google"></i> Connect</button>
+                                <button id="googleContactsDisconnectBtn" class="btn btn-secondary btn-sm" type="button" style="display:none;"><i class="fas fa-unlink"></i></button>
+                                <button id="googleContactsSyncAllBtn" class="btn btn-secondary btn-sm" type="button" style="display:none;"><i class="fas fa-cloud-upload-alt"></i> Sync</button>
+                            </div>
+                            <button id="contactsRefreshBtn" class="btn btn-secondary btn-sm" type="button"><i class="fas fa-sync"></i></button>
+                        </div>
+                        <!-- Row 2: Search bar full width -->
+                        <div class="contacts-toolbar-row2">
+                            <input id="contactsSearch" class="form-control" placeholder="Search contacts..." />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="contactsTable">
+                        <thead>
+                            <tr>
+                                <th>Contact Name</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contactsTableBody">
+                            <tr><td colspan="3" class="loading">Loading contacts...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="studentsView" class="content-view admin-only" style="display:none;">
+                <div class="page-header">
+                    <h1><i class="fas fa-user-graduate"></i> Students</h1>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <input id="studentsSearch" class="form-control" style="width:240px;" placeholder="Search (ID / name / phone / email)" />
+                        <select id="studentsLimit" class="form-control" style="width:140px;">
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="200" selected>200</option>
+                            <option value="500">500</option>
+                        </select>
+                        <button id="studentsRefreshBtn" class="btn btn-secondary" type="button"><i class="fas fa-sync"></i> Refresh</button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="studentsTable">
+                        <thead>
+                            <tr>
+                                <th>Student ID</th>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentsTableBody">
+                            <tr><td colspan="4" class="loading">Loading students...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            
+            <!-- Attendance View (Officers + Admin) -->
+            <div id="attendanceView" class="content-view" style="display: none;">
+                <div class="page-header">
+                    <h1><i class="fas fa-clipboard-check"></i> Attendance</h1>
+                </div>
+
+                <div id="attendanceMyTodayCard" class="dashboard-card" style="margin-bottom: 20px;">
+                    <h3>My Today</h3>
+                    <div id="attendanceMyStatus" class="recent-list">
+                        <p class="loading">Loading...</p>
+                    </div>
+                    <div style="display:flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                        <button id="attendanceCheckInBtn" class="btn btn-success" type="button">
+                            <i class="fas fa-sign-in-alt"></i> Check In
+                        </button>
+                        <button id="attendanceCheckOutBtn" class="btn btn-warning" type="button">
+                            <i class="fas fa-sign-out-alt"></i> Check Out
+                        </button>
+                        <button id="attendanceConfirmLocationBtn" class="btn btn-secondary" type="button">
+                            <i class="fas fa-map-marker-alt"></i> Confirm Location
+                        </button>
+                    </div>
+                    <div id="attendanceLocationStatus" style="margin-top:10px; color:#555;"></div>
+                </div>
+
+                <!-- Officer Attendance Calendar + Leave Request -->
+                <div id="attendanceOfficerSection" class="dashboard-card officer-only hidden" style="margin-bottom: 20px;">
+                    <div style="display:flex; justify-content: space-between; align-items:center; gap: 10px; flex-wrap: wrap;">
+                        <h3 style="margin:0;">My Attendance Calendar</h3>
+                        <div style="display:flex; gap: 8px; align-items:center;">
+                            <button id="attendancePrevMonthBtn" class="btn btn-secondary" type="button"><i class="fas fa-chevron-left"></i></button>
+                            <button id="attendanceThisMonthBtn" class="btn btn-secondary" type="button">This Month</button>
+                            <button id="attendanceNextMonthBtn" class="btn btn-secondary" type="button"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content: space-between; align-items:center; flex-wrap: wrap; gap: 10px; margin-top: 8px;">
+                        <div id="attendanceMonthLabel" style="color:#666;"></div>
+                        <div id="attendanceMonthPct" style="color:#111; font-weight:600;"></div>
+                    </div>
+                    <div id="attendanceCalendarGrid" class="followup-calendar-grid" style="margin-top: 10px;"></div>
+                    <div style="display:flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; font-size: 12px; color:#666;">
+                        <div><span style="display:inline-block; width:10px; height:10px; background:#22c55e; border-radius:2px; margin-right:6px;"></span>Present</div>
+                        <div><span style="display:inline-block; width:10px; height:10px; background:#ef4444; border-radius:2px; margin-right:6px;"></span>Absent</div>
+                        <div><span style="display:inline-block; width:10px; height:10px; background:#3b82f6; border-radius:2px; margin-right:6px;"></span>Approved Leave</div>
+                        <div><span style="display:inline-block; width:10px; height:10px; background:#e5e7eb; border-radius:2px; margin-right:6px;"></span>Future</div>
+                    </div>
+
+                    <hr style="margin: 16px 0;" />
+
+                    <h3>Request Leave</h3>
+                    <style>
+                      .leave-type-label {
+                        display: inline-flex; align-items: center; gap: 7px;
+                        font-size: 13px; cursor: pointer; user-select: none;
+                        white-space: nowrap;
+                      }
+                      .leave-type-label input[type="radio"] { display: none; }
+                      .leave-type-checkbox {
+                        width: 16px; height: 16px; min-width: 16px;
+                        border: 2px solid #9ca3af; border-radius: 4px;
+                        background: #fff; display: inline-flex;
+                        align-items: center; justify-content: center;
+                        transition: background 0.15s, border-color 0.15s;
+                      }
+                      .leave-type-label input[type="radio"]:checked + .leave-type-checkbox {
+                        background: #6366f1; border-color: #6366f1;
+                      }
+                      .leave-type-label input[type="radio"]:checked + .leave-type-checkbox::after {
+                        content: ''; display: block;
+                        width: 4px; height: 8px;
+                        border: 2px solid #fff; border-top: none; border-left: none;
+                        transform: rotate(45deg) translateY(-1px);
+                      }
+                    </style>
+                    <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:6px;">
+                        <input type="date" id="attendanceLeaveDate" class="form-control" style="max-width:160px;" />
+                        <label class="leave-type-label">
+                            <input type="radio" name="attendanceLeaveType" id="attendanceLeaveTypeFull" value="full_day" checked />
+                            <span class="leave-type-checkbox"></span>
+                            Full Day
+                        </label>
+                        <label class="leave-type-label">
+                            <input type="radio" name="attendanceLeaveType" id="attendanceLeaveTypeMorning" value="morning" />
+                            <span class="leave-type-checkbox"></span>
+                            Morning (9:00 AM – 1:00 PM)
+                        </label>
+                        <label class="leave-type-label">
+                            <input type="radio" name="attendanceLeaveType" id="attendanceLeaveTypeAfternoon" value="afternoon" />
+                            <span class="leave-type-checkbox"></span>
+                            Afternoon (1:00 PM – 5:00 PM)
+                        </label>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                        <input type="text" id="attendanceLeaveReason" class="form-control" placeholder="Reason for leave" style="flex:1; height:32px; padding:4px 10px; font-size:13px;" />
+                        <button id="attendanceLeaveSubmitBtn" class="btn btn-primary" type="button" style="height:32px; padding:0 12px; font-size:13px; white-space:nowrap; width:auto;"><i class="fas fa-paper-plane"></i> Submit</button>
+                    </div>
+                    <div id="attendanceLeaveSubmitMsg" style="margin-top: 2px; color:#666; font-size:13px;"></div>
+
+                    <h3 style="margin-top: 16px;">My Leave Requests</h3>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
+                                    <th>Admin</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceMyLeaveTableBody">
+                                <tr><td colspan="5" class="loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Admin Leave Approvals -->
+                <div id="attendanceAdminLeaveSection" class="dashboard-card admin-only hidden" style="margin-bottom: 20px;">
+                    <h3>Leave Requests</h3>
+                    <div class="filters-bar" style="margin-bottom: 10px;">
+                        <select id="attendanceAdminLeaveStatus" class="form-control">
+                            <option value="pending" selected>Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="">All</option>
+                        </select>
+                        <button id="attendanceAdminLeaveRefreshBtn" class="btn btn-secondary" type="button"><i class="fas fa-sync"></i> Refresh</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Officer</th>
+                                    <th>Type</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceAdminLeaveTableBody">
+                                <tr><td colspan="6" class="loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Monthly Attendance Summary removed (will be reintroduced in a separate tab later) -->
+
+                <div id="attendanceAdminSection" class="dashboard-card admin-only" style="display:none;">
+                    <h3>Daily Staff Records</h3>
+                    <div class="filters-bar" style="margin-bottom: 10px;">
+                        <input type="date" id="attendanceAdminDate" class="form-control" />
+                        <button id="attendanceAdminRefreshBtn" class="btn btn-secondary" type="button">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Staff</th>
+                                    <th>Check In</th>
+                                    <th>Check Out</th>
+                                    <th>Location</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceAdminTableBody">
+                                <tr><td colspan="5" class="loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Admin: Staff Attendance Calendar -->
+                <div id="attendanceAdminCalendarSection" class="dashboard-card admin-only hidden" style="margin-bottom: 20px;">
+                    <div style="display:flex; justify-content: space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <h3 style="margin:0;">Staff Attendance Calendar</h3>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <label for="attendanceAdminOfficerSelect" style="font-size:13px; color:#667085;">Officer</label>
+                            <select id="attendanceAdminOfficerSelect" class="form-control" style="min-width:220px;"></select>
+                            <button id="attendanceAdminCalPrevBtn" class="btn btn-secondary" type="button"><i class="fas fa-chevron-left"></i></button>
+                            <button id="attendanceAdminCalThisBtn" class="btn btn-secondary" type="button">This Month</button>
+                            <button id="attendanceAdminCalNextBtn" class="btn btn-secondary" type="button"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content: space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:8px;">
+                        <div id="attendanceAdminMonthLabel" style="color:#666;"></div>
+                        <div id="attendanceAdminCalHint" style="color:#111; font-weight:600; font-size:12px;">Click a day to change status</div>
+                    </div>
+                    <div id="attendanceAdminCalendarGrid" class="followup-calendar-grid" style="margin-top: 10px;"></div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-top:10px;">
+                        <div style="display:flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color:#666;">
+                            <div><span style="display:inline-block; width:10px; height:10px; background:#22c55e; border-radius:2px; margin-right:6px;"></span>Present</div>
+                            <div><span style="display:inline-block; width:10px; height:10px; background:#ef4444; border-radius:2px; margin-right:6px;"></span>Absent</div>
+                            <div><span style="display:inline-block; width:10px; height:10px; background:#3b82f6; border-radius:2px; margin-right:6px;"></span>Leave</div>
+                            <div><span style="display:inline-block; width:10px; height:10px; background:#fef08a; border:1px solid #fde047; border-radius:2px; margin-right:6px;"></span>Holiday</div>
+                            <div><span style="display:inline-block; width:10px; height:10px; background:#e5e7eb; border-radius:2px; margin-right:6px;"></span>Future</div>
+                        </div>
+                        <div id="attendanceAdminCalPct" style="color:#111; font-weight:600; font-size:13px;"></div>
+                    </div>
+                    <div style="margin-top:8px; font-size:12px; color:#667085;">Note: Admin changes are saved as overrides and will reflect here immediately.</div>
+                </div>
+            </div>
+
+            <!-- Staff Lead Management View (Admin Only) -->
+            <div id="staff-lead-managementView" class="content-view admin-only" style="display:none;">
+                <div class="page-header">
+                    <div>
+                        <h1 style="margin:0;"><i class="fas fa-tasks"></i> Lead Management</h1>
+                        <div id="staffLeadMgmtSubtitle" style="margin-top:4px; font-size:12px; color:#666;">View any officer's lead lists (Supabase)</div>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn btn-secondary" type="button" onclick="refreshStaffLeadManagement()">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div class="filters-bar" style="display:flex; flex-wrap:wrap; gap:10px;">
+                    <select id="staffLeadMgmtProgramSelect" class="form-control" style="min-width: 200px;"></select>
+                    <select id="staffLeadMgmtOfficerSelect" class="form-control" style="min-width: 220px;"></select>
+                    <select id="staffLeadMgmtBatchSelect" class="form-control" style="min-width: 160px;"></select>
+                    <select id="staffLeadMgmtSheetSelect" class="form-control" style="min-width: 180px;"></select>
+                    <select id="staffLeadMgmtPriorityFilter" class="form-control" style="min-width: 160px;">
+                        <option value="">All Priorities</option>
+                        <option value="High">High Priority</option>
+                        <option value="Medium">Medium Priority</option>
+                        <option value="Low">Low Priority</option>
+                    </select>
+                    <select id="staffLeadMgmtStatusFilter" class="form-control" style="min-width: 140px;">
+                        <option value="">All Status</option>
+                        <option value="New">New</option>
+                        <option value="Contacted">Contacted</option>
+                        <option value="Interested">Interested</option>
+                        <option value="Registered">Registered</option>
+                        <option value="Enrolled">Enrolled</option>
+                        <option value="Not Interested">Not Interested</option>
+                        <option value="Unreachable">Unreachable</option>
+                        <option value="No Answer">No Answer</option>
+                        <option value="Awaiting Decision">Awaiting Decision</option>
+                        <option value="No Response">No Response</option>
+                        <option value="Next Batch">Next Batch</option>
+                    </select>
+                    <input id="staffLeadMgmtSearchInput" type="text" class="form-control" placeholder="Search by name, email, phone..." style="min-width: 240px;" />
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Last Comment</th>
+                                <th>Next Follow-up</th>
+                                <th>Officer</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="staffLeadMgmtTableBody">
+                            <tr><td colspan="8" class="loading">Select an officer and sheet...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Lead Management View (Officers and Admin) -->
+            <div id="lead-managementView" class="content-view" style="display: none;">
+                <div class="page-header">
+                    <div>
+                        <h1 id="leadManagementViewTitle" style="margin:0;"><i class="fas fa-tasks"></i> Lead Management</h1>
+                        <div id="leadManagementViewSubtitle" style="margin-top:4px; font-size:12px; color:#666;"></div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="refreshManagementBtn" class="btn btn-secondary" onclick="loadLeadManagement()">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                        <button id="deleteManagementSheetBtn" class="btn btn-danger" style="display:none;">
+                            <i class="fas fa-trash"></i> Delete Sheet
+                        </button>
+                    </div>
+                </div>
+
+                <div id="managementSheetTabs" style="display:none; gap:8px; align-items:center; flex-wrap:wrap; margin: 6px 0 10px;"></div>
+
+                <div class="filters-bar">
+                    <select id="managementPriorityFilter" class="form-control" onchange="filterManagementLeads()">
+                        <option value="">All Priorities</option>
+                        <option value="High">High Priority</option>
+                        <option value="Medium">Medium Priority</option>
+                        <option value="Low">Low Priority</option>
+                    </select>
+                    <select id="managementProgramSelect" class="form-control admin-only" style="min-width: 200px; display:none;"></select>
+                    <select id="managementProgramBatchSelect" class="form-control" style="display:none; min-width: 160px;"></select>
+                    <select id="managementStatusFilter" class="form-control" onchange="filterManagementLeads()">
+                        <option value="">All Status</option>
+                        <option value="New">New</option>
+                        <option value="Contacted">Contacted</option>
+                        <option value="Interested">Interested</option>
+                        <option value="Registered">Registered</option>
+                        <option value="Enrolled">Enrolled</option>
+                        <option value="Not Interested">Not Interested</option>
+                        <option value="Unreachable">Unreachable</option>
+                        <option value="No Answer">No Answer</option>
+                        <option value="Awaiting Decision">Awaiting Decision</option>
+                        <option value="No Response">No Response</option>
+                        <option value="Next Batch">Next Batch</option>
+                    </select>
+                    <input type="text" id="managementSearchInput" placeholder="Search by name, email, phone..." class="form-control" oninput="filterManagementLeads()">
+                </div>
+
+                <div class="table-container">
+                    <table id="managementTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Last Comment</th>
+                                <th>Next Follow-up</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="managementTableBody">
+                            <tr>
+                                <td colspan="7" class="loading">Loading leads...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Leads View Container (Shared by all batch views) -->
+            <div id="leadsView" class="content-view" style="display: none;">
+                <div class="page-header">
+                    <h1 id="leadsViewTitle">Leads</h1>
+                    <div class="leads-header-actions">
+                        <button id="addLeadBtn" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> New Lead
+                        </button>
+                        <button id="distributeUnassignedBtn" class="btn btn-warning admin-only" onclick="distributeUnassignedLeads()" title="Distribute all unassigned leads" style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
+                            <i class="fas fa-share-alt"></i>
+                            <span>Distribute Unassigned</span>
+                        </button>
+                        <button id="refreshLeadsBtn" class="btn btn-secondary">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                        <button id="deleteSheetBtn" class="btn btn-danger" style="display:none;">
+                            <i class="fas fa-trash"></i> Delete Sheet
+                        </button>
+                    </div>
+                </div>
+
+                <div id="leadsSheetTabs" style="display:none; gap:8px; align-items:center; flex-wrap:wrap; margin: 6px 0 10px;"></div>
+
+                <div class="filters-bar">
+                    <input type="text" id="leadsSearchInput" placeholder="Search by name, email, phone..." class="form-control">
+                    <select id="leadsProgramBatchSelect" class="form-control" style="display:none; min-width: 160px;"></select>
+                    <select id="leadsStatusFilter" class="form-control">
+                        <option value="">All Status</option>
+                        <option value="New">New</option>
+                        <option value="Contacted">Contacted</option>
+                        <option value="Interested">Interested</option>
+                        <option value="Registered">Registered</option>
+                        <option value="Enrolled">Enrolled</option>
+                        <option value="Not Interested">Not Interested</option>
+                        <option value="Unreachable">Unreachable</option>
+                        <option value="No Answer">No Answer</option>
+                        <option value="Awaiting Decision">Awaiting Decision</option>
+                        <option value="No Response">No Response</option>
+                        <option value="Next Batch">Next Batch</option>
+                    </select>
+
+
+                </div>
+
+
+                <!-- Bulk Actions Toolbar (hidden by default) -->
+                <div id="bulkActionsToolbar" style="display: none; background: #e3f2fd; padding: 12px 20px; border-radius: 8px; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span id="selectedCount" style="font-weight: 600; color: #1976d2;">0 selected</span>
+                            <button class="btn btn-secondary btn-sm" onclick="clearSelection()">
+                                <i class="fas fa-times"></i> Clear
+                            </button>
+                        </div>
+                        <div id="bulkCommonActions" style="display:none; gap: 8px; align-items:center;">
+                            <button class="btn btn-secondary btn-sm" onclick="bulkCopyLeads()">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                        </div>
+                        <div id="bulkAdminActions" style="display: none; gap: 8px;">
+                            <button class="btn btn-primary btn-sm" onclick="bulkAssignLeads()">
+                                <i class="fas fa-user-tie"></i> Assign
+                            </button>
+                            <button class="btn btn-success btn-sm" onclick="bulkDistributeLeads()">
+                                <i class="fas fa-users"></i> Distribute
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="bulkDeleteLeads()">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="leadsTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;">
+                                    <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()" title="Select All">
+                                </th>
+                                <th data-sort="name">Name</th>
+                                <th data-sort="email">Email</th>
+                                <th data-sort="phone">Phone</th>
+                                <th data-sort="assignedTo">Assigned To</th>
+                                <th data-sort="createdDate">Created</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leadsTableBody">
+                            <tr>
+                                <td colspan="6" class="loading">Loading leads...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Enquiries View -->
+            <div id="registrationsView" class="content-view admin-only" style="display:none;">
+                <div class="page-header">
+                    <h1><i class="fas fa-clipboard-list"></i> Registrations</h1>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <div id="registrationsProgramTabs" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+                        <select id="registrationsBatchSelect" class="form-control" style="width:160px;"></select>
+                        <button id="registrationsRefreshBtn" class="btn btn-secondary" type="button">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                        <button id="registrationsExportBtn" class="btn btn-primary btn-sm" type="button" title="Export registrations to batch Google Sheet">
+                            <i class="fas fa-file-export"></i> Export
+                        </button>
+                    </div>
+                </div>
+
+                <div class="dashboard-card no-anim">
+                    <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom: 10px;">
+                        <div style="color:#667085; font-size: 13px;">Latest registration submissions (date/time shown in your local timezone)</div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <label for="registrationsLimit" style="font-size:13px; color:#667085;">Show</label>
+                            <select id="registrationsLimit" class="form-control" style="width:120px;">
+                                <option value="50">50</option>
+                                <option value="100" selected>100</option>
+                                <option value="200">200</option>
+                                <option value="500">500</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-container" style="width:100%;">
+                        <table class="data-table" id="registrationsTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Phone</th>
+                                    <th>Email</th>
+                                    <th>Payment</th>
+                                    <th>Enrolled</th>
+                                    <th>Assigned</th>
+                                    <th>Submitted At</th>
+                                </tr>
+                            </thead>
+                            <tbody id="registrationsTableBody">
+                                <tr><td colspan="7" class="loading">Loading registrations...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="registrations-myView" class="content-view officer-only" style="display:none;">
+                <div class="page-header">
+                    <h1><i class="fas fa-clipboard-list"></i> My Registrations</h1>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <div id="registrationsMyProgramTabs" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+                        <select id="registrationsMyBatchSelect" class="form-control" style="width:160px;"></select>
+                        <button id="registrationsMyRefreshBtn" class="btn btn-secondary" type="button">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div class="dashboard-card no-anim">
+                    <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom: 10px;">
+                        <div style="color:#667085; font-size: 13px;">Registrations assigned to you</div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <label for="registrationsMyLimit" style="font-size:13px; color:#667085;">Show</label>
+                            <select id="registrationsMyLimit" class="form-control" style="width:120px;">
+                                <option value="50">50</option>
+                                <option value="100" selected>100</option>
+                                <option value="200">200</option>
+                                <option value="500">500</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-container" style="width:100%;">
+                        <table class="data-table" id="registrationsMyTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Phone</th>
+                                    <th>Email</th>
+                                    <th>Payment</th>
+                                    <th>Enrolled</th>
+                                    <th>Submitted At</th>
+                                </tr>
+                            </thead>
+                            <tbody id="registrationsMyTableBody">
+                                <tr><td colspan="6" class="loading">Loading registrations...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="programsView" class="content-view admin-only" style="display:none;">
+                <div class="page-header">
+                    <h1><i class="fas fa-layer-group"></i> Programs</h1>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <button id="programsRefreshBtn" class="btn btn-secondary" type="button">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                        <button id="programsAddBtn" class="btn btn-primary" type="button">
+                            <i class="fas fa-plus"></i> Add Program
+                        </button>
+                    </div>
+                </div>
+
+                <div class="dashboard-card no-anim">
+                    <div id="programsList" class="recent-list">
+                        <p class="loading">Loading programs...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="paymentsView" class="content-view admin-only" style="display:none;">
+                <div class="page-header">
+                    <h1><i class="fas fa-money-check-dollar"></i> Payments</h1>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <button id="paymentsRefreshBtn" class="btn btn-secondary" type="button">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div class="dashboard-card">
+                    <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom: 10px;">
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                <div style="color:#667085; font-size: 13px;">Payments captured from registrations</div>
+                                <select id="paymentsProgramTabs" class="form-control" style="max-width:220px;"></select>
+                            </div>
+                            <div id="paymentsInstallmentTabs" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <input id="paymentsSearchInput" type="text" class="form-control" placeholder="Search name / phone / email / receipt..." style="width:260px;" />
+
+                            <label for="paymentsBatchSelect" style="font-size:13px; color:#667085;">Batch</label>
+                            <select id="paymentsBatchSelect" class="form-control" style="width:160px;"></select>
+
+                            <label for="paymentsStatusSelect" style="font-size:13px; color:#667085;">Type</label>
+                            <select id="paymentsStatusSelect" class="form-control" style="width:190px;">
+                                <option value="due_overdue">Due + Overdue</option>
+                                <option value="due">Due</option>
+                                <option value="overdue">Overdue</option>
+                                <option value="upcoming">Upcoming</option>
+                                <option value="completed">Completed</option>
+                                <option value="all" selected>All</option>
+                            </select>
+
+                            <label for="paymentsLimit" style="font-size:13px; color:#667085;">Show</label>
+                            <select id="paymentsLimit" class="form-control" style="width:120px;">
+                                <option value="100">100</option>
+                                <option value="200" selected>200</option>
+                                <option value="500">500</option>
+                                <option value="1000">1000</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-container" style="width:100%;">
+                        <table class="data-table" id="paymentsTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Installment</th>
+                                    <th>Amount</th>
+                                    <th>Payment date</th>
+                                    <th>Status</th>
+                                    <th>Confirmed</th>
+                                    <th>Receipt No</th>
+                                </tr>
+                            </thead>
+                            <tbody id="paymentsTableBody">
+                                <tr><td colspan="7" class="loading">Loading payments...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Officer: Batch Management (Batch Coordinator) -->
+            <div id="batchManagementView" class="content-view officer-only" style="display:none;">
+                <div class="page-header">
+                    <h1><i class="fas fa-money-check-dollar"></i> Batch management</h1>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <button id="batchMgmtRefreshBtn" class="btn btn-secondary" type="button">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div class="dashboard-card">
+                    <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom: 10px;">
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <div style="color:#667085; font-size: 13px;">Payments for batches where you are the coordinator. You can add/edit payments. Only Admin can confirm.</div>
+                            <div id="batchMgmtInstallmentTabs" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <label for="batchMgmtProgramSelect" style="font-size:13px; color:#667085;">Program</label>
+                            <select id="batchMgmtProgramSelect" class="form-control" style="width:220px;"></select>
+
+                            <label for="batchMgmtBatchSelect" style="font-size:13px; color:#667085;">Batch</label>
+                            <select id="batchMgmtBatchSelect" class="form-control" style="width:180px;"></select>
+
+                            <label for="batchMgmtStatusSelect" style="font-size:13px; color:#667085;">Type</label>
+                            <select id="batchMgmtStatusSelect" class="form-control" style="width:190px;">
+                                <option value="due_overdue">Due + Overdue</option>
+                                <option value="due">Due</option>
+                                <option value="overdue">Overdue</option>
+                                <option value="upcoming">Upcoming</option>
+                                <option value="completed">Completed</option>
+                                <option value="all" selected>All</option>
+                            </select>
+
+                            <label for="batchMgmtSearchInput" style="font-size:13px; color:#667085;">Search</label>
+                            <input id="batchMgmtSearchInput" class="form-control" type="text" placeholder="Name, email, receipt..." style="width:220px;" />
+
+                            <label for="batchMgmtLimit" style="font-size:13px; color:#667085;">Show</label>
+                            <select id="batchMgmtLimit" class="form-control" style="width:120px;">
+                                <option value="100">100</option>
+                                <option value="200" selected>200</option>
+                                <option value="500">500</option>
+                                <option value="1000">1000</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-container" style="width:100%;">
+                        <table class="data-table" id="batchMgmtTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Installment</th>
+                                    <th>Amount</th>
+                                    <th>Payment date</th>
+                                    <th>Status</th>
+                                    <th>Confirmed</th>
+                                    <th>Receipt No</th>
+                                </tr>
+                            </thead>
+                            <tbody id="batchMgmtTableBody">
+                                <tr><td colspan="7" class="loading">Loading payments...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="enquiriesView" class="content-view">
+                <div class="page-header">
+                    <h1>Enquiries</h1>
+                    <button id="newEnquiryBtn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> New Enquiry
+                    </button>
+                </div>
+
+                <div class="filters-bar">
+                    <input type="text" id="searchInput" placeholder="Search by name, email, phone...">
+                    <select id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="New">New</option>
+                        <option value="Contacted">Contacted</option>
+                        <option value="Follow-up">Follow-up</option>
+                        <option value="Registered">Registered</option>
+                        <option value="Closed">Closed</option>
+                    </select>
+                    <button id="filterBtn" class="btn btn-secondary">
+                        <i class="fas fa-filter"></i> Apply Filter
+                    </button>
+                    <button id="refreshBtn" class="btn btn-secondary">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table id="enquiriesTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Course</th>
+                                <th>Status</th>
+                                <th>Assigned To</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="enquiriesTableBody">
+                            <tr>
+                                <td colspan="9" class="loading">Loading enquiries...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Calendar View -->
+            <div id="calendarView" class="content-view">
+                <div class="page-header" style="display:flex; justify-content: space-between; align-items:center; gap: 12px; flex-wrap: wrap;">
+                    <h1>UCAGS Calendar</h1>
+                    <div class="admin-only" style="display:none; gap: 8px; align-items:center;" id="calendarAdminControls">
+                        <label style="color:#666; font-size:13px;">Officer:</label>
+                        <select id="calendarOfficerSelect" class="form-control" style="min-width: 220px;"></select>
+                    </div>
+                </div>
+
+                <div class="calendar-container">
+                    <!-- Month Calendar -->
+                    <div class="dashboard-card" style="margin-bottom: 16px;">
+                        <div style="display:flex; align-items:center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                            <div style="display:flex; align-items:center; gap: 8px;">
+                                <button id="calendarPrevMonthBtn" class="btn btn-secondary" type="button"><i class="fas fa-chevron-left"></i></button>
+                                <button id="calendarTodayBtn" class="btn btn-secondary" type="button">Today</button>
+                                <button id="calendarNextMonthBtn" class="btn btn-secondary" type="button"><i class="fas fa-chevron-right"></i></button>
+                            </div>
+                            <h3 id="calendarMonthLabel" style="margin:0;">Month</h3>
+                        </div>
+
+                        <div id="calendarGrid" class="followup-calendar-grid"></div>
+                        <div style="display:flex; justify-content: space-between; align-items:center; gap: 10px; flex-wrap: wrap; margin-top: 8px;">
+                            <div style="color:#666; font-size: 12px;">Click a date to view tasks for that day.</div>
+                            <button id="calendarAddTaskBtn" class="btn btn-primary" type="button"><i class="fas fa-plus"></i> Add Task</button>
+                        </div>
+                    </div>
+
+                    <!-- Day Events Panel -->
+                    <div class="dashboard-card" style="margin-bottom: 16px;">
+                        <h3 id="calendarSelectedDayTitle" style="margin-bottom: 10px;">Selected day</h3>
+                        <div id="calendarSelectedDayEvents" class="calendar-list">
+                            <p class="loading">Select a date to view follow-ups.</p>
+                        </div>
+                    </div>
+
+                    <!-- Collapsible Lists -->
+                    <div class="calendar-section">
+                        <h3 class="section-title overdue" id="overdueHeader" style="cursor:pointer; user-select:none; display:flex; align-items:center; justify-content: space-between;">
+                            <span>Overdue Follow-ups</span>
+                            <i class="fas fa-chevron-down" id="overdueChevron"></i>
+                        </h3>
+                        <div id="overdueList" class="calendar-list" style="display:none;">
+                            <p class="loading">Loading...</p>
+                        </div>
+                    </div>
+
+                    <div class="calendar-section">
+                        <h3 class="section-title upcoming" id="upcomingHeader" style="cursor:pointer; user-select:none; display:flex; align-items:center; justify-content: space-between;">
+                            <span>Upcoming Follow-ups</span>
+                            <i class="fas fa-chevron-down" id="upcomingChevron"></i>
+                        </h3>
+                        <div id="upcomingList" class="calendar-list" style="display:none;">
+                            <p class="loading">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gmail View -->
+            <div id="gmailView" class="content-view">
+                <div class="page-header">
+                    <h1>Gmail Integration</h1>
+                    <button class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> Compose
+                    </button>
+                </div>
+                <div class="gmail-container">
+                    <div class="content-placeholder">
+                        <i class="fas fa-envelope"></i>
+                        <p>Gmail integration for sending emails to students</p>
+                        <button class="btn btn-secondary">
+                            <i class="fas fa-link"></i> Connect Gmail
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Call Center View -->
+            <div id="callView" class="content-view">
+                <div class="page-header">
+                    <h1>Call Center</h1>
+                    <button class="btn btn-primary">
+                        <i class="fas fa-phone-volume"></i> New Call
+                    </button>
+                </div>
+                <div class="call-container">
+                    <div class="call-stats-grid">
+                        <div class="call-stat-card">
+                            <i class="fas fa-phone"></i>
+                            <h3>0</h3>
+                            <p>Calls Today</p>
+                        </div>
+                        <div class="call-stat-card">
+                            <i class="fas fa-clock"></i>
+                            <h3>0m</h3>
+                            <p>Total Duration</p>
+                        </div>
+                        <div class="call-stat-card">
+                            <i class="fas fa-check-circle"></i>
+                            <h3>0</h3>
+                            <p>Successful</p>
+                        </div>
+                        <div class="call-stat-card">
+                            <i class="fas fa-times-circle"></i>
+                            <h3>0</h3>
+                            <p>Missed</p>
+                        </div>
+                    </div>
+                    <div class="content-placeholder">
+                        <i class="fas fa-headset"></i>
+                        <p>Call center integration for contacting students</p>
+                        <button class="btn btn-secondary">
+                            <i class="fas fa-link"></i> Connect Twilio
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports View (Admin Only) -->
+            <div id="demoSessionsView" class="content-view" style="display:none;">
+                <div class="page-header demo-page-header">
+                    <h1><i class="fas fa-chalkboard-teacher"></i> Demo Sessions</h1>
+                    <div class="demo-filters-toolbar">
+                        <div class="demo-filters-selects">
+                            <select id="demoProgramSelect" class="form-control demo-filter-select"></select>
+                            <select id="demoBatchSelect" class="form-control demo-filter-select"></select>
+                            <select id="demoOfficerSelect" class="form-control demo-filter-select admin-only" style="display:none;"></select>
+                        </div>
+                        <button id="demoSessionsRefreshBtn" class="btn btn-secondary btn-sm demo-refresh-btn" type="button"><i class="fas fa-sync"></i></button>
+                    </div>
+                </div>
+
+                <div class="dashboard-card no-anim" style="margin-bottom:12px;">
+                    <div class="demo-sessions-layout" style="display:grid; grid-template-columns: 150px 1fr; gap:6px; align-items:start;">
+                        <div>
+                            <div style="font-weight:900; color:#101828; margin-bottom:8px;">Sessions</div>
+                            <div id="demoSessionsCards" style="display:grid; grid-template-columns: 1fr; gap:8px; justify-content:start; align-content:start;"></div>
+                        </div>
+                        <div class="demo-participants">
+                            <div class="demo-participants-header">
+                                <div style="font-weight:900; color:#101828;">Participants</div>
+                                <div class="demo-participants-subtitle">
+                                    Mark attendance &amp; response, add reminders
+                                </div>
+                            </div>
+                            <div style="overflow:auto; border:1px solid #eaecf0; border-radius:12px; max-width:100%;">
+                                <table class="data-table" style="min-width:1100px;">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Contact Number</th>
+                                            <th>Status</th>
+                                            <th>Reminders</th>
+                                            <th>Attendance</th>
+                                            <th>Response</th>
+                                            <th>Comments After Inauguration</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="demoInvitesTbody">
+                                        <tr><td colspan="7" style="padding:14px; color:#667085;">Select a demo session</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal: XP Score History -->
+<div id="xpHistoryModal" class="modal">
+    <div class="modal-content" style="max-width:560px;">
+        <div class="modal-header">
+            <h3 style="margin:0;font-size:16px;"><i class="fas fa-bolt" style="color:#7c3aed;margin-right:8px;"></i>XP Score History</h3>
+            <button class="modal-close" onclick="closeModal('xpHistoryModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" style="padding:0;">
+            <div id="xpHistoryModalContent" style="max-height:480px;overflow-y:auto;padding:16px;">
+                <div class="nd-skeleton-row"></div>
+                <div class="nd-skeleton-row"></div>
+                <div class="nd-skeleton-row"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Demo Session Reminder -->
+            <div id="demoReminderModal" class="modal">
+                <div class="modal-content" style="max-width: 520px;">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-bell"></i> Add Reminder</h2>
+                        <button class="modal-close" onclick="closeModal('demoReminderModal')"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="demoReminderWhen">Reminder time</label>
+                            <input id="demoReminderWhen" class="form-control" type="datetime-local" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="demoReminderNote">Reminder note (optional)</label>
+                            <textarea id="demoReminderNote" class="form-control" rows="3" placeholder="Type a note..."></textarea>
+                        </div>
+                        <small style="color:#667085; display:block; margin-top:6px;">Hover the R1/R2 badges to see time and note.</small>
+                    </div>
+                    <div class="modal-actions" style="margin-top: 10px;">
+                        <button type="button" class="btn btn-secondary" id="demoReminderCancelBtn">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="demoReminderSaveBtn"><i class="fas fa-save"></i> Save</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="reportsView" class="content-view">
+                <div class="page-header">
+                    <h1>Reports</h1>
+                </div>
+
+                <div id="reportsOfficerSection" class="dashboard-card" style="margin-bottom: 16px; display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap: 12px;">
+                        <div>
+                            <h3 style="margin:0;">Daily Report</h3>
+                            <p style="margin:4px 0 0 0; color:#666;">Submit 3 reports/day (10:30 AM, 2:30 PM, 6:00 PM). Submission closes 20 minutes after each time.</p>
+                        </div>
+                        <button id="openDailyReportBtn" class="btn btn-primary">
+                            <i class="fas fa-clipboard"></i> Daily Report
+                        </button>
+                    </div>
+                    <div id="dailyReportStatus" style="margin-top: 10px; color:#444;"></div>
+
+                    <!-- Officer overview (all officers × all slots) -->
+                    <div id="reportsOfficerTableWrap" style="margin-top: 12px;"></div>
+                </div>
+
+                <div id="reportsAdminSection" class="dashboard-card" style="margin-bottom: 16px; display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap: 12px;">
+                        <div>
+                            <h3 style="margin:0;">Daily Reports (All Officers)</h3>
+                            <p style="margin:4px 0 0 0; color:#666;">View submissions by date, and edit schedule times.</p>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-wrap:wrap; gap: 10px; align-items:flex-end; margin-top: 12px;">
+                        <div class="form-group" style="margin:0;">
+                            <label for="reportsAdminDate">Date</label>
+                            <input type="date" id="reportsAdminDate" class="form-control" />
+                        </div>
+                        <button id="reportsAdminLoadBtn" class="btn btn-secondary"><i class="fas fa-sync"></i> Load</button>
+                        <button id="reportsAdminEditScheduleBtn" class="btn btn-primary"><i class="fas fa-clock"></i> Edit Times</button>
+                    </div>
+
+                    <div id="reportsAdminTableWrap" style="margin-top: 12px;"></div>
+                </div>
+
+                <!-- Modal: Daily Report Submission -->
+                <div id="dailyReportModal" class="modal">
+                    <div class="modal-content" style="max-width: 720px;">
+                        <div class="modal-header">
+                            <h2><i class="fas fa-clipboard"></i> Daily Report</h2>
+                            <button class="close-btn" onclick="closeModal('dailyReportModal')"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label for="dailyReportSlot">Report Time</label>
+                                    <select id="dailyReportSlot" class="form-control"></select>
+                                    <small id="dailyReportWindowHint" style="display:block; margin-top: 6px; color:#666;"></small>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label for="freshCallsMade">Fresh calls made</label>
+                                    <input type="number" min="0" id="freshCallsMade" class="form-control" value="0" />
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label for="freshMessagesReached">Fresh Messages reached</label>
+                                    <input type="number" min="0" id="freshMessagesReached" class="form-control" value="0" />
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label for="interestedLeads">Interested Leads</label>
+                                    <input type="number" min="0" id="interestedLeads" class="form-control" value="0" />
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label for="followUpCalls">Follow-up calls</label>
+                                    <input type="number" min="0" id="followUpCalls" class="form-control" value="0" />
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label for="followUpMessages">Follow-up Messages</label>
+                                    <input type="number" min="0" id="followUpMessages" class="form-control" value="0" />
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label for="followUpScheduled">Follow-up scheduled</label>
+                                    <input type="number" min="0" id="followUpScheduled" class="form-control" value="0" />
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label for="closures">Closures</label>
+                                    <input type="number" min="0" id="closures" class="form-control" value="0" />
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="dailyReportNotes">Notes</label>
+                                <textarea id="dailyReportNotes" class="form-control" rows="3" placeholder="Anything extra..."></textarea>
+                            </div>
+
+                            <div class="modal-actions">
+                                <button type="button" class="btn btn-secondary" onclick="closeModal('dailyReportModal')">Cancel</button>
+                                <button type="button" id="submitDailyReportBtn" class="btn btn-primary">Submit</button>
+                            </div>
+                            <div id="dailyReportSubmitMsg" style="margin-top:10px; color:#666;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal: Edit Daily Report Schedule (Admin) -->
+                <div id="dailyReportScheduleModal" class="modal">
+                    <div class="modal-content" style="max-width: 720px;">
+                        <div class="modal-header">
+                            <h2><i class="fas fa-clock"></i> Edit Daily Report Times</h2>
+                            <button class="close-btn" onclick="closeModal('dailyReportScheduleModal')"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label for="slot1Time">Slot 1 Time (HH:MM)</label>
+                                    <input type="text" id="slot1Time" class="form-control" placeholder="10:30" />
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label for="slot2Time">Slot 2 Time (HH:MM)</label>
+                                    <input type="text" id="slot2Time" class="form-control" placeholder="14:30" />
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label for="slot3Time">Slot 3 Time (HH:MM)</label>
+                                    <input type="text" id="slot3Time" class="form-control" placeholder="18:00" />
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label for="graceMinutes">Grace Minutes</label>
+                                    <input type="number" min="0" id="graceMinutes" class="form-control" value="20" />
+                                </div>
+                            </div>
+                            <div class="modal-actions">
+                                <button type="button" class="btn btn-secondary" onclick="closeModal('dailyReportScheduleModal')">Cancel</button>
+                                <button type="button" id="saveDailyReportScheduleBtn" class="btn btn-primary">Save</button>
+                            </div>
+                            <div id="dailyReportScheduleMsg" style="margin-top:10px; color:#666;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notifications View -->
+            <div id="daily-checklistView" class="content-view admin-only no-view-anim" style="display:none;">
+                <h1><i class="fas fa-clipboard-check"></i> Daily Checklist</h1>
+
+                <div class="dashboard-card" style="margin-bottom: 16px;">
+                    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:end; justify-content:space-between;">
+                        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:end;">
+                            <div>
+                                <label style="display:block; font-size:12px; color:#666;">Week start</label>
+                                <input type="date" id="dailyChecklistStart" class="form-control" style="min-width: 170px;" />
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:12px; color:#666;">Days</label>
+                                <select id="dailyChecklistDays" class="form-control" style="min-width: 90px;">
+                                    <option value="7" selected>7</option>
+                                    <option value="14">14</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary" id="dailyChecklistLoadBtn"><i class="fas fa-sync"></i> Load</button>
+                        </div>
+
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn btn-secondary" id="dailyChecklistPrevBtn"><i class="fas fa-chevron-left"></i> Prev 7</button>
+                            <button class="btn btn-secondary" id="dailyChecklistNextBtn">Next 7 <i class="fas fa-chevron-right"></i></button>
+                            <button class="btn btn-secondary" id="dailyChecklistThisWeekBtn"><i class="fas fa-calendar-day"></i> This Week</button>
+                        </div>
+                    </div>
+                    <div id="dailyChecklistMsg" style="margin-top:10px; color:#666; font-size:12px;"></div>
+                </div>
+
+                <div class="dashboard-card" style="margin-bottom: 10px;">
+                    <h2 style="margin:0 0 6px 0;"><i class="fas fa-trophy"></i> Leader of the week</h2>
+                    <div id="dailyChecklistLeader" style="font-weight:700;"></div>
+                    <div id="dailyChecklistLeaderDetails" style="margin-top:4px; color:#666; font-size:12px;"></div>
+                </div>
+
+                <div id="dailyChecklistWrap"></div>
+            </div>
+
+            <div id="notificationsView" class="content-view">
+                <div class="page-header">
+                    <h1><i class="fas fa-bell"></i> Notifications</h1>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <button id="notificationsMarkAllReadBtn" class="btn btn-secondary" type="button">
+                            <i class="fas fa-check-double"></i> Mark all read
+                        </button>
+                        <button id="notificationsRefreshBtn" class="btn btn-secondary" type="button">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div class="dashboard-card">
+                    <div id="notificationsList" class="recent-list">
+                        <p class="loading">Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings View -->
+            <div id="settingsView" class="content-view">
+                <div class="page-header">
+                    <h1>Settings</h1>
+                </div>
+
+                <!-- Notifications (Officer) -->
+                <div id="settingsNotificationsCard" class="dashboard-card" style="display:none; max-width: 900px;">
+                    <h3 style="margin-top:0;"><i class="fas fa-bell"></i> Notifications</h3>
+
+                    <div class="form-row" style="align-items:center;">
+                        <div class="form-group" style="flex:1; margin:0;">
+                            <label style="margin-bottom:4px;">Enable Browser Alerts</label>
+                            <small style="color:#666; display:block;">Shows desktop notifications (requires permission). Works while the app is open.</small>
+                        </div>
+                        <button id="settingsEnableBrowserAlertsBtn" class="btn btn-secondary" type="button">Enable</button>
+                    </div>
+
+                    <div style="height: 12px;"></div>
+
+                    <div class="form-row officer-only" style="align-items:center;" id="settingsRowDailyReportReminders">
+                        <div class="form-group" style="flex:1; margin:0;">
+                            <label style="margin-bottom:4px;">Daily Report Reminders</label>
+                            <small style="color:#666; display:block;">Remind you at each daily report submission time.</small>
+                        </div>
+                        <button id="settingsDailyReportRemindersBtn" class="btn btn-secondary" type="button">On</button>
+                    </div>
+
+                    <div style="height: 12px;"></div>
+
+                    <div class="form-row admin-only" style="align-items:center; display:none;" id="settingsRowAdminLeaveReq">
+                        <div class="form-group" style="flex:1; margin:0;">
+                            <label style="margin-bottom:4px;">Leave Request Alerts</label>
+                            <small style="color:#666; display:block;">Notify when a leave request is received.</small>
+                        </div>
+                        <button id="settingsAdminLeaveReqBtn" class="btn btn-secondary" type="button">On</button>
+                    </div>
+
+                    <div style="height: 12px;"></div>
+
+                    <div class="form-row admin-only" style="align-items:center; display:none;" id="settingsRowAdminDailyReports">
+                        <div class="form-group" style="flex:1; margin:0;">
+                            <label style="margin-bottom:4px;">Daily Report Received Alerts</label>
+                            <small style="color:#666; display:block;">Notify when an officer submits a daily report.</small>
+                        </div>
+                        <button id="settingsAdminDailyReportsBtn" class="btn btn-secondary" type="button">On</button>
+                    </div>
+
+                    <div style="height: 12px;"></div>
+
+                    <div class="form-row" style="align-items:center;">
+                        <div class="form-group" style="flex:1; margin:0;">
+                            <label style="margin-bottom:4px;">Assign Alerts</label>
+                            <small style="color:#666; display:block;">Notify when new leads are assigned to you.</small>
+                        </div>
+                        <button id="settingsAssignAlertsBtn" class="btn btn-secondary" type="button">On</button>
+                    </div>
+
+                    <div style="height: 12px;"></div>
+
+                    <div class="form-row" style="align-items:center;">
+                        <div class="form-group" style="flex:1; margin:0;">
+                            <label style="margin-bottom:4px;">Follow-up Alerts</label>
+                            <small style="color:#666; display:block;">Notify when a scheduled follow-up becomes due.</small>
+                        </div>
+                        <button id="settingsFollowupAlertsBtn" class="btn btn-secondary" type="button">On</button>
+                    </div>
+
+                    <div id="settingsNotificationsMsg" style="margin-top: 12px; color:#666;"></div>
+                </div>
+
+                <!-- Admin placeholder (optional future settings) -->
+                <div id="settingsAdminPlaceholder" class="content-placeholder" style="display:none;">
+                    <i class="fas fa-cog"></i>
+                    <p>System settings and configuration</p>
+                </div>
+            </div>
+
+            <!-- Staff Management View (Admin Only) -->
+            <div id="usersView" class="content-view admin-only">
+                <div class="page-header">
+                    <h1>Staff Management</h1>
+                    <button id="addUserBtn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add New Staff
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Name</th>
+                                <th>Role</th>
+                                <th>Created</th>
+                                <th>Last Sign In</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr>
+                                <td colspan="7" class="loading">Loading users...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modal: Change Password -->
+            <div id="changePasswordModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-key"></i> Change Password</h2>
+                        <button class="close-btn" onclick="closeModal('changePasswordModal')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="changePasswordForm">
+                            <input type="hidden" id="changePasswordUserId">
+                            <div class="form-group">
+                                <label><i class="fas fa-user"></i> User</label>
+                                <input type="text" id="changePasswordUserEmail" class="form-control" readonly 
+                                       style="background: #f5f5f5;">
+                            </div>
+                            <div class="form-group">
+                                <label for="newPassword"><i class="fas fa-lock"></i> New Password *</label>
+                                <div style="position: relative;">
+                                    <input type="password" id="newPassword" class="form-control" required 
+                                           placeholder="Minimum 6 characters" minlength="6">
+                                    <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('newPassword', this)" 
+                                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #666;">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="confirmPassword"><i class="fas fa-lock"></i> Confirm Password *</label>
+                                <div style="position: relative;">
+                                    <input type="password" id="confirmPassword" class="form-control" required 
+                                           placeholder="Re-enter password" minlength="6">
+                                    <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('confirmPassword', this)" 
+                                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #666;">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div style="background: #fff3cd; padding: 15px; border-radius: 6px; border-left: 4px solid #ffc107; margin-top: 20px;">
+                                <p style="margin: 0; color: #856404; font-size: 14px;">
+                                    <i class="fas fa-exclamation-triangle" style="color: #ffc107;"></i>
+                                    <strong>Warning:</strong> The user will need to use this new password to login.
+                                </p>
+                            </div>
+                            
+                            <div class="modal-actions" style="margin-top: 20px;">
+                                <button type="button" class="btn btn-secondary" onclick="closeModal('changePasswordModal')">
+                                    Cancel
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-key"></i> Change Password
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Officers View (Admin Only) -->
+            <div id="officersView" class="content-view admin-only">
+                <div class="page-header">
+                    <h1>Academic Advisors</h1>
+                </div>
+
+                <div id="officersStats" class="officers-grid">
+                    <p class="loading">Loading officers...</p>
+                </div>
+            </div>
+
+            <!-- Receipts View (Admin Only) -->
+            
+            <div id="receiptsView" class="content-view admin-only">
+                <div class="page-header">
+                    <h1><i class="fas fa-receipt"></i> Receipt Generator</h1>
+                </div>
+
+                <div class="receipts-page">
+                    <div class="receipt-form-container">
+                        <form id="receiptForm">
+                            <!-- Receipt Information -->
+                            <div class="form-section">
+                                <h3 class="form-section-title">
+                                    <i class="fas fa-file-invoice"></i>
+                                    Receipt Information
+                                </h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="receiptNumber">Receipt Number *</label>
+                                        <input type="text" id="receiptNumber" class="form-control" placeholder="UC7398" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="receiptDate">Receipt Date *</label>
+                                        <input type="date" id="receiptDate" class="form-control" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Student Information -->
+                            <div class="form-section">
+                                <h3 class="form-section-title">
+                                    <i class="fas fa-user-graduate"></i>
+                                    Student Information
+                                </h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="studentName">Student Name *</label>
+                                        <input type="text" id="studentName" class="form-control" placeholder="Rasenthira Kirisanth" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="studentId">Student ID *</label>
+                                        <div style="display: flex; align-items: center;">
+                                            <span style="padding: 10px 14px; background: #f0f0f0; border: 1px solid #ddd; border-right: none; border-radius: 6px 0 0 6px; font-size: 14px;">UCAGS/</span>
+                                            <input type="text" id="studentId" class="form-control" placeholder="1123" required style="border-radius: 0 6px 6px 0; flex: 1;">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="enrolledProgram">Enrolled Program *</label>
+                                        <select id="enrolledProgram" class="form-control" required>
+                                            <option value="Diploma in Psychology">Diploma in Psychology</option>
+                                            <option value="Diploma in Business Management">Diploma in Business Management</option>
+                                            <option value="Diploma in Information Technology">Diploma in Information Technology</option>
+                                            <option value="Diploma in Digital Marketing">Diploma in Digital Marketing</option>
+                                            <option value="Diploma in Human Resource Management">Diploma in Human Resource Management</option>
+                                            <option value="Certificate in Psychology">Certificate in Psychology</option>
+                                            <option value="Other">Other (specify in notes)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="paymentPlan">Payment Plan *</label>
+                                        <select id="paymentPlan" class="form-control" required>
+                                            <option value="">Select payment plan</option>
+                                            <option value="Installment with early bird offer">Installment with early bird offer</option>
+                                            <option value="Installment">Installment</option>
+                                            <option value="Full payment with early bird offer">Full payment with early bird offer</option>
+                                            <option value="Full payment">Full payment</option>
+                                            <option value="Custom">Custom</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Payment Details -->
+                            <div class="form-section">
+                                <h3 class="form-section-title">
+                                    <i class="fas fa-credit-card"></i>
+                                    Payment Details
+                                </h3>
+                                <div class="payments-section">
+                                    <div id="paymentsContainer">
+                                        <!-- Payment rows will be added dynamically -->
+                                    </div>
+                                    <button type="button" id="addPaymentBtn">
+                                        <i class="fas fa-plus"></i> Add Payment
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Form Actions -->
+                            <div class="form-actions">
+                                <button type="button" id="clearFormBtn" class="btn btn-secondary">
+                                    <i class="fas fa-eraser"></i> Clear Form
+                                </button>
+                                <button type="button" id="generateReceiptBtn" class="btn btn-primary">
+                                    <i class="fas fa-file-pdf"></i> Generate PDF
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Enquiry Details -->
+    <div id="programAddModal" class="modal">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-layer-group"></i> Add Program</h2>
+                <button class="modal-close" onclick="closeModal('programAddModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="programAddName">Program name</label>
+                    <input id="programAddName" class="form-control" type="text" placeholder="e.g., Diploma in Psychology" />
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('programAddModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" id="programAddSaveBtn"><i class="fas fa-save"></i> Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="programBatchAddModal" class="modal">
+        <div class="modal-content" style="max-width: 640px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-layer-group"></i> Add Batch</h2>
+                <button class="modal-close" onclick="closeModal('programBatchAddModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="programBatchProgramId" />
+                <div class="form-row" style="grid-template-columns: 1fr;">
+                    <div class="form-group">
+                        <label for="programBatchName">Batch name (no spaces)</label>
+                        <input id="programBatchName" class="form-control" type="text" placeholder="e.g., Batch-14" />
+                    </div>
+                    <div class="form-group">
+                        <label for="programBatchSheetUrl">Main Google Sheet URL</label>
+                        <input id="programBatchSheetUrl" class="form-control" type="text" placeholder="https://docs.google.com/spreadsheets/d/..." />
+                        <small style="color:#667085; display:block; margin-top:6px;">This will link/provision the sheet and sync leads. Required.</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('programBatchAddModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" id="programBatchAddSaveBtn"><i class="fas fa-save"></i> Create Batch</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="addSheetModal" class="modal">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-table"></i> Add Sheet</h2>
+                <button class="modal-close" onclick="closeModal('addSheetModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="addSheetBatchName" />
+                <input type="hidden" id="addSheetScope" />
+                <div class="form-group">
+                    <label for="addSheetName">Sheet name</label>
+                    <input id="addSheetName" class="form-control" type="text" placeholder="e.g., Extra Leads 2" />
+                    <small style="color:#667085; display:block; margin-top:6px;">Admins create sheets for everyone. Officers create sheets for themselves.</small>
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addSheetModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" id="addSheetSaveBtn"><i class="fas fa-save"></i> Create</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="batchPaymentSetupModal" class="modal">
+        <div class="modal-content large" style="max-width: 920px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-money-check-dollar"></i> Batch Payment Setup</h2>
+                <button class="modal-close" onclick="closeModal('batchPaymentSetupModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="paymentSetupBatchName" />
+                <input type="hidden" id="paymentSetupProgramId" />
+                <input type="hidden" id="paymentSetupBatchId" />
+
+                <div class="dashboard-card" style="margin-bottom: 12px;">
+                    <div style="font-weight:700; margin-bottom: 10px;">Payment Methods</div>
+                    <div id="paymentMethodsWrap" style="display:flex; gap:10px; flex-wrap:wrap;"></div>
+                    <div style="display:flex; gap:10px; margin-top:10px;">
+                        <input id="paymentMethodNew" class="form-control" type="text" placeholder="e.g., Online Transfer" style="max-width: 320px;" />
+                        <button id="paymentMethodAddBtn" class="btn btn-secondary" type="button">Add Method</button>
+                    </div>
+                </div>
+
+                <div class="dashboard-card">
+                    <div style="font-weight:700; margin-bottom: 10px;">Payment Plans</div>
+                    <div id="paymentPlansWrap"></div>
+                    <button id="paymentPlanAddBtn" class="btn btn-secondary" type="button" style="margin-top:10px;">Add Plan</button>
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top: 10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                <button type="button" class="btn btn-danger" id="paymentSetupDeleteBatchBtn"><i class="fas fa-trash"></i> Delete Batch</button>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('batchPaymentSetupModal')">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="paymentSetupSaveBtn"><i class="fas fa-save"></i> Save Setup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Attendance Day Status Modal -->
+    <div id="attendanceAdminDayModal" class="modal">
+        <div class="modal-content" style="max-width: 420px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-calendar-day"></i> Update Day Status</h2>
+                <button class="modal-close" onclick="closeModal('attendanceAdminDayModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="font-size:12px; color:#667085; font-weight:700; margin-bottom:10px;" id="attendanceAdminDayModalSubtitle"></div>
+                <div class="form-group">
+                    <label for="attendanceAdminDayStatus">Status</label>
+                    <select id="attendanceAdminDayStatus" class="form-control">
+                        <option value="present">Present</option>
+                        <option value="absent">Absent</option>
+                        <option value="leave">Leave</option>
+                        <option value="holiday">Holiday</option>
+                    </select>
+                </div>
+                <div style="margin-top:12px; padding:10px 12px; background:#fffaeb; border:1px solid #fedf89; border-radius:10px;">
+                    <div style="font-size:12px; color:#b54708; font-weight:700; margin-bottom:6px;">🏖️ Mark as Holiday for All Officers</div>
+                    <div style="font-size:12px; color:#667085; margin-bottom:8px;">This will set the selected date as a Holiday for <strong>every</strong> officer at once.</div>
+                    <button type="button" class="btn btn-warning btn-sm" id="attendanceMarkAllHolidayBtn" style="background:#f79009; color:#fff; border:none;">Mark Holiday for All</button>
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top:10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('attendanceAdminDayModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" id="attendanceAdminDaySaveBtn"><i class="fas fa-save"></i> Save for this officer</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="paymentUpdateModal" class="modal">
+        <div class="modal-content" style="max-width: 720px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-pen"></i> Update Payment</h2>
+                <button class="modal-close" onclick="closeModal('paymentUpdateModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="paymentUpdateModalBody">
+                <p class="loading">Loading...</p>
+            </div>
+            <div class="modal-actions" style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('paymentUpdateModal')">Close</button>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="btn btn-primary" id="paymentUpdateSaveBtn"><i class="fas fa-save"></i> Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="paymentDetailsModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2><i class="fas fa-money-check-dollar"></i> Payment Details</h2>
+                <button class="modal-close" onclick="closeModal('paymentDetailsModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="paymentDetailsModalBody"></div>
+            <div class="modal-actions" style="margin-top: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('paymentDetailsModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="registrationDetailsModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2><i class="fas fa-clipboard-list"></i> Registration Details</h2>
+                <button class="modal-close" onclick="closeModal('registrationDetailsModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="registrationDetailsModalBody"></div>
+            <div class="modal-actions" id="registrationDetailsModalActions" style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
+                <div style="color:#667085; font-size: 13px;">Deleting is permanent.</div>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="btn btn-danger" id="registrationDeleteBtn">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('registrationDetailsModal')">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="studentDetailsModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2><i class="fas fa-user-graduate"></i> Student Details</h2>
+                <button class="modal-close" onclick="closeModal('studentDetailsModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="studentDetailsModalBody"></div>
+            <div class="modal-actions" style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
+                <div style="color:#667085; font-size: 13px;">Deleting enrollment will remove the student and revert the registration to not enrolled.</div>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="btn btn-danger" id="studentDeleteEnrollmentBtn">
+                        <i class="fas fa-trash"></i> Delete enrollment
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('studentDetailsModal')">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="enquiryModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2 id="modalTitle">Enquiry Details</h2>
+                <button class="close-btn" onclick="closeModal('enquiryModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="enquiryModalBody">
+                <!-- Content loaded dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: New Enquiry -->
+    <div id="newEnquiryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>New Enquiry</h2>
+                <button class="close-btn" onclick="closeModal('newEnquiryModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="newEnquiryForm">
+                    <div class="form-group">
+                        <label for="newFullName">Full Name *</label>
+                        <input type="text" id="newFullName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newEmail">Email *</label>
+                        <input type="email" id="newEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newPhone">Phone</label>
+                        <input type="tel" id="newPhone">
+                    </div>
+                    <div class="form-group">
+                        <label for="newCourse">Course Interested</label>
+                        <input type="text" id="newCourse">
+                    </div>
+                    <div class="form-group">
+                        <label for="newSource">Source</label>
+                        <select id="newSource">
+                            <option value="Website">Website</option>
+                            <option value="Google Form">Google Form</option>
+                            <option value="Phone Call">Phone Call</option>
+                            <option value="Walk-in">Walk-in</option>
+                            <option value="Referral">Referral</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="newNotes">Notes</label>
+                        <textarea id="newNotes" rows="3"></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('newEnquiryModal')">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Create Enquiry
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add Staff -->
+    <div id="addUserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-user-plus"></i> Add New Staff Member</h2>
+                <button class="close-btn" onclick="closeModal('addUserModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="addUserForm">
+                    <div class="form-group">
+                        <label for="userEmail"><i class="fas fa-envelope"></i> Email *</label>
+                        <input type="email" id="userEmail" class="form-control" required 
+                               placeholder="user@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="userName"><i class="fas fa-user"></i> Full Name *</label>
+                        <input type="text" id="userName" class="form-control" required 
+                               placeholder="John Doe">
+                    </div>
+                    <div class="form-group">
+                        <label for="userRole"><i class="fas fa-user-tag"></i> Role *</label>
+                        <select id="userRole" class="form-control" required>
+                            <option value="officer">Academic Advisor</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                        <small style="color: #666; margin-top: 8px; display: block;">
+                            Officers can view and manage leads. Admins have full system access.
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="userPassword"><i class="fas fa-lock"></i> Password *</label>
+                        <div style="position: relative;">
+                            <input type="password" id="userPassword" class="form-control" required 
+                                   placeholder="Minimum 6 characters" minlength="6">
+                            <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('userPassword', this)" 
+                                    style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #666;">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <small style="color: #666; margin-top: 8px; display: block;">
+                            User will use this password to login to the system.
+                        </small>
+                    </div>
+                    
+                    <div class="modal-actions" style="margin-top: 20px;">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('addUserModal')">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-user-plus"></i> Add Staff Member
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <!-- Unregister old service workers -->
+    <script src="js/unregister-sw.js"></script>
+    
+    <!-- Supabase JS (load first) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/frontend/pages/attendance/attendancePage.js"></script>
+    <script src="/frontend/pages/calendar/calendarTasks.js"></script>
+    <script src="/frontend/pages/notifications/notificationsPage.js?v=1"></script>
+    <script src="/frontend/pages/reports/reportsPage.js?v=1"></script>
+    <script src="/frontend/pages/reports/dailyChecklistPage.js?v=1"></script>
+    <script src="/frontend/pages/students/studentsPage.js?v=1"></script>
+    
+    <!-- Supabase Client (must load after Supabase JS) -->
+    <script src="js/supabaseClient.js"></script>
+    
+    <!-- API Service -->
+    <script src="/frontend/services/cacheService.js"></script>
+    <script src="/frontend/services/domPatchService.js"></script>
+    <script src="/frontend/services/apiService.js?v=2"></script>
+    
+    <!-- Page Modules -->
+    <script src="/frontend/pages/leads/leadsPage.js?v=9"></script>
+    <script src="/frontend/pages/leads/leadManagement.js?v=6"></script>
+    <script src="/frontend/pages/leads/staffLeadManagement.js?v=1"></script>
+    <script src="/frontend/pages/registrations/registrationsPage.js?v=2"></script>
+    <script src="/frontend/pages/registrations/myRegistrationsPage.js?v=1"></script>
+    <script src="/frontend/pages/demoSessions/demoSessionsPage.js?v=2"></script>
+    <script src="/frontend/pages/programs/programsPage.js?v=9"></script>
+    <script src="/frontend/pages/payments/paymentsPage.js?v=3"></script>
+    <script src="/frontend/pages/payments/batchManagementPage.js?v=1"></script>
+    <script src="/frontend/pages/payments/batchPaymentSetup.js?v=1"></script>
+    <script src="/frontend/pages/receipts/receiptsPage.js?v=3"></script>
+    <script src="/frontend/pages/whatsapp/whatsappInbox.js?v=1"></script>
+    <script src="/frontend/pages/whatsapp/waDrawer.js?v=1"></script>
+    <script src="/frontend/pages/whatsapp/whatsappPanel.js?v=1"></script>
+    <script src="/frontend/pages/dashboard/xpDashboard.js?v=1"></script>
+    
+    <!-- Main App (UI + notifications must load before app.js) -->
+    <script src="js/ui.js?v=3"></script>
+    <script src="/js/notificationCenter.js?v=1"></script>
+    <script src="/js/notifications.js?v=1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="js/app.js?v=5"></script>
+</body>
+</html>
