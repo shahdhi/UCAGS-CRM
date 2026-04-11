@@ -492,8 +492,8 @@ async function loadLeadManagement() {
     // This keeps the current UI working while storing followups in Supabase.
     await Promise.all(managementLeads.map(async (lead) => {
       try {
-        // Use Supabase Edge Function endpoint for followups
-        const fj = await window.API.leads.fetchAPI(`/crm-leads/followups/my/${encodeURIComponent(lead.batch)}/${encodeURIComponent(lead.sheet || 'Main Leads')}/${encodeURIComponent(lead.id)}`, { headers: authHeaders });
+        const fr = await fetch(`/api/crm-followups/my/${encodeURIComponent(lead.batch)}/${encodeURIComponent(lead.sheet || 'Main Leads')}/${encodeURIComponent(lead.id)}`, { headers: authHeaders });
+        const fj = await fr.json();
         if (!fj.success) return;
         const followups = fj.followups || [];
 
