@@ -211,7 +211,47 @@ let currentUser = null;
 let currentEnquiries = [];
 
 // Initialize application
+
+// Theme toggle logic
+function setThemeMode(mode) {
+    const body = document.body;
+    if (mode === 'dark') {
+        body.classList.add('dark-mode');
+        const icon = document.getElementById('themeToggleIcon');
+        if (icon) {
+            icon.classList.remove('fa-sun');
+            icon.classList.add('fa-moon');
+        }
+    } else {
+        body.classList.remove('dark-mode');
+        const icon = document.getElementById('themeToggleIcon');
+        if (icon) {
+            icon.classList.remove('fa-moon');
+            icon.classList.add('fa-sun');
+        }
+    }
+    localStorage.setItem('themeMode', mode);
+}
+
+function toggleThemeMode() {
+    const isDark = document.body.classList.contains('dark-mode');
+    setThemeMode(isDark ? 'light' : 'dark');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Theme toggle button event
+    const themeBtn = document.getElementById('themeToggleBtn');
+    if (themeBtn) {
+        themeBtn.addEventListener('click', toggleThemeMode);
+    }
+    // On load, apply saved theme
+    const savedTheme = localStorage.getItem('themeMode');
+    if (savedTheme === 'dark') {
+        setThemeMode('dark');
+    } else {
+        setThemeMode('light');
+    }
+
     initializeApp();
 });
 
