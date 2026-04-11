@@ -579,8 +579,8 @@
           // Skip followup fetch if we can't determine the officer ID
           if (!followupOfficerId || followupOfficerId === '__ALL__') return;
 
-          const fr = await fetch(`/api/crm-followups/admin/${encodeURIComponent(followupOfficerId)}/${encodeURIComponent(lead.batch)}/${encodeURIComponent(lead.sheet || 'Main Leads')}/${encodeURIComponent(lead.id)}`, { headers });
-          const fj = await fr.json();
+          // Use Supabase Edge Function endpoint for followups
+          const fj = await window.API.leads.fetchAPI(`/crm-leads/followups/admin/${encodeURIComponent(followupOfficerId)}/${encodeURIComponent(lead.batch)}/${encodeURIComponent(lead.sheet || 'Main Leads')}/${encodeURIComponent(lead.id)}`, { headers });
           if (!fj.success) return;
           const followups = fj.followups || [];
 
