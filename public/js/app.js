@@ -1328,9 +1328,15 @@ async function navigateToPage(page) {
 
     // Load data for the view
     switch(page) {
-        case 'home':
-            loadDashboard();
+        case 'home': {
+            // If auto-refresh is disabled and we already have cached data, skip reload
+            const _arDisabled = localStorage.getItem('ucags_dashboardAutoRefreshDisabled') === 'yes';
+            const _hasCache = !!(window.__homeDashboardCache && window.__homeDashboardCache.data);
+            if (!_arDisabled || !_hasCache) {
+                loadDashboard();
+            }
             break;
+        }
         case 'enquiries':
             loadEnquiries();
             break;

@@ -2790,6 +2790,10 @@ body.admin .admin-only {
     display: block !important;
 }
 
+body.admin .settings-row.admin-only {
+    display: flex !important;
+}
+
 body.admin .nav-item.admin-only,
 body.admin .nav-link.admin-only {
     display: flex !important;
