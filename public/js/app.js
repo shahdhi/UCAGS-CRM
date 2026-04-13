@@ -2067,6 +2067,7 @@ async function loadSettings() {
 
         // ── Data Saver: Lazy Load Leads toggle ──
         const togLazy = document.getElementById('settingsLazyLoadLeadsToggle');
+        const togDashAR = document.getElementById('settingsDashboardAutoRefreshToggle');
         const btnSave = document.getElementById('settingsDataSaverSaveBtn');
         const msgSaver = document.getElementById('settingsDataSaverMsg');
         if (togLazy) {
@@ -2075,6 +2076,20 @@ async function loadSettings() {
             togLazy.onchange = () => {
                 localStorage.setItem(LAZY_KEY, togLazy.checked ? 'on' : 'off');
                 if (msgSaver) msgSaver.textContent = 'Click "Save & Reload" to apply changes.';
+            };
+        }
+        if (togDashAR) {
+            const KEY = 'ucags_dashboardAutoRefreshDisabled';
+            togDashAR.checked = localStorage.getItem(KEY) === 'yes';
+            togDashAR.onchange = () => {
+                localStorage.setItem(KEY, togDashAR.checked ? 'yes' : 'no');
+                // Apply immediately — no reload needed
+                if (togDashAR.checked) {
+                    stopDashboardAutoRefresh();
+                } else {
+                    startDashboardAutoRefresh();
+                }
+                if (window.showToast) showToast('Dashboard auto-refresh ' + (togDashAR.checked ? 'disabled' : 'enabled'), 'info');
             };
         }
         if (btnSave) {
@@ -3243,6 +3258,8 @@ function animateDashboardNumber(el, newVal, isPercent) {
 // Start (or restart) the periodic background refresh for the dashboard
 function startDashboardAutoRefresh() {
     stopDashboardAutoRefresh();
+    // Respect the Data Saver setting
+    if (localStorage.getItem('ucags_dashboardAutoRefreshDisabled') === 'yes') return;
     __dashboardRefreshInterval = setInterval(() => {
         // Only refresh if the home view is currently visible
         const homeView = document.getElementById('homeView');
