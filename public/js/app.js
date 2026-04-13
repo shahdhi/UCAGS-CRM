@@ -3407,6 +3407,18 @@ async function loadDashboard() {
             loadDashboard().catch(console.error);
         });
     }
+    const refreshBtn = document.getElementById('ndDashboardRefreshBtn');
+    if (refreshBtn && !refreshBtn.__bound) {
+        refreshBtn.__bound = true;
+        refreshBtn.addEventListener('click', () => {
+            window.__homeDashboardCache = null;
+            const icon = refreshBtn.querySelector('i');
+            if (icon) icon.classList.add('fa-spin');
+            loadDashboard().catch(console.error).finally(() => {
+                if (icon) icon.classList.remove('fa-spin');
+            });
+        });
+    }
     const last30Btn = document.getElementById('homeThisMonthBtn');
     if (last30Btn && !last30Btn.__bound) {
         last30Btn.__bound = true;
