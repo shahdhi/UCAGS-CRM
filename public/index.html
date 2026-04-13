@@ -2126,7 +2126,7 @@
                 </div>
 
                 <!-- Notifications (Officer) -->
-                <div id="settingsNotificationsCard" class="dashboard-card" style="display:none; max-width: 900px;">
+                <div id="settingsNotificationsCard" class="dashboard-card" style="display:none;">
                     <h3 style="margin-top:0;"><i class="fas fa-bell"></i> Notifications</h3>
 
                     <div class="form-row" style="align-items:center;">
@@ -2134,7 +2134,7 @@
                             <label style="margin-bottom:4px;">Enable Browser Alerts</label>
                             <small style="color:#666; display:block;">Shows desktop notifications (requires permission). Works while the app is open.</small>
                         </div>
-                        <button id="settingsEnableBrowserAlertsBtn" class="btn btn-secondary" type="button">Enable</button>
+                        <label class="crm-toggle"><input type="checkbox" id="settingsEnableBrowserAlertsToggle"><span class="crm-toggle-slider"></span></label>
                     </div>
 
                     <div style="height: 12px;"></div>
@@ -2144,7 +2144,7 @@
                             <label style="margin-bottom:4px;">Daily Report Reminders</label>
                             <small style="color:#666; display:block;">Remind you at each daily report submission time.</small>
                         </div>
-                        <button id="settingsDailyReportRemindersBtn" class="btn btn-secondary" type="button">On</button>
+                        <label class="crm-toggle"><input type="checkbox" id="settingsDailyReportRemindersToggle"><span class="crm-toggle-slider"></span></label>
                     </div>
 
                     <div style="height: 12px;"></div>
@@ -2154,7 +2154,7 @@
                             <label style="margin-bottom:4px;">Leave Request Alerts</label>
                             <small style="color:#666; display:block;">Notify when a leave request is received.</small>
                         </div>
-                        <button id="settingsAdminLeaveReqBtn" class="btn btn-secondary" type="button">On</button>
+                        <label class="crm-toggle"><input type="checkbox" id="settingsAdminLeaveReqToggle"><span class="crm-toggle-slider"></span></label>
                     </div>
 
                     <div style="height: 12px;"></div>
@@ -2164,7 +2164,7 @@
                             <label style="margin-bottom:4px;">Daily Report Received Alerts</label>
                             <small style="color:#666; display:block;">Notify when an officer submits a daily report.</small>
                         </div>
-                        <button id="settingsAdminDailyReportsBtn" class="btn btn-secondary" type="button">On</button>
+                        <label class="crm-toggle"><input type="checkbox" id="settingsAdminDailyReportsToggle"><span class="crm-toggle-slider"></span></label>
                     </div>
 
                     <div style="height: 12px;"></div>
@@ -2174,7 +2174,7 @@
                             <label style="margin-bottom:4px;">Assign Alerts</label>
                             <small style="color:#666; display:block;">Notify when new leads are assigned to you.</small>
                         </div>
-                        <button id="settingsAssignAlertsBtn" class="btn btn-secondary" type="button">On</button>
+                        <label class="crm-toggle"><input type="checkbox" id="settingsAssignAlertsToggle"><span class="crm-toggle-slider"></span></label>
                     </div>
 
                     <div style="height: 12px;"></div>
@@ -2184,21 +2184,21 @@
                             <label style="margin-bottom:4px;">Follow-up Alerts</label>
                             <small style="color:#666; display:block;">Notify when a scheduled follow-up becomes due.</small>
                         </div>
-                        <button id="settingsFollowupAlertsBtn" class="btn btn-secondary" type="button">On</button>
+                        <label class="crm-toggle"><input type="checkbox" id="settingsFollowupAlertsToggle"><span class="crm-toggle-slider"></span></label>
                     </div>
 
                     <div id="settingsNotificationsMsg" style="margin-top: 12px; color:#666;"></div>
                 </div>
 
                 <!-- Data Saver -->
-                <div id="settingsDataSaverCard" class="dashboard-card" style="max-width: 900px; margin-top: 16px;">
+                <div id="settingsDataSaverCard" class="dashboard-card" style="margin-top: 16px;">
                     <h3 style="margin-top:0;"><i class="fas fa-tachometer-alt"></i> Data Saver</h3>
                     <div class="form-row" style="align-items:center;">
                         <div class="form-group" style="flex:1; margin:0;">
                             <label style="margin-bottom:4px;">Lazy Load Leads</label>
                             <small style="color:#666; display:block;">Load leads in small batches as you scroll instead of all at once. Reduces network usage and speeds up the page on slow connections or low-end devices.</small>
                         </div>
-                        <button id="settingsLazyLoadLeadsBtn" class="btn btn-secondary" type="button">On</button>
+                        <label class="crm-toggle"><input type="checkbox" id="settingsLazyLoadLeadsToggle"><span class="crm-toggle-slider"></span></label>
                     </div>
                     <div style="margin-top:16px; border-top:1px solid #eee; padding-top:14px; display:flex; align-items:center; gap:12px;">
                         <button id="settingsDataSaverSaveBtn" class="btn btn-primary" type="button"><i class="fas fa-save"></i> Save &amp; Reload</button>

@@ -1930,12 +1930,12 @@ async function loadSettings() {
     {
 
         const msg = document.getElementById('settingsNotificationsMsg');
-        const btnBrowser = document.getElementById('settingsEnableBrowserAlertsBtn');
-        const btnDaily = document.getElementById('settingsDailyReportRemindersBtn');
-        const btnAssign = document.getElementById('settingsAssignAlertsBtn');
-        const btnFU = document.getElementById('settingsFollowupAlertsBtn');
-        const btnAdminLeave = document.getElementById('settingsAdminLeaveReqBtn');
-        const btnAdminDaily = document.getElementById('settingsAdminDailyReportsBtn');
+        const togBrowser = document.getElementById('settingsEnableBrowserAlertsToggle');
+        const togDaily = document.getElementById('settingsDailyReportRemindersToggle');
+        const togAssign = document.getElementById('settingsAssignAlertsToggle');
+        const togFU = document.getElementById('settingsFollowupAlertsToggle');
+        const togAdminLeave = document.getElementById('settingsAdminLeaveReqToggle');
+        const togAdminDaily = document.getElementById('settingsAdminDailyReportsToggle');
 
         // Edge routing helper for notifications (app.js context)
         const _NOTIF_EDGE_APP = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-notifications';
@@ -1980,51 +1980,42 @@ async function loadSettings() {
             const local = window.Notifications?.getSettings ? window.Notifications.getSettings() : { dailyReports: true, assignments: true, followups: true };
 
             if (!isAdmin) {
-                if (btnDaily) btnDaily.textContent = local.dailyReports ? 'On' : 'Off';
-                if (btnAssign) btnAssign.textContent = local.assignments ? 'On' : 'Off';
-                if (btnFU) btnFU.textContent = local.followups ? 'On' : 'Off';
+                if (togDaily) togDaily.checked = !!local.dailyReports;
+                if (togAssign) togAssign.checked = !!local.assignments;
+                if (togFU) togFU.checked = !!local.followups;
             } else {
                 const s = serverSettings || {};
-                if (btnAdminLeave) btnAdminLeave.textContent = (s.admin_leave_requests === false) ? 'Off' : 'On';
-                // Admin daily report setting removed: admins always receive officer-submitted daily report notifications.
-                if (btnAdminDaily) btnAdminDaily.style.display = 'none';
+                if (togAdminLeave) togAdminLeave.checked = (s.admin_leave_requests !== false);
+                // Admin daily report setting removed: hide the row
+                const rowAdminDailyEl = document.getElementById('settingsRowAdminDailyReports');
+                if (rowAdminDailyEl) rowAdminDailyEl.style.display = 'none';
             }
 
             // Browser alerts
-            if (btnBrowser) {
+            if (togBrowser) {
                 if (!window.Notifications?.canUseBrowserNotifications?.()) {
-                    btnBrowser.disabled = true;
-                    btnBrowser.textContent = 'Not supported';
+                    togBrowser.disabled = true;
+                    togBrowser.checked = false;
                 } else {
                     const enabled = window.Notifications.browserNotificationsEnabled?.() === true;
                     const perm = (window.Notification && Notification.permission) ? Notification.permission : 'default';
-                    if (perm === 'granted' && enabled) {
-                        btnBrowser.disabled = false;
-                        btnBrowser.textContent = 'Disable';
-                    } else {
-                        btnBrowser.disabled = false;
-                        btnBrowser.textContent = 'Enable';
-                    }
+                    togBrowser.disabled = false;
+                    togBrowser.checked = (perm === 'granted' && enabled);
                 }
             }
         };
 
-        if (btnBrowser) {
-            btnBrowser.onclick = async () => {
+        if (togBrowser) {
+            togBrowser.onclick = async (e) => {
+                e.preventDefault(); // prevent auto-toggle; we set state manually after async result
                 try {
                     if (!window.Notifications?.requestBrowserPermission) throw new Error('Notifications module not loaded');
 
-                    // If already enabled locally + permission granted, clicking disables
                     const enabledLocal = window.Notifications.browserNotificationsEnabled?.() === true;
                     const perm = (window.Notification && Notification.permission) ? Notification.permission : 'default';
                     if (perm === 'granted' && enabledLocal) {
                         window.Notifications.setBrowserNotificationsEnabled(false);
-                        // persist server pref
-                        await notifFetchApp('/api/notifications/settings', {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ browser_alerts_enabled: false })
-                        });
+                        await notifFetchApp('/api/notifications/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ browser_alerts_enabled: false }) });
                         if (msg) msg.textContent = 'Browser alerts disabled.';
                         if (window.showToast) showToast('Browser alerts disabled', 'info');
                         refresh();
@@ -2034,21 +2025,12 @@ async function loadSettings() {
                     const p = await window.Notifications.requestBrowserPermission();
                     if (p === 'granted') {
                         window.Notifications.setBrowserNotificationsEnabled(true);
-                        // persist server pref
-                        await notifFetchApp('/api/notifications/settings', {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ browser_alerts_enabled: true })
-                        });
+                        await notifFetchApp('/api/notifications/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ browser_alerts_enabled: true }) });
                         if (msg) msg.textContent = 'Browser alerts enabled.';
                         if (window.showToast) showToast('Browser alerts enabled', 'success');
                     } else {
                         window.Notifications.setBrowserNotificationsEnabled(false);
-                        await notifFetchApp('/api/notifications/settings', {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ browser_alerts_enabled: false })
-                        });
+                        await notifFetchApp('/api/notifications/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ browser_alerts_enabled: false }) });
                         if (msg) msg.textContent = 'Browser alerts not allowed.';
                         if (window.showToast) showToast('Browser alerts not allowed', 'warning');
                     }
@@ -2061,55 +2043,37 @@ async function loadSettings() {
         }
 
         if (!isAdmin) {
-            if (btnDaily) {
-                btnDaily.onclick = async () => {
-                    const cur = window.Notifications?.getSettings ? window.Notifications.getSettings().dailyReports : true;
-                    window.Notifications?.setSetting?.('dailyReports', !cur);
-                    refresh();
+            if (togDaily) {
+                togDaily.onchange = async () => {
+                    window.Notifications?.setSetting?.('dailyReports', togDaily.checked);
                     try { await window.Notifications?.reschedule?.(); } catch (e) {}
                 };
             }
-
-            if (btnAssign) {
-                btnAssign.onclick = () => {
-                    const cur = window.Notifications?.getSettings ? window.Notifications.getSettings().assignments : true;
-                    window.Notifications?.setSetting?.('assignments', !cur);
-                    refresh();
-                };
+            if (togAssign) {
+                togAssign.onchange = () => { window.Notifications?.setSetting?.('assignments', togAssign.checked); };
             }
-
-            if (btnFU) {
-                btnFU.onclick = () => {
-                    const cur = window.Notifications?.getSettings ? window.Notifications.getSettings().followups : true;
-                    window.Notifications?.setSetting?.('followups', !cur);
-                    refresh();
-                };
+            if (togFU) {
+                togFU.onchange = () => { window.Notifications?.setSetting?.('followups', togFU.checked); };
             }
         } else {
-            if (btnAdminLeave) {
-                btnAdminLeave.onclick = async () => {
-                    const curOff = (serverSettings && serverSettings.admin_leave_requests === false);
-                    serverSettings = await saveServerSettings({ admin_leave_requests: curOff ? true : false });
-                    refresh();
+            if (togAdminLeave) {
+                togAdminLeave.onchange = async () => {
+                    serverSettings = await saveServerSettings({ admin_leave_requests: togAdminLeave.checked });
                 };
             }
-            // Admin daily report setting removed
         }
 
         refresh();
 
         // ── Data Saver: Lazy Load Leads toggle ──
-        const btnLazy = document.getElementById('settingsLazyLoadLeadsBtn');
+        const togLazy = document.getElementById('settingsLazyLoadLeadsToggle');
         const btnSave = document.getElementById('settingsDataSaverSaveBtn');
         const msgSaver = document.getElementById('settingsDataSaverMsg');
-        if (btnLazy) {
+        if (togLazy) {
             const LAZY_KEY = 'ucags_lazyLoadLeads';
-            const getLazy = () => localStorage.getItem(LAZY_KEY) !== 'off';
-            const refreshLazy = () => { btnLazy.textContent = getLazy() ? 'On' : 'Off'; };
-            refreshLazy();
-            btnLazy.onclick = () => {
-                localStorage.setItem(LAZY_KEY, getLazy() ? 'off' : 'on');
-                refreshLazy();
+            togLazy.checked = localStorage.getItem(LAZY_KEY) !== 'off';
+            togLazy.onchange = () => {
+                localStorage.setItem(LAZY_KEY, togLazy.checked ? 'on' : 'off');
                 if (msgSaver) msgSaver.textContent = 'Click "Save & Reload" to apply changes.';
             };
         }
