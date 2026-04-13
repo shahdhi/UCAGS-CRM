@@ -4,8 +4,11 @@
  */
 
 let currentLeads = [];
-let currentPage = 1;
-let rowsPerPage = 1000; // Show all leads (increased from 10)
+let isLoadingLeads = false;
+let hasMoreLeads = true;
+let leadsPageSize = 30; // Number of leads to load per scroll
+let leadsOffset = 0;
+let leadsFilters = {};
 let sortColumn = 'id';
 let sortDirection = 'desc';
 
@@ -20,8 +23,16 @@ async function initLeadsPage(modeOrBatch) {
   // Setup event listeners
   setupLeadsEventListeners();
 
-  // Load leads data
-  await loadLeads();
+  // Reset state
+  currentLeads = [];
+  leadsOffset = 0;
+  hasMoreLeads = true;
+
+  // Load initial leads
+  await loadLeads(true);
+
+  // Setup infinite scroll
+  setupLeadsInfiniteScroll();
 
   // Start auto-refresh (every 30 seconds)
   startAutoRefresh();
@@ -34,7 +45,12 @@ function setupLeadsEventListeners() {
   // Refresh button
   const refreshBtn = document.getElementById('refreshLeadsBtn');
   if (refreshBtn) {
-    refreshBtn.addEventListener('click', loadLeads);
+    refreshBtn.addEventListener('click', () => {
+      currentLeads = [];
+      leadsOffset = 0;
+      hasMoreLeads = true;
+      loadLeads(true);
+    });
   }
 
   // Search input
@@ -44,8 +60,10 @@ function setupLeadsEventListeners() {
     searchInput.addEventListener('input', () => {
       clearTimeout(searchTimeout);
       searchTimeout = setTimeout(() => {
-        currentPage = 1;
-        loadLeads();
+        currentLeads = [];
+        leadsOffset = 0;
+        hasMoreLeads = true;
+        loadLeads(true);
       }, 500);
     });
   }
@@ -54,8 +72,10 @@ function setupLeadsEventListeners() {
   const statusFilter = document.getElementById('leadsStatusFilter');
   if (statusFilter) {
     statusFilter.addEventListener('change', () => {
-      currentPage = 1;
-      loadLeads();
+      currentLeads = [];
+      leadsOffset = 0;
+      hasMoreLeads = true;
+      loadLeads(true);
     });
   }
 
@@ -82,43 +102,57 @@ function setupLeadsEventListeners() {
 /**
  * Load leads from API
  */
-async function loadLeads() {
+async function loadLeads(reset = false) {
+  if (isLoadingLeads || !hasMoreLeads) return;
+  isLoadingLeads = true;
   try {
     const searchInput = document.getElementById('leadsSearchInput');
     const statusFilter = document.getElementById('leadsStatusFilter');
 
-    const filters = {};
+    // Build filters
+    leadsFilters = {};
     if (searchInput && searchInput.value) {
-      filters.search = searchInput.value;
+      leadsFilters.search = searchInput.value;
     }
     if (statusFilter && statusFilter.value) {
-      filters.status = statusFilter.value;
+      leadsFilters.status = statusFilter.value;
     }
 
-    // Show loading state
-    showLeadsLoading();
+    // Show loading state if first load
+    if (reset || currentLeads.length === 0) showLeadsLoading();
 
     const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
 
+    // Add pagination params
+    const filtersWithPaging = { ...leadsFilters, offset: leadsOffset, limit: leadsPageSize };
+
     let response;
     if (isOfficerView) {
-      if (window.officerBatchFilter) filters.batch = window.officerBatchFilter;
-      if (window.officerSheetFilter) filters.sheet = window.officerSheetFilter;
-      response = await API.leads.getMyLeads(filters);
+      if (window.officerBatchFilter) filtersWithPaging.batch = window.officerBatchFilter;
+      if (window.officerSheetFilter) filtersWithPaging.sheet = window.officerSheetFilter;
+      response = await API.leads.getMyLeads(filtersWithPaging);
     } else {
-      if (window.adminBatchFilter) filters.batch = window.adminBatchFilter;
-      if (window.adminSheetFilter) filters.sheet = window.adminSheetFilter;
-      response = await API.leads.getAll(filters);
+      if (window.adminBatchFilter) filtersWithPaging.batch = window.adminBatchFilter;
+      if (window.adminSheetFilter) filtersWithPaging.sheet = window.adminSheetFilter;
+      response = await API.leads.getAll(filtersWithPaging);
     }
 
-    currentLeads = response.leads || [];
+    const newLeads = response.leads || [];
+    if (reset) {
+      currentLeads = newLeads;
+    } else {
+      currentLeads = currentLeads.concat(newLeads);
+    }
+    leadsOffset += newLeads.length;
+    hasMoreLeads = newLeads.length === leadsPageSize;
 
     renderLeadsTable();
-    
-    console.log(`✓ Loaded ${currentLeads.length} leads`);
+    console.log(`✓ Loaded ${currentLeads.length} leads (offset: ${leadsOffset})`);
   } catch (error) {
     console.error('Error loading leads:', error);
     showLeadsError(error.message);
+  } finally {
+    isLoadingLeads = false;
   }
 }
 
@@ -141,16 +175,8 @@ function renderLeadsTable() {
     return;
   }
 
-  // Don't sort - keep original order from sheet
-  const leadsToDisplay = currentLeads;
-
-  // Pagination
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
-  const paginatedLeads = leadsToDisplay.slice(startIndex, endIndex);
-
-  // Render rows
-  tbody.innerHTML = paginatedLeads.map(lead => `
+  // Render all loaded leads
+  tbody.innerHTML = currentLeads.map(lead => `
     <tr>
       <td>${lead.id}</td>
       <td><strong>${escapeHtml(lead.name)}</strong></td>
@@ -169,8 +195,30 @@ function renderLeadsTable() {
     </tr>
   `).join('');
 
-  // Update pagination info
-  updatePaginationInfo(sorted.length);
+  // Optionally, show a loading row if more leads are being loaded
+  if (isLoadingLeads && hasMoreLeads) {
+    tbody.innerHTML += `
+      <tr><td colspan="10" style="text-align:center;"><i class="fas fa-spinner fa-spin"></i> Loading more leads...</td></tr>
+    `;
+  }
+
+  // Update info (optional)
+  updatePaginationInfo(currentLeads.length);
+}
+
+// Infinite scroll setup
+function setupLeadsInfiniteScroll() {
+  const tableContainer = document.getElementById('leadsTableContainer') || document;
+  tableContainer.addEventListener('scroll', () => {
+    // If near bottom, load more
+    const scrollable = tableContainer === document ? document.documentElement : tableContainer;
+    const scrollTop = scrollable.scrollTop;
+    const scrollHeight = scrollable.scrollHeight;
+    const clientHeight = scrollable.clientHeight;
+    if (scrollHeight - scrollTop - clientHeight < 200 && hasMoreLeads && !isLoadingLeads) {
+      loadLeads();
+    }
+  });
 }
 
 /**
