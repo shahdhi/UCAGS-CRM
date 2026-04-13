@@ -16,6 +16,10 @@ let sortDirection = 'desc';
  * Initialize leads page
  * @param {string} modeOrBatch - For officers this is usually 'myLeads'. For admins it can be a batch name.
  */
+function isLazyLoadEnabled() {
+  return localStorage.getItem('ucags_lazyLoadLeads') !== 'off';
+}
+
 async function initLeadsPage(modeOrBatch) {
   console.log('Initializing leads page...');
   window.leadsModeOrBatch = modeOrBatch;
@@ -28,11 +32,14 @@ async function initLeadsPage(modeOrBatch) {
   leadsOffset = 0;
   hasMoreLeads = true;
 
-  // Load initial leads
-  await loadLeads(true);
-
-  // Setup infinite scroll
-  setupLeadsInfiniteScroll();
+  if (isLazyLoadEnabled()) {
+    // Load initial batch + setup infinite scroll
+    await loadLeads(true);
+    setupLeadsInfiniteScroll();
+  } else {
+    // Load all leads at once (legacy behaviour)
+    await loadAllLeads();
+  }
 
   // Start auto-refresh (every 30 seconds)
   startAutoRefresh();
@@ -49,7 +56,7 @@ function setupLeadsEventListeners() {
       currentLeads = [];
       leadsOffset = 0;
       hasMoreLeads = true;
-      loadLeads(true);
+      if (isLazyLoadEnabled()) loadLeads(true); else loadAllLeads();
     });
   }
 
@@ -63,7 +70,7 @@ function setupLeadsEventListeners() {
         currentLeads = [];
         leadsOffset = 0;
         hasMoreLeads = true;
-        loadLeads(true);
+        if (isLazyLoadEnabled()) loadLeads(true); else loadAllLeads();
       }, 500);
     });
   }
@@ -75,7 +82,7 @@ function setupLeadsEventListeners() {
       currentLeads = [];
       leadsOffset = 0;
       hasMoreLeads = true;
-      loadLeads(true);
+      if (isLazyLoadEnabled()) loadLeads(true); else loadAllLeads();
     });
   }
 
@@ -100,7 +107,49 @@ function setupLeadsEventListeners() {
 }
 
 /**
- * Load leads from API
+ * Load ALL leads at once (used when lazy load is disabled)
+ */
+async function loadAllLeads() {
+  if (isLoadingLeads) return;
+  isLoadingLeads = true;
+  try {
+    const searchInput = document.getElementById('leadsSearchInput');
+    const statusFilter = document.getElementById('leadsStatusFilter');
+
+    const filters = {};
+    if (searchInput && searchInput.value) filters.search = searchInput.value;
+    if (statusFilter && statusFilter.value) filters.status = statusFilter.value;
+
+    showLeadsLoading();
+
+    const isOfficerView = (window.leadsModeOrBatch === 'myLeads') || (window.currentUser && window.currentUser.role !== 'admin');
+
+    let response;
+    if (isOfficerView) {
+      if (window.officerBatchFilter) filters.batch = window.officerBatchFilter;
+      if (window.officerSheetFilter) filters.sheet = window.officerSheetFilter;
+      response = await API.leads.getMyLeads(filters);
+    } else {
+      if (window.adminBatchFilter) filters.batch = window.adminBatchFilter;
+      if (window.adminSheetFilter) filters.sheet = window.adminSheetFilter;
+      response = await API.leads.getAll(filters);
+    }
+
+    currentLeads = response.leads || [];
+    hasMoreLeads = false; // all loaded
+    leadsOffset = currentLeads.length;
+    renderLeadsTable();
+    console.log(`✓ Loaded all ${currentLeads.length} leads`);
+  } catch (error) {
+    console.error('Error loading leads:', error);
+    showLeadsError(error.message);
+  } finally {
+    isLoadingLeads = false;
+  }
+}
+
+/**
+ * Load leads from API (paginated — used when lazy load is enabled)
  */
 async function loadLeads(reset = false) {
   if (isLoadingLeads || !hasMoreLeads) return;

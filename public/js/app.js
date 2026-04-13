@@ -2097,6 +2097,21 @@ async function loadSettings() {
         }
 
         refresh();
+
+        // ── Data Saver: Lazy Load Leads toggle ──
+        const btnLazy = document.getElementById('settingsLazyLoadLeadsBtn');
+        if (btnLazy) {
+            const LAZY_KEY = 'ucags_lazyLoadLeads';
+            const getLazy = () => localStorage.getItem(LAZY_KEY) !== 'off';
+            const refreshLazy = () => { btnLazy.textContent = getLazy() ? 'On' : 'Off'; };
+            refreshLazy();
+            btnLazy.onclick = () => {
+                localStorage.setItem(LAZY_KEY, getLazy() ? 'off' : 'on');
+                refreshLazy();
+                if (window.showToast) showToast('Lazy Load Leads ' + (getLazy() ? 'enabled' : 'disabled'), 'info');
+            };
+        }
+
         return;
     }
 
