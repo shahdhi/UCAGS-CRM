@@ -4283,3 +4283,16 @@ body::-webkit-scrollbar-thumb:hover {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* ── Settings rows (iPhone-style) ── */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid #f0f0f0;
+  gap: 16px;
+}
+.settings-row:last-of-type {
+  border-bottom: none;
+}

@@ -2129,74 +2129,64 @@
                 <div id="settingsNotificationsCard" class="dashboard-card" style="display:none;">
                     <h3 style="margin-top:0;"><i class="fas fa-bell"></i> Notifications</h3>
 
-                    <div class="form-row" style="align-items:center;">
-                        <div class="form-group" style="flex:1; margin:0;">
-                            <label style="margin-bottom:4px;">Enable Browser Alerts</label>
-                            <small style="color:#666; display:block;">Shows desktop notifications (requires permission). Works while the app is open.</small>
+                    <div class="settings-row">
+                        <div>
+                            <div style="font-weight:500; margin-bottom:2px;">Enable Browser Alerts</div>
+                            <small style="color:#666;">Shows desktop notifications (requires permission). Works while the app is open.</small>
                         </div>
                         <label class="crm-toggle"><input type="checkbox" id="settingsEnableBrowserAlertsToggle"><span class="crm-toggle-slider"></span></label>
                     </div>
 
-                    <div style="height: 12px;"></div>
-
-                    <div class="form-row officer-only" style="align-items:center;" id="settingsRowDailyReportReminders">
-                        <div class="form-group" style="flex:1; margin:0;">
-                            <label style="margin-bottom:4px;">Daily Report Reminders</label>
-                            <small style="color:#666; display:block;">Remind you at each daily report submission time.</small>
+                    <div class="settings-row officer-only" id="settingsRowDailyReportReminders">
+                        <div>
+                            <div style="font-weight:500; margin-bottom:2px;">Daily Report Reminders</div>
+                            <small style="color:#666;">Remind you at each daily report submission time.</small>
                         </div>
                         <label class="crm-toggle"><input type="checkbox" id="settingsDailyReportRemindersToggle"><span class="crm-toggle-slider"></span></label>
                     </div>
 
-                    <div style="height: 12px;"></div>
-
-                    <div class="form-row admin-only" style="align-items:center; display:none;" id="settingsRowAdminLeaveReq">
-                        <div class="form-group" style="flex:1; margin:0;">
-                            <label style="margin-bottom:4px;">Leave Request Alerts</label>
-                            <small style="color:#666; display:block;">Notify when a leave request is received.</small>
+                    <div class="settings-row admin-only" style="display:none;" id="settingsRowAdminLeaveReq">
+                        <div>
+                            <div style="font-weight:500; margin-bottom:2px;">Leave Request Alerts</div>
+                            <small style="color:#666;">Notify when a leave request is received.</small>
                         </div>
                         <label class="crm-toggle"><input type="checkbox" id="settingsAdminLeaveReqToggle"><span class="crm-toggle-slider"></span></label>
                     </div>
 
-                    <div style="height: 12px;"></div>
-
-                    <div class="form-row admin-only" style="align-items:center; display:none;" id="settingsRowAdminDailyReports">
-                        <div class="form-group" style="flex:1; margin:0;">
-                            <label style="margin-bottom:4px;">Daily Report Received Alerts</label>
-                            <small style="color:#666; display:block;">Notify when an officer submits a daily report.</small>
+                    <div class="settings-row admin-only" style="display:none;" id="settingsRowAdminDailyReports">
+                        <div>
+                            <div style="font-weight:500; margin-bottom:2px;">Daily Report Received Alerts</div>
+                            <small style="color:#666;">Notify when an officer submits a daily report.</small>
                         </div>
                         <label class="crm-toggle"><input type="checkbox" id="settingsAdminDailyReportsToggle"><span class="crm-toggle-slider"></span></label>
                     </div>
 
-                    <div style="height: 12px;"></div>
-
-                    <div class="form-row" style="align-items:center;">
-                        <div class="form-group" style="flex:1; margin:0;">
-                            <label style="margin-bottom:4px;">Assign Alerts</label>
-                            <small style="color:#666; display:block;">Notify when new leads are assigned to you.</small>
+                    <div class="settings-row">
+                        <div>
+                            <div style="font-weight:500; margin-bottom:2px;">Assign Alerts</div>
+                            <small style="color:#666;">Notify when new leads are assigned to you.</small>
                         </div>
                         <label class="crm-toggle"><input type="checkbox" id="settingsAssignAlertsToggle"><span class="crm-toggle-slider"></span></label>
                     </div>
 
-                    <div style="height: 12px;"></div>
-
-                    <div class="form-row" style="align-items:center;">
-                        <div class="form-group" style="flex:1; margin:0;">
-                            <label style="margin-bottom:4px;">Follow-up Alerts</label>
-                            <small style="color:#666; display:block;">Notify when a scheduled follow-up becomes due.</small>
+                    <div class="settings-row">
+                        <div>
+                            <div style="font-weight:500; margin-bottom:2px;">Follow-up Alerts</div>
+                            <small style="color:#666;">Notify when a scheduled follow-up becomes due.</small>
                         </div>
                         <label class="crm-toggle"><input type="checkbox" id="settingsFollowupAlertsToggle"><span class="crm-toggle-slider"></span></label>
                     </div>
 
-                    <div id="settingsNotificationsMsg" style="margin-top: 12px; color:#666;"></div>
+                    <div id="settingsNotificationsMsg" style="margin-top: 8px; color:#666; font-size:13px;"></div>
                 </div>
 
                 <!-- Data Saver -->
                 <div id="settingsDataSaverCard" class="dashboard-card" style="margin-top: 16px;">
                     <h3 style="margin-top:0;"><i class="fas fa-tachometer-alt"></i> Data Saver</h3>
-                    <div class="form-row" style="align-items:center;">
-                        <div class="form-group" style="flex:1; margin:0;">
-                            <label style="margin-bottom:4px;">Lazy Load Leads</label>
-                            <small style="color:#666; display:block;">Load leads in small batches as you scroll instead of all at once. Reduces network usage and speeds up the page on slow connections or low-end devices.</small>
+                    <div class="settings-row">
+                        <div>
+                            <div style="font-weight:500; margin-bottom:2px;">Lazy Load Leads</div>
+                            <small style="color:#666;">Load leads in small batches as you scroll instead of all at once. Reduces network usage and speeds up the page on slow connections or low-end devices.</small>
                         </div>
                         <label class="crm-toggle"><input type="checkbox" id="settingsLazyLoadLeadsToggle"><span class="crm-toggle-slider"></span></label>
                     </div>
