@@ -2100,6 +2100,8 @@ async function loadSettings() {
 
         // ── Data Saver: Lazy Load Leads toggle ──
         const btnLazy = document.getElementById('settingsLazyLoadLeadsBtn');
+        const btnSave = document.getElementById('settingsDataSaverSaveBtn');
+        const msgSaver = document.getElementById('settingsDataSaverMsg');
         if (btnLazy) {
             const LAZY_KEY = 'ucags_lazyLoadLeads';
             const getLazy = () => localStorage.getItem(LAZY_KEY) !== 'off';
@@ -2108,7 +2110,13 @@ async function loadSettings() {
             btnLazy.onclick = () => {
                 localStorage.setItem(LAZY_KEY, getLazy() ? 'off' : 'on');
                 refreshLazy();
-                if (window.showToast) showToast('Lazy Load Leads ' + (getLazy() ? 'enabled' : 'disabled'), 'info');
+                if (msgSaver) msgSaver.textContent = 'Click "Save & Reload" to apply changes.';
+            };
+        }
+        if (btnSave) {
+            btnSave.onclick = () => {
+                if (msgSaver) msgSaver.textContent = 'Reloading...';
+                location.reload(true);
             };
         }
 
