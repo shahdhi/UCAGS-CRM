@@ -2120,6 +2120,29 @@
                     <h1>Settings</h1>
                 </div>
 
+                <!-- Data Saver -->
+                <div id="settingsDataSaverCard" class="dashboard-card" style="margin-bottom: 16px;">
+                    <h3 style="margin-top:0;"><i class="fas fa-tachometer-alt"></i> Data Saver</h3>
+                    <div class="settings-row">
+                        <div>
+                            <div style="font-weight:500; margin-bottom:2px;">Lazy Load Leads</div>
+                            <small style="color:#666;">Load leads in small batches as you scroll instead of all at once. Reduces network usage and lags the page on slow connections or low-end devices.</small>
+                        </div>
+                        <label class="crm-toggle"><input type="checkbox" id="settingsLazyLoadLeadsToggle"><span class="crm-toggle-slider"></span></label>
+                    </div>
+                    <div class="settings-row">
+                        <div>
+                            <div style="font-weight:500; margin-bottom:2px;">Disable Dashboard Auto-Refresh</div>
+                            <small style="color:#666;">Stop the dashboard from reloading automatically. Use the Refresh button to reload data manually.</small>
+                        </div>
+                        <label class="crm-toggle"><input type="checkbox" id="settingsDashboardAutoRefreshToggle"><span class="crm-toggle-slider"></span></label>
+                    </div>
+                    <div style="margin-top:16px; border-top:1px solid #eee; padding-top:14px; display:flex; align-items:center; gap:12px;">
+                        <button id="settingsDataSaverSaveBtn" class="btn btn-primary" type="button"><i class="fas fa-save"></i> Save &amp; Reload</button>
+                        <small id="settingsDataSaverMsg" style="color:#666;"></small>
+                    </div>
+                </div>
+
                 <!-- Notifications (Officer) -->
                 <div id="settingsNotificationsCard" class="dashboard-card" style="display:none;">
                     <h3 style="margin-top:0;"><i class="fas fa-bell"></i> Notifications</h3>
@@ -2173,29 +2196,6 @@
                     </div>
 
                     <div id="settingsNotificationsMsg" style="margin-top: 8px; color:#666; font-size:13px;"></div>
-                </div>
-
-                <!-- Data Saver -->
-                <div id="settingsDataSaverCard" class="dashboard-card" style="margin-top: 16px;">
-                    <h3 style="margin-top:0;"><i class="fas fa-tachometer-alt"></i> Data Saver</h3>
-                    <div class="settings-row">
-                        <div>
-                            <div style="font-weight:500; margin-bottom:2px;">Lazy Load Leads</div>
-                            <small style="color:#666;">Load leads in small batches as you scroll instead of all at once. Reduces network usage and lags the page on slow connections or low-end devices.</small>
-                        </div>
-                        <label class="crm-toggle"><input type="checkbox" id="settingsLazyLoadLeadsToggle"><span class="crm-toggle-slider"></span></label>
-                    </div>
-                    <div class="settings-row">
-                        <div>
-                            <div style="font-weight:500; margin-bottom:2px;">Disable Dashboard Auto-Refresh</div>
-                            <small style="color:#666;">Stop the dashboard from reloading automatically. Use the Refresh button to reload data manually.</small>
-                        </div>
-                        <label class="crm-toggle"><input type="checkbox" id="settingsDashboardAutoRefreshToggle"><span class="crm-toggle-slider"></span></label>
-                    </div>
-                    <div style="margin-top:16px; border-top:1px solid #eee; padding-top:14px; display:flex; align-items:center; gap:12px;">
-                        <button id="settingsDataSaverSaveBtn" class="btn btn-primary" type="button"><i class="fas fa-save"></i> Save &amp; Reload</button>
-                        <small id="settingsDataSaverMsg" style="color:#666;"></small>
-                    </div>
                 </div>
 
                 <!-- Admin placeholder (optional future settings) -->
