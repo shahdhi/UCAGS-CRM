@@ -2819,6 +2819,12 @@ body.officer .officer-only {
     display: block !important;
 }
 
+/* Settings rows are flex — must override the block above */
+body:not(.admin):not(.officer) .settings-row.officer-only,
+body.officer .settings-row.officer-only {
+    display: flex !important;
+}
+
 /* Officer nav items should be flex rows */
 body:not(.admin):not(.officer) .nav-item.officer-only,
 body:not(.admin):not(.officer) .nav-link.officer-only,
