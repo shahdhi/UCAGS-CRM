@@ -1467,6 +1467,11 @@ async function navigateToPage(page) {
                 await window.initDailyChecklistPage();
             }
             break;
+        case 'officer-report':
+            if (window.initOfficerReportPage) {
+                await window.initOfficerReportPage(currentUser);
+            }
+            break;
         case 'demo-sessions':
             if (window.initDemoSessionsPage) {
                 await window.initDemoSessionsPage();

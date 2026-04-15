@@ -237,6 +237,11 @@
                     <span>Daily Checklist</span>
                 </a>
 
+                <a href="#" class="nav-item admin-only" data-page="officer-report">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Officer Reports</span>
+                </a>
+
                 <a href="#" class="nav-item supervisor-only" data-page="supervisor-daily-checklist">
                     <i class="fas fa-clipboard-check"></i>
                     <span>Daily Checklist</span>
@@ -1939,6 +1944,9 @@
                 </div>
             </div>
 
+            <!-- Officer Detail Report View -->
+            <div id="officer-reportView" class="content-view admin-only" style="display:none;"></div>
+
             <!-- Notifications View -->
             <div id="daily-checklistView" class="content-view admin-only no-view-anim" style="display:none;">
                 <h1><i class="fas fa-clipboard-check"></i> Daily Checklist</h1>
@@ -2885,6 +2893,7 @@
     <script src="/frontend/pages/calendar/calendarTasks.js"></script>
     <script src="/frontend/pages/notifications/notificationsPage.js?v=1"></script>
     <script src="/frontend/pages/reports/reportsPage.js?v=1"></script>
+    <script src="/frontend/pages/reports/officerReportPage.js?v=1"></script>
     <script src="/frontend/pages/reports/dailyChecklistPage.js?v=1"></script>
     <script src="/frontend/pages/students/studentsPage.js?v=1"></script>
     
