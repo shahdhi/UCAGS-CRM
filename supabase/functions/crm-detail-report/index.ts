@@ -142,7 +142,9 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   // ------------------------------------------------------------------
   // Parallel data fetch — all 13 queries at once
   // ------------------------------------------------------------------
-  const safeQ = (p: Promise<any>) => p.catch(() => ({ data: [], error: null }));
+  // Supabase query builders are thenables, not full Promises — wrap first.
+  const safeQ = (q: PromiseLike<any>) =>
+    Promise.resolve(q).catch(() => ({ data: [], error: null }));
 
   const nameQuery = (table: string, cols: string) =>
     officerName
@@ -250,12 +252,12 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
         .order('created_at', { ascending: false })
     ),
 
-    // 10. Enrollments via students → registrations join
+    // 10. Enrollments — fetch registrations for this officer first, then match students
+    // (can't filter on joined table columns in PostgREST via .eq; done in post-processing)
     officerName
       ? safeQ(
           sb.from('students')
-            .select('id, user_full_name, email, phone, created_at, registration_id, registrations!inner(assigned_to)')
-            .eq('registrations.assigned_to', officerName)
+            .select('id, user_full_name, email, phone, created_at, registration_id')
             .gte('created_at', fromStart)
             .lte('created_at', toEnd)
             .order('created_at', { ascending: false })
@@ -343,7 +345,18 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   demoXpEvents.forEach((e: any) => { if (e.reference_id) demoXpMap[e.reference_id] = e.xp; });
 
   const registrationsWithXp = registrations.map((r: any) => ({ ...r, xp: regXpMap[r.id] ?? null }));
-  const enrollmentsWithXp   = enrollments.map((e: any) => ({ ...e, xp: enrollXpMap[e.registration_id] ?? null }));
+
+  // Filter students to only those whose registration belongs to this officer.
+  // We already have the officer's registrations in `registrations` — build a Set of their IDs.
+  const officerRegIds = new Set<string>(registrations.map((r: any) => String(r.id)));
+  const enrollmentsFiltered = officerName
+    ? (safe(enrollmentsRes) as any[]).filter((s: any) => officerRegIds.has(String(s.registration_id)))
+    : [];
+  const enrollmentsWithXp = enrollmentsFiltered.map((e: any) => ({
+    ...e,
+    xp: enrollXpMap[e.registration_id] ?? null,
+  }));
+
   const demoInvitesWithXp   = demoInvites.map((inv: any) => ({ ...inv, xp: demoXpMap[inv.demo_session_id] ?? null }));
 
   // ------------------------------------------------------------------
@@ -368,7 +381,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
       contactsSaved:    contactsSaved.length,
       dailyReports:     dailyReports.length,
       registrations:    registrations.length,
-      enrollments:      enrollments.length,
+      enrollments:      enrollmentsFiltered.length,
       demoSessions:     demoInvites.length,
       totalXp,
     },
