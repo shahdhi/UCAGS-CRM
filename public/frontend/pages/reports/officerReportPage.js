@@ -368,26 +368,38 @@
           scrollY: 0
         });
 
-        const imgData = canvas.toDataURL('image/jpeg', 0.92);
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-        const pageWidth  = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const margin = 8;
-        const contentWidth = pageWidth - margin * 2;
-        const imgHeight = (canvas.height * contentWidth) / canvas.width;
+        const pageWidth   = pdf.internal.pageSize.getWidth();
+        const pageHeight  = pdf.internal.pageSize.getHeight();
+        const margin      = 8;
+        const contentW    = pageWidth  - margin * 2;
+        const contentH    = pageHeight - margin * 2;
 
-        let y = margin;
-        let heightLeft = imgHeight;
-        let firstPage = true;
+        // How many canvas pixels correspond to one PDF page's height
+        const scale           = canvas.width / contentW;         // px per mm
+        const pagePixelHeight = contentH * scale;
 
-        while (heightLeft > 0) {
-          if (!firstPage) { pdf.addPage(); y = margin; }
-          pdf.addImage(imgData, 'JPEG', margin, y, contentWidth, imgHeight);
-          heightLeft -= (pageHeight - margin * 2);
-          y -= (pageHeight - margin * 2);
-          firstPage = false;
+        const totalPages = Math.ceil(canvas.height / pagePixelHeight);
+
+        for (let i = 0; i < totalPages; i++) {
+          if (i > 0) pdf.addPage();
+
+          const srcY       = Math.floor(i * pagePixelHeight);
+          const srcH       = Math.min(pagePixelHeight, canvas.height - srcY);
+
+          // Extract only this page's slice into a temporary canvas
+          const slice      = document.createElement('canvas');
+          slice.width      = canvas.width;
+          slice.height     = Math.ceil(pagePixelHeight); // full page height so aspect stays consistent
+          const ctx        = slice.getContext('2d');
+          ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+
+          const sliceData  = slice.toDataURL('image/jpeg', 0.92);
+          // Only fill the proportion of the page that has real content (last page may be shorter)
+          const drawnH     = (srcH / pagePixelHeight) * contentH;
+          pdf.addImage(sliceData, 'JPEG', margin, margin, contentW, drawnH);
         }
 
         const officerText = document.getElementById('rptOfficerSelect').selectedOptions[0]?.text || 'officer';
