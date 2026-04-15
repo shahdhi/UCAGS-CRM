@@ -209,13 +209,62 @@
     style.id = 'officerReportPrintStyle';
     style.textContent = `
       @media print {
-        body > * { display: none !important; }
-        #dashboardPage { display: block !important; }
-        .sidebar, .top-bar, .no-print { display: none !important; }
-        #officer-reportView { display: block !important; }
-        #rptFilterBar { display: none !important; }
-        .dashboard-card { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
-        .table-container { overflow: visible !important; }
+        /* ── Reset layout constraints that clip print output ── */
+        html, body {
+          height: auto !important;
+          overflow: visible !important;
+        }
+        .main-wrapper,
+        .main-content {
+          height: auto !important;
+          overflow: visible !important;
+          max-height: none !important;
+        }
+
+        /* ── Hide everything except the report view ── */
+        .sidebar,
+        .sidebar-overlay,
+        .top-bar,
+        .no-print,
+        #rptFilterBar,
+        #wa-drawer,
+        #waDrawer,
+        #waDrawerOverlay {
+          display: none !important;
+        }
+
+        /* ── Force the report view visible ── */
+        #officer-reportView {
+          display: block !important;
+        }
+
+        /* ── Force ALL collapsible section bodies open ── */
+        [id^="rptBody_"] {
+          display: block !important;
+        }
+
+        /* ── Tables: remove scroll containers, let content flow ── */
+        .table-container {
+          overflow: visible !important;
+          max-height: none !important;
+        }
+
+        /* ── Cards: flatten for print ── */
+        .dashboard-card {
+          box-shadow: none !important;
+          border: 1px solid #d1d5db !important;
+          break-inside: avoid;
+          page-break-inside: avoid;
+        }
+
+        /* ── Tables: keep rows together where possible ── */
+        .data-table tr {
+          break-inside: avoid;
+          page-break-inside: avoid;
+        }
+
+        /* ── Misc ── */
+        * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       }
     `;
     document.head.appendChild(style);
@@ -292,7 +341,13 @@
 
     // Wire Generate button
     document.getElementById('rptGenerateBtn').onclick = generateReport;
-    document.getElementById('rptPrintBtn').onclick     = () => window.print();
+    document.getElementById('rptPrintBtn').onclick = () => {
+      // Expand all collapsed sections before printing
+      document.querySelectorAll('[id^="rptBody_"]').forEach(el => {
+        el.style.display = 'block';
+      });
+      window.print();
+    };
   };
 
   async function generateReport() {

@@ -167,6 +167,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
     enrollmentXpRes,
     demoInvitesRes,
     demoXpRes,
+    allXpRes,
   ] = await Promise.all([
     // 1. Attendance
     safeQ(
@@ -285,7 +286,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
         .order('created_at', { ascending: false })
     ),
 
-    // 13. Demo attended XP events
+    // 13. Demo attended XP events (reference_id = demo_session_invites.id)
     safeQ(
       sb.from('officer_xp_events')
         .select('id, reference_id, xp, created_at')
@@ -294,6 +295,15 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
         .gte('created_at', fromStart)
         .lte('created_at', toEnd)
         .order('created_at', { ascending: false })
+    ),
+
+    // 14. ALL XP events in range — used for accurate total (includes followups, penalties, etc.)
+    safeQ(
+      sb.from('officer_xp_events')
+        .select('id, event_type, xp, created_at')
+        .eq('user_id', officerId)
+        .gte('created_at', fromStart)
+        .lte('created_at', toEnd)
     ),
   ]);
 
@@ -312,6 +322,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   const enrollmentXpEvents    = safe(enrollmentXpRes);
   const demoInvites           = safe(demoInvitesRes);
   const demoXpEvents          = safe(demoXpRes);
+  const allXpEvents           = safe(allXpRes);
 
   // ------------------------------------------------------------------
   // Enrich leads contacted with lead details (batch lookup)
@@ -336,15 +347,16 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   // XP lookup maps for joins
   // ------------------------------------------------------------------
   const regXpMap: Record<string, number> = {};
-  registrationXpEvents.forEach((e: any) => { if (e.reference_id) regXpMap[e.reference_id] = e.xp; });
+  registrationXpEvents.forEach((e: any) => { if (e.reference_id) regXpMap[String(e.reference_id)] = e.xp; });
 
   const enrollXpMap: Record<string, number> = {};
-  enrollmentXpEvents.forEach((e: any) => { if (e.reference_id) enrollXpMap[e.reference_id] = e.xp; });
+  enrollmentXpEvents.forEach((e: any) => { if (e.reference_id) enrollXpMap[String(e.reference_id)] = e.xp; });
 
+  // demo_attended reference_id = demo_session_invites.id (the invite row ID)
   const demoXpMap: Record<string, number> = {};
-  demoXpEvents.forEach((e: any) => { if (e.reference_id) demoXpMap[e.reference_id] = e.xp; });
+  demoXpEvents.forEach((e: any) => { if (e.reference_id) demoXpMap[String(e.reference_id)] = e.xp; });
 
-  const registrationsWithXp = registrations.map((r: any) => ({ ...r, xp: regXpMap[r.id] ?? null }));
+  const registrationsWithXp = registrations.map((r: any) => ({ ...r, xp: regXpMap[String(r.id)] ?? null }));
 
   // Filter students to only those whose registration belongs to this officer.
   // We already have the officer's registrations in `registrations` — build a Set of their IDs.
@@ -354,19 +366,14 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
     : [];
   const enrollmentsWithXp = enrollmentsFiltered.map((e: any) => ({
     ...e,
-    xp: enrollXpMap[e.registration_id] ?? null,
+    xp: enrollXpMap[String(e.registration_id)] ?? null,
   }));
 
-  const demoInvitesWithXp   = demoInvites.map((inv: any) => ({ ...inv, xp: demoXpMap[inv.demo_session_id] ?? null }));
+  // demo XP is keyed by invite row ID
+  const demoInvitesWithXp = demoInvites.map((inv: any) => ({ ...inv, xp: demoXpMap[String(inv.id)] ?? null }));
 
-  // ------------------------------------------------------------------
-  // Summary totals
-  // ------------------------------------------------------------------
-  const totalXp =
-    leadsContacted.reduce((s: number, e: any) => s + (e.xp || 0), 0) +
-    registrationXpEvents.reduce((s: number, e: any) => s + (e.xp || 0), 0) +
-    enrollmentXpEvents.reduce((s: number, e: any) => s + (e.xp || 0), 0) +
-    demoXpEvents.reduce((s: number, e: any) => s + (e.xp || 0), 0);
+  // Sum ALL XP events in range — includes followups, penalties, reports, attendance, etc.
+  const totalXp = allXpEvents.reduce((s: number, e: any) => s + (Number(e.xp) || 0), 0);
 
   return {
     officerName,
