@@ -286,8 +286,8 @@
       <div class="page-header no-print">
         <h1><i class="fas fa-file-alt"></i> Officer Detail Report</h1>
         <div style="display:flex;gap:8px;align-items:center;">
-          <button id="rptPrintBtn" class="btn btn-secondary no-print" type="button">
-            <i class="fas fa-print"></i> Print / PDF
+          <button id="rptPrintBtn" class="btn btn-primary no-print" type="button">
+            <i class="fas fa-file-pdf"></i> Download PDF
           </button>
         </div>
       </div>
@@ -341,12 +341,67 @@
 
     // Wire Generate button
     document.getElementById('rptGenerateBtn').onclick = generateReport;
-    document.getElementById('rptPrintBtn').onclick = () => {
-      // Expand all collapsed sections before printing
+    document.getElementById('rptPrintBtn').onclick = async () => {
+      const output = document.getElementById('rptOutput');
+      if (!output || !output.innerHTML.trim()) {
+        alert('Please generate a report first.');
+        return;
+      }
+
+      // Expand all collapsed sections so they appear in the PDF
       document.querySelectorAll('[id^="rptBody_"]').forEach(el => {
         el.style.display = 'block';
       });
-      window.print();
+
+      const btn = document.getElementById('rptPrintBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating…';
+
+      try {
+        const canvas = await html2canvas(output, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#f9fafb',
+          logging: false,
+          windowWidth: output.scrollWidth,
+          scrollX: 0,
+          scrollY: 0
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.92);
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+        const pageWidth  = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 8;
+        const contentWidth = pageWidth - margin * 2;
+        const imgHeight = (canvas.height * contentWidth) / canvas.width;
+
+        let y = margin;
+        let heightLeft = imgHeight;
+        let firstPage = true;
+
+        while (heightLeft > 0) {
+          if (!firstPage) { pdf.addPage(); y = margin; }
+          pdf.addImage(imgData, 'JPEG', margin, y, contentWidth, imgHeight);
+          heightLeft -= (pageHeight - margin * 2);
+          y -= (pageHeight - margin * 2);
+          firstPage = false;
+        }
+
+        const officerText = document.getElementById('rptOfficerSelect').selectedOptions[0]?.text || 'officer';
+        const safeName = officerText.replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_').toLowerCase();
+        const from = document.getElementById('rptFromDate').value;
+        const to   = document.getElementById('rptToDate').value;
+        pdf.save(`officer-report_${safeName}_${from}_to_${to}.pdf`);
+      } catch (err) {
+        console.error('[OfficerReport] PDF generation error:', err);
+        alert('Failed to generate PDF: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-file-pdf"></i> Download PDF';
+      }
     };
   };
 
