@@ -83,6 +83,9 @@ verify_jwt = true
 [functions.crm-reports]
 verify_jwt = false
 
+[functions.crm-detail-report]
+verify_jwt = false
+
 [functions.batches]
 verify_jwt = true
 
