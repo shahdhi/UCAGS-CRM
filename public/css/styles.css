@@ -1297,8 +1297,17 @@ body {
 }
 
 #attendanceView .dashboard-card,
-#reportsView .dashboard-card {
+#reportsView .dashboard-card,
+#officer-reportView .dashboard-card {
     transition: none !important;
+}
+
+#officer-reportView .dashboard-card,
+#officer-reportView .dashboard-card:hover,
+#officer-reportView .dashboard-card:active {
+    transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
+    border-color: var(--separator) !important;
 }
 
 /* Home (Analytics): keep UI stable like Attendance/Leads */
