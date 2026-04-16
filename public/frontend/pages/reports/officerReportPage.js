@@ -705,17 +705,4 @@
     `;
   }
 
-  // Add logo to top right of cover page
-  try {
-    const img = new Image();
-    img.src = '/public/Unversal-logo-2025-05-16.png';
-    img.onload = function() {
-      // Draw logo at top right (width: 32mm, keep aspect ratio)
-      const logoW = 32, logoH = 32;
-      doc.addImage(img, 'PNG', W - M - logoW, 8, logoW, logoH);
-    };
-    // If already cached, force onload
-    if (img.complete) img.onload();
-  } catch (e) { /* ignore logo errors */ }
-
 })();
