@@ -387,25 +387,30 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   const { data: allOfficerLeads } = officerName
     ? await safeQ(
         sb.from('crm_leads')
-          .select('id, name, email, phone, status, program_name, batch_name')
+          .select('id, sheet_lead_id, name, email, phone, status, program_name, batch_name')
           .eq('assigned_to', officerName)
       )
     : Promise.resolve({ data: [] });
 
-  // Primary map: by UUID
+  // Primary map: keyed by sheet_lead_id (matches crm_lead_followups.sheet_lead_id)
   const leadMapById: Record<string, any> = {};
-  (allOfficerLeads || []).forEach((l: any) => { leadMapById[l.id] = l; });
+  (allOfficerLeads || []).forEach((l: any) => {
+    if (l.sheet_lead_id) leadMapById[String(l.sheet_lead_id)] = l;
+  });
 
   // Supplemental: fetch by UUID list in case leads were reassigned or from followups
   const allLeadIdsNeeded = [...new Set<string>([...contactedLeadIds, ...allFollowupRows.map((f: any) => f.sheet_lead_id), ...allOverdueRows.map((f: any) => f.sheet_lead_id)].filter(Boolean) as string[])];
   if (allLeadIdsNeeded.length > 0) {
-    // Always fetch followup lead IDs directly (they may not be assigned_to this officer name)
+    // sheet_lead_id in followups = crm_leads.sheet_lead_id (NOT crm_leads.id)
     const { data: extraLeads } = await safeQ(
       sb.from('crm_leads')
-        .select('id, name, email, phone, status, program_name, batch_name')
-        .in('id', allLeadIdsNeeded)
+        .select('id, sheet_lead_id, name, email, phone, status, program_name, batch_name')
+        .in('sheet_lead_id', allLeadIdsNeeded)
     );
-    (extraLeads || []).forEach((l: any) => { leadMapById[l.id] = l; });
+    // Build map keyed by sheet_lead_id so lookups work correctly
+    (extraLeads || []).forEach((l: any) => {
+      if (l.sheet_lead_id) leadMapById[String(l.sheet_lead_id)] = l;
+    });
   }
 
   leadsContacted = leadsContactedEvents.map((e: any) => ({
