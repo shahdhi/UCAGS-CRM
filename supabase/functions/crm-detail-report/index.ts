@@ -278,11 +278,11 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
         .order('created_at', { ascending: false })
     ),
 
-    // 12. Demo session invites
+    // 12. Demo session invites — officer_user_id (new) or created_by (legacy)
     safeQ(
       sb.from('demo_session_invites')
         .select('id, demo_session_id, invite_status, attendance, created_at, demo_sessions(session_date, session_time, topic, program_name)')
-        .eq('officer_user_id', officerId)
+        .or(`officer_user_id.eq.${officerId},created_by.eq.${officerId}`)
         .gte('created_at', fromStart)
         .lte('created_at', toEnd)
         .order('created_at', { ascending: false })
@@ -402,6 +402,19 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   const regXpMap: Record<string, number> = {};
   registrationXpEvents.forEach((e: any) => { if (e.reference_id) regXpMap[String(e.reference_id)] = e.xp; });
 
+  // Supplemental: fetch registrations referenced by XP events but possibly missed by name query
+  const nameMatchedRegIds = new Set<string>(registrations.map((r: any) => String(r.id)));
+  const xpRefRegIds = Object.keys(regXpMap).filter((id: string) => !nameMatchedRegIds.has(id));
+  let allRegistrations = [...registrations];
+  if (xpRefRegIds.length > 0) {
+    const { data: extraRegs } = await safeQ(
+      sb.from('registrations')
+        .select('id, full_name, email, phone_number, created_at, payment_status, program_name, batch_name')
+        .in('id', xpRefRegIds)
+    );
+    allRegistrations = [...registrations, ...(extraRegs || [])];
+  }
+
   const enrollXpMap: Record<string, number> = {};
   enrollmentXpEvents.forEach((e: any) => { if (e.reference_id) enrollXpMap[String(e.reference_id)] = e.xp; });
 
@@ -409,11 +422,10 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   const demoXpMap: Record<string, number> = {};
   demoXpEvents.forEach((e: any) => { if (e.reference_id) demoXpMap[String(e.reference_id)] = e.xp; });
 
-  const registrationsWithXp = registrations.map((r: any) => ({ ...r, xp: regXpMap[String(r.id)] ?? null }));
+  const registrationsWithXp = allRegistrations.map((r: any) => ({ ...r, xp: regXpMap[String(r.id)] ?? null }));
 
   // Filter students to only those whose registration belongs to this officer.
-  // We already have the officer's registrations in `registrations` — build a Set of their IDs.
-  const officerRegIds = new Set<string>(registrations.map((r: any) => String(r.id)));
+  const officerRegIds = new Set<string>(allRegistrations.map((r: any) => String(r.id)));
   const enrollmentsFiltered = officerName
     ? (safe(enrollmentsRes) as any[]).filter((s: any) => officerRegIds.has(String(s.registration_id)))
     : [];
@@ -440,7 +452,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
       overdueFollowups: overdueFollowups.length,
       contactsSaved:    contactsSaved.length,
       dailyReports:     dailyReports.length,
-      registrations:    registrations.length,
+      registrations:    allRegistrations.length,
       enrollments:      enrollmentsFiltered.length,
       demoSessions:     demoInvites.length,
       totalXp,
