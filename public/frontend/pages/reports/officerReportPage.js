@@ -163,7 +163,7 @@
     return table(
       ['Name', 'Phone', 'Email', 'Program', 'Batch', 'Amount', 'XP', 'Payment Date'],
       rows.map(r => [esc(r.name), esc(r.phone_number), esc(r.email), esc(r.program_name), esc(r.batch_name),
-        r.payment_amount ? `LKR ${Number(r.payment_amount).toLocaleString()}` : '—',
+        r.payment_amount ? `PKR ${Number(r.payment_amount).toLocaleString()}` : '—',
         xpBadge(r.xp), fmtDT(r.payment_date || r.enrolled_at || r.created_at)])
     );
   }
@@ -174,9 +174,8 @@
       rows.map(r => [
         esc(r.name), esc(r.contact_number),
         esc(r.demo_sessions?.title), esc(r.demo_sessions?.batch_name),
-        fmtDate(r.demo_sessions?.scheduled_at),
-        esc(r.invite_status), esc(r.attendance),
-        xpBadge(r.xp), fmtDT(r.created_at)
+        ptDate(r.demo_sessions?.scheduled_at),
+        pt(r.invite_status), pt(r.attendance), ptXp(r.xp), ptDT(r.created_at)
       ])
     );
   }
@@ -430,8 +429,8 @@
     const s = data.summary;
 
     // Brand colours
-    const PURPLE       = [67, 20, 140];
-    const PURPLE_LIGHT = [220, 210, 245];
+    const PURPLE       = [75, 38, 113];
+    const PURPLE_LIGHT = [230, 225, 240];
     const DARK         = [31,  41,  55];
     const GRAY         = [107, 114, 128];
     const WHITE        = [255, 255, 255];
@@ -705,5 +704,18 @@
       ${section('demoSessions',  'fas fa-chalkboard-teacher',   `Demo Sessions (${s.demoSessions})`,              s.demoSessions,      renderDemoSessions(data.demoSessions))}
     `;
   }
+
+  // Add logo to top right of cover page
+  try {
+    const img = new Image();
+    img.src = '/public/Unversal-logo-2025-05-16.png';
+    img.onload = function() {
+      // Draw logo at top right (width: 32mm, keep aspect ratio)
+      const logoW = 32, logoH = 32;
+      doc.addImage(img, 'PNG', W - M - logoW, 8, logoW, logoH);
+    };
+    // If already cached, force onload
+    if (img.complete) img.onload();
+  } catch (e) { /* ignore logo errors */ }
 
 })();
