@@ -6,6 +6,11 @@
   const EDGE_BASE = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-detail-report';
   const ANON_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
 
+  // Last generated report data — used by PDF export
+  let _lastReportData = null;
+  let _lastReportFrom = null;
+  let _lastReportTo   = null;
+
   // -------------------------------------------------------------------------
   // Helpers
   // -------------------------------------------------------------------------
@@ -342,73 +347,15 @@
     // Wire Generate button
     document.getElementById('rptGenerateBtn').onclick = generateReport;
     document.getElementById('rptPrintBtn').onclick = async () => {
-      const output = document.getElementById('rptOutput');
-      if (!output || !output.innerHTML.trim()) {
-        alert('Please generate a report first.');
-        return;
-      }
-
-      // Expand all collapsed sections so they appear in the PDF
-      document.querySelectorAll('[id^="rptBody_"]').forEach(el => {
-        el.style.display = 'block';
-      });
-
+      if (!_lastReportData) { alert('Please generate a report first.'); return; }
       const btn = document.getElementById('rptPrintBtn');
       btn.disabled = true;
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating…';
-
       try {
-        const canvas = await html2canvas(output, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#f9fafb',
-          logging: false,
-          windowWidth: output.scrollWidth,
-          scrollX: 0,
-          scrollY: 0
-        });
-
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-        const pageWidth   = pdf.internal.pageSize.getWidth();
-        const pageHeight  = pdf.internal.pageSize.getHeight();
-        const margin      = 8;
-        const contentW    = pageWidth  - margin * 2;
-        const contentH    = pageHeight - margin * 2;
-
-        // How many canvas pixels correspond to one PDF page's height
-        const scale           = canvas.width / contentW;         // px per mm
-        const pagePixelHeight = contentH * scale;
-
-        const totalPages = Math.ceil(canvas.height / pagePixelHeight);
-
-        for (let i = 0; i < totalPages; i++) {
-          if (i > 0) pdf.addPage();
-
-          const srcY       = Math.floor(i * pagePixelHeight);
-          const srcH       = Math.min(pagePixelHeight, canvas.height - srcY);
-
-          // Extract only this page's slice into a temporary canvas
-          const slice      = document.createElement('canvas');
-          slice.width      = canvas.width;
-          slice.height     = Math.ceil(pagePixelHeight); // full page height so aspect stays consistent
-          const ctx        = slice.getContext('2d');
-          ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
-
-          const sliceData  = slice.toDataURL('image/jpeg', 0.92);
-          // Only fill the proportion of the page that has real content (last page may be shorter)
-          const drawnH     = (srcH / pagePixelHeight) * contentH;
-          pdf.addImage(sliceData, 'JPEG', margin, margin, contentW, drawnH);
-        }
-
-        const officerText = document.getElementById('rptOfficerSelect').selectedOptions[0]?.text || 'officer';
-        const safeName = officerText.replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_').toLowerCase();
-        const from = document.getElementById('rptFromDate').value;
-        const to   = document.getElementById('rptToDate').value;
-        pdf.save(`officer-report_${safeName}_${from}_to_${to}.pdf`);
+        const officerLabel = document.getElementById('rptOfficerSelect').selectedOptions[0]?.text || 'Officer';
+        buildOfficerPdf(_lastReportData, officerLabel, _lastReportFrom, _lastReportTo);
       } catch (err) {
-        console.error('[OfficerReport] PDF generation error:', err);
+        console.error('[OfficerReport] PDF error:', err);
         alert('Failed to generate PDF: ' + err.message);
       } finally {
         btn.disabled = false;
@@ -448,6 +395,263 @@
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Plain-text helpers (for PDF — no HTML)
+  // -------------------------------------------------------------------------
+
+  function pt(v)     { return (v == null || v === '') ? '—' : String(v); }
+  function ptXp(xp)  { if (xp == null) return '—'; return (xp > 0 ? '+' : '') + xp + ' XP'; }
+  function ptDT(iso) {
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }); }
+    catch { return String(iso); }
+  }
+  function ptDate(iso) {
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleDateString('en-GB'); }
+    catch { return String(iso); }
+  }
+
+  // -------------------------------------------------------------------------
+  // PDF builder — jsPDF + autotable
+  // -------------------------------------------------------------------------
+
+  function buildOfficerPdf(data, officerLabel, from, to) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W = doc.internal.pageSize.getWidth();
+    const H = doc.internal.pageSize.getHeight();
+    const M = 14;
+    const s = data.summary;
+
+    // Brand colours
+    const PURPLE       = [124, 58, 237];
+    const PURPLE_LIGHT = [237, 233, 254];
+    const DARK         = [31,  41,  55];
+    const GRAY         = [107, 114, 128];
+    const WHITE        = [255, 255, 255];
+    const ROW_ALT      = [249, 250, 251];
+    const RED          = [220, 38,  38];
+    const GREEN        = [22,  163, 74];
+
+    // ------------------------------------------------------------------
+    // COVER PAGE
+    // ------------------------------------------------------------------
+
+    // Top banner
+    doc.setFillColor(...PURPLE);
+    doc.rect(0, 0, W, 46, 'F');
+
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.text('Officer Activity Report', M, 20);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text('UCAGS CRM  \u2022  Confidential', M, 30);
+    doc.text('Generated: ' + new Date().toLocaleDateString('en-GB', { dateStyle: 'long' }), M, 38);
+
+    // Info box
+    doc.setFillColor(...PURPLE_LIGHT);
+    doc.roundedRect(M, 52, W - M * 2, 34, 3, 3, 'F');
+
+    doc.setTextColor(...DARK);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text(pt(s.officerName || officerLabel.split('(')[0].trim()), M + 5, 64);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(...GRAY);
+    doc.text('Report Period:  ' + from + '  \u2192  ' + to, M + 5, 73);
+    doc.text(officerLabel, M + 5, 81);
+
+    // Summary heading
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(...DARK);
+    doc.text('Summary', M, 98);
+
+    // XP highlight pill — top right of summary heading row
+    const xpLabel = ptXp(s.totalXp);
+    doc.setFillColor(...PURPLE);
+    doc.roundedRect(W - M - 38, 91, 38, 8, 2, 2, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Total XP: ' + xpLabel, W - M - 2, 97, { align: 'right' });
+
+    doc.autoTable({
+      startY: 102,
+      margin: { left: M, right: M },
+      head: [['Metric', 'Value']],
+      body: [
+        ['Attendance Days',          String(s.attendanceDays)],
+        ['Leads Assigned',           String(s.leadsAssigned)],
+        ['Leads Contacted',          String(s.leadsContacted)],
+        ['Follow-ups Logged',        String(s.followups)],
+        ['Overdue Follow-ups',       String(s.overdueFollowups)],
+        ['Contacts Saved',           String(s.contactsSaved)],
+        ['Daily Reports Submitted',  String(s.dailyReports)],
+        ['Registrations',            String(s.registrations)],
+        ['Enrollments',              String(s.enrollments)],
+        ['Demo Sessions',            String(s.demoSessions)],
+        ['Total XP Earned',          xpLabel],
+      ],
+      headStyles:  { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold', fontSize: 10 },
+      alternateRowStyles: { fillColor: ROW_ALT },
+      styles: { fontSize: 10, cellPadding: 4 },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 90 }, 1: { cellWidth: 60 } },
+      didDrawCell: function(hookData) {
+        // Colour the overdue row red if > 0
+        if (hookData.section === 'body' && hookData.row.index === 4 && s.overdueFollowups > 0) {
+          doc.setTextColor(...RED);
+        }
+      }
+    });
+
+    // ------------------------------------------------------------------
+    // Section helper
+    // ------------------------------------------------------------------
+
+    function addSection(title, head, rows) {
+      doc.addPage();
+
+      // Banner
+      doc.setFillColor(...PURPLE);
+      doc.rect(0, 0, W, 22, 'F');
+      doc.setTextColor(...WHITE);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(title, M, 14);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text(pt(s.officerName || '') + '  |  ' + from + ' \u2013 ' + to, W - M, 14, { align: 'right' });
+
+      if (!rows.length) {
+        doc.setTextColor(...GRAY);
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(10);
+        doc.text('No records in this period.', M, 34);
+        return;
+      }
+
+      doc.autoTable({
+        startY: 28,
+        margin: { left: M, right: M },
+        head: [head],
+        body: rows,
+        headStyles:  { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold', fontSize: 8 },
+        alternateRowStyles: { fillColor: ROW_ALT },
+        styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak', valign: 'middle' },
+        tableLineColor: [220, 220, 220],
+        tableLineWidth: 0.1,
+      });
+    }
+
+    // ------------------------------------------------------------------
+    // 10 Sections
+    // ------------------------------------------------------------------
+
+    addSection('1. Attendance',
+      ['Date', 'Check-in', 'Check-out'],
+      (data.attendance || []).map(r => [
+        pt(r.date), ptDT(r.check_in_iso || r.check_in), ptDT(r.check_out_iso || r.check_out)
+      ])
+    );
+
+    addSection('2. Leads Assigned',
+      ['Name', 'Phone', 'Email', 'Status', 'Program', 'Batch', 'Assigned At'],
+      (data.leadsAssigned || []).map(r => [
+        pt(r.name), pt(r.phone), pt(r.email), pt(r.status), pt(r.program_name), pt(r.batch_name), ptDT(r.created_at)
+      ])
+    );
+
+    addSection('3. Leads Contacted',
+      ['Lead Name', 'Phone', 'Email', 'Status', 'XP', 'Contacted At'],
+      (data.leadsContacted || []).map(r => [
+        pt(r.lead?.name), pt(r.lead?.phone), pt(r.lead?.email), pt(r.lead?.status), ptXp(r.xp), ptDT(r.created_at)
+      ])
+    );
+
+    addSection('4. Follow-ups',
+      ['Channel', 'Scheduled', 'Completed', 'Answered', 'Comment', 'Created'],
+      (data.followups || []).map(r => [
+        pt(r.channel), ptDT(r.scheduled_at), ptDT(r.actual_at),
+        r.answered ? 'Yes' : r.answered === false ? 'No' : '—',
+        pt(r.comment), ptDT(r.created_at)
+      ])
+    );
+
+    addSection('5. Overdue Follow-ups',
+      ['Channel', 'Scheduled (Overdue)', 'Comment', 'Created'],
+      (data.overdueFollowups || []).map(r => [
+        pt(r.channel), ptDT(r.scheduled_at), pt(r.comment), ptDT(r.created_at)
+      ])
+    );
+
+    addSection('6. Contacts Saved',
+      ['Name', 'Phone', 'Email', 'Saved At'],
+      (data.contactsSaved || data.contacts || []).map(r => [
+        pt(r.display_name), pt(r.phone_number), pt(r.email), ptDT(r.created_at)
+      ])
+    );
+
+    addSection('7. Daily Reports',
+      ['Date', 'Slot', 'Fresh Calls', 'Messages', 'Interested', 'Closures', 'Submitted'],
+      (data.dailyReports || []).map(r => [
+        pt(r.report_date), pt(r.slot_key), pt(r.fresh_calls_made), pt(r.fresh_messages_reached),
+        pt(r.interested_leads), pt(r.closures), ptDT(r.submitted_at)
+      ])
+    );
+
+    addSection('8. Registrations',
+      ['Name', 'Phone', 'Email', 'Payment Status', 'Program', 'Batch', 'XP', 'Submitted At'],
+      (data.registrations || []).map(r => [
+        pt(r.full_name), pt(r.phone_number), pt(r.email), pt(r.payment_status),
+        pt(r.program_name), pt(r.batch_name), ptXp(r.xp), ptDT(r.created_at)
+      ])
+    );
+
+    addSection('9. Enrollments',
+      ['Name', 'Phone', 'Email', 'XP', 'Enrolled At'],
+      (data.enrollments || []).map(r => [
+        pt(r.user_full_name), pt(r.phone), pt(r.email), ptXp(r.xp), ptDT(r.created_at)
+      ])
+    );
+
+    addSection('10. Demo Sessions',
+      ['Topic', 'Program', 'Session Date', 'Invite Status', 'Attendance', 'XP', 'Added At'],
+      (data.demoSessions || []).map(r => [
+        pt(r.demo_sessions?.topic), pt(r.demo_sessions?.program_name),
+        ptDate(r.demo_sessions?.session_date),
+        pt(r.invite_status), pt(r.attendance), ptXp(r.xp), ptDT(r.created_at)
+      ])
+    );
+
+    // ------------------------------------------------------------------
+    // Add page footers to every page now that total is known
+    // ------------------------------------------------------------------
+    const total = doc.internal.getNumberOfPages();
+    for (let p = 1; p <= total; p++) {
+      doc.setPage(p);
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...GRAY);
+      doc.text(
+        `Page ${p} of ${total}  \u2022  UCAGS CRM  \u2022  Officer Activity Report  \u2022  Confidential`,
+        W / 2, H - 6,
+        { align: 'center' }
+      );
+    }
+
+    // Save
+    const safeName = pt(s.officerName || officerLabel)
+      .replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_').toLowerCase();
+    doc.save(`officer-report_${safeName}_${from}_to_${to}.pdf`);
+  }
+
   function showErr(msg) {
     const el = document.getElementById('rptError');
     el.textContent = msg;
@@ -455,6 +659,9 @@
   }
 
   function renderReport(data, from, to) {
+    _lastReportData = data;
+    _lastReportFrom = from;
+    _lastReportTo   = to;
     const output = document.getElementById('rptOutput');
     const s = data.summary;
 
