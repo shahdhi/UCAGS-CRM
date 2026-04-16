@@ -197,7 +197,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
     // 4. Follow-ups created in range
     safeQ(
       sb.from('crm_lead_followups')
-        .select('id, sheet_lead_id, channel, scheduled_at, actual_at, answered, comment, created_at, updated_at')
+        .select('id, sheet_lead_id, channel, scheduled_at, actual_at, answered, comment, created_at, updated_at, crm_leads(name, phone)')
         .eq('officer_user_id', officerId)
         .gte('created_at', fromStart)
         .lte('created_at', toEnd)
@@ -207,7 +207,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
     // 5. Overdue follow-ups: unresolved follow-ups scheduled between batch start and "to" date
     safeQ(
       sb.from('crm_lead_followups')
-        .select('id, sheet_lead_id, channel, scheduled_at, comment, created_at')
+        .select('id, sheet_lead_id, scheduled_at, created_at, crm_leads(name, phone)')
         .eq('officer_user_id', officerId)
         .gte('scheduled_at', fromStart)
         .lte('scheduled_at', toEnd)
