@@ -326,8 +326,9 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   const allXpEvents           = safe(allXpRes);
 
   // ------------------------------------------------------------------
-  // Enrich leads contacted with lead details (batch lookup)
-  // reference_id format: "batchName|sheetName|leadUUID" — extract last segment
+  // Enrich leads contacted with lead details
+  // reference_id format: "batchName|sheetName|leadUUID" — extract last segment as UUID
+  // Also build a name-keyed fallback map from ALL leads ever assigned to this officer
   // ------------------------------------------------------------------
   let leadsContacted: any[] = leadsContactedEvents;
   const extractLeadId = (refId: string | null) => {
@@ -338,19 +339,37 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   const contactedLeadIds = [...new Set<string>(
     leadsContactedEvents.map((e: any) => extractLeadId(e.reference_id)).filter(Boolean) as string[]
   )];
+
+  // Fetch ALL leads ever assigned to this officer (no date filter) to maximise match rate
+  const { data: allOfficerLeads } = officerName
+    ? await safeQ(
+        sb.from('crm_leads')
+          .select('id, name, email, phone, status, program_name, batch_name')
+          .eq('assigned_to', officerName)
+      )
+    : Promise.resolve({ data: [] });
+
+  // Primary map: by UUID
+  const leadMapById: Record<string, any> = {};
+  (allOfficerLeads || []).forEach((l: any) => { leadMapById[l.id] = l; });
+
+  // Supplemental: fetch by UUID list in case leads were reassigned
   if (contactedLeadIds.length > 0) {
-    const { data: leadDetails } = await safeQ(
-      sb.from('crm_leads')
-        .select('id, name, email, phone, status, program_name, batch_name')
-        .in('id', contactedLeadIds)
-    );
-    const leadMap: Record<string, any> = {};
-    (leadDetails || []).forEach((l: any) => { leadMap[l.id] = l; });
-    leadsContacted = leadsContactedEvents.map((e: any) => ({
-      ...e,
-      lead: leadMap[extractLeadId(e.reference_id) as string] || null,
-    }));
+    const missing = contactedLeadIds.filter((id: string) => !leadMapById[id]);
+    if (missing.length > 0) {
+      const { data: extraLeads } = await safeQ(
+        sb.from('crm_leads')
+          .select('id, name, email, phone, status, program_name, batch_name')
+          .in('id', missing)
+      );
+      (extraLeads || []).forEach((l: any) => { leadMapById[l.id] = l; });
+    }
   }
+
+  leadsContacted = leadsContactedEvents.map((e: any) => ({
+    ...e,
+    lead: leadMapById[extractLeadId(e.reference_id) as string] || null,
+  }));
 
   // ------------------------------------------------------------------
   // XP lookup maps for joins
