@@ -403,6 +403,17 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   // Sum ALL XP events in range — includes followups, penalties, reports, attendance, etc.
   const totalXp = allXpEvents.reduce((s: number, e: any) => s + (Number(e.xp) || 0), 0);
 
+  // XP map for followups (event_type = 'followup_completed', reference_id = followup id)
+  const followupXpMap: Record<string, number> = {};
+  allXpEvents.forEach((e: any) => {
+    if (e.event_type === 'followup_completed' && e.reference_id) {
+      followupXpMap[String(e.reference_id)] = e.xp;
+    }
+  });
+
+  // Attach XP to followups
+  const followupsWithXp = followups.map((f: any) => ({ ...f, xp: followupXpMap[String(f.id)] ?? null }));
+
   return {
     officerName,
     from,
@@ -423,7 +434,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
     attendance,
     leadsAssigned,
     leadsContacted,
-    followups,
+    followups: followupsWithXp,
     overdueFollowups,
     contactsSaved,
     dailyReports,
