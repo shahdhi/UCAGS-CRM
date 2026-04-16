@@ -188,7 +188,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
     // 3. Leads contacted XP events
     safeQ(
       sb.from('officer_xp_events')
-        .select('id, reference_id, xp, created_at, notes')
+        .select('id, reference_id, xp, created_at, note')
         .eq('user_id', officerId)
         .eq('event_type', 'lead_contacted')
         .gte('created_at', fromStart)
@@ -327,9 +327,17 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
 
   // ------------------------------------------------------------------
   // Enrich leads contacted with lead details (batch lookup)
+  // reference_id format: "batchName|sheetName|leadUUID" — extract last segment
   // ------------------------------------------------------------------
   let leadsContacted: any[] = leadsContactedEvents;
-  const contactedLeadIds = [...new Set<string>(leadsContactedEvents.map((e: any) => e.reference_id).filter(Boolean))];
+  const extractLeadId = (refId: string | null) => {
+    if (!refId) return null;
+    const parts = refId.split('|');
+    return parts[parts.length - 1] || null;
+  };
+  const contactedLeadIds = [...new Set<string>(
+    leadsContactedEvents.map((e: any) => extractLeadId(e.reference_id)).filter(Boolean) as string[]
+  )];
   if (contactedLeadIds.length > 0) {
     const { data: leadDetails } = await safeQ(
       sb.from('crm_leads')
@@ -340,7 +348,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
     (leadDetails || []).forEach((l: any) => { leadMap[l.id] = l; });
     leadsContacted = leadsContactedEvents.map((e: any) => ({
       ...e,
-      lead: leadMap[e.reference_id] || null,
+      lead: leadMap[extractLeadId(e.reference_id) as string] || null,
     }));
   }
 

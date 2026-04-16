@@ -102,7 +102,9 @@
     return table(
       ['Lead Name', 'Phone', 'Email', 'Status', 'XP', 'Contacted At'],
       rows.map(r => [
-        esc(r.lead?.name), esc(r.lead?.phone), esc(r.lead?.email),
+        esc(r.lead?.name || r.note?.split('·')[0]?.trim()),
+        esc(r.lead?.phone),
+        esc(r.lead?.email),
         esc(r.lead?.status), xpBadge(r.xp), fmtDT(r.created_at)
       ])
     );
@@ -571,7 +573,7 @@
     addSection('3. Leads Contacted',
       ['Lead Name', 'Phone', 'Email', 'Status', 'XP', 'Contacted At'],
       (data.leadsContacted || []).map(r => [
-        pt(r.lead?.name), pt(r.lead?.phone), pt(r.lead?.email), pt(r.lead?.status), ptXp(r.xp), ptDT(r.created_at)
+        pt(r.lead?.name || r.note?.split('·')[0]?.trim()), pt(r.lead?.phone), pt(r.lead?.email), pt(r.lead?.status), ptXp(r.xp), ptDT(r.created_at)
       ])
     );
 
