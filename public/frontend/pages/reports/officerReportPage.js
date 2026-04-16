@@ -430,8 +430,8 @@
     const s = data.summary;
 
     // Brand colours
-    const PURPLE       = [124, 58, 237];
-    const PURPLE_LIGHT = [237, 233, 254];
+    const PURPLE       = [67, 20, 140];
+    const PURPLE_LIGHT = [220, 210, 245];
     const DARK         = [31,  41,  55];
     const GRAY         = [107, 114, 128];
     const WHITE        = [255, 255, 255];
@@ -454,7 +454,7 @@
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text('UCAGS CRM  \u2022  Confidential', M, 30);
+    doc.text('UCAGS CRM  |  Confidential', M, 30);
     doc.text('Generated: ' + new Date().toLocaleDateString('en-GB', { dateStyle: 'long' }), M, 38);
 
     // Info box
@@ -469,8 +469,9 @@
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(...GRAY);
-    doc.text('Report Period:  ' + from + '  \u2192  ' + to, M + 5, 73);
-    doc.text(officerLabel, M + 5, 81);
+    doc.text('Report Period: ' + from + ' to ' + to, M + 5, 73);
+    const roleStr = officerLabel.includes('(') ? officerLabel.split('(').pop().replace(')', '').trim() : '';
+    if (roleStr) doc.text('Role: ' + roleStr, M + 5, 81);
 
     // Summary heading
     doc.setFont('helvetica', 'bold');
@@ -532,7 +533,7 @@
       doc.text(title, M, 14);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
-      doc.text(pt(s.officerName || '') + '  |  ' + from + ' \u2013 ' + to, W - M, 14, { align: 'right' });
+      doc.text(pt(s.officerName || '') + '  |  ' + from + ' - ' + to, W - M, 14, { align: 'right' });
 
       if (!rows.length) {
         doc.setTextColor(...GRAY);
