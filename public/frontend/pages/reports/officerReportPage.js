@@ -112,7 +112,7 @@
     return table(
       ['Lead Name', 'Scheduled', 'Completed', 'Answered', 'XP', 'Comment', 'Created'],
       rows.map(r => [
-        esc(r.crm_leads?.name || r.sheet_lead_id),
+        esc(r.lead_name || r.sheet_lead_id),
         fmtDT(r.scheduled_at), fmtDT(r.actual_at),
         r.answered ? '✓' : r.answered === false ? '✗' : '—',
         xpBadge(r.xp),
@@ -125,7 +125,7 @@
     if (!rows.length) return '<p style="color:#16a34a;padding:8px 0;font-weight:600;"><i class="fas fa-check-circle"></i> No overdue follow-ups</p>';
     return table(
       ['Lead Name', 'Phone', 'Scheduled (Overdue)', 'Created'],
-      rows.map(r => [esc(r.crm_leads?.name || r.sheet_lead_id), esc(r.crm_leads?.phone), `<span style="color:#dc2626;font-weight:600;">${fmtDT(r.scheduled_at)}</span>`, fmtDT(r.created_at)])
+      rows.map(r => [esc(r.lead_name || r.sheet_lead_id), esc(r.lead_phone), `<span style="color:#dc2626;font-weight:600;">${fmtDT(r.scheduled_at)}</span>`, fmtDT(r.created_at)])
     );
   }
 
@@ -583,7 +583,7 @@
     addSection('4. Follow-ups',
       ['Lead Name', 'Scheduled', 'Completed', 'Answered', 'XP', 'Comment', 'Created'],
       (data.followups || []).map(r => [
-        pt(r.crm_leads?.name || r.sheet_lead_id),
+        pt(r.lead_name || r.sheet_lead_id),
         ptDT(r.scheduled_at), ptDT(r.actual_at),
         r.answered ? 'Yes' : r.answered === false ? 'No' : '—',
         ptXp(r.xp),
@@ -594,7 +594,7 @@
     addSection('5. Overdue Follow-ups',
       ['Lead Name', 'Phone', 'Scheduled (Overdue)', 'Created'],
       (data.overdueFollowups || []).map(r => [
-        pt(r.crm_leads?.name || r.sheet_lead_id), pt(r.crm_leads?.phone), ptDT(r.scheduled_at), ptDT(r.created_at)
+        pt(r.lead_name || r.sheet_lead_id), pt(r.lead_phone), ptDT(r.scheduled_at), ptDT(r.created_at)
       ])
     );
 

@@ -197,7 +197,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
     // 4. Follow-ups created in range
     safeQ(
       sb.from('crm_lead_followups')
-        .select('id, sheet_lead_id, channel, scheduled_at, actual_at, answered, comment, created_at, updated_at, crm_leads(name, phone)')
+        .select('id, sheet_lead_id, channel, scheduled_at, actual_at, answered, comment, created_at, updated_at')
         .eq('officer_user_id', officerId)
         .gte('created_at', fromStart)
         .lte('created_at', toEnd)
@@ -207,7 +207,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
     // 5. Overdue follow-ups: unresolved follow-ups scheduled between batch start and "to" date
     safeQ(
       sb.from('crm_lead_followups')
-        .select('id, sheet_lead_id, scheduled_at, created_at, crm_leads(name, phone)')
+        .select('id, sheet_lead_id, scheduled_at, created_at')
         .eq('officer_user_id', officerId)
         .gte('scheduled_at', fromStart)
         .lte('scheduled_at', toEnd)
@@ -365,9 +365,30 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
       followupXpMap[key] = (followupXpMap[key] || 0) + (Number(e.xp) || 0);
     }
   });
-  const followupsWithXp = safe(followupsRes).map((f: any) => ({
+  // Batch-fetch lead names for followups and overdue followups using sheet_lead_id (= crm_leads.id UUID)
+  const allFollowupRows = safe(followupsRes);
+  const followupLeadIds = [...new Set<string>(
+    [...allFollowupRows, ...safe(overdueFollowupsRes)]
+      .map((f: any) => f.sheet_lead_id).filter(Boolean) as string[]
+  )];
+  const followupLeadMap: Record<string, any> = {};
+  if (followupLeadIds.length > 0) {
+    const { data: fLeads } = await safeQ(
+      sb.from('crm_leads').select('id, name, phone').in('id', followupLeadIds)
+    );
+    (fLeads || []).forEach((l: any) => { followupLeadMap[String(l.id)] = l; });
+  }
+
+  const followupsWithXp = allFollowupRows.map((f: any) => ({
     ...f,
+    lead_name: followupLeadMap[String(f.sheet_lead_id)]?.name ?? null,
+    lead_phone: followupLeadMap[String(f.sheet_lead_id)]?.phone ?? null,
     xp: followupXpMap[String(f.id)] ?? null,
+  }));
+  const followupsEnriched = safe(overdueFollowupsRes).map((f: any) => ({
+    ...f,
+    lead_name: followupLeadMap[String(f.sheet_lead_id)]?.name ?? null,
+    lead_phone: followupLeadMap[String(f.sheet_lead_id)]?.phone ?? null,
   }));
   const followups = followupsWithXp;
 
@@ -441,7 +462,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
     leadsAssigned,
     leadsContacted,
     followups,
-    overdueFollowups,
+    overdueFollowups: followupsEnriched,
     contactsSaved,
     dailyReports,
     registrations: registrationsWithXp,
