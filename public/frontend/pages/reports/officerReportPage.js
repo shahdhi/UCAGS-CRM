@@ -695,6 +695,10 @@
     const officerNameDisplay = esc(data.officerName || '—');
     const dateRange = `${fmtDate(from)} – ${fmtDate(to)}`;
 
+    // Split followups into scheduled (pending) and completed
+    const followupsScheduled = (data.followups || []).filter(r => !r.actual_at);
+    const followupsCompleted = (data.followups || []).filter(r => !!r.actual_at);
+
     output.innerHTML = `
       <!-- Report header (visible in print) -->
       <div class="dashboard-card" style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
