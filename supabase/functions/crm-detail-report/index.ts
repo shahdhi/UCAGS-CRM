@@ -161,7 +161,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
     overdueFollowupsRes,
     contactsSavedRes,
     dailyReportsRes,
-    regXpEventsRes,
+    registrationsRes,
     paymentXpEventsRes,
     demoXpEventsRes,
     allXpRes,
@@ -235,15 +235,10 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
         .order('submitted_at', { ascending: false })
     ),
 
-    // 8. Registration XP events — primary source for registrations
-    safeQ(
-      sb.from('officer_xp_events')
-        .select('id, reference_id, xp, created_at')
-        .eq('user_id', officerId)
-        .eq('event_type', 'registration_received')
-        .gte('created_at', fromStart)
-        .lte('created_at', toEnd)
-        .order('created_at', { ascending: false })
+    // 8. Registrations — direct table query by assigned_to name + date range (same as registration page)
+    nameQuery(
+      'registrations',
+      'id, full_name, email, phone_number, created_at, payment_status, program_name, batch_name'
     ),
 
     // 9. Payment received XP events — primary source for enrollments
@@ -268,10 +263,10 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
         .order('created_at', { ascending: false })
     ),
 
-    // 11. ALL XP events in range — used for accurate total (includes followups, penalties, etc.)
+    // 11. ALL XP events in range — used for accurate total and XP joins (includes followups, penalties, etc.)
     safeQ(
       sb.from('officer_xp_events')
-        .select('id, event_type, xp, created_at')
+        .select('id, event_type, xp, reference_id, created_at')
         .eq('user_id', officerId)
         .gte('created_at', fromStart)
         .lte('created_at', toEnd)
@@ -296,28 +291,23 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   const overdueFollowups      = safe(overdueFollowupsRes);
   const contactsSaved         = safe(contactsSavedRes);
   const dailyReports          = safe(dailyReportsRes);
-  const registrationXpEvents  = safe(regXpEventsRes);
+  const registrationsRaw      = safe(registrationsRes);
   const enrollmentXpEvents    = safe(paymentXpEventsRes);
   const demoXpEvents          = safe(demoXpEventsRes);
   const allXpEvents           = safe(allXpRes);
   const followupXpEvents      = safe(followupXpRes);
 
   // ------------------------------------------------------------------
-  // Registrations — batch-fetch by registration_received XP reference_ids
+  // Registrations — from direct table query; XP looked up from allXpEvents
   // ------------------------------------------------------------------
   const regXpMap: Record<string, number> = {};
-  registrationXpEvents.forEach((e: any) => { if (e.reference_id) regXpMap[String(e.reference_id)] = e.xp; });
-  const regIds = Object.keys(regXpMap);
-  let registrationsWithXp: any[] = [];
-  if (regIds.length > 0) {
-    const { data: regRows } = await safeQ(
-      sb.from('registrations')
-        .select('id, full_name, email, phone_number, created_at, payment_status, program_name, batch_name')
-        .in('id', regIds)
-        .order('created_at', { ascending: false })
-    );
-    registrationsWithXp = (regRows || []).map((r: any) => ({ ...r, xp: regXpMap[String(r.id)] ?? null }));
-  }
+  allXpEvents
+    .filter((e: any) => e.event_type === 'registration_received')
+    .forEach((e: any) => { if (e.reference_id) regXpMap[String(e.reference_id)] = e.xp; });
+  const registrationsWithXp = registrationsRaw.map((r: any) => ({
+    ...r,
+    xp: regXpMap[String(r.id)] ?? null,
+  }));
 
   // ------------------------------------------------------------------
   // Enrollments — batch-fetch registrations by payment_received XP reference_ids
