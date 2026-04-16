@@ -170,11 +170,11 @@
 
   function renderDemoSessions(rows) {
     return table(
-      ['Name', 'Contact', 'Topic', 'Program', 'Session Date', 'Invite Status', 'Attendance', 'XP', 'Added At'],
+      ['Name', 'Contact', 'Title', 'Batch', 'Session Date', 'Invite Status', 'Attendance', 'XP', 'Added At'],
       rows.map(r => [
         esc(r.name), esc(r.contact_number),
-        esc(r.demo_sessions?.topic), esc(r.demo_sessions?.program_name),
-        fmtDate(r.demo_sessions?.session_date),
+        esc(r.demo_sessions?.title), esc(r.demo_sessions?.batch_name),
+        fmtDate(r.demo_sessions?.scheduled_at),
         esc(r.invite_status), esc(r.attendance),
         xpBadge(r.xp), fmtDT(r.created_at)
       ])
@@ -631,11 +631,11 @@
     );
 
     addSection('10. Demo Sessions',
-      ['Name', 'Contact', 'Topic', 'Program', 'Session Date', 'Invite Status', 'Attendance', 'XP', 'Added At'],
+      ['Name', 'Contact', 'Title', 'Batch', 'Session Date', 'Invite Status', 'Attendance', 'XP', 'Added At'],
       (data.demoSessions || []).map(r => [
         pt(r.name), pt(r.contact_number),
-        pt(r.demo_sessions?.topic), pt(r.demo_sessions?.program_name),
-        ptDate(r.demo_sessions?.session_date),
+        pt(r.demo_sessions?.title), pt(r.demo_sessions?.batch_name),
+        ptDate(r.demo_sessions?.scheduled_at),
         pt(r.invite_status), pt(r.attendance), ptXp(r.xp), ptDT(r.created_at)
       ])
     );

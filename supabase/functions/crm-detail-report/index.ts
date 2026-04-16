@@ -255,7 +255,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
     // 10. Demo sessions — direct query: invites assigned to officer in date range
     safeQ(
       sb.from('demo_session_invites')
-        .select('id, demo_session_id, name, contact_number, invite_status, attendance, response, created_at, demo_sessions(session_date, session_time, topic, program_name)')
+        .select('id, demo_session_id, name, contact_number, invite_status, attendance, response, created_at, demo_sessions(scheduled_at, title, batch_name)')
         .or(`officer_user_id.eq.${officerId},created_by.eq.${officerId}`)
         .gte('created_at', fromStart)
         .lte('created_at', toEnd)
