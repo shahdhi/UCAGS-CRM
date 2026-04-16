@@ -206,11 +206,13 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
         .order('created_at', { ascending: false })
     ),
 
-    // 5. Overdue follow-ups (scheduled in past, not completed)
+    // 5. Overdue follow-ups (scheduled in past, not completed, created within report period)
     safeQ(
       sb.from('crm_lead_followups')
         .select('id, sheet_lead_id, channel, scheduled_at, comment, created_at')
         .eq('officer_user_id', officerId)
+        .gte('created_at', fromStart)
+        .lte('created_at', toEnd)
         .lte('scheduled_at', new Date().toISOString())
         .is('actual_at', null)
         .order('scheduled_at', { ascending: true })
