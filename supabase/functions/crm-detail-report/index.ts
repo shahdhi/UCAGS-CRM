@@ -399,15 +399,13 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   // Supplemental: fetch by UUID list in case leads were reassigned or from followups
   const allLeadIdsNeeded = [...new Set<string>([...contactedLeadIds, ...allFollowupRows.map((f: any) => f.sheet_lead_id), ...allOverdueRows.map((f: any) => f.sheet_lead_id)].filter(Boolean) as string[])];
   if (allLeadIdsNeeded.length > 0) {
-    const missing = allLeadIdsNeeded.filter((id: string) => !leadMapById[id]);
-    if (missing.length > 0) {
-      const { data: extraLeads } = await safeQ(
-        sb.from('crm_leads')
-          .select('id, name, email, phone, status, program_name, batch_name')
-          .in('id', missing)
-      );
-      (extraLeads || []).forEach((l: any) => { leadMapById[l.id] = l; });
-    }
+    // Always fetch followup lead IDs directly (they may not be assigned_to this officer name)
+    const { data: extraLeads } = await safeQ(
+      sb.from('crm_leads')
+        .select('id, name, email, phone, status, program_name, batch_name')
+        .in('id', allLeadIdsNeeded)
+    );
+    (extraLeads || []).forEach((l: any) => { leadMapById[l.id] = l; });
   }
 
   leadsContacted = leadsContactedEvents.map((e: any) => ({
