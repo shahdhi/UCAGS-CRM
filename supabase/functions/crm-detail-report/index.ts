@@ -168,6 +168,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
     demoInvitesRes,
     demoXpRes,
     allXpRes,
+    followupXpRes,
   ] = await Promise.all([
     // 1. Attendance
     safeQ(
@@ -306,6 +307,16 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
         .gte('created_at', fromStart)
         .lte('created_at', toEnd)
     ),
+
+    // 15. Followup completed XP events (reference_id = crm_lead_followups.id)
+    safeQ(
+      sb.from('officer_xp_events')
+        .select('id, reference_id, xp, created_at')
+        .eq('user_id', officerId)
+        .in('event_type', ['followup_completed', 'lead_responded_fast'])
+        .gte('created_at', fromStart)
+        .lte('created_at', toEnd)
+    ),
   ]);
 
   const safe = (res: any) => (res?.error ? [] : (res?.data || []));
@@ -313,7 +324,6 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   const attendance            = safe(attendanceRes);
   const leadsAssigned         = safe(leadsAssignedRes);
   const leadsContactedEvents  = safe(leadsContactedEventsRes);
-  const followups             = safe(followupsRes);
   const overdueFollowups      = safe(overdueFollowupsRes);
   const contactsSaved         = safe(contactsSavedRes);
   const dailyReports          = safe(dailyReportsRes);
@@ -324,6 +334,21 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   const demoInvites           = safe(demoInvitesRes);
   const demoXpEvents          = safe(demoXpRes);
   const allXpEvents           = safe(allXpRes);
+  const followupXpEvents      = safe(followupXpRes);
+
+  // Build followup XP map: followup_id -> total xp (sum completed + speed bonus)
+  const followupXpMap: Record<string, number> = {};
+  followupXpEvents.forEach((e: any) => {
+    if (e.reference_id) {
+      const key = String(e.reference_id);
+      followupXpMap[key] = (followupXpMap[key] || 0) + (Number(e.xp) || 0);
+    }
+  });
+  const followupsWithXp = safe(followupsRes).map((f: any) => ({
+    ...f,
+    xp: followupXpMap[String(f.id)] ?? null,
+  }));
+  const followups = followupsWithXp;
 
   // ------------------------------------------------------------------
   // Enrich leads contacted with lead details

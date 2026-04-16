@@ -110,10 +110,11 @@
 
   function renderFollowups(rows) {
     return table(
-      ['Channel', 'Scheduled', 'Completed', 'Answered', 'Comment', 'Created'],
+      ['Scheduled', 'Completed', 'Answered', 'XP', 'Comment', 'Created'],
       rows.map(r => [
-        esc(r.channel), fmtDT(r.scheduled_at), fmtDT(r.actual_at),
+        fmtDT(r.scheduled_at), fmtDT(r.actual_at),
         r.answered ? '✓' : r.answered === false ? '✗' : '—',
+        xpBadge(r.xp),
         esc(r.comment), fmtDT(r.created_at)
       ])
     );
@@ -576,10 +577,11 @@
     );
 
     addSection('4. Follow-ups',
-      ['Channel', 'Scheduled', 'Completed', 'Answered', 'Comment', 'Created'],
+      ['Scheduled', 'Completed', 'Answered', 'XP', 'Comment', 'Created'],
       (data.followups || []).map(r => [
-        pt(r.channel), ptDT(r.scheduled_at), ptDT(r.actual_at),
+        ptDT(r.scheduled_at), ptDT(r.actual_at),
         r.answered ? 'Yes' : r.answered === false ? 'No' : '—',
+        ptXp(r.xp),
         pt(r.comment), ptDT(r.created_at)
       ])
     );
