@@ -160,8 +160,10 @@
 
   function renderEnrollments(rows) {
     return table(
-      ['Name', 'Phone', 'Email', 'Program', 'Batch', 'XP', 'Enrolled At'],
-      rows.map(r => [esc(r.name), esc(r.phone_number), esc(r.email), esc(r.program_name), esc(r.batch_name), xpBadge(r.xp), fmtDT(r.enrolled_at || r.created_at)])
+      ['Name', 'Phone', 'Email', 'Program', 'Batch', 'Amount', 'XP', 'Payment Date'],
+      rows.map(r => [esc(r.name), esc(r.phone_number), esc(r.email), esc(r.program_name), esc(r.batch_name),
+        r.payment_amount ? `PKR ${Number(r.payment_amount).toLocaleString()}` : '—',
+        xpBadge(r.xp), fmtDT(r.payment_date || r.enrolled_at || r.created_at)])
     );
   }
 
@@ -618,9 +620,11 @@
     );
 
     addSection('9. Enrollments',
-      ['Name', 'Phone', 'Email', 'Program', 'Batch', 'XP', 'Enrolled At'],
+      ['Name', 'Phone', 'Email', 'Program', 'Batch', 'Amount', 'XP', 'Payment Date'],
       (data.enrollments || []).map(r => [
-        pt(r.name), pt(r.phone_number), pt(r.email), pt(r.program_name), pt(r.batch_name), ptXp(r.xp), ptDT(r.enrolled_at || r.created_at)
+        pt(r.name), pt(r.phone_number), pt(r.email), pt(r.program_name), pt(r.batch_name),
+        r.payment_amount ? `PKR ${Number(r.payment_amount).toLocaleString()}` : '—',
+        ptXp(r.xp), ptDT(r.payment_date || r.enrolled_at || r.created_at)
       ])
     );
 

@@ -241,18 +241,16 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
       'id, name, email, phone_number, created_at, enrolled, enrolled_at, program_name, batch_name'
     ),
 
-    // 9. Enrollments — direct query: registrations that are enrolled, enrolled_at in range
-    officerName
-      ? safeQ(
-          sb.from('registrations')
-            .select('id, name, email, phone_number, created_at, enrolled, enrolled_at, program_name, batch_name')
-            .eq('assigned_to', officerName)
-            .eq('enrolled', true)
-            .gte('enrolled_at', fromStart)
-            .lte('enrolled_at', toEnd)
-            .order('enrolled_at', { ascending: false })
-        )
-      : Promise.resolve({ data: [], error: null }),
+    // 9. Enrollments — payment_received XP events (reference_id = payments.id)
+    safeQ(
+      sb.from('officer_xp_events')
+        .select('id, reference_id, xp, created_at')
+        .eq('user_id', officerId)
+        .eq('event_type', 'payment_received')
+        .gte('created_at', fromStart)
+        .lte('created_at', toEnd)
+        .order('created_at', { ascending: false })
+    ),
 
     // 10. Demo sessions — direct query: invites assigned to officer in date range
     safeQ(
@@ -293,7 +291,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   const contactsSaved         = safe(contactsSavedRes);
   const dailyReports          = safe(dailyReportsRes);
   const registrationsRaw      = safe(registrationsRes);
-  const enrollmentsRaw       = safe(paymentXpEventsRes);  // slot 9 — direct from table
+  const paymentXpEvents      = safe(paymentXpEventsRes);  // slot 9 — payment_received XP events
   const demoInvitesRaw        = safe(demoXpEventsRes);     // slot 10 — direct from table
   const allXpEvents           = safe(allXpRes);
   const followupXpEvents      = safe(followupXpRes);
@@ -311,19 +309,41 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   }));
 
   // ------------------------------------------------------------------
-  // Enrollments — batch-fetch registrations by payment_received XP reference_ids
+  // Enrollments — payment_received XP events -> payments.id list
+  //              -> fetch payments -> get registration_ids
+  //              -> fetch registrations for display
   // ------------------------------------------------------------------
-  // ------------------------------------------------------------------
-  // Enrollments — from direct table query; XP looked up from allXpEvents
-  // ------------------------------------------------------------------
-  const enrollXpMap: Record<string, number> = {};
-  allXpEvents
-    .filter((e: any) => e.event_type === 'payment_received')
-    .forEach((e: any) => { if (e.reference_id) enrollXpMap[String(e.reference_id)] = e.xp; });
-  const enrollmentsWithXp = enrollmentsRaw.map((r: any) => ({
-    ...r,
-    xp: enrollXpMap[String(r.id)] ?? null,
-  }));
+  let enrollmentsWithXp: any[] = [];
+  if (paymentXpEvents.length > 0) {
+    const paymentXpById: Record<string, number> = {};
+    paymentXpEvents.forEach((e: any) => { if (e.reference_id) paymentXpById[String(e.reference_id)] = e.xp; });
+    const paymentIds = Object.keys(paymentXpById);
+
+    const { data: paymentRows } = await safeQ(
+      sb.from('payments')
+        .select('id, registration_id, payment_date, amount, installment_no')
+        .in('id', paymentIds)
+    );
+    const regIdFromPayment: Record<string, { paymentId: string; paymentDate: string; amount: number }> = {};
+    (paymentRows || []).forEach((p: any) => {
+      if (p.registration_id) regIdFromPayment[String(p.registration_id)] = { paymentId: String(p.id), paymentDate: p.payment_date, amount: p.amount };
+    });
+    const enrollRegIds = Object.keys(regIdFromPayment);
+
+    if (enrollRegIds.length > 0) {
+      const { data: enrollRegs } = await safeQ(
+        sb.from('registrations')
+          .select('id, name, email, phone_number, created_at, enrolled, enrolled_at, program_name, batch_name')
+          .in('id', enrollRegIds)
+      );
+      enrollmentsWithXp = (enrollRegs || []).map((r: any) => ({
+        ...r,
+        payment_date: regIdFromPayment[String(r.id)]?.paymentDate ?? null,
+        payment_amount: regIdFromPayment[String(r.id)]?.amount ?? null,
+        xp: paymentXpById[regIdFromPayment[String(r.id)]?.paymentId ?? ''] ?? null,
+      }));
+    }
+  }
 
   // ------------------------------------------------------------------
   // Demo sessions — from direct table query; XP looked up from allXpEvents
