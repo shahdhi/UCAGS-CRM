@@ -238,7 +238,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
     // 8. Registrations — direct table query by assigned_to name + date range (same as registration page)
     nameQuery(
       'registrations',
-      'id, full_name, email, phone_number, created_at, payment_status, program_name, batch_name'
+      'id, name, email, phone_number, created_at, enrolled, enrolled_at, program_name, batch_name'
     ),
 
     // 9. Payment received XP events — primary source for enrollments
@@ -319,7 +319,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   if (enrollIds.length > 0) {
     const { data: enrollRows } = await safeQ(
       sb.from('registrations')
-        .select('id, full_name, email, phone_number, created_at, payment_status, program_name, batch_name')
+        .select('id, name, email, phone_number, created_at, enrolled, enrolled_at, program_name, batch_name')
         .in('id', enrollIds)
         .order('created_at', { ascending: false })
     );

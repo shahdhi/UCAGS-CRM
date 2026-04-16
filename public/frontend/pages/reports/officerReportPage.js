@@ -149,10 +149,10 @@
 
   function renderRegistrations(rows) {
     return table(
-      ['Name', 'Phone', 'Email', 'Payment', 'Program', 'Batch', 'XP', 'Submitted At'],
+      ['Name', 'Phone', 'Email', 'Enrolled', 'Program', 'Batch', 'XP', 'Submitted At'],
       rows.map(r => [
-        esc(r.full_name), esc(r.phone_number), esc(r.email),
-        esc(r.payment_status), esc(r.program_name), esc(r.batch_name),
+        esc(r.name), esc(r.phone_number), esc(r.email),
+        r.enrolled ? 'Yes' : 'No', esc(r.program_name), esc(r.batch_name),
         xpBadge(r.xp), fmtDT(r.created_at)
       ])
     );
@@ -161,7 +161,7 @@
   function renderEnrollments(rows) {
     return table(
       ['Name', 'Phone', 'Email', 'Program', 'Batch', 'XP', 'Enrolled At'],
-      rows.map(r => [esc(r.full_name), esc(r.phone_number), esc(r.email), esc(r.program_name), esc(r.batch_name), xpBadge(r.xp), fmtDT(r.created_at)])
+      rows.map(r => [esc(r.name), esc(r.phone_number), esc(r.email), esc(r.program_name), esc(r.batch_name), xpBadge(r.xp), fmtDT(r.enrolled_at || r.created_at)])
     );
   }
 
@@ -609,9 +609,9 @@
     );
 
     addSection('8. Registrations',
-      ['Name', 'Phone', 'Email', 'Payment Status', 'Program', 'Batch', 'XP', 'Submitted At'],
+      ['Name', 'Phone', 'Email', 'Enrolled', 'Program', 'Batch', 'XP', 'Submitted At'],
       (data.registrations || []).map(r => [
-        pt(r.full_name), pt(r.phone_number), pt(r.email), pt(r.payment_status),
+        pt(r.name), pt(r.phone_number), pt(r.email), r.enrolled ? 'Yes' : 'No',
         pt(r.program_name), pt(r.batch_name), ptXp(r.xp), ptDT(r.created_at)
       ])
     );
@@ -619,7 +619,7 @@
     addSection('9. Enrollments',
       ['Name', 'Phone', 'Email', 'Program', 'Batch', 'XP', 'Enrolled At'],
       (data.enrollments || []).map(r => [
-        pt(r.full_name), pt(r.phone_number), pt(r.email), pt(r.program_name), pt(r.batch_name), ptXp(r.xp), ptDT(r.created_at)
+        pt(r.name), pt(r.phone_number), pt(r.email), pt(r.program_name), pt(r.batch_name), ptXp(r.xp), ptDT(r.enrolled_at || r.created_at)
       ])
     );
 
