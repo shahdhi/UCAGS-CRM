@@ -160,8 +160,8 @@
 
   function renderEnrollments(rows) {
     return table(
-      ['Name', 'Phone', 'Email', 'XP', 'Enrolled At'],
-      rows.map(r => [esc(r.user_full_name), esc(r.phone), esc(r.email), xpBadge(r.xp), fmtDT(r.created_at)])
+      ['Name', 'Phone', 'Email', 'Program', 'Batch', 'XP', 'Enrolled At'],
+      rows.map(r => [esc(r.full_name), esc(r.phone_number), esc(r.email), esc(r.program_name), esc(r.batch_name), xpBadge(r.xp), fmtDT(r.created_at)])
     );
   }
 
@@ -617,9 +617,9 @@
     );
 
     addSection('9. Enrollments',
-      ['Name', 'Phone', 'Email', 'XP', 'Enrolled At'],
+      ['Name', 'Phone', 'Email', 'Program', 'Batch', 'XP', 'Enrolled At'],
       (data.enrollments || []).map(r => [
-        pt(r.user_full_name), pt(r.phone), pt(r.email), ptXp(r.xp), ptDT(r.created_at)
+        pt(r.full_name), pt(r.phone_number), pt(r.email), pt(r.program_name), pt(r.batch_name), ptXp(r.xp), ptDT(r.created_at)
       ])
     );
 

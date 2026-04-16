@@ -161,12 +161,9 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
     overdueFollowupsRes,
     contactsSavedRes,
     dailyReportsRes,
-    registrationsRes,
-    registrationXpRes,
-    enrollmentsRes,
-    enrollmentXpRes,
-    demoInvitesRes,
-    demoXpRes,
+    regXpEventsRes,
+    paymentXpEventsRes,
+    demoXpEventsRes,
     allXpRes,
     followupXpRes,
   ] = await Promise.all([
@@ -238,13 +235,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
         .order('submitted_at', { ascending: false })
     ),
 
-    // 8. Registrations (name-based)
-    nameQuery(
-      'registrations',
-      'id, full_name, email, phone_number, created_at, payment_status, program_name, batch_name'
-    ),
-
-    // 9. Registration XP events
+    // 8. Registration XP events — primary source for registrations
     safeQ(
       sb.from('officer_xp_events')
         .select('id, reference_id, xp, created_at')
@@ -255,19 +246,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
         .order('created_at', { ascending: false })
     ),
 
-    // 10. Enrollments — fetch registrations for this officer first, then match students
-    // (can't filter on joined table columns in PostgREST via .eq; done in post-processing)
-    officerName
-      ? safeQ(
-          sb.from('students')
-            .select('id, user_full_name, email, phone, created_at, registration_id')
-            .gte('created_at', fromStart)
-            .lte('created_at', toEnd)
-            .order('created_at', { ascending: false })
-        )
-      : Promise.resolve({ data: [], error: null }),
-
-    // 11. Enrollment XP events (payment_received)
+    // 9. Payment received XP events — primary source for enrollments
     safeQ(
       sb.from('officer_xp_events')
         .select('id, reference_id, xp, created_at')
@@ -278,17 +257,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
         .order('created_at', { ascending: false })
     ),
 
-    // 12. Demo session invites — officer_user_id (new) or created_by (legacy)
-    safeQ(
-      sb.from('demo_session_invites')
-        .select('id, demo_session_id, invite_status, attendance, created_at, demo_sessions(session_date, session_time, topic, program_name)')
-        .or(`officer_user_id.eq.${officerId},created_by.eq.${officerId}`)
-        .gte('created_at', fromStart)
-        .lte('created_at', toEnd)
-        .order('created_at', { ascending: false })
-    ),
-
-    // 13. Demo attended XP events (reference_id = demo_session_invites.id)
+    // 10. Demo attended XP events — primary source for demo sessions
     safeQ(
       sb.from('officer_xp_events')
         .select('id, reference_id, xp, created_at')
@@ -299,7 +268,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
         .order('created_at', { ascending: false })
     ),
 
-    // 14. ALL XP events in range — used for accurate total (includes followups, penalties, etc.)
+    // 11. ALL XP events in range — used for accurate total (includes followups, penalties, etc.)
     safeQ(
       sb.from('officer_xp_events')
         .select('id, event_type, xp, created_at')
@@ -308,7 +277,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
         .lte('created_at', toEnd)
     ),
 
-    // 15. Followup completed XP events (reference_id = crm_lead_followups.id)
+    // 12. Followup completed XP events (reference_id = crm_lead_followups.id)
     safeQ(
       sb.from('officer_xp_events')
         .select('id, reference_id, xp, created_at')
@@ -327,14 +296,62 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
   const overdueFollowups      = safe(overdueFollowupsRes);
   const contactsSaved         = safe(contactsSavedRes);
   const dailyReports          = safe(dailyReportsRes);
-  const registrations         = safe(registrationsRes);
-  const registrationXpEvents  = safe(registrationXpRes);
-  const enrollments           = safe(enrollmentsRes);
-  const enrollmentXpEvents    = safe(enrollmentXpRes);
-  const demoInvites           = safe(demoInvitesRes);
-  const demoXpEvents          = safe(demoXpRes);
+  const registrationXpEvents  = safe(regXpEventsRes);
+  const enrollmentXpEvents    = safe(paymentXpEventsRes);
+  const demoXpEvents          = safe(demoXpEventsRes);
   const allXpEvents           = safe(allXpRes);
   const followupXpEvents      = safe(followupXpRes);
+
+  // ------------------------------------------------------------------
+  // Registrations — batch-fetch by registration_received XP reference_ids
+  // ------------------------------------------------------------------
+  const regXpMap: Record<string, number> = {};
+  registrationXpEvents.forEach((e: any) => { if (e.reference_id) regXpMap[String(e.reference_id)] = e.xp; });
+  const regIds = Object.keys(regXpMap);
+  let registrationsWithXp: any[] = [];
+  if (regIds.length > 0) {
+    const { data: regRows } = await safeQ(
+      sb.from('registrations')
+        .select('id, full_name, email, phone_number, created_at, payment_status, program_name, batch_name')
+        .in('id', regIds)
+        .order('created_at', { ascending: false })
+    );
+    registrationsWithXp = (regRows || []).map((r: any) => ({ ...r, xp: regXpMap[String(r.id)] ?? null }));
+  }
+
+  // ------------------------------------------------------------------
+  // Enrollments — batch-fetch registrations by payment_received XP reference_ids
+  // ------------------------------------------------------------------
+  const enrollXpMap: Record<string, number> = {};
+  enrollmentXpEvents.forEach((e: any) => { if (e.reference_id) enrollXpMap[String(e.reference_id)] = e.xp; });
+  const enrollIds = Object.keys(enrollXpMap);
+  let enrollmentsWithXp: any[] = [];
+  if (enrollIds.length > 0) {
+    const { data: enrollRows } = await safeQ(
+      sb.from('registrations')
+        .select('id, full_name, email, phone_number, created_at, payment_status, program_name, batch_name')
+        .in('id', enrollIds)
+        .order('created_at', { ascending: false })
+    );
+    enrollmentsWithXp = (enrollRows || []).map((r: any) => ({ ...r, xp: enrollXpMap[String(r.id)] ?? null }));
+  }
+
+  // ------------------------------------------------------------------
+  // Demo sessions — batch-fetch invites by demo_attended XP reference_ids
+  // ------------------------------------------------------------------
+  const demoXpMap: Record<string, number> = {};
+  demoXpEvents.forEach((e: any) => { if (e.reference_id) demoXpMap[String(e.reference_id)] = e.xp; });
+  const demoInviteIds = Object.keys(demoXpMap);
+  let demoInvitesWithXp: any[] = [];
+  if (demoInviteIds.length > 0) {
+    const { data: inviteRows } = await safeQ(
+      sb.from('demo_session_invites')
+        .select('id, demo_session_id, invite_status, attendance, created_at, demo_sessions(session_date, session_time, topic, program_name)')
+        .in('id', demoInviteIds)
+        .order('created_at', { ascending: false })
+    );
+    demoInvitesWithXp = (inviteRows || []).map((inv: any) => ({ ...inv, xp: demoXpMap[String(inv.id)] ?? null }));
+  }
 
   // Build followup XP map: followup_id -> total xp (sum completed + speed bonus)
   const followupXpMap: Record<string, number> = {};
@@ -396,47 +413,6 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
     lead: leadMapById[extractLeadId(e.reference_id) as string] || null,
   }));
 
-  // ------------------------------------------------------------------
-  // XP lookup maps for joins
-  // ------------------------------------------------------------------
-  const regXpMap: Record<string, number> = {};
-  registrationXpEvents.forEach((e: any) => { if (e.reference_id) regXpMap[String(e.reference_id)] = e.xp; });
-
-  // Supplemental: fetch registrations referenced by XP events but possibly missed by name query
-  const nameMatchedRegIds = new Set<string>(registrations.map((r: any) => String(r.id)));
-  const xpRefRegIds = Object.keys(regXpMap).filter((id: string) => !nameMatchedRegIds.has(id));
-  let allRegistrations = [...registrations];
-  if (xpRefRegIds.length > 0) {
-    const { data: extraRegs } = await safeQ(
-      sb.from('registrations')
-        .select('id, full_name, email, phone_number, created_at, payment_status, program_name, batch_name')
-        .in('id', xpRefRegIds)
-    );
-    allRegistrations = [...registrations, ...(extraRegs || [])];
-  }
-
-  const enrollXpMap: Record<string, number> = {};
-  enrollmentXpEvents.forEach((e: any) => { if (e.reference_id) enrollXpMap[String(e.reference_id)] = e.xp; });
-
-  // demo_attended reference_id = demo_session_invites.id (the invite row ID)
-  const demoXpMap: Record<string, number> = {};
-  demoXpEvents.forEach((e: any) => { if (e.reference_id) demoXpMap[String(e.reference_id)] = e.xp; });
-
-  const registrationsWithXp = allRegistrations.map((r: any) => ({ ...r, xp: regXpMap[String(r.id)] ?? null }));
-
-  // Filter students to only those whose registration belongs to this officer.
-  const officerRegIds = new Set<string>(allRegistrations.map((r: any) => String(r.id)));
-  const enrollmentsFiltered = officerName
-    ? (safe(enrollmentsRes) as any[]).filter((s: any) => officerRegIds.has(String(s.registration_id)))
-    : [];
-  const enrollmentsWithXp = enrollmentsFiltered.map((e: any) => ({
-    ...e,
-    xp: enrollXpMap[String(e.registration_id)] ?? null,
-  }));
-
-  // demo XP is keyed by invite row ID
-  const demoInvitesWithXp = demoInvites.map((inv: any) => ({ ...inv, xp: demoXpMap[String(inv.id)] ?? null }));
-
   // Sum ALL XP events in range — includes followups, penalties, reports, attendance, etc.
   const totalXp = allXpEvents.reduce((s: number, e: any) => s + (Number(e.xp) || 0), 0);
 
@@ -452,9 +428,9 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
       overdueFollowups: overdueFollowups.length,
       contactsSaved:    contactsSaved.length,
       dailyReports:     dailyReports.length,
-      registrations:    allRegistrations.length,
-      enrollments:      enrollmentsFiltered.length,
-      demoSessions:     demoInvites.length,
+      registrations:    registrationsWithXp.length,
+      enrollments:      enrollmentsWithXp.length,
+      demoSessions:     demoInvitesWithXp.length,
       totalXp,
     },
     attendance,
