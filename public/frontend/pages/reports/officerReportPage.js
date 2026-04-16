@@ -108,25 +108,12 @@
     );
   }
 
-  function renderFollowupsScheduled(rows) {
+  function renderFollowups(rows) {
     return table(
-      ['Scheduled', 'Answered', 'XP', 'Comment', 'Created'],
+      ['Channel', 'Scheduled', 'Completed', 'Answered', 'Comment', 'Created'],
       rows.map(r => [
-        fmtDT(r.scheduled_at),
+        esc(r.channel), fmtDT(r.scheduled_at), fmtDT(r.actual_at),
         r.answered ? '✓' : r.answered === false ? '✗' : '—',
-        xpBadge(r.xp),
-        esc(r.comment), fmtDT(r.created_at)
-      ])
-    );
-  }
-
-  function renderFollowupsCompleted(rows) {
-    return table(
-      ['Scheduled', 'Completed', 'Answered', 'XP', 'Comment', 'Created'],
-      rows.map(r => [
-        fmtDT(r.scheduled_at), fmtDT(r.actual_at),
-        r.answered ? '✓' : r.answered === false ? '✗' : '—',
-        xpBadge(r.xp),
         esc(r.comment), fmtDT(r.created_at)
       ])
     );
@@ -135,10 +122,8 @@
   function renderOverdueFollowups(rows) {
     if (!rows.length) return '<p style="color:#16a34a;padding:8px 0;font-weight:600;"><i class="fas fa-check-circle"></i> No overdue follow-ups</p>';
     return table(
-      ['Channel', 'Scheduled (Overdue)', 'Comment', 'Created'],
-      rows.map(r => [
-        pt(r.channel), ptDT(r.scheduled_at), pt(r.comment), ptDT(r.created_at)
-      ])
+      ['Channel', 'Scheduled', 'Comment', 'Created'],
+      rows.map(r => [esc(r.channel), `<span style="color:#dc2626;font-weight:600;">${fmtDT(r.scheduled_at)}</span>`, esc(r.comment), fmtDT(r.created_at)])
     );
   }
 
@@ -184,8 +169,9 @@
       ['Topic', 'Program', 'Session Date', 'Invite Status', 'Attendance', 'XP', 'Added At'],
       rows.map(r => [
         esc(r.demo_sessions?.topic), esc(r.demo_sessions?.program_name),
-        ptDate(r.demo_sessions?.session_date),
-        pt(r.invite_status), pt(r.attendance), ptXp(r.xp), ptDT(r.created_at)
+        fmtDate(r.demo_sessions?.session_date),
+        esc(r.invite_status), esc(r.attendance),
+        xpBadge(r.xp), fmtDT(r.created_at)
       ])
     );
   }
@@ -589,24 +575,11 @@
       ])
     );
 
-    // 4a. Follow-ups Scheduled
-    addSection('4a. Follow-ups Scheduled',
-      ['Scheduled', 'Answered', 'XP', 'Comment', 'Created'],
-      (data.followups || []).filter(r => !r.actual_at).map(r => [
-        ptDT(r.scheduled_at),
+    addSection('4. Follow-ups',
+      ['Channel', 'Scheduled', 'Completed', 'Answered', 'Comment', 'Created'],
+      (data.followups || []).map(r => [
+        pt(r.channel), ptDT(r.scheduled_at), ptDT(r.actual_at),
         r.answered ? 'Yes' : r.answered === false ? 'No' : '—',
-        ptXp(r.xp),
-        pt(r.comment), ptDT(r.created_at)
-      ])
-    );
-
-    // 4b. Follow-ups Completed
-    addSection('4b. Follow-ups Completed',
-      ['Scheduled', 'Completed', 'Answered', 'XP', 'Comment', 'Created'],
-      (data.followups || []).filter(r => !!r.actual_at).map(r => [
-        ptDT(r.scheduled_at), ptDT(r.actual_at),
-        r.answered ? 'Yes' : r.answered === false ? 'No' : '—',
-        ptXp(r.xp),
         pt(r.comment), ptDT(r.created_at)
       ])
     );
@@ -695,10 +668,6 @@
     const officerNameDisplay = esc(data.officerName || '—');
     const dateRange = `${fmtDate(from)} – ${fmtDate(to)}`;
 
-    // Split followups into scheduled (pending) and completed
-    const followupsScheduled = (data.followups || []).filter(r => !r.actual_at);
-    const followupsCompleted = (data.followups || []).filter(r => !!r.actual_at);
-
     output.innerHTML = `
       <!-- Report header (visible in print) -->
       <div class="dashboard-card" style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
@@ -710,19 +679,13 @@
       </div>
 
       <!-- Summary cards -->
-      ${renderSummaryCards({
-        ...s,
-        followups: undefined, // Hide old
-        followupsScheduled: followupsScheduled.length,
-        followupsCompleted: followupsCompleted.length,
-      })}
+      ${renderSummaryCards(s)}
 
       <!-- Sections -->
       ${section('attendance',    'fas fa-calendar-check',       `Attendance (${s.attendanceDays} days)`,          s.attendanceDays,    renderAttendance(data.attendance))}
       ${section('leadsAssigned', 'fas fa-users',                `Leads Assigned (${s.leadsAssigned})`,            s.leadsAssigned,     renderLeadsAssigned(data.leadsAssigned))}
       ${section('contacted',     'fas fa-phone',                `Leads Contacted (${s.leadsContacted})`,          s.leadsContacted,    renderLeadsContacted(data.leadsContacted))}
-      ${section('followups-scheduled', 'fas fa-tasks',          `Follow-ups Scheduled (${followupsScheduled.length})`, followupsScheduled.length, renderFollowupsScheduled(followupsScheduled))}
-      ${section('followups-completed', 'fas fa-check-circle',   `Follow-ups Completed (${followupsCompleted.length})`, followupsCompleted.length, renderFollowupsCompleted(followupsCompleted))}
+      ${section('followups',     'fas fa-tasks',                `Follow-ups (${s.followups})`,                    s.followups,         renderFollowups(data.followups))}
       ${section('overdue',       'fas fa-exclamation-circle',   `Overdue Follow-ups (${s.overdueFollowups})`,     s.overdueFollowups,  renderOverdueFollowups(data.overdueFollowups))}
       ${section('contacts',      'fas fa-address-book',         `Contacts Saved (${s.contactsSaved})`,            s.contactsSaved,     renderContacts(data.contactsSaved))}
       ${section('dailyReports',  'fas fa-clipboard-list',       `Daily Reports (${s.dailyReports})`,              s.dailyReports,      renderDailyReports(data.dailyReports))}
