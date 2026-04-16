@@ -206,7 +206,7 @@ async function getOfficerReport(sb: any, officerId: string, from: string, to: st
         .order('created_at', { ascending: false })
     ),
 
-    // 5. Overdue follow-ups (scheduled within report period, never completed)
+    // 5. Overdue follow-ups: unresolved follow-ups scheduled between batch start and "to" date
     safeQ(
       sb.from('crm_lead_followups')
         .select('id, sheet_lead_id, channel, scheduled_at, comment, created_at')
