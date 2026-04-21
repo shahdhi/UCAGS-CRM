@@ -511,7 +511,8 @@
                     </div>
 
                     <!-- XP Leaderboard (moved from Row 3) -->
-                    <div class="nd-card">
+
+                    <div class="nd-card nd-leaderboard-col">
                         <div class="nd-card-header">
                             <div class="nd-card-title"><i class="fas fa-trophy"></i> XP Leaderboard</div>
                             <div class="nd-leaderboard-badge" id="ndLeaderboardBadge"></div>
@@ -525,6 +526,21 @@
                         </div>
                         <!-- Officer personal XP summary -->
                         <div id="xpPersonalContent" class="officer-only nd-personal-xp"></div>
+                    </div>
+                    <!-- Enrollment Leaderboard (now beside XP Leaderboard) -->
+                    <div class="nd-card nd-leaderboard-col officer-only">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-graduation-cap"></i> Enrollment Leaderboard</div>
+                            <select id="ndEnrollBatchSelect" class="nd-select-sm">
+                                <option value="">All Batches</option>
+                            </select>
+                        </div>
+                        <div id="ndEnrollLeaderboard" class="nd-leaderboard-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -543,23 +559,6 @@
                             <div class="nd-skeleton-row"></div>
                         </div>
                     </div>
-
-                    <!-- Enrollment Leaderboard -->
-                    <div class="nd-card">
-                        <div class="nd-card-header">
-                            <div class="nd-card-title"><i class="fas fa-graduation-cap"></i> Enrollment Leaderboard</div>
-                            <select id="ndEnrollBatchSelect" class="nd-select-sm">
-                                <option value="">All Batches</option>
-                            </select>
-                        </div>
-                        <div id="ndEnrollLeaderboard" class="nd-leaderboard-list">
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- ── Row 3: Lead Pipeline + Targets ──────────────────────────── -->
                 <div class="nd-row nd-row-2-1">
