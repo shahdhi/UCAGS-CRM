@@ -337,15 +337,22 @@
         return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
       });
 
-      // Build cumulative running total so the chart shows growth trend, not daily spikes
-      const cumulative = [];
-      let running = 0;
-      for (const t of trend) {
-        running += Number(t.xp || 0);
-        cumulative.push(running);
-      }
-      const data = cumulative;
       const dailyData = trend.map(t => Number(t.xp || 0));
+
+      // Build cumulative chart anchored to the real XP total.
+      // For officers: baseline = totalXp minus everything earned in this window,
+      // so the last point on the chart ends exactly at their current total XP.
+      // For admin (global trend): start from 0 since there's no single global total.
+      const isAdmin = window.currentUser?.role === 'admin';
+      const totalInWindow = dailyData.reduce((s, v) => s + v, 0);
+      const baselineXp = isAdmin ? 0 : Math.max(0, (__xpData?.totalXp ?? 0) - totalInWindow);
+
+      const data = [];
+      let running = baselineXp;
+      for (const daily of dailyData) {
+        running += daily;
+        data.push(running);
+      }
 
       // Stats strip
       const currentXp = __xpData?.totalXp ?? (data.length ? data[data.length - 1] : 0);
