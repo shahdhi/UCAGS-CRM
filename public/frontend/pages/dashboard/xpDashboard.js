@@ -1505,7 +1505,6 @@
 
     // Wire up buttons/forms once
     if (!__listenersSetUp) {
-      setupTrendButtons();
       setupDateRangeButtons();
       setupAddTask();
       setupXPHistoryModal();
@@ -1545,7 +1544,6 @@
       // Phase 2
       renderProfileSection(__xpData),
       Promise.resolve(renderKPIMetrics(__analyticsData)),
-      renderXPTrendChart(__xpTrendDays),
       Promise.resolve(renderAchievements(__xpData)),
       // Phase 3
       Promise.resolve(renderLeadPipeline(__analyticsData)),

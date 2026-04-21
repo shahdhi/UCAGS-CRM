@@ -200,7 +200,7 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
 
     // Short-lived cache: dramatically speeds up repeated dashboard loads
     const cacheKey = JSON.stringify({
-      v: 5, // bumped: officer funnel no longer date-filtered by created_at
+      v: 6, // bumped: conversionRate now uses all-time current-batch enrollments (no date filter)
       role: isAdminUser ? 'admin' : 'officer',
       officerName: isAdminUser ? '' : officerName,
       from: String(req.query.from || ''),
@@ -310,7 +310,7 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
       // ignore
     }
 
-    // Enrollments (payment received saved) within range
+    // Enrollments (payment received saved) within range — used for KPI card & time series
     const confirmedRegIds = await getPaymentReceivedRegistrationIds(sb, { from: fromEff, to: toEff });
     let confirmedPayments = confirmedRegIds.length;
 
@@ -329,6 +329,25 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
       } catch (e) {
         confirmedPayments = 0;
       }
+    }
+
+    // Conversion rate: current-batch enrollments / current-batch leads (NO date filter on either side).
+    // This shows the true lifetime conversion for the current batch, not just within the date picker window.
+    let confirmedPaymentsAllTime = 0;
+    try {
+      const allRegIds = await getPaymentReceivedRegistrationIds(sb); // no date filter
+      if (allRegIds.length) {
+        let q = sb
+          .from('registrations')
+          .select('id', { count: 'exact', head: true })
+          .in('id', allRegIds);
+        if (currentBatches.length) q = q.in('batch_name', currentBatches);
+        if (!isAdminUser && officerName) q = q.eq('assigned_to', officerName);
+        const { count, error } = await q;
+        if (!error) confirmedPaymentsAllTime = Number(count || 0);
+      }
+    } catch (e) {
+      confirmedPaymentsAllTime = confirmedPayments; // fallback to date-filtered value
     }
 
     // Conversion rate: confirmed payments out of TOTAL leads assigned in current batch
@@ -356,7 +375,8 @@ router.get('/analytics', isAuthenticated, async (req, res) => {
       activeLeads = 0;
     }
 
-    const conversionRate = leadsCount > 0 ? (confirmedPayments / leadsCount) : 0;
+    // Use all-time current-batch enrollments for conversion rate (not date-filtered)
+    const conversionRate = leadsCount > 0 ? (confirmedPaymentsAllTime / leadsCount) : 0;
 
     // Status (previously Funnel): New -> Contacted -> Follow-up -> Registered -> Enrollments
     // Officers: show current status of ALL leads in current batch (no date filter on created_at).
