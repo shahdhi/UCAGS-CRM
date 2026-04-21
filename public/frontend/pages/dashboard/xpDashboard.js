@@ -369,8 +369,6 @@
         __xpTrendChart = null;
       }
 
-      const isAdmin = window.currentUser?.role === 'admin';
-
       __xpTrendChart = new Chart(canvas, {
         type: 'line',
         data: {
