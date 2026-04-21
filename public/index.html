@@ -2932,5 +2932,32 @@
     <script src="/js/notifications.js?v=1"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="js/app.js?v=5"></script>
+
+    <!-- Phone/WhatsApp fields: digits and + only, no spaces (covers dynamic inputs) -->
+    <script>
+    (function() {
+        function cleanPhone(val) { return val.replace(/[^\d+]/g, ''); }
+        document.addEventListener('input', function(e) {
+            const el = e.target;
+            if (el.tagName !== 'INPUT' || el.type !== 'tel') return;
+            const pos = el.selectionStart;
+            const before = el.value;
+            el.value = cleanPhone(before);
+            const diff = before.length - el.value.length;
+            el.setSelectionRange(Math.max(0, pos - diff), Math.max(0, pos - diff));
+        }, true);
+        document.addEventListener('paste', function(e) {
+            const el = e.target;
+            if (el.tagName !== 'INPUT' || el.type !== 'tel') return;
+            e.preventDefault();
+            const pasted = (e.clipboardData || window.clipboardData).getData('text');
+            const start = el.selectionStart;
+            const end = el.selectionEnd;
+            const cleaned = cleanPhone(pasted);
+            el.value = el.value.slice(0, start) + cleaned + el.value.slice(end);
+            el.setSelectionRange(start + cleaned.length, start + cleaned.length);
+        }, true);
+    })();
+    </script>
 </body>
 </html>

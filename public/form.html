@@ -331,6 +331,28 @@
                 messageDiv.classList.remove('show');
             }, 5000);
         }
+
+        // Phone: digits and + only, no spaces
+        (function() {
+            const el = document.getElementById('phone');
+            if (!el) return;
+            el.addEventListener('input', function() {
+                const pos = this.selectionStart;
+                const before = this.value;
+                this.value = before.replace(/[^\d+]/g, '');
+                const diff = before.length - this.value.length;
+                this.setSelectionRange(Math.max(0, pos - diff), Math.max(0, pos - diff));
+            });
+            el.addEventListener('paste', function(e) {
+                e.preventDefault();
+                const pasted = (e.clipboardData || window.clipboardData).getData('text');
+                const start = this.selectionStart;
+                const end = this.selectionEnd;
+                const cleaned = pasted.replace(/[^\d+]/g, '');
+                this.value = this.value.slice(0, start) + cleaned + this.value.slice(end);
+                this.setSelectionRange(start + cleaned.length, start + cleaned.length);
+            });
+        })();
     </script>
 </body>
 </html>
