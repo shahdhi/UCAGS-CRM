@@ -336,12 +336,21 @@
         const d = new Date(t.date);
         return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
       });
-      const data = trend.map(t => Number(t.xp || 0));
+
+      // Build cumulative running total so the chart shows growth trend, not daily spikes
+      const cumulative = [];
+      let running = 0;
+      for (const t of trend) {
+        running += Number(t.xp || 0);
+        cumulative.push(running);
+      }
+      const data = cumulative;
+      const dailyData = trend.map(t => Number(t.xp || 0));
 
       // Stats strip
       const currentXp = __xpData?.totalXp ?? (data.length ? data[data.length - 1] : 0);
-      const highestDay = data.length ? Math.max(...data) : 0;
-      const avgXp = data.length ? Math.round(data.reduce((s, v) => s + v, 0) / data.length) : 0;
+      const highestDay = dailyData.length ? Math.max(...dailyData) : 0;
+      const avgXp = dailyData.length ? Math.round(dailyData.reduce((s, v) => s + v, 0) / dailyData.length) : 0;
 
     setHtml('statCurrentXp', currentXp > 0 ? '<i class="fas fa-bolt" style="color:#7c3aed;"></i> ' + currentXp.toLocaleString() : '--');
     setText('statHighestXp', highestDay > 0 ? highestDay.toLocaleString() + ' XP' : '--');
@@ -386,7 +395,12 @@
               bodyColor: '#f9fafb',
               padding: 10,
               callbacks: {
-            label: ctx => '⚡ ' + ctx.parsed.y + ' XP'
+                label: ctx => {
+                  const total = ctx.parsed.y;
+                  const earned = dailyData[ctx.dataIndex] || 0;
+                  const earnedStr = earned > 0 ? ` (+${earned} today)` : '';
+                  return `⚡ ${total} XP${earnedStr}`;
+                }
               }
             }
           },
