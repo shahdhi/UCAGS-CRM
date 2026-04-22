@@ -511,8 +511,7 @@
                     </div>
 
                     <!-- XP Leaderboard (moved from Row 3) -->
-
-                    <div class="nd-card nd-leaderboard-col">
+                    <div class="nd-card">
                         <div class="nd-card-header">
                             <div class="nd-card-title"><i class="fas fa-trophy"></i> XP Leaderboard</div>
                             <div class="nd-leaderboard-badge" id="ndLeaderboardBadge"></div>
@@ -527,8 +526,26 @@
                         <!-- Officer personal XP summary -->
                         <div id="xpPersonalContent" class="officer-only nd-personal-xp"></div>
                     </div>
-                    <!-- Enrollment Leaderboard (now beside XP Leaderboard) -->
-                    <div class="nd-card nd-leaderboard-col officer-only">
+                </div>
+
+                <!-- ── Row 2: Activity Feed + Quick Actions ──────────────────────── -->
+                <div class="nd-row nd-row-2-1">
+                    <!-- Activity Feed (swapped from Row 3) -->
+                    <div class="nd-card">
+                        <div class="nd-card-header">
+                            <div class="nd-card-title"><i class="fas fa-stream"></i> Activity Feed</div>
+                            <span id="ndActivityFeedViewAll" style="font-size:12px;color:#7c3aed;cursor:pointer;font-weight:500;text-decoration:underline;text-underline-offset:2px;">Scoring</span>
+                        </div>
+                        <div id="ndActivityFeed" class="nd-activity-list">
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                            <div class="nd-skeleton-row"></div>
+                        </div>
+                    </div>
+
+                    <!-- Enrollment Leaderboard -->
+                    <div class="nd-card">
                         <div class="nd-card-header">
                             <div class="nd-card-title"><i class="fas fa-graduation-cap"></i> Enrollment Leaderboard</div>
                             <select id="ndEnrollBatchSelect" class="nd-select-sm">
@@ -544,22 +561,9 @@
                     </div>
                 </div>
 
-                <!-- ── Row 2: Activity Feed + Quick Actions ──────────────────────── -->
-                <div class="nd-row nd-row-3-1">
-                    <!-- Activity Feed -->
-                    <div class="nd-card">
-                        <div class="nd-card-header">
-                            <div class="nd-card-title"><i class="fas fa-stream"></i> Activity Feed</div>
-                            <span id="ndActivityFeedViewAll" style="font-size:12px;color:#7c3aed;cursor:pointer;font-weight:500;text-decoration:underline;text-underline-offset:2px;">Scoring</span>
-                        </div>
-                        <div id="ndActivityFeed" class="nd-activity-list">
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                            <div class="nd-skeleton-row"></div>
-                        </div>
-                    </div>
-                    <!-- Lead Pipeline -->
+                <!-- ── Row 3: Lead Pipeline + Targets ──────────────────────────── -->
+                <div class="nd-row nd-row-2-1">
+                    <!-- Lead Status / Funnel (swapped from Row 2) -->
                     <div class="nd-card">
                         <div class="nd-card-header">
                             <div class="nd-card-title"><i class="fas fa-filter"></i> Lead Pipeline</div>
@@ -575,7 +579,8 @@
                         </div>
                         <div class="nd-funnel-footer" id="ndFunnelFooter"></div>
                     </div>
-                    <!-- Targets -->
+
+                    <!-- Targets vs Achievements -->
                     <div class="nd-card">
                         <div class="nd-card-header">
                             <div class="nd-card-title"><i class="fas fa-bullseye"></i> Targets</div>
