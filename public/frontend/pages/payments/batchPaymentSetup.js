@@ -28,7 +28,68 @@
     return v;
   }
 
-  let state = { methods: [], plans: [] };
+  let state = { methods: [], plans: [], earlyBird: false, reg_fee_amount: '', reg_fee_date: '' };
+
+  function renderBatchSettings() {
+    const wrap = qs('paymentBatchSettingsWrap');
+    if (!wrap) return;
+
+    const eb = state.earlyBird;
+    wrap.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+          <div style="font-weight:700; color:#101828;">Early Bird</div>
+          <label class="toggle-switch" style="display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none;">
+            <div style="position:relative; width:44px; height:24px;">
+              <input type="checkbox" id="earlyBirdToggle" style="opacity:0; width:0; height:0; position:absolute;" ${eb ? 'checked' : ''} />
+              <div id="earlyBirdTrack" style="position:absolute; inset:0; border-radius:24px; background:${eb ? '#592c88' : '#d0d5dd'}; transition:background 0.2s;"></div>
+              <div id="earlyBirdThumb" style="position:absolute; top:3px; left:${eb ? '23px' : '3px'}; width:18px; height:18px; border-radius:50%; background:#fff; transition:left 0.2s; box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
+            </div>
+            <span style="font-size:13px; color:${eb ? '#592c88' : '#667085'}; font-weight:700;">${eb ? 'ON — No registration fee for all plans' : 'OFF — Registration fee applies'}</span>
+          </label>
+        </div>
+
+        <div id="regFeeSettingsWrap" style="display:${eb ? 'none' : 'flex'}; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+          <div class="form-group" style="margin:0;">
+            <label style="font-size:13px; font-weight:700;">Registration fee (LKR)</label>
+            <input id="batchRegFeeAmount" type="number" min="0" class="form-control" style="width:180px;" value="${escapeHtml(String(state.reg_fee_amount || ''))}" placeholder="e.g. 5000" />
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label style="font-size:13px; font-weight:700;">Registration fee due date</label>
+            <input id="batchRegFeeDate" type="date" class="form-control" style="width:180px;" value="${escapeHtml(state.reg_fee_date || '')}" />
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Toggle interaction
+    const toggle = qs('earlyBirdToggle');
+    const track = qs('earlyBirdTrack');
+    const thumb = qs('earlyBirdThumb');
+    const regFeeWrap = qs('regFeeSettingsWrap');
+
+    if (toggle) {
+      toggle.addEventListener('change', () => {
+        state.earlyBird = toggle.checked;
+        if (track) track.style.background = state.earlyBird ? '#592c88' : '#d0d5dd';
+        if (thumb) thumb.style.left = state.earlyBird ? '23px' : '3px';
+        if (regFeeWrap) regFeeWrap.style.display = state.earlyBird ? 'none' : 'flex';
+        // Re-render plan label hints
+        renderPlans();
+        // Update toggle label
+        const lbl = toggle.closest('label')?.querySelector('span');
+        if (lbl) {
+          lbl.textContent = state.earlyBird ? 'ON — No registration fee for all plans' : 'OFF — Registration fee applies';
+          lbl.style.color = state.earlyBird ? '#592c88' : '#667085';
+        }
+      });
+    }
+
+    const regFeeAmtInp = qs('batchRegFeeAmount');
+    const regFeeDateInp = qs('batchRegFeeDate');
+    if (regFeeAmtInp) regFeeAmtInp.addEventListener('input', () => { state.reg_fee_amount = regFeeAmtInp.value; });
+    if (regFeeDateInp) regFeeDateInp.addEventListener('change', () => { state.reg_fee_date = regFeeDateInp.value; });
+  }
 
   function renderMethods() {
     const wrap = qs('paymentMethodsWrap');
@@ -78,9 +139,12 @@
         : '';
 
       return `
-        <div style="border:1px solid #eaecf0; border-radius:12px; padding:12px; margin-bottom:10px; background:#fff;">
+        <div style="border:1px solid ${state.earlyBird ? '#bbf7d0' : '#eaecf0'}; border-radius:12px; padding:12px; margin-bottom:10px; background:#fff;">
           <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-            <div style="font-weight:700;">Plan ${idx + 1}</div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div style="font-weight:700;">Plan ${idx + 1}</div>
+              ${state.earlyBird ? '<span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:11px;">Early Bird</span>' : ''}
+            </div>
             <button type="button" class="btn btn-danger btn-sm" data-action="remove-plan" data-i="${idx}">Remove</button>
           </div>
 
@@ -185,6 +249,9 @@
     const json = await res.json();
     if (!json.success) throw new Error(json.error || 'Failed to load payment setup');
 
+    state.earlyBird = !!(json.earlyBird || json.early_bird);
+    state.reg_fee_amount = json.reg_fee_amount || json.registration_fee_amount || '';
+    state.reg_fee_date = json.reg_fee_date || json.registration_fee_date || '';
     state.methods = (json.methods || []).map(m => m.method_name);
     state.plans = (json.plans || []).map(p => {
       const dues = (json.installments || []).filter(i => i.plan_id === p.id).sort((a,b) => a.installment_no - b.installment_no).map(i => i.due_date);
@@ -200,7 +267,7 @@
 
     renderMethods();
     renderPlans();
-  }
+    renderBatchSettings();
 
   async function save(batchName) {
     const methods = state.methods.map(m => validateName('Payment method', m));
@@ -229,7 +296,13 @@
     const res = await fetch(`/api/payment-setup/batches/${encodeURIComponent(batchName)}` , {
       method: 'PUT',
       headers: authHeaders,
-      body: JSON.stringify({ methods, plans })
+      body: JSON.stringify({
+        methods,
+        plans,
+        earlyBird: !!state.earlyBird,
+        reg_fee_amount: Number.isFinite(Number(state.reg_fee_amount)) ? Number(state.reg_fee_amount) : 0,
+        reg_fee_date: state.reg_fee_date || null
+      })
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.error || 'Failed to save setup');

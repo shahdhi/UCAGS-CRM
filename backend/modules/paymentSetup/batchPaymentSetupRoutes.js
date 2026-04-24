@@ -57,7 +57,16 @@ router.get('/batches/:batchName', require('../../../server/middleware/auth').isA
       installments = inst || [];
     }
 
-    res.json({ success: true, batchName, methods: methods || [], plans: plans || [], installments });
+    res.json({
+      success: true,
+      batchName,
+      methods: methods || [],
+      plans: plans || [],
+      installments,
+      earlyBird: !!(plans || []).find(p => p.early_bird),          // derive from first plan OR store separately
+      reg_fee_amount: (plans || [])[0]?.reg_fee_amount ?? null,
+      reg_fee_date: (plans || [])[0]?.reg_fee_date ?? null
+    });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }
@@ -72,6 +81,9 @@ router.put('/batches/:batchName', isAdmin, async (req, res) => {
 
     const methods = Array.isArray(req.body?.methods) ? req.body.methods : [];
     const plans = Array.isArray(req.body?.plans) ? req.body.plans : [];
+    const earlyBird = !!req.body?.earlyBird;
+    const regFeeAmount = Number.isFinite(Number(req.body?.reg_fee_amount)) ? Number(req.body.reg_fee_amount) : 0;
+    const regFeeDate = req.body?.reg_fee_date ? String(req.body.reg_fee_date).trim() : null;
 
     // Validate methods
     const methodRows = methods
@@ -87,7 +99,10 @@ router.put('/batches/:batchName', isAdmin, async (req, res) => {
       if (count > 1 && dueDates.length !== count) {
         throw Object.assign(new Error(`Plan "${planName}" must have exactly ${count} due dates`), { status: 400 });
       }
-      return { planName, count, dueDates };
+      const planType = String(p.plan_type || '').trim();
+      const regFee = Number.isFinite(Number(p.registration_fee)) ? Number(p.registration_fee) : 0;
+      const courseFee = Number.isFinite(Number(p.course_fee)) ? Number(p.course_fee) : 0;
+      return { planName, count, dueDates, planType, regFee, courseFee };
     });
 
     // Clear old setup for this batch
@@ -115,7 +130,13 @@ router.put('/batches/:batchName', isAdmin, async (req, res) => {
           batch_name: batchName,
           plan_name: p.planName,
           installment_count: p.count,
-          is_active: true
+          is_active: true,
+          plan_type: p.planType || null,
+          registration_fee: p.regFee || null,
+          course_fee: p.courseFee || null,
+          early_bird: earlyBird,
+          reg_fee_amount: regFeeAmount || null,
+          reg_fee_date: regFeeDate || null
         })))
         .select('*');
       if (error) throw error;
