@@ -41,6 +41,90 @@
     }
   }
 
+  function getPlanTypeBadge(plan) {
+    const p = String(plan || '').toLowerCase();
+    if (p.includes('early bird') && p.includes('full')) {
+      return '<span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:11px;">EB Full</span>';
+    }
+    if (p.includes('early bird')) {
+      return '<span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:11px;">Early Bird</span>';
+    }
+    if (p.includes('full')) {
+      return '<span class="badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:11px;">Full Pay</span>';
+    }
+    if (p.includes('registration') || p === 'reg fee only') {
+      return '<span class="badge" style="background:#fefce8; color:#a16207; border:1px solid #fde68a; font-size:11px;">Reg Fee</span>';
+    }
+    if (p.includes('installment')) {
+      return '<span class="badge" style="background:#faf5ff; color:#7e22ce; border:1px solid #e9d5ff; font-size:11px;">Installment</span>';
+    }
+    return '';
+  }
+
+  function buildPaymentHistorySection(sortedPayments, currentPid, totalConfirmed) {
+    if (!sortedPayments || !sortedPayments.length) return '';
+
+    const rows = sortedPayments.map(p => {
+      const n = Number(p.installment_no || 0);
+      const ord = n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : n ? `${n}th` : '#';
+      const label = n ? `${ord} Installment` : 'Payment';
+      const isSelected = String(p.id) === String(currentPid);
+
+      const statusBadge = p.is_confirmed
+        ? '<span class="badge" style="background:#ecfdf3; color:#027a48; border:1px solid #abefc6; font-size:11px;">Confirmed</span>'
+        : p.slip_received
+          ? '<span class="badge" style="background:#fffaeb; color:#b54708; border:1px solid #fedf89; font-size:11px;">Pending</span>'
+          : '<span class="badge" style="background:#f9fafb; color:#667085; border:1px solid #eaecf0; font-size:11px;">Awaiting</span>';
+
+      const receiptCell = p.receipt_no
+        ? `<a href="#" class="pay-history-receipt-link" data-payment-id="${escapeHtml(p.id)}" style="color:#175CD3; font-weight:700; font-size:12px; text-decoration:none;">${escapeHtml(p.receipt_no)}</a>`
+        : '<span style="color:#98a2b3; font-size:12px;">—</span>';
+
+      const rowBg = isSelected ? 'background:#f4ebff;' : '';
+      const fontWeight = isSelected ? '800' : '600';
+
+      return `
+        <tr class="pay-history-row" data-payment-id="${escapeHtml(p.id)}" style="cursor:pointer; ${rowBg} border-bottom:1px solid #f2f4f7;">
+          <td style="padding:7px 8px; font-size:13px; font-weight:${fontWeight}; color:#101828;">${escapeHtml(label)}</td>
+          <td style="padding:7px 8px; text-align:right; font-size:13px; font-weight:700; color:#101828;">${escapeHtml(fmtLkr(p.amount ?? ''))}</td>
+          <td style="padding:7px 8px; text-align:center; font-size:12px; color:#475467;">${escapeHtml(p.payment_date || '—')}</td>
+          <td style="padding:7px 8px; text-align:center;">${statusBadge}</td>
+          <td style="padding:7px 8px; text-align:center;">${receiptCell}</td>
+        </tr>
+      `;
+    }).join('');
+
+    return `
+      <div style="border:1px solid #eaecf0; border-radius:12px; padding:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+          <div style="font-weight:800; color:#101828;">Payment overview</div>
+          <div style="font-size:12px; color:#667085;">Click a row to edit that installment</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse;">
+            <thead>
+              <tr style="border-bottom:2px solid #eaecf0;">
+                <th style="text-align:left; padding:6px 8px; color:#667085; font-size:11px; font-weight:700; text-transform:uppercase;">Installment</th>
+                <th style="text-align:right; padding:6px 8px; color:#667085; font-size:11px; font-weight:700; text-transform:uppercase;">Amount</th>
+                <th style="text-align:center; padding:6px 8px; color:#667085; font-size:11px; font-weight:700; text-transform:uppercase;">Paid On</th>
+                <th style="text-align:center; padding:6px 8px; color:#667085; font-size:11px; font-weight:700; text-transform:uppercase;">Status</th>
+                <th style="text-align:center; padding:6px 8px; color:#667085; font-size:11px; font-weight:700; text-transform:uppercase;">Receipt</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+            <tfoot>
+              <tr style="border-top:2px solid #eaecf0;">
+                <td style="padding:8px; font-weight:800; color:#101828; font-size:13px;">Total collected</td>
+                <td style="text-align:right; padding:8px; font-weight:800; color:#027a48; font-size:13px;">${escapeHtml(fmtLkr(totalConfirmed))}</td>
+                <td colspan="3"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
   async function openPaymentDetails(registrationId, registrationName) {
     // legacy (kept for now, but no longer used)
 
@@ -438,7 +522,8 @@
       { key: 'installment_2', label: '2nd Installment', notConfirmed: false },
       { key: 'installment_3', label: '3rd Installment', notConfirmed: false },
       { key: 'installment_4', label: '4th Installment', notConfirmed: false },
-      { key: 'full_payment', label: 'Full payment', notConfirmed: false }
+      { key: 'full_payment', label: 'Full payment', notConfirmed: false },
+      { key: 'reg_fee_only', label: 'Reg Fee Only', notConfirmed: false }
     ];
 
     wrap.innerHTML = '';
@@ -541,6 +626,7 @@
           <td><div class="table-skel-line" style="width:30%"></div></td>
           <td><div class="table-skel-line" style="width:25%"></div></td>
           <td><div class="table-skel-line" style="width:40%"></div></td>
+          <td><div class="table-skel-line" style="width:25%"></div></td>
         </tr>
       `;
       tbody.innerHTML = Array.from({ length: 8 }).map(skelRow).join('');
@@ -551,7 +637,7 @@
       programId: selectedProgramId,
       batchName: selectedBatchName,
       status: fetchStatus,
-      type: selectedInstallmentFilter
+      type: selectedInstallmentFilter === 'reg_fee_only' ? '' : selectedInstallmentFilter
     });
 
     // Auto-default installment filter to current window (only once, only if user hasn't selected)
@@ -609,8 +695,12 @@
   }
 
   function applyInstallmentFilter(rows) {
-    // Installment/type filtering is handled server-side via /payments/admin/summary?type=...
-    // Keep this as a no-op for compatibility.
+    if (selectedInstallmentFilter === 'reg_fee_only') {
+      return rows.filter(r => {
+        const p = String(r.payment_plan || '').toLowerCase();
+        return p.includes('registration') || p === 'registration fee only' || p === 'reg fee only';
+      });
+    }
     return rows;
   }
 
@@ -651,7 +741,7 @@
   function renderPaymentsRows(rows, tbody) {
     if (!tbody) return;
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="empty">No payments found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">No payments found</td></tr>';
       return;
     }
 
@@ -698,6 +788,7 @@
               : `<span style="color:#98a2b3;">-</span>`
             }
           </td>
+          <td>${getPlanTypeBadge(p.payment_plan)}</td>
         </tr>
       `;
     };
@@ -975,6 +1066,9 @@
     const planName = selected?.payment_plan || '';
     const installmentNo = selected?.installment_no ? `Installment ${Number(selected.installment_no)}` : '';
 
+    const sortedPayments = [...payments].sort((a, b) => Number(a.installment_no||0) - Number(b.installment_no||0));
+    const totalConfirmed = sortedPayments.reduce((s, p) => s + (p.is_confirmed ? (Number(p.amount)||0) : 0), 0);
+
     if (body) {
       body.innerHTML = `
         <div style="display:grid; gap:12px;">
@@ -989,6 +1083,8 @@
               ${detailRow('Assigned to', reg.assigned_to || '')}
             </div>
           </div>
+
+          ${buildPaymentHistorySection(sortedPayments, pid, totalConfirmed)}
 
           <div style="border:1px solid #eaecf0; border-radius:12px; padding:12px;">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
@@ -1049,6 +1145,46 @@
           </div>
         </div>
       `;
+
+      // History overview row: click to switch to that installment
+      body.querySelectorAll('.pay-history-row').forEach(tr => {
+        tr.addEventListener('click', (e) => {
+          if (e.target.closest('.pay-history-receipt-link')) return;
+          const switchPid = tr.getAttribute('data-payment-id');
+          if (switchPid && switchPid !== String(pid)) {
+            openUpdatePaymentModal(switchPid).catch(console.error);
+          }
+        });
+      });
+
+      // History receipt links: download PDF
+      body.querySelectorAll('.pay-history-receipt-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const rpid = link.getAttribute('data-payment-id');
+          if (!rpid) return;
+          (async () => {
+            try {
+              const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+              const resp = await fetch(`/api/receipts/payment/${encodeURIComponent(rpid)}`, { headers: authHeaders, credentials: 'include' });
+              if (!resp.ok) throw new Error((await resp.json().catch(() => null))?.error || 'Failed to download receipt');
+              if (!(resp.headers.get('content-type') || '').toLowerCase().includes('application/pdf')) throw new Error('Server did not return a PDF.');
+              const blob = await resp.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `receipt-${link.textContent.trim()}.pdf`;
+              document.body.appendChild(a);
+              a.click();
+              URL.revokeObjectURL(url);
+              a.remove();
+            } catch (err) {
+              if (window.UI && UI.showToast) UI.showToast(err.message || 'Failed to download', 'error');
+            }
+          })();
+        });
+      });
 
       const receiptHost = body.querySelector('[data-up-receipt-host]') || body;
 

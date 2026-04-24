@@ -79,13 +79,26 @@ function addPaymentRow() {
           <label>Description *</label>
           <select class="form-control payment-description" required>
             <option value="">Select description</option>
-            <option value="1st installment">1st installment</option>
-            <option value="2nd installment">2nd installment</option>
-            <option value="3rd installment">3rd installment</option>
-            <option value="Full payment (course fee)">Full payment (course fee)</option>
-            <option value="Registration fee">Registration fee</option>
-            <option value="Graduation fee">Graduation fee</option>
-            <option value="Other">Other</option>
+            <optgroup label="— Initial enrollment payments —">
+              <option value="Registration fee + 1st installment">Registration fee + 1st installment</option>
+              <option value="Registration fee + full payment">Registration fee + full payment</option>
+              <option value="Registration fee">Registration fee only</option>
+            </optgroup>
+            <optgroup label="— Early bird (no reg fee) —">
+              <option value="1st installment (early bird)">1st installment (early bird)</option>
+              <option value="Full payment (early bird)">Full payment (early bird)</option>
+            </optgroup>
+            <optgroup label="— Monthly installments —">
+              <option value="1st installment">1st installment</option>
+              <option value="2nd installment">2nd installment</option>
+              <option value="3rd installment">3rd installment</option>
+              <option value="4th installment">4th installment</option>
+            </optgroup>
+            <optgroup label="— Other —">
+              <option value="Full payment (course fee)">Full payment (course fee)</option>
+              <option value="Graduation fee">Graduation fee</option>
+              <option value="Other">Other</option>
+            </optgroup>
           </select>
         </div>
       </div>

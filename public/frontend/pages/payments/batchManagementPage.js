@@ -31,6 +31,26 @@
     }
   }
 
+  function getPlanTypeBadge(plan) {
+    const p = String(plan || '').toLowerCase();
+    if (p.includes('early bird') && p.includes('full')) {
+      return '<span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:11px;">EB Full</span>';
+    }
+    if (p.includes('early bird')) {
+      return '<span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:11px;">Early Bird</span>';
+    }
+    if (p.includes('full')) {
+      return '<span class="badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:11px;">Full Pay</span>';
+    }
+    if (p.includes('registration') || p === 'reg fee only') {
+      return '<span class="badge" style="background:#fefce8; color:#a16207; border:1px solid #fde68a; font-size:11px;">Reg Fee</span>';
+    }
+    if (p.includes('installment')) {
+      return '<span class="badge" style="background:#faf5ff; color:#7e22ce; border:1px solid #e9d5ff; font-size:11px;">Installment</span>';
+    }
+    return '';
+  }
+
   function computeRowStatus(p) {
     const s = String(p.computed_status || '').toLowerCase();
     if (s) return s;
@@ -166,7 +186,8 @@
       { key: 'installment_2', label: '2nd Installment' },
       { key: 'installment_3', label: '3rd Installment' },
       { key: 'installment_4', label: '4th Installment' },
-      { key: 'full_payment', label: 'Full payment' }
+      { key: 'full_payment', label: 'Full payment' },
+      { key: 'reg_fee_only', label: 'Reg Fee Only' }
     ];
 
     wrap.innerHTML = '';
@@ -200,7 +221,7 @@
     if (!tbody) return;
 
     if (!rows.length) {
-      tbody.innerHTML = `<tr><td colspan="7" class="empty">No payments found</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="empty">No payments found</td></tr>`;
       return;
     }
 
@@ -241,6 +262,7 @@
           <td>${statusBadge}</td>
           <td style="text-align:center;">${confirmed}</td>
           <td>${receipt}</td>
+          <td>${getPlanTypeBadge(p.payment_plan)}</td>
         </tr>
       `;
     }).join('');
@@ -334,6 +356,7 @@
           <td><div class="table-skel-line" style="width:30%"></div></td>
           <td><div class="table-skel-line" style="width:25%"></div></td>
           <td><div class="table-skel-line" style="width:40%"></div></td>
+          <td><div class="table-skel-line" style="width:25%"></div></td>
         </tr>
       `;
       tbody.innerHTML = Array.from({ length: 8 }).map(skelRow).join('');
@@ -350,7 +373,7 @@
       programId: state.selectedProgramId,
       batchName: state.selectedBatchName,
       status: fetchStatus,
-      type: state.selectedInstallmentFilter
+      type: state.selectedInstallmentFilter === 'reg_fee_only' ? '' : state.selectedInstallmentFilter
     });
 
     let rows = res.payments || [];
@@ -358,6 +381,14 @@
     // Support "Due + Overdue" as a UI-only option
     if (state.selectedStatus === 'due_overdue' && !state.selectedInstallmentFilter) {
       rows = rows.filter(r => ['due', 'overdue'].includes(String(r.computed_status || '').toLowerCase()));
+    }
+
+    // Reg fee only: client-side filter by payment_plan
+    if (state.selectedInstallmentFilter === 'reg_fee_only') {
+      rows = rows.filter(r => {
+        const p = String(r.payment_plan || '').toLowerCase();
+        return p.includes('registration') || p === 'registration fee only' || p === 'reg fee only';
+      });
     }
 
     state.lastSummary = rows;

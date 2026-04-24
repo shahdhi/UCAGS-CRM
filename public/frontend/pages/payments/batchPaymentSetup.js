@@ -95,6 +95,29 @@
             </div>
           </div>
 
+          <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top:10px;">
+            <div class="form-group" style="margin:0;">
+              <label>Plan type</label>
+              <select class="form-control plan-type" data-i="${idx}">
+                ${[
+                  { v: '', l: 'Select type' },
+                  { v: 'installment', l: 'Installment (with reg fee)' },
+                  { v: 'installment_early_bird', l: 'Installment (early bird)' },
+                  { v: 'full_payment', l: 'Full payment (with reg fee)' },
+                  { v: 'full_payment_early_bird', l: 'Full payment (early bird)' },
+                ].map(o => `<option value="${o.v}" ${p.plan_type === o.v ? 'selected' : ''}>${o.l}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label>Registration fee (LKR)</label>
+              <input type="number" min="0" class="form-control plan-reg-fee" data-i="${idx}" value="${escapeHtml(String(p.registration_fee || ''))}" placeholder="e.g. 5000" />
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label>Course fee (LKR)</label>
+              <input type="number" min="0" class="form-control plan-course-fee" data-i="${idx}" value="${escapeHtml(String(p.course_fee || ''))}" placeholder="e.g. 40000" />
+            </div>
+          </div>
+
           ${count > 1 ? `<div class="form-row" style="grid-template-columns: repeat(2, 1fr); gap:12px; margin-top:10px;">${dueInputs}</div>` : ''}
         </div>
       `;
@@ -133,6 +156,27 @@
         state.plans[pI].due_dates[i] = inp.value;
       });
     });
+
+    wrap.querySelectorAll('.plan-type').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const i = Number(sel.getAttribute('data-i'));
+        state.plans[i].plan_type = sel.value;
+      });
+    });
+
+    wrap.querySelectorAll('.plan-reg-fee').forEach(inp => {
+      inp.addEventListener('input', () => {
+        const i = Number(inp.getAttribute('data-i'));
+        state.plans[i].registration_fee = inp.value;
+      });
+    });
+
+    wrap.querySelectorAll('.plan-course-fee').forEach(inp => {
+      inp.addEventListener('input', () => {
+        const i = Number(inp.getAttribute('data-i'));
+        state.plans[i].course_fee = inp.value;
+      });
+    });
   }
 
   async function load(batchName) {
@@ -144,7 +188,14 @@
     state.methods = (json.methods || []).map(m => m.method_name);
     state.plans = (json.plans || []).map(p => {
       const dues = (json.installments || []).filter(i => i.plan_id === p.id).sort((a,b) => a.installment_no - b.installment_no).map(i => i.due_date);
-      return { plan_name: p.plan_name, installment_count: p.installment_count, due_dates: dues };
+      return {
+        plan_name: p.plan_name,
+        installment_count: p.installment_count,
+        due_dates: dues,
+        plan_type: p.plan_type || '',
+        registration_fee: p.registration_fee || '',
+        course_fee: p.course_fee || ''
+      };
     });
 
     renderMethods();
@@ -160,7 +211,14 @@
       if (count > 1 && due_dates.some(d => !d)) {
         throw new Error(`All due dates are required for plan "${name}"`);
       }
-      return { plan_name: name, installment_count: count, due_dates };
+      return {
+        plan_name: name,
+        installment_count: count,
+        due_dates,
+        plan_type: p.plan_type || '',
+        registration_fee: Number.isFinite(Number(p.registration_fee)) ? Number(p.registration_fee) : 0,
+        course_fee: Number.isFinite(Number(p.course_fee)) ? Number(p.course_fee) : 0
+      };
     });
 
     const authHeaders = {
@@ -209,7 +267,7 @@
     if (addPlanBtn && !addPlanBtn.__bound) {
       addPlanBtn.__bound = true;
       addPlanBtn.addEventListener('click', () => {
-        state.plans.push({ plan_name: '', installment_count: 1, due_dates: [''] });
+        state.plans.push({ plan_name: '', installment_count: 1, due_dates: [''], plan_type: '', registration_fee: '', course_fee: '' });
         renderPlans();
       });
     }
