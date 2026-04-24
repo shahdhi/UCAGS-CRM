@@ -268,6 +268,7 @@
     renderMethods();
     renderPlans();
     renderBatchSettings();
+  }
 
   async function save(batchName) {
     const methods = state.methods.map(m => validateName('Payment method', m));
