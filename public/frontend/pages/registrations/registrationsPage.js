@@ -385,8 +385,9 @@
           }
           if (planSel) {
             planSel.innerHTML = '<option value="">Select</option>' + (j.plans || []).map(p => {
-              const label = p.plan_name + (j.earlyBird ? ' (Early Bird)' : '');
-              return `<option value="${escapeHtml(p.plan_name)}" data-early-bird="${j.earlyBird ? '1' : '0'}" data-reg-fee="${escapeHtml(String(j.reg_fee_amount || ''))}">${escapeHtml(label)}</option>`;
+              const isEB = !!(p.early_bird);
+              const label = p.plan_name + (isEB ? ' (Early Bird)' : '');
+              return `<option value="${escapeHtml(p.plan_name)}" data-early-bird="${isEB ? '1' : '0'}" data-reg-fee="${escapeHtml(String(j.reg_fee_amount || ''))}">${escapeHtml(label)}</option>`;
             }).join('');
             planSel.disabled = false;
           }
