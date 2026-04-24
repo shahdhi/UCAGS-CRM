@@ -314,6 +314,8 @@
                     <h1 class="page-title" id="pageTitle">Home</h1>
                 </div>
                 <div class="top-bar-right">
+                    <!-- Live Clock -->
+                    <span id="liveClock" class="live-clock"></span>
                     <button class="icon-btn" id="notificationsBtn">
                         <i class="fas fa-bell"></i>
                         <span class="notification-badge" style="display:none;">0</span>
@@ -2913,6 +2915,22 @@
     <script src="/js/notificationCenter.js?v=1"></script>
     <script src="/js/notifications.js?v=1"></script>
     <script src="js/app.js?v=5"></script>
+    <!-- Live Clock -->
+    <script>
+    (function() {
+      function updateClock() {
+        var el = document.getElementById('liveClock');
+        if (!el) return;
+        var now = new Date();
+        var h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+        var ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12 || 12;
+        el.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0') + ' ' + ampm;
+      }
+      updateClock();
+      setInterval(updateClock, 1000);
+    })();
+    </script>
 
     <!-- Phone/WhatsApp fields: digits and + only, no spaces (covers dynamic inputs) -->
     <script>

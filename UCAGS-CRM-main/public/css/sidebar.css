@@ -455,6 +455,17 @@ body:has(#dashboardPage.active) {
     gap: 16px;
 }
 
+.live-clock {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    padding: 0 4px;
+    user-select: none;
+}
+
 .icon-btn {
     position: relative;
     background: rgba(0, 0, 0, 0.3);
