@@ -65,9 +65,10 @@
     if (!sortedPayments || !sortedPayments.length) return '';
 
     const rows = sortedPayments.map(p => {
-      const n = Number(p.installment_no || 0);
+      const n = Number(p.installment_no ?? 1);
+      const isRegFee = n === 0;
       const ord = n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : n ? `${n}th` : '#';
-      const label = n ? `${ord} Installment` : 'Payment';
+      const label = isRegFee ? 'Registration Fee' : (n ? `${ord} Installment` : 'Payment');
       const isSelected = String(p.id) === String(currentPid);
 
       const statusBadge = p.is_confirmed
@@ -80,12 +81,13 @@
         ? `<a href="#" class="pay-history-receipt-link" data-payment-id="${escapeHtml(p.id)}" style="color:#175CD3; font-weight:700; font-size:12px; text-decoration:none;">${escapeHtml(p.receipt_no)}</a>`
         : '<span style="color:#98a2b3; font-size:12px;">—</span>';
 
-      const rowBg = isSelected ? 'background:#f4ebff;' : '';
+      const rowBg = isSelected ? 'background:#f4ebff;' : isRegFee ? 'background:#fffaeb;' : '';
       const fontWeight = isSelected ? '800' : '600';
+      const labelColor = isRegFee ? '#b54708' : '#101828';
 
       return `
         <tr class="pay-history-row" data-payment-id="${escapeHtml(p.id)}" style="cursor:pointer; ${rowBg} border-bottom:1px solid #f2f4f7;">
-          <td style="padding:7px 8px; font-size:13px; font-weight:${fontWeight}; color:#101828;">${escapeHtml(label)}</td>
+          <td style="padding:7px 8px; font-size:13px; font-weight:${fontWeight}; color:${labelColor};">${isRegFee ? '<i class="fas fa-file-invoice" style="margin-right:5px; font-size:11px;"></i>' : ''}${escapeHtml(label)}</td>
           <td style="padding:7px 8px; text-align:right; font-size:13px; font-weight:700; color:#101828;">${escapeHtml(fmtLkr(p.amount ?? ''))}</td>
           <td style="padding:7px 8px; text-align:center; font-size:12px; color:#475467;">${escapeHtml(p.payment_date || '—')}</td>
           <td style="padding:7px 8px; text-align:center;">${statusBadge}</td>
@@ -697,6 +699,7 @@
   function applyInstallmentFilter(rows) {
     if (selectedInstallmentFilter === 'reg_fee_only') {
       return rows.filter(r => {
+        if (Number(r.installment_no) === 0) return true;
         const p = String(r.payment_plan || '').toLowerCase();
         return p.includes('registration') || p === 'registration fee only' || p === 'reg fee only';
       });
@@ -759,7 +762,8 @@
       })();
 
       const installmentText = (() => {
-        const n = Number(p.installment_no || 0);
+        const n = Number(p.installment_no ?? 1);
+        if (n === 0) return 'Registration Fee';
         if (!n) return '';
         const ord = n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
 
@@ -1064,7 +1068,7 @@
     `;
 
     const planName = selected?.payment_plan || '';
-    const installmentNo = selected?.installment_no ? `Installment ${Number(selected.installment_no)}` : '';
+    const installmentNo = Number(selected?.installment_no) === 0 ? 'Registration Fee' : (selected?.installment_no ? `Installment ${Number(selected.installment_no)}` : '');
 
     const sortedPayments = [...payments].sort((a, b) => Number(a.installment_no||0) - Number(b.installment_no||0));
     const totalConfirmed = sortedPayments.reduce((s, p) => s + (p.is_confirmed ? (Number(p.amount)||0) : 0), 0);

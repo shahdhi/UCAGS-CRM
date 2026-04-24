@@ -463,6 +463,8 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
     const amount = Number(req.body?.amount);
     const slipReceived = !!(req.body?.slip_received || req.body?.receipt_received);
     const receiptReceived = !!req.body?.receipt_received;
+    const regFeeAmount = Number.isFinite(Number(req.body?.reg_fee_amount)) && Number(req.body.reg_fee_amount) > 0
+      ? Number(req.body.reg_fee_amount) : 0;
 
     if (!paymentPlan) return res.status(400).json({ success: false, error: 'Payment plan is required' });
     if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ success: false, error: 'Amount must be greater than 0' });
@@ -594,6 +596,36 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
       if (toInsert.length) {
         const { error: iErr } = await sb.from('payments').insert(toInsert);
         if (iErr) throw iErr;
+      }
+    }
+
+    // If reg_fee_amount provided, upsert a installment_no=0 row for the registration fee
+    if (regFeeAmount > 0) {
+      const existingRegFeeRow = (existingRows || []).find(r => Number(r.installment_no) === 0) || null;
+      const regFeeRow = {
+        registration_id: id,
+        registration_name: registrationName,
+        batch_name: batchName,
+        program_id: programId,
+        program_name: programName,
+        payment_plan_id: planId,
+        installment_group_id: null,
+        installment_no: 0,
+        installment_due_date: null,
+        payment_method: paymentMethod || null,
+        payment_plan: paymentPlan,
+        payment_date: paymentDate || null,
+        amount: regFeeAmount,
+        slip_received: slipReceived,
+        receipt_received: receiptReceived,
+        created_by: createdBy
+      };
+      if (existingRegFeeRow?.id) {
+        const { error: rfErr } = await sb.from('payments').update(regFeeRow).eq('id', existingRegFeeRow.id);
+        if (rfErr) throw rfErr;
+      } else {
+        const { error: rfErr } = await sb.from('payments').insert(regFeeRow);
+        if (rfErr) throw rfErr;
       }
     }
 
