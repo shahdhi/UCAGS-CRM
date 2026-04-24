@@ -166,20 +166,9 @@
                   <button class="btn btn-secondary btn-sm" type="button" id="batchSetupAddMethodBtn"><i class="fas fa-plus"></i> Add method</button>
                 </div>
               </div>
-              <div style="margin-top:14px; padding:12px; border:1px solid #e9d7fe; border-radius:12px; background:#faf5ff;">
-                <div style="font-weight:900; margin-bottom:10px; color:#6941c6;"><i class="fas fa-bolt"></i> Early Bird &amp; Registration Fee</div>
-                <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:10px;">
-                  <span style="font-size:13px; font-weight:700; color:#344054;">Early Bird</span>
-                  <label style="display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none;">
-                    <div style="position:relative; width:44px; height:24px;">
-                      <input type="checkbox" id="batchSetupEarlyBird" style="opacity:0; width:0; height:0; position:absolute;" />
-                      <div id="batchSetupEarlyBirdTrack" style="position:absolute; inset:0; border-radius:24px; background:#d0d5dd; transition:background 0.2s;"></div>
-                      <div id="batchSetupEarlyBirdThumb" style="position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:left 0.2s; box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
-                    </div>
-                    <span id="batchSetupEarlyBirdLabel" style="font-size:13px; color:#667085; font-weight:700;">OFF — Registration fee applies</span>
-                  </label>
-                </div>
-                <div id="batchSetupRegFeeWrap" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+              <div style="margin-top:14px; padding:12px; border:1px solid #eaecf0; border-radius:12px; background:#f9fafb;">
+                <div style="font-weight:900; margin-bottom:10px;">Registration Fee</div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
                   <div>
                     <div style="font-size:12px; font-weight:700; margin-bottom:4px;">Registration fee (LKR)</div>
                     <input id="batchSetupRegFeeAmount" type="number" min="0" class="form-control" style="width:180px;" placeholder="e.g. 5000" />
@@ -272,12 +261,21 @@
         : '<span style="color:#98a2b3; font-size:12px;">No due dates for single-payment plans</span>';
 
       return `
-        <div style="padding:12px; border:1px solid #eaecf0; border-radius:14px; background:#fff; margin-top:10px;">
+        <div data-plan-card="${idx}" style="padding:12px; border:1px solid ${p.earlyBird ? '#bbf7d0' : '#eaecf0'}; border-radius:14px; background:#fff; margin-top:10px;">
           <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
-            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-              <input class="form-control" data-plan="name" data-pi="${idx}" value="${escapeHtml(p.plan_name)}" placeholder="Plan name" style="width:240px;" />
-              <input class="form-control" data-plan="count" data-pi="${idx}" type="number" min="1" value="${escapeHtml(count)}" style="width:120px;" />
-              <span style="color:#667085; font-size:12px; font-weight:800;">Number of Installments</span>
+            <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+              <input class="form-control" data-plan="name" data-pi="${idx}" value="${escapeHtml(p.plan_name)}" placeholder="Plan name" style="width:200px;" />
+              <input class="form-control" data-plan="count" data-pi="${idx}" type="number" min="1" value="${escapeHtml(count)}" style="width:100px;" />
+              <span style="color:#667085; font-size:12px; font-weight:800;">Installments</span>
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; margin:0;">
+                <span style="font-size:12px; font-weight:700; color:#344054;">Early Bird</span>
+                <div style="position:relative; width:40px; height:22px;">
+                  <input type="checkbox" class="prog-plan-eb" data-pi="${idx}" style="opacity:0; width:0; height:0; position:absolute;" ${p.earlyBird ? 'checked' : ''} />
+                  <div class="prog-plan-eb-track" data-pi="${idx}" style="position:absolute; inset:0; border-radius:22px; background:${p.earlyBird ? '#592c88' : '#d0d5dd'}; transition:background 0.2s; pointer-events:none;"></div>
+                  <div class="prog-plan-eb-thumb" data-pi="${idx}" style="position:absolute; top:2px; left:${p.earlyBird ? '20px' : '2px'}; width:18px; height:18px; border-radius:50%; background:#fff; transition:left 0.2s; box-shadow:0 1px 3px rgba(0,0,0,.2); pointer-events:none;"></div>
+                </div>
+                <span class="prog-plan-eb-label" data-pi="${idx}" style="font-size:12px; font-weight:700; color:${p.earlyBird ? '#592c88' : '#667085'};">${p.earlyBird ? 'ON' : 'OFF'}</span>
+              </label>
             </div>
             <button class="btn btn-danger btn-sm" data-del-p="${idx}" type="button">Remove</button>
           </div>
@@ -339,6 +337,22 @@
         const i = Number(btn.getAttribute('data-del-p'));
         state.payment.plans.splice(i, 1);
         renderPaymentEditor(state);
+        markBatchSetupDirty();
+      };
+    });
+
+    pWrap.querySelectorAll('.prog-plan-eb').forEach(inp => {
+      inp.onchange = () => {
+        const pi = Number(inp.getAttribute('data-pi'));
+        state.payment.plans[pi].earlyBird = inp.checked;
+        const track = pWrap.querySelector(`.prog-plan-eb-track[data-pi="${pi}"]`);
+        const thumb = pWrap.querySelector(`.prog-plan-eb-thumb[data-pi="${pi}"]`);
+        const label = pWrap.querySelector(`.prog-plan-eb-label[data-pi="${pi}"]`);
+        const card = pWrap.querySelector(`[data-plan-card="${pi}"]`);
+        if (track) track.style.background = inp.checked ? '#592c88' : '#d0d5dd';
+        if (thumb) thumb.style.left = inp.checked ? '20px' : '2px';
+        if (label) { label.textContent = inp.checked ? 'ON' : 'OFF'; label.style.color = inp.checked ? '#592c88' : '#667085'; }
+        if (card) card.style.borderColor = inp.checked ? '#bbf7d0' : '#eaecf0';
         markBatchSetupDirty();
       };
     });
@@ -433,7 +447,7 @@
     const state = {
       meta: { programId, batchId, batchName },
       general: { isCurrent: false, coordinatorUserId: '', demoSessionsCount: 1 },
-      payment: { methods: [], plans: [], earlyBird: false, reg_fee_amount: '', reg_fee_date: '' },
+      payment: { methods: [], plans: [], reg_fee_amount: '', reg_fee_date: '' },
       demo: { sessionsList: [] }
     };
 
@@ -467,7 +481,6 @@
     try {
       const pay = await apiGet(`/api/payment-setup/batches/${encodeURIComponent(batchName)}`);
       state.payment.methods = (pay.methods || []).map(m => ({ method_name: m.method_name }));
-      state.payment.earlyBird = !!(pay.earlyBird || pay.early_bird);
       state.payment.reg_fee_amount = pay.reg_fee_amount || '';
       state.payment.reg_fee_date = pay.reg_fee_date || '';
       const inst = pay.installments || [];
@@ -612,7 +625,6 @@
               earlyBird: !!p.earlyBird
             }))
             .filter(p => p.plan_name),
-          earlyBird: !!state.payment.earlyBird,
           reg_fee_amount: Number.isFinite(Number(state.payment.reg_fee_amount)) ? Number(state.payment.reg_fee_amount) : 0,
           reg_fee_date: state.payment.reg_fee_date || null
         });
@@ -664,36 +676,11 @@
     renderPaymentEditor(state);
     renderDemoEditor(state);
 
-    // Bind Early Bird toggle
-    const ebToggle = qs('batchSetupEarlyBird');
-    const ebTrack = qs('batchSetupEarlyBirdTrack');
-    const ebThumb = qs('batchSetupEarlyBirdThumb');
-    const ebLabel = qs('batchSetupEarlyBirdLabel');
-    const regFeeWrap = qs('batchSetupRegFeeWrap');
+    // Bind reg fee inputs
     const regFeeAmt = qs('batchSetupRegFeeAmount');
     const regFeeDate = qs('batchSetupRegFeeDate');
-
-    const applyEarlyBirdState = (on) => {
-      if (ebToggle) ebToggle.checked = on;
-      if (ebTrack) ebTrack.style.background = on ? '#592c88' : '#d0d5dd';
-      if (ebThumb) ebThumb.style.left = on ? '23px' : '3px';
-      if (ebLabel) { ebLabel.textContent = on ? 'ON \u2014 No registration fee for all plans' : 'OFF \u2014 Registration fee applies'; ebLabel.style.color = on ? '#592c88' : '#667085'; }
-      if (regFeeWrap) regFeeWrap.style.display = on ? 'none' : 'flex';
-    };
-
-    applyEarlyBirdState(state.payment.earlyBird);
-    if (regFeeAmt) regFeeAmt.value = state.payment.reg_fee_amount || '';
-    if (regFeeDate) regFeeDate.value = state.payment.reg_fee_date || '';
-
-    if (ebToggle) {
-      ebToggle.onchange = () => {
-        state.payment.earlyBird = ebToggle.checked;
-        applyEarlyBirdState(ebToggle.checked);
-        markBatchSetupDirty();
-      };
-    }
-    if (regFeeAmt) regFeeAmt.oninput = () => { state.payment.reg_fee_amount = regFeeAmt.value; markBatchSetupDirty(); };
-    if (regFeeDate) regFeeDate.onchange = () => { state.payment.reg_fee_date = regFeeDate.value; markBatchSetupDirty(); };
+    if (regFeeAmt) { regFeeAmt.value = state.payment.reg_fee_amount || ''; regFeeAmt.oninput = () => { state.payment.reg_fee_amount = regFeeAmt.value; markBatchSetupDirty(); }; }
+    if (regFeeDate) { regFeeDate.value = state.payment.reg_fee_date || ''; regFeeDate.onchange = () => { state.payment.reg_fee_date = regFeeDate.value; markBatchSetupDirty(); }; }
 
     // Modal already open
   }
