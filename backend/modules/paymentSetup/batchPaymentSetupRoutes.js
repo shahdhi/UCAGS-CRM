@@ -81,7 +81,7 @@ router.put('/batches/:batchName', isAdmin, async (req, res) => {
 
     const methods = Array.isArray(req.body?.methods) ? req.body.methods : [];
     const plans = Array.isArray(req.body?.plans) ? req.body.plans : [];
-    const earlyBird = !!req.body?.earlyBird;
+    const earlyBird = !!req.body?.earlyBird;  // kept for backward compat but overridden per-plan below
     const regFeeAmount = Number.isFinite(Number(req.body?.reg_fee_amount)) ? Number(req.body.reg_fee_amount) : 0;
     const regFeeDate = req.body?.reg_fee_date ? String(req.body.reg_fee_date).trim() : null;
 
@@ -102,7 +102,8 @@ router.put('/batches/:batchName', isAdmin, async (req, res) => {
       const planType = String(p.plan_type || '').trim();
       const regFee = Number.isFinite(Number(p.registration_fee)) ? Number(p.registration_fee) : 0;
       const courseFee = Number.isFinite(Number(p.course_fee)) ? Number(p.course_fee) : 0;
-      return { planName, count, dueDates, planType, regFee, courseFee };
+      const planEarlyBird = p.earlyBird === true || p.earlyBird === 'true';
+      return { planName, count, dueDates, planType, regFee, courseFee, planEarlyBird };
     });
 
     // Clear old setup for this batch
@@ -134,7 +135,7 @@ router.put('/batches/:batchName', isAdmin, async (req, res) => {
           plan_type: p.planType || null,
           registration_fee: p.regFee || null,
           course_fee: p.courseFee || null,
-          early_bird: earlyBird,
+          early_bird: p.planEarlyBird,
           reg_fee_amount: regFeeAmount || null,
           reg_fee_date: regFeeDate || null
         })))

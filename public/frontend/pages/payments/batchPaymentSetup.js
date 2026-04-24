@@ -28,62 +28,24 @@
     return v;
   }
 
-  let state = { methods: [], plans: [], earlyBird: false, reg_fee_amount: '', reg_fee_date: '' };
+  let state = { methods: [], plans: [], reg_fee_amount: '', reg_fee_date: '' };
 
   function renderBatchSettings() {
     const wrap = qs('paymentBatchSettingsWrap');
     if (!wrap) return;
 
-    const eb = state.earlyBird;
     wrap.innerHTML = `
-      <div style="display:flex; flex-direction:column; gap:12px;">
-        <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
-          <div style="font-weight:700; color:#101828;">Early Bird</div>
-          <label class="toggle-switch" style="display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none;">
-            <div style="position:relative; width:44px; height:24px;">
-              <input type="checkbox" id="earlyBirdToggle" style="opacity:0; width:0; height:0; position:absolute;" ${eb ? 'checked' : ''} />
-              <div id="earlyBirdTrack" style="position:absolute; inset:0; border-radius:24px; background:${eb ? '#592c88' : '#d0d5dd'}; transition:background 0.2s;"></div>
-              <div id="earlyBirdThumb" style="position:absolute; top:3px; left:${eb ? '23px' : '3px'}; width:18px; height:18px; border-radius:50%; background:#fff; transition:left 0.2s; box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
-            </div>
-            <span style="font-size:13px; color:${eb ? '#592c88' : '#667085'}; font-weight:700;">${eb ? 'ON — No registration fee for all plans' : 'OFF — Registration fee applies'}</span>
-          </label>
+      <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+        <div class="form-group" style="margin:0;">
+          <label style="font-size:13px; font-weight:700;">Registration fee (LKR)</label>
+          <input id="batchRegFeeAmount" type="number" min="0" class="form-control" style="width:180px;" value="${escapeHtml(String(state.reg_fee_amount || ''))}" placeholder="e.g. 5000" />
         </div>
-
-        <div id="regFeeSettingsWrap" style="display:${eb ? 'none' : 'flex'}; gap:12px; align-items:flex-end; flex-wrap:wrap;">
-          <div class="form-group" style="margin:0;">
-            <label style="font-size:13px; font-weight:700;">Registration fee (LKR)</label>
-            <input id="batchRegFeeAmount" type="number" min="0" class="form-control" style="width:180px;" value="${escapeHtml(String(state.reg_fee_amount || ''))}" placeholder="e.g. 5000" />
-          </div>
-          <div class="form-group" style="margin:0;">
-            <label style="font-size:13px; font-weight:700;">Registration fee due date</label>
-            <input id="batchRegFeeDate" type="date" class="form-control" style="width:180px;" value="${escapeHtml(state.reg_fee_date || '')}" />
-          </div>
+        <div class="form-group" style="margin:0;">
+          <label style="font-size:13px; font-weight:700;">Registration fee due date</label>
+          <input id="batchRegFeeDate" type="date" class="form-control" style="width:180px;" value="${escapeHtml(state.reg_fee_date || '')}" />
         </div>
       </div>
     `;
-
-    // Toggle interaction
-    const toggle = qs('earlyBirdToggle');
-    const track = qs('earlyBirdTrack');
-    const thumb = qs('earlyBirdThumb');
-    const regFeeWrap = qs('regFeeSettingsWrap');
-
-    if (toggle) {
-      toggle.addEventListener('change', () => {
-        state.earlyBird = toggle.checked;
-        if (track) track.style.background = state.earlyBird ? '#592c88' : '#d0d5dd';
-        if (thumb) thumb.style.left = state.earlyBird ? '23px' : '3px';
-        if (regFeeWrap) regFeeWrap.style.display = state.earlyBird ? 'none' : 'flex';
-        // Re-render plan label hints
-        renderPlans();
-        // Update toggle label
-        const lbl = toggle.closest('label')?.querySelector('span');
-        if (lbl) {
-          lbl.textContent = state.earlyBird ? 'ON — No registration fee for all plans' : 'OFF — Registration fee applies';
-          lbl.style.color = state.earlyBird ? '#592c88' : '#667085';
-        }
-      });
-    }
 
     const regFeeAmtInp = qs('batchRegFeeAmount');
     const regFeeDateInp = qs('batchRegFeeDate');
@@ -139,11 +101,19 @@
         : '';
 
       return `
-        <div style="border:1px solid ${state.earlyBird ? '#bbf7d0' : '#eaecf0'}; border-radius:12px; padding:12px; margin-bottom:10px; background:#fff;">
+        <div data-plan-card="${idx}" style="border:1px solid ${p.earlyBird ? '#bbf7d0' : '#eaecf0'}; border-radius:12px; padding:12px; margin-bottom:10px; background:#fff;">
           <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-            <div style="display:flex; align-items:center; gap:8px;">
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
               <div style="font-weight:700;">Plan ${idx + 1}</div>
-              ${state.earlyBird ? '<span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:11px;">Early Bird</span>' : ''}
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; margin:0;">
+                <span style="font-size:12px; font-weight:700; color:#344054;">Early Bird</span>
+                <div style="position:relative; width:40px; height:22px;">
+                  <input type="checkbox" class="plan-early-bird" data-i="${idx}" style="opacity:0; width:0; height:0; position:absolute;" ${p.earlyBird ? 'checked' : ''} />
+                  <div class="plan-eb-track" data-i="${idx}" style="position:absolute; inset:0; border-radius:22px; background:${p.earlyBird ? '#592c88' : '#d0d5dd'}; transition:background 0.2s; pointer-events:none;"></div>
+                  <div class="plan-eb-thumb" data-i="${idx}" style="position:absolute; top:2px; left:${p.earlyBird ? '20px' : '2px'}; width:18px; height:18px; border-radius:50%; background:#fff; transition:left 0.2s; box-shadow:0 1px 3px rgba(0,0,0,.2); pointer-events:none;"></div>
+                </div>
+                <span class="plan-eb-label" data-i="${idx}" style="font-size:12px; color:${p.earlyBird ? '#592c88' : '#667085'}; font-weight:700;">${p.earlyBird ? 'ON' : 'OFF'}</span>
+              </label>
             </div>
             <button type="button" class="btn btn-danger btn-sm" data-action="remove-plan" data-i="${idx}">Remove</button>
           </div>
@@ -241,6 +211,21 @@
         state.plans[i].course_fee = inp.value;
       });
     });
+
+    wrap.querySelectorAll('.plan-early-bird').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const i = Number(inp.getAttribute('data-i'));
+        state.plans[i].earlyBird = inp.checked;
+        const track = wrap.querySelector(`.plan-eb-track[data-i="${i}"]`);
+        const thumb = wrap.querySelector(`.plan-eb-thumb[data-i="${i}"]`);
+        const label = wrap.querySelector(`.plan-eb-label[data-i="${i}"]`);
+        const card = wrap.querySelector(`[data-plan-card="${i}"]`);
+        if (track) track.style.background = inp.checked ? '#592c88' : '#d0d5dd';
+        if (thumb) thumb.style.left = inp.checked ? '20px' : '2px';
+        if (label) { label.textContent = inp.checked ? 'ON' : 'OFF'; label.style.color = inp.checked ? '#592c88' : '#667085'; }
+        if (card) card.style.borderColor = inp.checked ? '#bbf7d0' : '#eaecf0';
+      });
+    });
   }
 
   async function load(batchName) {
@@ -261,7 +246,8 @@
         due_dates: dues,
         plan_type: p.plan_type || '',
         registration_fee: p.registration_fee || '',
-        course_fee: p.course_fee || ''
+        course_fee: p.course_fee || '',
+        earlyBird: !!(p.early_bird)
       };
     });
 
@@ -285,7 +271,8 @@
         due_dates,
         plan_type: p.plan_type || '',
         registration_fee: Number.isFinite(Number(p.registration_fee)) ? Number(p.registration_fee) : 0,
-        course_fee: Number.isFinite(Number(p.course_fee)) ? Number(p.course_fee) : 0
+        course_fee: Number.isFinite(Number(p.course_fee)) ? Number(p.course_fee) : 0,
+        earlyBird: !!p.earlyBird
       };
     });
 
@@ -300,7 +287,6 @@
       body: JSON.stringify({
         methods,
         plans,
-        earlyBird: !!state.earlyBird,
         reg_fee_amount: Number.isFinite(Number(state.reg_fee_amount)) ? Number(state.reg_fee_amount) : 0,
         reg_fee_date: state.reg_fee_date || null
       })

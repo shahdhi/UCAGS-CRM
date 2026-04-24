@@ -477,7 +477,8 @@
         due_dates: inst.filter(x => x.plan_id === p.id).sort((a,b)=>Number(a.installment_no)-Number(b.installment_no)).map(x => x.due_date),
         plan_type: p.plan_type || '',
         registration_fee: p.registration_fee || '',
-        course_fee: p.course_fee || ''
+        course_fee: p.course_fee || '',
+        earlyBird: !!(p.early_bird)
       }));
     } catch (e) {
       console.warn('Payment setup load failed:', e);
@@ -607,7 +608,8 @@
               due_dates: Array.isArray(p.due_dates) ? p.due_dates.map(x => String(x || '').trim()).filter(Boolean) : [],
               plan_type: p.plan_type || '',
               registration_fee: Number.isFinite(Number(p.registration_fee)) ? Number(p.registration_fee) : 0,
-              course_fee: Number.isFinite(Number(p.course_fee)) ? Number(p.course_fee) : 0
+              course_fee: Number.isFinite(Number(p.course_fee)) ? Number(p.course_fee) : 0,
+              earlyBird: !!p.earlyBird
             }))
             .filter(p => p.plan_name),
           earlyBird: !!state.payment.earlyBird,
