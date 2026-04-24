@@ -166,6 +166,30 @@
                   <button class="btn btn-secondary btn-sm" type="button" id="batchSetupAddMethodBtn"><i class="fas fa-plus"></i> Add method</button>
                 </div>
               </div>
+              <div style="margin-top:14px; padding:12px; border:1px solid #e9d7fe; border-radius:12px; background:#faf5ff;">
+                <div style="font-weight:900; margin-bottom:10px; color:#6941c6;"><i class="fas fa-bolt"></i> Early Bird &amp; Registration Fee</div>
+                <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:10px;">
+                  <span style="font-size:13px; font-weight:700; color:#344054;">Early Bird</span>
+                  <label style="display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none;">
+                    <div style="position:relative; width:44px; height:24px;">
+                      <input type="checkbox" id="batchSetupEarlyBird" style="opacity:0; width:0; height:0; position:absolute;" />
+                      <div id="batchSetupEarlyBirdTrack" style="position:absolute; inset:0; border-radius:24px; background:#d0d5dd; transition:background 0.2s;"></div>
+                      <div id="batchSetupEarlyBirdThumb" style="position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:left 0.2s; box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
+                    </div>
+                    <span id="batchSetupEarlyBirdLabel" style="font-size:13px; color:#667085; font-weight:700;">OFF — Registration fee applies</span>
+                  </label>
+                </div>
+                <div id="batchSetupRegFeeWrap" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+                  <div>
+                    <div style="font-size:12px; font-weight:700; margin-bottom:4px;">Registration fee (LKR)</div>
+                    <input id="batchSetupRegFeeAmount" type="number" min="0" class="form-control" style="width:180px;" placeholder="e.g. 5000" />
+                  </div>
+                  <div>
+                    <div style="font-size:12px; font-weight:700; margin-bottom:4px;">Due date</div>
+                    <input id="batchSetupRegFeeDate" type="date" class="form-control" style="width:180px;" />
+                  </div>
+                </div>
+              </div>
               <div style="margin-top:12px;">
                 <div style="font-weight:900; margin-bottom:6px;">Plans</div>
                 <div id="batchSetupPlansWrap"></div>
@@ -409,7 +433,7 @@
     const state = {
       meta: { programId, batchId, batchName },
       general: { isCurrent: false, coordinatorUserId: '', demoSessionsCount: 1 },
-      payment: { methods: [], plans: [] },
+      payment: { methods: [], plans: [], earlyBird: false, reg_fee_amount: '', reg_fee_date: '' },
       demo: { sessionsList: [] }
     };
 
@@ -443,11 +467,17 @@
     try {
       const pay = await apiGet(`/api/payment-setup/batches/${encodeURIComponent(batchName)}`);
       state.payment.methods = (pay.methods || []).map(m => ({ method_name: m.method_name }));
+      state.payment.earlyBird = !!(pay.earlyBird || pay.early_bird);
+      state.payment.reg_fee_amount = pay.reg_fee_amount || '';
+      state.payment.reg_fee_date = pay.reg_fee_date || '';
       const inst = pay.installments || [];
       state.payment.plans = (pay.plans || []).map(p => ({
         plan_name: p.plan_name,
         installment_count: p.installment_count,
-        due_dates: inst.filter(x => x.plan_id === p.id).sort((a,b)=>Number(a.installment_no)-Number(b.installment_no)).map(x => x.due_date)
+        due_dates: inst.filter(x => x.plan_id === p.id).sort((a,b)=>Number(a.installment_no)-Number(b.installment_no)).map(x => x.due_date),
+        plan_type: p.plan_type || '',
+        registration_fee: p.registration_fee || '',
+        course_fee: p.course_fee || ''
       }));
     } catch (e) {
       console.warn('Payment setup load failed:', e);
@@ -543,7 +573,7 @@
       markBatchSetupDirty();
     };
     qs('batchSetupAddPlanBtn').onclick = () => {
-      state.payment.plans.push({ plan_name: '', installment_count: 1, due_dates: [] });
+      state.payment.plans.push({ plan_name: '', installment_count: 1, due_dates: [], plan_type: '', registration_fee: '', course_fee: '' });
       renderPaymentEditor(state);
       markBatchSetupDirty();
     };
@@ -574,9 +604,15 @@
             .map(p => ({
               plan_name: String(p.plan_name || '').trim(),
               installment_count: Math.max(parseInt(p.installment_count || '1', 10) || 1, 1),
-              due_dates: Array.isArray(p.due_dates) ? p.due_dates.map(x => String(x || '').trim()).filter(Boolean) : []
+              due_dates: Array.isArray(p.due_dates) ? p.due_dates.map(x => String(x || '').trim()).filter(Boolean) : [],
+              plan_type: p.plan_type || '',
+              registration_fee: Number.isFinite(Number(p.registration_fee)) ? Number(p.registration_fee) : 0,
+              course_fee: Number.isFinite(Number(p.course_fee)) ? Number(p.course_fee) : 0
             }))
-            .filter(p => p.plan_name)
+            .filter(p => p.plan_name),
+          earlyBird: !!state.payment.earlyBird,
+          reg_fee_amount: Number.isFinite(Number(state.payment.reg_fee_amount)) ? Number(state.payment.reg_fee_amount) : 0,
+          reg_fee_date: state.payment.reg_fee_date || null
         });
 
         // 2) Save general + demo
@@ -625,6 +661,37 @@
 
     renderPaymentEditor(state);
     renderDemoEditor(state);
+
+    // Bind Early Bird toggle
+    const ebToggle = qs('batchSetupEarlyBird');
+    const ebTrack = qs('batchSetupEarlyBirdTrack');
+    const ebThumb = qs('batchSetupEarlyBirdThumb');
+    const ebLabel = qs('batchSetupEarlyBirdLabel');
+    const regFeeWrap = qs('batchSetupRegFeeWrap');
+    const regFeeAmt = qs('batchSetupRegFeeAmount');
+    const regFeeDate = qs('batchSetupRegFeeDate');
+
+    const applyEarlyBirdState = (on) => {
+      if (ebToggle) ebToggle.checked = on;
+      if (ebTrack) ebTrack.style.background = on ? '#592c88' : '#d0d5dd';
+      if (ebThumb) ebThumb.style.left = on ? '23px' : '3px';
+      if (ebLabel) { ebLabel.textContent = on ? 'ON \u2014 No registration fee for all plans' : 'OFF \u2014 Registration fee applies'; ebLabel.style.color = on ? '#592c88' : '#667085'; }
+      if (regFeeWrap) regFeeWrap.style.display = on ? 'none' : 'flex';
+    };
+
+    applyEarlyBirdState(state.payment.earlyBird);
+    if (regFeeAmt) regFeeAmt.value = state.payment.reg_fee_amount || '';
+    if (regFeeDate) regFeeDate.value = state.payment.reg_fee_date || '';
+
+    if (ebToggle) {
+      ebToggle.onchange = () => {
+        state.payment.earlyBird = ebToggle.checked;
+        applyEarlyBirdState(ebToggle.checked);
+        markBatchSetupDirty();
+      };
+    }
+    if (regFeeAmt) regFeeAmt.oninput = () => { state.payment.reg_fee_amount = regFeeAmt.value; markBatchSetupDirty(); };
+    if (regFeeDate) regFeeDate.onchange = () => { state.payment.reg_fee_date = regFeeDate.value; markBatchSetupDirty(); };
 
     // Modal already open
   }
