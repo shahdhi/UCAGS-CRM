@@ -285,6 +285,13 @@
               ${dueInputs}
             </div>
           </div>
+          <div class="prog-reg-fee-row" data-pi="${idx}" style="margin-top:10px; display:${p.earlyBird ? 'none' : ''}; padding:10px 12px; background:#fffaeb; border:1px solid #fedf89; border-radius:10px;">
+            <div style="font-size:12px; color:#b54708; font-weight:700; margin-bottom:6px;"><i class="fas fa-file-invoice"></i> Registration fee — required before plan payments</div>
+            <div class="form-group" style="margin:0;">
+              <label style="font-size:12px; color:#344054; font-weight:600;">Amount (LKR)</label>
+              <input class="form-control prog-plan-reg-fee" data-pi="${idx}" type="number" min="0" value="${escapeHtml(String(p.registration_fee || ''))}" placeholder="e.g. 5000" style="width:200px;" />
+            </div>
+          </div>
         </div>
       `;
     }).join('') : '<div style="color:#98a2b3;">No plans set</div>';
@@ -341,6 +348,14 @@
       };
     });
 
+    pWrap.querySelectorAll('.prog-plan-reg-fee').forEach(inp => {
+      inp.oninput = () => {
+        const pi = Number(inp.getAttribute('data-pi'));
+        state.payment.plans[pi].registration_fee = inp.value;
+        markBatchSetupDirty();
+      };
+    });
+
     pWrap.querySelectorAll('.prog-plan-eb').forEach(inp => {
       inp.onchange = () => {
         const pi = Number(inp.getAttribute('data-pi'));
@@ -353,6 +368,8 @@
         if (thumb) thumb.style.left = inp.checked ? '20px' : '2px';
         if (label) { label.textContent = inp.checked ? 'ON' : 'OFF'; label.style.color = inp.checked ? '#592c88' : '#667085'; }
         if (card) card.style.borderColor = inp.checked ? '#bbf7d0' : '#eaecf0';
+        const regFeeCard = pWrap.querySelector(`.prog-reg-fee-row[data-pi="${pi}"]`);
+        if (regFeeCard) regFeeCard.style.display = inp.checked ? 'none' : '';
         markBatchSetupDirty();
       };
     });

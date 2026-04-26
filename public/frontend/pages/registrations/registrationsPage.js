@@ -130,13 +130,6 @@
                 <label style="font-size:13px; color:#344054; font-weight:600;">Amount</label>
                 <input id="registrationPaymentAmount" type="number" min="0" step="0.01" class="form-control" placeholder="0.00" />
               </div>
-              <div id="registrationRegFeeRow" style="display:none; grid-column:1/-1; padding:10px 12px; background:#fffaeb; border:1px solid #fedf89; border-radius:10px;">
-                <div style="font-size:12px; color:#b54708; font-weight:700; margin-bottom:6px;"><i class="fas fa-info-circle"></i> This plan requires a registration fee</div>
-                <div class="form-group" style="margin:0;">
-                  <label style="font-size:13px; color:#344054; font-weight:600;">Registration fee (LKR)</label>
-                  <input id="registrationRegFeeAmount" type="number" min="0" step="0.01" class="form-control" style="max-width:220px;" placeholder="0.00" />
-                </div>
-              </div>
               <div class="form-group" style="margin:0; display:flex; align-items:center; gap:10px;">
                 <input id="registrationReceiptReceived" type="checkbox" />
                 <label for="registrationReceiptReceived" style="margin:0; font-size:13px; color:#344054; font-weight:600; display:inline;">Payment receipt received</label>
@@ -245,10 +238,6 @@
           const receipt = !!qs('registrationReceiptReceived')?.checked;
 
           const amount = Number(amountStr);
-          const regFeeRowEl = qs('registrationRegFeeRow');
-          const regFeeVisible = regFeeRowEl && regFeeRowEl.style.display !== 'none';
-          const regFeeAmt = regFeeVisible ? Number(qs('registrationRegFeeAmount')?.value || 0) : 0;
-
           if (!method) {
             if (window.UI && UI.showToast) UI.showToast('Please select a payment method', 'error');
             return;
@@ -261,11 +250,6 @@
             if (window.UI && UI.showToast) UI.showToast('Please enter a valid amount', 'error');
             return;
           }
-          if (regFeeVisible && (!Number.isFinite(regFeeAmt) || regFeeAmt <= 0)) {
-            if (window.UI && UI.showToast) UI.showToast('Please enter the registration fee amount', 'error');
-            return;
-          }
-
           try {
             paySaveBtn.disabled = true;
             const result = await window.API.registrations.addPayment(selectedRegistrationId, {
@@ -274,8 +258,7 @@
               payment_date: date || null,
               amount,
               slip_received: receipt,
-              receipt_received: receipt,
-              ...(regFeeAmt > 0 ? { reg_fee_amount: regFeeAmt } : {})
+              receipt_received: receipt
             });
             if (window.UI && UI.showToast) UI.showToast('Payment saved', 'success');
 
@@ -385,29 +368,10 @@
             planSel.innerHTML = '<option value="">Select</option>' + (j.plans || []).map(p => {
               const isEB = !!(p.early_bird);
               const label = p.plan_name + (isEB ? ' (Early Bird)' : '');
-              return `<option value="${escapeHtml(p.plan_name)}" data-early-bird="${isEB ? '1' : '0'}" data-reg-fee="${escapeHtml(String(j.reg_fee_amount || ''))}">${escapeHtml(label)}</option>`;
+              return `<option value="${escapeHtml(p.plan_name)}">${escapeHtml(label)}</option>`;
             }).join('');
             planSel.disabled = false;
           }
-
-          // Show/hide reg fee field based on selected plan
-          const regFeeRowEl = qs('registrationRegFeeRow');
-          const updateRegFeeVisibility = () => {
-            if (!planSel || !regFeeRowEl) return;
-            const opt = planSel.options[planSel.selectedIndex];
-            const isEarlyBird = opt?.getAttribute('data-early-bird') === '1';
-            const prefillAmt = opt?.getAttribute('data-reg-fee') || '';
-            regFeeRowEl.style.display = (!planSel.value || isEarlyBird) ? 'none' : '';
-            const regFeeInput = qs('registrationRegFeeAmount');
-            if (regFeeInput && prefillAmt && !isEarlyBird && !regFeeInput.value) {
-              regFeeInput.value = prefillAmt;
-            }
-          };
-          if (planSel && !planSel.__regFeeListenerBound) {
-            planSel.__regFeeListenerBound = true;
-            planSel.addEventListener('change', updateRegFeeVisibility);
-          }
-          updateRegFeeVisibility();
 
         } else {
           // Fall back to manual entry (do not block UI)

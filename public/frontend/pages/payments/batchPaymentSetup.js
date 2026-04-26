@@ -33,24 +33,8 @@
   function renderBatchSettings() {
     const wrap = qs('paymentBatchSettingsWrap');
     if (!wrap) return;
-
-    wrap.innerHTML = `
-      <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
-        <div class="form-group" style="margin:0;">
-          <label style="font-size:13px; font-weight:700;">Registration fee (LKR)</label>
-          <input id="batchRegFeeAmount" type="number" min="0" class="form-control" style="width:180px;" value="${escapeHtml(String(state.reg_fee_amount || ''))}" placeholder="e.g. 5000" />
-        </div>
-        <div class="form-group" style="margin:0;">
-          <label style="font-size:13px; font-weight:700;">Registration fee due date</label>
-          <input id="batchRegFeeDate" type="date" class="form-control" style="width:180px;" value="${escapeHtml(state.reg_fee_date || '')}" />
-        </div>
-      </div>
-    `;
-
-    const regFeeAmtInp = qs('batchRegFeeAmount');
-    const regFeeDateInp = qs('batchRegFeeDate');
-    if (regFeeAmtInp) regFeeAmtInp.addEventListener('input', () => { state.reg_fee_amount = regFeeAmtInp.value; });
-    if (regFeeDateInp) regFeeDateInp.addEventListener('change', () => { state.reg_fee_date = regFeeDateInp.value; });
+    // Reg fee amount is now configured per-plan (in each plan card when Early Bird is OFF)
+    wrap.innerHTML = '';
   }
 
   function renderMethods() {
@@ -142,7 +126,7 @@
                 ].map(o => `<option value="${o.v}" ${p.plan_type === o.v ? 'selected' : ''}>${o.l}</option>`).join('')}
               </select>
             </div>
-            <div class="form-group" style="margin:0;">
+            <div class="plan-reg-fee-cell" data-i="${idx}" style="margin:0; display:${p.earlyBird ? 'none' : ''}">
               <label>Registration fee (LKR)</label>
               <input type="number" min="0" class="form-control plan-reg-fee" data-i="${idx}" value="${escapeHtml(String(p.registration_fee || ''))}" placeholder="e.g. 5000" />
             </div>
@@ -224,6 +208,8 @@
         if (thumb) thumb.style.left = inp.checked ? '20px' : '2px';
         if (label) { label.textContent = inp.checked ? 'ON' : 'OFF'; label.style.color = inp.checked ? '#592c88' : '#667085'; }
         if (card) card.style.borderColor = inp.checked ? '#bbf7d0' : '#eaecf0';
+        const rfCell = wrap.querySelector(`.plan-reg-fee-cell[data-i="${i}"]`);
+        if (rfCell) rfCell.style.display = inp.checked ? 'none' : '';
       });
     });
   }
