@@ -531,7 +531,7 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
       .limit(50);
     if (exErr) throw exErr;
 
-    const existingFirst = (existingRows || []).find(r => Number(r.installment_no || 1) === 1) || (existingRows || [])[0] || null;
+    const existingFirst = (existingRows || []).find(r => Number(r.installment_no ?? 1) === 1) || null;
 
     const firstRow = {
       registration_id: id,

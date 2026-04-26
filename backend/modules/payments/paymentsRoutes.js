@@ -132,7 +132,9 @@ router.get('/admin/summary', isAdmin, async (req, res) => {
       // so filtering "1st installment" shows all leads' 1st installment.
       let current = null;
 
-      if (typeFilter && typeFilter.startsWith('installment_')) {
+      if (typeFilter && typeFilter === 'reg_fee') {
+        current = sorted.find(r => Number(r.installment_no) === 0) || null;
+      } else if (typeFilter && typeFilter.startsWith('installment_')) {
         const nWanted = parseInt(typeFilter.split('_')[1], 10);
         if (Number.isFinite(nWanted)) {
           current = sorted.find(r => Number(r.installment_no) === nWanted) || null;
@@ -147,7 +149,7 @@ router.get('/admin/summary', isAdmin, async (req, res) => {
 
       if (!current) continue;
 
-      const n = Number(current.installment_no || 1);
+      const n = Number(current.installment_no ?? 1);
       const endDate = current.installment_due_date || current.payment_date || null;
       const startDate = (n <= 1)
         ? (regCreatedMap.get(registrationId) || null)
@@ -257,7 +259,9 @@ router.get('/coordinator/summary', isAdminOrOfficer, async (req, res) => {
       });
 
       let current = null;
-      if (typeFilter && typeFilter.startsWith('installment_')) {
+      if (typeFilter && typeFilter === 'reg_fee') {
+        current = sorted.find(r => Number(r.installment_no) === 0) || null;
+      } else if (typeFilter && typeFilter.startsWith('installment_')) {
         const nWanted = parseInt(typeFilter.split('_')[1], 10);
         if (Number.isFinite(nWanted)) {
           current = sorted.find(r => Number(r.installment_no) === nWanted) || null;
@@ -268,7 +272,7 @@ router.get('/coordinator/summary', isAdminOrOfficer, async (req, res) => {
       if (!current) current = sorted.find(r => !r.is_confirmed) || sorted[0];
       if (!current) continue;
 
-      const n = Number(current.installment_no || 1);
+      const n = Number(current.installment_no ?? 1);
       const endDate = current.installment_due_date || current.payment_date || null;
       const startDate = (n <= 1)
         ? (regCreatedMap.get(registrationId) || null)

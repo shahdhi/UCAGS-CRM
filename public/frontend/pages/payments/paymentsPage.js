@@ -639,7 +639,7 @@
       programId: selectedProgramId,
       batchName: selectedBatchName,
       status: fetchStatus,
-      type: selectedInstallmentFilter === 'reg_fee_only' ? '' : selectedInstallmentFilter
+      type: selectedInstallmentFilter === 'reg_fee_only' ? 'reg_fee' : selectedInstallmentFilter
     });
 
     // Auto-default installment filter to current window (only once, only if user hasn't selected)
