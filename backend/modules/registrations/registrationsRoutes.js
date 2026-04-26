@@ -494,44 +494,36 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
     let planRegFeeAmount = 0;
 
     if (batchName) {
-      // Try to get all needed fields in one query; fall back to base fields if new columns missing
+      // Query plan row. Try full set of columns, falling back to smaller sets
+      // if newer columns don't exist yet in this deployment's schema.
       let planRow = null;
-      try {
-        const { data, error } = await sb
-          .from('batch_payment_plans')
-          .select('id,installment_count,early_bird,registration_fee,reg_fee_amount')
-          .eq('batch_name', batchName)
-          .eq('plan_name', paymentPlan)
-          .maybeSingle();
-        if (!error) planRow = data;
-        else console.warn('[addPayment] full plan query error:', error.message);
-      } catch (e) {
-        console.warn('[addPayment] full plan query exception:', e.message);
-      }
-
-      // Fallback to minimal query if columns are missing
-      if (!planRow) {
+      const planQueries = [
+        'id,installment_count,early_bird,registration_fee',
+        'id,installment_count,registration_fee',
+        'id,installment_count'
+      ];
+      for (const cols of planQueries) {
         try {
-          const { data } = await sb
+          const { data, error } = await sb
             .from('batch_payment_plans')
-            .select('id,installment_count')
+            .select(cols)
             .eq('batch_name', batchName)
             .eq('plan_name', paymentPlan)
             .maybeSingle();
-          planRow = data;
+          if (!error) { planRow = data; break; }
+          console.warn('[addPayment] plan query (%s) error: %s', cols, error.message);
         } catch (e) {
-          console.warn('[addPayment] minimal plan query exception:', e.message);
+          console.warn('[addPayment] plan query (%s) exception: %s', cols, e.message);
         }
       }
+      console.log('[addPayment] planRow=%j', planRow);
 
       if (planRow) {
         planId = planRow.id;
         installmentCount = Math.max(Number(planRow.installment_count || 1), 1);
         // early_bird: if column exists use it; undefined means column missing → treat as false (reg fee applies)
         planEarlyBird = planRow.early_bird !== undefined ? !!(planRow.early_bird) : false;
-        // Use registration_fee (per-plan) with reg_fee_amount (batch-level legacy) as fallback
-        planRegFeeAmount = Number(planRow.registration_fee || planRow.reg_fee_amount || 0) > 0
-          ? Number(planRow.registration_fee || planRow.reg_fee_amount || 0) : 0;
+        planRegFeeAmount = Number(planRow.registration_fee || 0) > 0 ? Number(planRow.registration_fee) : 0;
         console.log('[addPayment] planId=%s earlyBird=%s planRegFee=%s', planId, planEarlyBird, planRegFeeAmount);
 
         if (installmentCount > 1) {
@@ -636,42 +628,51 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
     }
 
     // Create/update installment_no=0 row for registration fee (non-early-bird plans only).
-    // Insert once if missing; update amount+date if already exists.
-    // NOTE: strict null check required — Number(null)===0 is true in JS, which would
-    // falsely match old rows with installment_no=null and prevent creation.
+    // NOTE: strict null check required — Number(null)===0 is true in JS.
     console.log('[addPayment] effectiveRegFeeAmount=%s planEarlyBird=%s', effectiveRegFeeAmount, planEarlyBird);
     if (effectiveRegFeeAmount > 0) {
-      const existingRegFeeRow = (existingRows || []).find(
-        r => r.installment_no !== null && r.installment_no !== undefined && Number(r.installment_no) === 0
-      ) || null;
-      if (!existingRegFeeRow) {
-        const regFeeRow = {
-          registration_id: id,
-          registration_name: registrationName,
-          batch_name: batchName,
-          program_id: programId,
-          program_name: programName,
-          payment_plan_id: planId,
-          installment_group_id: null,
-          installment_no: 0,
-          installment_due_date: null,
-          payment_method: null,
-          payment_plan: paymentPlan,
-          payment_date: regFeeDate || null,
-          amount: effectiveRegFeeAmount,
-          slip_received: false,
-          receipt_received: false,
-          created_by: createdBy
-        };
-        const { error: rfErr } = await sb.from('payments').insert(regFeeRow);
-        if (rfErr) throw rfErr;
-      } else {
-        // Row exists — update amount and date if they changed
-        const patch = { amount: effectiveRegFeeAmount };
-        if (regFeeDate) patch.payment_date = regFeeDate;
-        const { error: rfErr } = await sb.from('payments').update(patch).eq('id', existingRegFeeRow.id);
-        if (rfErr) throw rfErr;
+      try {
+        const existingRegFeeRow = (existingRows || []).find(
+          r => r.installment_no !== null && r.installment_no !== undefined && Number(r.installment_no) === 0
+        ) || null;
+        console.log('[addPayment] existingRegFeeRow=%s', existingRegFeeRow?.id || 'none');
+        if (!existingRegFeeRow) {
+          const regFeeRow = {
+            registration_id: id,
+            registration_name: registrationName,
+            batch_name: batchName,
+            program_id: programId,
+            program_name: programName,
+            payment_plan_id: planId,
+            installment_group_id: null,
+            installment_no: 0,
+            installment_due_date: null,
+            payment_method: null,
+            payment_plan: paymentPlan,
+            payment_date: regFeeDate || null,
+            amount: effectiveRegFeeAmount,
+            slip_received: false,
+            receipt_received: false,
+            created_by: createdBy
+          };
+          console.log('[addPayment] inserting reg fee row installment_no=0 amount=%s', effectiveRegFeeAmount);
+          const { error: rfErr } = await sb.from('payments').insert(regFeeRow);
+          if (rfErr) throw rfErr;
+          console.log('[addPayment] reg fee row inserted OK');
+        } else {
+          // Row exists — update amount and date if they changed
+          const patch = { amount: effectiveRegFeeAmount };
+          if (regFeeDate) patch.payment_date = regFeeDate;
+          const { error: rfErr } = await sb.from('payments').update(patch).eq('id', existingRegFeeRow.id);
+          if (rfErr) throw rfErr;
+          console.log('[addPayment] reg fee row updated OK');
+        }
+      } catch (rfCatchErr) {
+        // Log but don't fail the whole request — installments are already saved
+        console.error('[addPayment] reg fee row error:', rfCatchErr?.message || rfCatchErr);
       }
+    } else {
+      console.log('[addPayment] skipping reg fee row — effectiveRegFeeAmount=%s', effectiveRegFeeAmount);
     }
 
     // Best-effort: sync lead status in crm_leads when payment is saved
