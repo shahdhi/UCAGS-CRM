@@ -632,33 +632,31 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
       }
     }
 
-    // Upsert installment_no=0 row for registration fee
-    // Condition: fee amount came from frontend input OR DB (frontend only shows field for non-EB plans)
+    // Create installment_no=0 placeholder row for registration fee (non-early-bird plans only).
+    // Works like installment placeholders 2..N: inserted once with the plan amount,
+    // no date/method/slip — filled in and confirmed independently on the Payments page.
     console.log('[addPayment] effectiveRegFeeAmount=%s planEarlyBird=%s', effectiveRegFeeAmount, planEarlyBird);
     if (effectiveRegFeeAmount > 0) {
       const existingRegFeeRow = (existingRows || []).find(r => Number(r.installment_no) === 0) || null;
-      const regFeeRow = {
-        registration_id: id,
-        registration_name: registrationName,
-        batch_name: batchName,
-        program_id: programId,
-        program_name: programName,
-        payment_plan_id: planId,
-        installment_group_id: null,
-        installment_no: 0,
-        installment_due_date: null,
-        payment_method: paymentMethod || null,
-        payment_plan: paymentPlan,
-        payment_date: paymentDate || null,
-        amount: effectiveRegFeeAmount,
-        slip_received: slipReceived,
-        receipt_received: receiptReceived,
-        created_by: createdBy
-      };
-      if (existingRegFeeRow?.id) {
-        const { error: rfErr } = await sb.from('payments').update(regFeeRow).eq('id', existingRegFeeRow.id);
-        if (rfErr) throw rfErr;
-      } else {
+      if (!existingRegFeeRow) {
+        const regFeeRow = {
+          registration_id: id,
+          registration_name: registrationName,
+          batch_name: batchName,
+          program_id: programId,
+          program_name: programName,
+          payment_plan_id: planId,
+          installment_group_id: null,
+          installment_no: 0,
+          installment_due_date: null,
+          payment_method: null,
+          payment_plan: paymentPlan,
+          payment_date: null,
+          amount: effectiveRegFeeAmount,
+          slip_received: false,
+          receipt_received: false,
+          created_by: createdBy
+        };
         const { error: rfErr } = await sb.from('payments').insert(regFeeRow);
         if (rfErr) throw rfErr;
       }
