@@ -498,7 +498,7 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
       try {
         const { data, error } = await sb
           .from('batch_payment_plans')
-          .select('id,installment_count,early_bird,registration_fee')
+          .select('id,installment_count,early_bird,registration_fee,reg_fee_amount')
           .eq('batch_name', batchName)
           .eq('plan_name', paymentPlan)
           .maybeSingle();
@@ -528,7 +528,9 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
         installmentCount = Math.max(Number(planRow.installment_count || 1), 1);
         // early_bird: if column exists use it; undefined means column missing → treat as false (reg fee applies)
         planEarlyBird = planRow.early_bird !== undefined ? !!(planRow.early_bird) : false;
-        planRegFeeAmount = Number(planRow.registration_fee) > 0 ? Number(planRow.registration_fee) : 0;
+        // Use registration_fee (per-plan) with reg_fee_amount (batch-level legacy) as fallback
+        planRegFeeAmount = Number(planRow.registration_fee || planRow.reg_fee_amount || 0) > 0
+          ? Number(planRow.registration_fee || planRow.reg_fee_amount || 0) : 0;
         console.log('[addPayment] planId=%s earlyBird=%s planRegFee=%s', planId, planEarlyBird, planRegFeeAmount);
 
         if (installmentCount > 1) {

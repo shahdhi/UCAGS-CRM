@@ -140,13 +140,17 @@
 
           try {
             paySaveBtn.disabled = true;
+            const planSelEl = qs('registrationPaymentPlan');
+            const selectedPlanOpt = planSelEl?.selectedOptions?.[0];
+            const planRegFee = Number(selectedPlanOpt?.getAttribute('data-reg-fee') || 0);
             await window.API.registrations.addPayment(reg?.id, {
               payment_method: method,
               payment_plan: plan,
               payment_date: date || null,
               amount,
               slip_received: receipt,
-              receipt_received: receipt
+              receipt_received: receipt,
+              reg_fee_amount: planRegFee > 0 ? planRegFee : undefined
             });
             if (window.UI && UI.showToast) UI.showToast('Payment saved', 'success');
 
@@ -207,7 +211,11 @@
             methodSel.disabled = false;
           }
           if (planSel) {
-            planSel.innerHTML = '<option value="">Select</option>' + (j.plans || []).map(p => `<option value="${escapeHtml(p.plan_name)}">${escapeHtml(p.plan_name)}</option>`).join('');
+            planSel.innerHTML = '<option value="">Select</option>' + (j.plans || []).map(p => {
+              const isEB = !!(p.early_bird);
+              const regFee = Number(p.registration_fee || 0);
+              return `<option value="${escapeHtml(p.plan_name)}" data-reg-fee="${regFee}" data-early-bird="${isEB}">${escapeHtml(p.plan_name)}</option>`;
+            }).join('');
             planSel.disabled = false;
           }
         } else {
