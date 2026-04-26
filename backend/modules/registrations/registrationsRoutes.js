@@ -465,7 +465,8 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
     const receiptReceived = !!req.body?.receipt_received;
     const regFeeAmount = Number.isFinite(Number(req.body?.reg_fee_amount)) && Number(req.body.reg_fee_amount) > 0
       ? Number(req.body.reg_fee_amount) : 0;
-    console.log('[addPayment] plan=%s amount=%s regFeeAmount=%s', paymentPlan, amount, regFeeAmount);
+    const regFeeDate = req.body?.reg_fee_date ? String(req.body.reg_fee_date).trim() : null;
+    console.log('[addPayment] plan=%s amount=%s regFeeAmount=%s regFeeDate=%s', paymentPlan, amount, regFeeAmount, regFeeDate);
 
     if (!paymentPlan) return res.status(400).json({ success: false, error: 'Payment plan is required' });
     if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ success: false, error: 'Amount must be greater than 0' });
@@ -653,7 +654,7 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
           installment_due_date: null,
           payment_method: null,
           payment_plan: paymentPlan,
-          payment_date: null,
+          payment_date: regFeeDate || null,
           amount: effectiveRegFeeAmount,
           slip_received: false,
           receipt_received: false,

@@ -122,12 +122,33 @@
                   <option value="">Loading...</option>
                 </select>
               </div>
+            </div>
+
+            <div id="registrationRegFeeSection" style="display:none; margin-top:10px; padding:10px 12px; background:#fffaeb; border:1px solid #fde68a; border-radius:10px;">
+              <div style="font-size:12px; font-weight:700; color:#b54708; margin-bottom:8px;"><i class="fas fa-file-invoice" style="margin-right:5px;"></i>Registration Fee</div>
+              <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:13px; color:#344054; font-weight:600;">Reg fee date</label>
+                  <input id="registrationRegFeeDate" type="date" class="form-control" />
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:13px; color:#344054; font-weight:600;">Reg fee amount (LKR)</label>
+                  <input id="registrationRegFeeAmount" type="number" min="0" step="0.01" class="form-control" placeholder="0.00" />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top:10px;">
+              <div class="form-group" style="margin:0;">
+                <label style="font-size:13px; color:#344054; font-weight:700;">1st Installment</label>
+              </div>
+              <div></div>
               <div class="form-group" style="margin:0;">
                 <label style="font-size:13px; color:#344054; font-weight:600;">Payment date</label>
                 <input id="registrationPaymentDate" type="date" class="form-control" />
               </div>
               <div class="form-group" style="margin:0;">
-                <label style="font-size:13px; color:#344054; font-weight:600;">Amount</label>
+                <label style="font-size:13px; color:#344054; font-weight:600;">Amount (LKR)</label>
                 <input id="registrationPaymentAmount" type="number" min="0" step="0.01" class="form-control" placeholder="0.00" />
               </div>
               <div class="form-group" style="margin:0; display:flex; align-items:center; gap:10px;">
@@ -182,6 +203,21 @@
       const payToggleBtn = qs('registrationPaymentToggleBtn');
       const paySection = qs('registrationPaymentSection');
       const paySaveBtn = qs('registrationPaymentSaveBtn');
+
+      // Show/hide reg fee section when plan changes
+      const planSelEl = qs('registrationPaymentPlan');
+      if (planSelEl) {
+        planSelEl.addEventListener('change', () => {
+          const opt = planSelEl.selectedOptions?.[0];
+          const isEB = opt?.getAttribute('data-early-bird') === 'true';
+          const regFeeSection = qs('registrationRegFeeSection');
+          if (regFeeSection) regFeeSection.style.display = (!planSelEl.value || isEB) ? 'none' : '';
+          // Auto-fill amount from plan data
+          const regFeeAmt = Number(opt?.getAttribute('data-reg-fee') || 0);
+          const regFeeAmtEl = qs('registrationRegFeeAmount');
+          if (regFeeAmtEl && regFeeAmt > 0 && !regFeeAmtEl.value) regFeeAmtEl.value = String(regFeeAmt);
+        });
+      }
 
       if (payToggleBtn && paySection) {
         payToggleBtn.onclick = async () => {
@@ -254,7 +290,8 @@
             paySaveBtn.disabled = true;
             const planSel = qs('registrationPaymentPlan');
             const selectedPlanOpt = planSel?.selectedOptions?.[0];
-            const planRegFee = Number(selectedPlanOpt?.getAttribute('data-reg-fee') || 0);
+            const regFeeAmountVal = Number(qs('registrationRegFeeAmount')?.value || 0);
+            const regFeeDateVal = qs('registrationRegFeeDate')?.value || null;
             const result = await window.API.registrations.addPayment(selectedRegistrationId, {
               payment_method: method,
               payment_plan: plan,
@@ -262,7 +299,8 @@
               amount,
               slip_received: receipt,
               receipt_received: receipt,
-              reg_fee_amount: planRegFee > 0 ? planRegFee : undefined
+              reg_fee_amount: regFeeAmountVal > 0 ? regFeeAmountVal : undefined,
+              reg_fee_date: regFeeDateVal || undefined
             });
             if (window.UI && UI.showToast) UI.showToast('Payment saved', 'success');
 
@@ -421,7 +459,10 @@
           if (qs('registrationPaymentAmount')) qs('registrationPaymentAmount').value = String(p.amount ?? '');
           if (qs('registrationReceiptReceived')) qs('registrationReceiptReceived').checked = !!(p.slip_received || p.receipt_received);
           // Override reg fee input with actual stored value (more precise than data-reg-fee)
-          if (regFeeRow0 && qs('registrationRegFeeAmount')) qs('registrationRegFeeAmount').value = String(regFeeRow0.amount ?? '');
+          if (regFeeRow0) {
+            if (qs('registrationRegFeeAmount')) qs('registrationRegFeeAmount').value = String(regFeeRow0.amount ?? '');
+            if (qs('registrationRegFeeDate')) qs('registrationRegFeeDate').value = regFeeRow0.payment_date || '';
+          }
 
           // Auto-open payment section
           const paySection = qs('registrationPaymentSection');
