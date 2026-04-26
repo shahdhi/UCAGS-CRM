@@ -447,7 +447,8 @@
         const ps = (payRes.payments || []);
         // Always prefer installment #1 — use ?? so installment_no=0 (reg fee) is not matched
         const p = ps.find(x => Number(x.installment_no ?? 1) === 1) || ps.find(x => Number(x.installment_no) > 0) || null;
-        const regFeeRow0 = ps.find(x => Number(x.installment_no) === 0) || null;
+        // Strict null check: Number(null)===0 is true in JS so we must exclude null rows
+        const regFeeRow0 = ps.find(x => x.installment_no !== null && x.installment_no !== undefined && Number(x.installment_no) === 0) || null;
         if (p) {
           if (qs('registrationPaymentMethod')) qs('registrationPaymentMethod').value = p.payment_method || '';
           if (qs('registrationPaymentPlan')) {
@@ -458,7 +459,7 @@
           if (qs('registrationPaymentDate')) qs('registrationPaymentDate').value = p.payment_date || '';
           if (qs('registrationPaymentAmount')) qs('registrationPaymentAmount').value = String(p.amount ?? '');
           if (qs('registrationReceiptReceived')) qs('registrationReceiptReceived').checked = !!(p.slip_received || p.receipt_received);
-          // Override reg fee input with actual stored value (more precise than data-reg-fee)
+          // Override reg fee fields with actual stored values
           if (regFeeRow0) {
             if (qs('registrationRegFeeAmount')) qs('registrationRegFeeAmount').value = String(regFeeRow0.amount ?? '');
             if (qs('registrationRegFeeDate')) qs('registrationRegFeeDate').value = regFeeRow0.payment_date || '';

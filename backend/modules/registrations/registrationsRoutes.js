@@ -635,12 +635,15 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
       }
     }
 
-    // Create installment_no=0 placeholder row for registration fee (non-early-bird plans only).
-    // Works like installment placeholders 2..N: inserted once with the plan amount,
-    // no date/method/slip — filled in and confirmed independently on the Payments page.
+    // Create/update installment_no=0 row for registration fee (non-early-bird plans only).
+    // Insert once if missing; update amount+date if already exists.
+    // NOTE: strict null check required — Number(null)===0 is true in JS, which would
+    // falsely match old rows with installment_no=null and prevent creation.
     console.log('[addPayment] effectiveRegFeeAmount=%s planEarlyBird=%s', effectiveRegFeeAmount, planEarlyBird);
     if (effectiveRegFeeAmount > 0) {
-      const existingRegFeeRow = (existingRows || []).find(r => Number(r.installment_no) === 0) || null;
+      const existingRegFeeRow = (existingRows || []).find(
+        r => r.installment_no !== null && r.installment_no !== undefined && Number(r.installment_no) === 0
+      ) || null;
       if (!existingRegFeeRow) {
         const regFeeRow = {
           registration_id: id,
@@ -661,6 +664,12 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
           created_by: createdBy
         };
         const { error: rfErr } = await sb.from('payments').insert(regFeeRow);
+        if (rfErr) throw rfErr;
+      } else {
+        // Row exists — update amount and date if they changed
+        const patch = { amount: effectiveRegFeeAmount };
+        if (regFeeDate) patch.payment_date = regFeeDate;
+        const { error: rfErr } = await sb.from('payments').update(patch).eq('id', existingRegFeeRow.id);
         if (rfErr) throw rfErr;
       }
     }
