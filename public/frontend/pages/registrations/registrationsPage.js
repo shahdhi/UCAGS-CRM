@@ -438,15 +438,20 @@
       if (selectedRegistrationId && window.API?.registrations?.listPayments) {
         const payRes = await window.API.registrations.listPayments(selectedRegistrationId);
         const ps = (payRes.payments || []);
-        // Always prefer installment #1 for the Registration modal
-        const p = ps.find(x => Number(x.installment_no || 1) === 1) || ps[0];
-        const regFeeRow0 = ps.find(x => Number(x.installment_no) === 0);
+        // Always prefer installment #1 — use ?? so installment_no=0 (reg fee) is not matched
+        const p = ps.find(x => Number(x.installment_no ?? 1) === 1) || ps.find(x => Number(x.installment_no) > 0) || null;
+        const regFeeRow0 = ps.find(x => Number(x.installment_no) === 0) || null;
         if (p) {
           if (qs('registrationPaymentMethod')) qs('registrationPaymentMethod').value = p.payment_method || '';
-          if (qs('registrationPaymentPlan')) qs('registrationPaymentPlan').value = p.payment_plan || '';
+          if (qs('registrationPaymentPlan')) {
+            qs('registrationPaymentPlan').value = p.payment_plan || '';
+            // Trigger change so updateRegFeeVisibility shows/hides the reg fee field
+            qs('registrationPaymentPlan').dispatchEvent(new Event('change'));
+          }
           if (qs('registrationPaymentDate')) qs('registrationPaymentDate').value = p.payment_date || '';
           if (qs('registrationPaymentAmount')) qs('registrationPaymentAmount').value = String(p.amount ?? '');
           if (qs('registrationReceiptReceived')) qs('registrationReceiptReceived').checked = !!(p.slip_received || p.receipt_received);
+          // Override reg fee input with actual stored value (more precise than data-reg-fee)
           if (regFeeRow0 && qs('registrationRegFeeAmount')) qs('registrationRegFeeAmount').value = String(regFeeRow0.amount ?? '');
 
           // Auto-open payment section

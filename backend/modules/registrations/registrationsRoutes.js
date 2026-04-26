@@ -465,6 +465,7 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
     const receiptReceived = !!req.body?.receipt_received;
     const regFeeAmount = Number.isFinite(Number(req.body?.reg_fee_amount)) && Number(req.body.reg_fee_amount) > 0
       ? Number(req.body.reg_fee_amount) : 0;
+    console.log('[addPayment] plan=%s amount=%s regFeeAmount=%s', paymentPlan, amount, regFeeAmount);
 
     if (!paymentPlan) return res.status(400).json({ success: false, error: 'Payment plan is required' });
     if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ success: false, error: 'Amount must be greater than 0' });
@@ -492,18 +493,32 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
     let planRegFeeAmount = 0;
 
     if (batchName) {
-      const { data: planRow } = await sb
+      // Fetch core plan fields (always present)
+      const { data: planRow, error: planErr } = await sb
         .from('batch_payment_plans')
-        .select('id,installment_count,early_bird,reg_fee_amount')
+        .select('id,installment_count')
         .eq('batch_name', batchName)
         .eq('plan_name', paymentPlan)
         .maybeSingle();
 
+      if (planErr) console.warn('Plan fetch error:', planErr.message);
+
       if (planRow) {
         planId = planRow.id;
         installmentCount = Math.max(Number(planRow.installment_count || 1), 1);
-        planEarlyBird = !!(planRow.early_bird);
-        planRegFeeAmount = Number(planRow.reg_fee_amount) > 0 ? Number(planRow.reg_fee_amount) : 0;
+
+        // Try to fetch reg-fee columns (may not exist if migration not yet run)
+        try {
+          const { data: planExtra } = await sb
+            .from('batch_payment_plans')
+            .select('early_bird,reg_fee_amount')
+            .eq('id', planRow.id)
+            .maybeSingle();
+          if (planExtra) {
+            planEarlyBird = !!(planExtra.early_bird);
+            planRegFeeAmount = Number(planExtra.reg_fee_amount) > 0 ? Number(planExtra.reg_fee_amount) : 0;
+          }
+        } catch (_) {}
 
         if (installmentCount > 1) {
           const { data: instRows } = await sb
@@ -516,7 +531,7 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
       }
     }
 
-    // Allow request body to override reg fee amount (e.g. manual entry)
+    // Use request body reg_fee_amount (user entered) or DB value if available
     const effectiveRegFeeAmount = regFeeAmount > 0 ? regFeeAmount : planRegFeeAmount;
 
     // IMPORTANT: Registrations page "Payment received" should only record the FIRST payment.
@@ -606,8 +621,10 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
       }
     }
 
-    // If plan is not early bird and has reg fee, upsert a installment_no=0 row automatically
-    if (!planEarlyBird && effectiveRegFeeAmount > 0) {
+    // Upsert installment_no=0 row for registration fee
+    // Condition: fee amount came from frontend input OR DB (frontend only shows field for non-EB plans)
+    console.log('[addPayment] effectiveRegFeeAmount=%s planEarlyBird=%s', effectiveRegFeeAmount, planEarlyBird);
+    if (effectiveRegFeeAmount > 0) {
       const existingRegFeeRow = (existingRows || []).find(r => Number(r.installment_no) === 0) || null;
       const regFeeRow = {
         registration_id: id,
