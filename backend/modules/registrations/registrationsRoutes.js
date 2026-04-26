@@ -488,11 +488,13 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
     let installmentCount = 1;
     let planId = null;
     let dueDates = [];
+    let planEarlyBird = true; // default: assume early bird (no reg fee)
+    let planRegFeeAmount = 0;
 
     if (batchName) {
       const { data: planRow } = await sb
         .from('batch_payment_plans')
-        .select('id,installment_count')
+        .select('id,installment_count,early_bird,reg_fee_amount')
         .eq('batch_name', batchName)
         .eq('plan_name', paymentPlan)
         .maybeSingle();
@@ -500,6 +502,8 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
       if (planRow) {
         planId = planRow.id;
         installmentCount = Math.max(Number(planRow.installment_count || 1), 1);
+        planEarlyBird = !!(planRow.early_bird);
+        planRegFeeAmount = Number(planRow.reg_fee_amount) > 0 ? Number(planRow.reg_fee_amount) : 0;
 
         if (installmentCount > 1) {
           const { data: instRows } = await sb
@@ -511,6 +515,9 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
         }
       }
     }
+
+    // Allow request body to override reg fee amount (e.g. manual entry)
+    const effectiveRegFeeAmount = regFeeAmount > 0 ? regFeeAmount : planRegFeeAmount;
 
     // IMPORTANT: Registrations page "Payment received" should only record the FIRST payment.
     // Do NOT generate all installments here (that causes duplicates each time user saves).
@@ -599,8 +606,8 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
       }
     }
 
-    // If reg_fee_amount provided, upsert a installment_no=0 row for the registration fee
-    if (regFeeAmount > 0) {
+    // If plan is not early bird and has reg fee, upsert a installment_no=0 row automatically
+    if (!planEarlyBird && effectiveRegFeeAmount > 0) {
       const existingRegFeeRow = (existingRows || []).find(r => Number(r.installment_no) === 0) || null;
       const regFeeRow = {
         registration_id: id,
@@ -615,7 +622,7 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
         payment_method: paymentMethod || null,
         payment_plan: paymentPlan,
         payment_date: paymentDate || null,
-        amount: regFeeAmount,
+        amount: effectiveRegFeeAmount,
         slip_received: slipReceived,
         receipt_received: receiptReceived,
         created_by: createdBy

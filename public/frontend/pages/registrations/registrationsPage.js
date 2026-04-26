@@ -132,11 +132,9 @@
               </div>
               <div id="registrationRegFeeRow" style="display:none; grid-column:1/-1; padding:10px 12px; background:#fffaeb; border:1px solid #fedf89; border-radius:10px;">
                 <div style="font-size:12px; color:#b54708; font-weight:700; margin-bottom:6px;"><i class="fas fa-info-circle"></i> This plan requires a registration fee</div>
-                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
-                  <div class="form-group" style="margin:0;">
-                    <label style="font-size:13px; color:#344054; font-weight:600;">Registration fee (LKR)</label>
-                    <input id="registrationRegFeeAmount" type="number" min="0" step="0.01" class="form-control" style="width:180px;" placeholder="0.00" />
-                  </div>
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:13px; color:#344054; font-weight:600;">Registration fee (LKR)</label>
+                  <input id="registrationRegFeeAmount" type="number" min="0" step="0.01" class="form-control" style="max-width:220px;" placeholder="0.00" />
                 </div>
               </div>
               <div class="form-group" style="margin:0; display:flex; align-items:center; gap:10px;">
@@ -247,8 +245,8 @@
           const receipt = !!qs('registrationReceiptReceived')?.checked;
 
           const amount = Number(amountStr);
-          const regFeeRow = qs('registrationRegFeeRow');
-          const regFeeVisible = regFeeRow && regFeeRow.style.display !== 'none';
+          const regFeeRowEl = qs('registrationRegFeeRow');
+          const regFeeVisible = regFeeRowEl && regFeeRowEl.style.display !== 'none';
           const regFeeAmt = regFeeVisible ? Number(qs('registrationRegFeeAmount')?.value || 0) : 0;
 
           if (!method) {
@@ -264,7 +262,7 @@
             return;
           }
           if (regFeeVisible && (!Number.isFinite(regFeeAmt) || regFeeAmt <= 0)) {
-            if (window.UI && UI.showToast) UI.showToast('Please enter a valid registration fee amount', 'error');
+            if (window.UI && UI.showToast) UI.showToast('Please enter the registration fee amount', 'error');
             return;
           }
 
@@ -392,24 +390,25 @@
             planSel.disabled = false;
           }
 
-          // Show/hide reg fee field based on plan selection
-          const regFeeRow = qs('registrationRegFeeRow');
+          // Show/hide reg fee field based on selected plan
+          const regFeeRowEl = qs('registrationRegFeeRow');
           const updateRegFeeVisibility = () => {
-            if (!planSel || !regFeeRow) return;
+            if (!planSel || !regFeeRowEl) return;
             const opt = planSel.options[planSel.selectedIndex];
             const isEarlyBird = opt?.getAttribute('data-early-bird') === '1';
-            const prefillAmount = opt?.getAttribute('data-reg-fee') || '';
-            regFeeRow.style.display = (!planSel.value || isEarlyBird) ? 'none' : '';
-            if (prefillAmount && !isEarlyBird && qs('registrationRegFeeAmount') && !qs('registrationRegFeeAmount').value) {
-              qs('registrationRegFeeAmount').value = prefillAmount;
+            const prefillAmt = opt?.getAttribute('data-reg-fee') || '';
+            regFeeRowEl.style.display = (!planSel.value || isEarlyBird) ? 'none' : '';
+            const regFeeInput = qs('registrationRegFeeAmount');
+            if (regFeeInput && prefillAmt && !isEarlyBird && !regFeeInput.value) {
+              regFeeInput.value = prefillAmt;
             }
           };
-
           if (planSel && !planSel.__regFeeListenerBound) {
             planSel.__regFeeListenerBound = true;
             planSel.addEventListener('change', updateRegFeeVisibility);
           }
           updateRegFeeVisibility();
+
         } else {
           // Fall back to manual entry (do not block UI)
           if (methodSel) {
@@ -441,12 +440,14 @@
         const ps = (payRes.payments || []);
         // Always prefer installment #1 for the Registration modal
         const p = ps.find(x => Number(x.installment_no || 1) === 1) || ps[0];
+        const regFeeRow0 = ps.find(x => Number(x.installment_no) === 0);
         if (p) {
           if (qs('registrationPaymentMethod')) qs('registrationPaymentMethod').value = p.payment_method || '';
           if (qs('registrationPaymentPlan')) qs('registrationPaymentPlan').value = p.payment_plan || '';
           if (qs('registrationPaymentDate')) qs('registrationPaymentDate').value = p.payment_date || '';
           if (qs('registrationPaymentAmount')) qs('registrationPaymentAmount').value = String(p.amount ?? '');
           if (qs('registrationReceiptReceived')) qs('registrationReceiptReceived').checked = !!(p.slip_received || p.receipt_received);
+          if (regFeeRow0 && qs('registrationRegFeeAmount')) qs('registrationRegFeeAmount').value = String(regFeeRow0.amount ?? '');
 
           // Auto-open payment section
           const paySection = qs('registrationPaymentSection');
