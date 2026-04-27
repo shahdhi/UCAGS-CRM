@@ -633,7 +633,7 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
     if (effectiveRegFeeAmount > 0) {
       try {
         const existingRegFeeRow = (existingRows || []).find(
-          r => r.installment_no !== null && r.installment_no !== undefined && Number(r.installment_no) === 0
+          r => r.installment_no !== null && r.installment_no !== undefined && Number(r.installment_no) === 999
         ) || null;
         console.log('[addPayment] existingRegFeeRow=%s', existingRegFeeRow?.id || 'none');
         if (!existingRegFeeRow) {
@@ -645,7 +645,7 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
             program_name: programName,
             payment_plan_id: planId,
             installment_group_id: null,
-            installment_no: 0,
+            installment_no: 999,
             installment_due_date: null,
             payment_method: null,
             payment_plan: paymentPlan,
@@ -655,7 +655,7 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
             receipt_received: false,
             created_by: createdBy
           };
-          console.log('[addPayment] inserting reg fee row installment_no=0 amount=%s', effectiveRegFeeAmount);
+          console.log('[addPayment] inserting reg fee row installment_no=999 amount=%s', effectiveRegFeeAmount);
           const { error: rfErr } = await sb.from('payments').insert(regFeeRow);
           if (rfErr) throw rfErr;
           console.log('[addPayment] reg fee row inserted OK');

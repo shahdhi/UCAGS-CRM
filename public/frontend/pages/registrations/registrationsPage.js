@@ -453,7 +453,7 @@
         // Always prefer installment #1 — use ?? so installment_no=0 (reg fee) is not matched
         const p = ps.find(x => Number(x.installment_no ?? 1) === 1) || ps.find(x => Number(x.installment_no) > 0) || null;
         // Strict null check: Number(null)===0 is true in JS so we must exclude null rows
-        const regFeeRow0 = ps.find(x => x.installment_no !== null && x.installment_no !== undefined && Number(x.installment_no) === 0) || null;
+        const regFeeRow0 = ps.find(x => x.installment_no !== null && x.installment_no !== undefined && Number(x.installment_no) === 999) || null;
         if (p) {
           if (qs('registrationPaymentMethod')) qs('registrationPaymentMethod').value = p.payment_method || '';
           if (qs('registrationPaymentPlan')) {
