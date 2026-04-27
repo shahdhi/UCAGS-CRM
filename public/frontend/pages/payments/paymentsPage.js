@@ -230,8 +230,9 @@
           </thead>
           <tbody>
             ${rows.map(p => {
-              const instLabel = p.installment_no ? `Installment ${Number(p.installment_no)}` : '';
-              const plan = (p.payment_plan || '') + (p.installment_no ? ` #${p.installment_no}` : '');
+              const isRegFee = Number(p.installment_no) === 999;
+              const instLabel = isRegFee ? 'Registration Fee' : (p.installment_no ? `Installment ${Number(p.installment_no)}` : '');
+              const plan = (p.payment_plan || '') + (isRegFee ? ' (Reg Fee)' : (p.installment_no ? ` #${p.installment_no}` : ''));
               return `
                 <tr data-id="${escapeHtml(p.id)}">
                   <td>
@@ -763,6 +764,7 @@
 
       const installmentText = (() => {
         const n = Number(p.installment_no ?? 1);
+        if (n === 999) return 'Registration Fee';
         if (n === 0) return 'Registration Fee';
         if (!n) return '';
         const ord = n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
