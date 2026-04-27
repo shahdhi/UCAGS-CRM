@@ -128,6 +128,28 @@ function addPaymentRow() {
   
   // Set default date to today
   row.querySelector('.payment-date').valueAsDate = new Date();
+
+  // Auto-add reg fee row when 1st installment is selected
+  const descSelect = row.querySelector('.payment-description');
+  descSelect.addEventListener('change', () => {
+    if (descSelect.value === '1st installment') {
+      // Only auto-add if no reg fee row already exists
+      const alreadyHasRegFee = [...document.querySelectorAll('.payment-description')]
+        .some(el => el !== descSelect && el.value === 'Registration fee');
+      if (!alreadyHasRegFee) {
+        addPaymentRow();
+        // Set the new row's description to Registration fee
+        const allRows = document.querySelectorAll('.payment-row');
+        const newRow = allRows[allRows.length - 1];
+        const newDesc = newRow.querySelector('.payment-description');
+        if (newDesc) newDesc.value = 'Registration fee';
+        // Copy the date from this row
+        const thisDate = row.querySelector('.payment-date').value;
+        const newDate = newRow.querySelector('.payment-date');
+        if (newDate && thisDate) newDate.value = thisDate;
+      }
+    }
+  });
 }
 
 function removePaymentRow(rowId) {
