@@ -627,10 +627,11 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
       }
     }
 
-    // Create/update installment_no=0 row for registration fee (non-early-bird plans only).
-    // NOTE: strict null check required — Number(null)===0 is true in JS.
+    // Create/update installment_no=999 row for registration fee (non-early-bird plans only).
+    // Always insert as a placeholder (amount may be 0) when plan is non-EB,
+    // just like installment 2..N placeholder rows are created unconditionally.
     console.log('[addPayment] effectiveRegFeeAmount=%s planEarlyBird=%s', effectiveRegFeeAmount, planEarlyBird);
-    if (effectiveRegFeeAmount > 0) {
+    if (!planEarlyBird) {
       try {
         const existingRegFeeRow = (existingRows || []).find(
           r => r.installment_no !== null && r.installment_no !== undefined && Number(r.installment_no) === 999
@@ -672,7 +673,7 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
         console.error('[addPayment] reg fee row error:', rfCatchErr?.message || rfCatchErr);
       }
     } else {
-      console.log('[addPayment] skipping reg fee row — effectiveRegFeeAmount=%s', effectiveRegFeeAmount);
+      console.log('[addPayment] skipping reg fee row — plan is early bird (planEarlyBird=%s)', planEarlyBird);
     }
 
     // Best-effort: sync lead status in crm_leads when payment is saved
