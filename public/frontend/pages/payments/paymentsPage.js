@@ -230,7 +230,7 @@
           </thead>
           <tbody>
             ${rows.map(p => {
-              const isRegFee = Number(p.installment_no) === 999;
+              const isRegFee = Number(p.installment_no) === 0;
               const instLabel = isRegFee ? 'Registration Fee' : (p.installment_no ? `Installment ${Number(p.installment_no)}` : '');
               const plan = (p.payment_plan || '') + (isRegFee ? ' (Reg Fee)' : (p.installment_no ? ` #${p.installment_no}` : ''));
               return `
@@ -700,7 +700,7 @@
   function applyInstallmentFilter(rows) {
     if (selectedInstallmentFilter === 'reg_fee_only') {
       return rows.filter(r => {
-        if (Number(r.installment_no) === 999) return true;
+        if (Number(r.installment_no) === 0) return true;
         const p = String(r.payment_plan || '').toLowerCase();
         return p.includes('registration') || p === 'registration fee only' || p === 'reg fee only';
       });
@@ -764,7 +764,6 @@
 
       const installmentText = (() => {
         const n = Number(p.installment_no ?? 1);
-        if (n === 999) return 'Registration Fee';
         if (n === 0) return 'Registration Fee';
         if (!n) return '';
         const ord = n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
@@ -1070,7 +1069,7 @@
     `;
 
     const planName = selected?.payment_plan || '';
-    const installmentNo = Number(selected?.installment_no) === 999 ? 'Registration Fee' : (selected?.installment_no ? `Installment ${Number(selected.installment_no)}` : '');
+    const installmentNo = Number(selected?.installment_no) === 0 && selected?.installment_no !== null ? 'Registration Fee' : (selected?.installment_no ? `Installment ${Number(selected.installment_no)}` : '');
 
     const sortedPayments = [...payments].sort((a, b) => Number(a.installment_no||0) - Number(b.installment_no||0));
     const totalConfirmed = sortedPayments.reduce((s, p) => s + (p.is_confirmed ? (Number(p.amount)||0) : 0), 0);

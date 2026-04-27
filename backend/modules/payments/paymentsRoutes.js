@@ -133,7 +133,7 @@ router.get('/admin/summary', isAdmin, async (req, res) => {
       let current = null;
 
       if (typeFilter && typeFilter === 'reg_fee') {
-        current = sorted.find(r => Number(r.installment_no) === 999) || null;
+        current = sorted.find(r => r.installment_no !== null && r.installment_no !== undefined && Number(r.installment_no) === 0) || null;
       } else if (typeFilter && typeFilter.startsWith('installment_')) {
         const nWanted = parseInt(typeFilter.split('_')[1], 10);
         if (Number.isFinite(nWanted)) {
@@ -260,7 +260,7 @@ router.get('/coordinator/summary', isAdminOrOfficer, async (req, res) => {
 
       let current = null;
       if (typeFilter && typeFilter === 'reg_fee') {
-        current = sorted.find(r => Number(r.installment_no) === 999) || null;
+        current = sorted.find(r => r.installment_no !== null && r.installment_no !== undefined && Number(r.installment_no) === 0) || null;
       } else if (typeFilter && typeFilter.startsWith('installment_')) {
         const nWanted = parseInt(typeFilter.split('_')[1], 10);
         if (Number.isFinite(nWanted)) {

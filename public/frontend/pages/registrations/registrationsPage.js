@@ -450,10 +450,10 @@
       if (selectedRegistrationId && window.API?.registrations?.listPayments) {
         const payRes = await window.API.registrations.listPayments(selectedRegistrationId);
         const ps = (payRes.payments || []);
-        // Always prefer installment #1 — skip reg fee row (installment_no=999)
-        const p = ps.find(x => Number(x.installment_no ?? 1) === 1) || ps.find(x => Number(x.installment_no) > 0 && Number(x.installment_no) !== 999) || null;
+        // Always prefer installment #1 — skip reg fee row (installment_no=0, strict null check required)
+        const p = ps.find(x => Number(x.installment_no ?? 1) === 1) || ps.find(x => x.installment_no !== null && x.installment_no !== undefined && Number(x.installment_no) > 0) || null;
         // Strict null check: Number(null)===0 is true in JS so we must exclude null rows
-        const regFeeRow0 = ps.find(x => x.installment_no !== null && x.installment_no !== undefined && Number(x.installment_no) === 999) || null;
+        const regFeeRow0 = ps.find(x => x.installment_no !== null && x.installment_no !== undefined && Number(x.installment_no) === 0) || null;
         if (p) {
           if (qs('registrationPaymentMethod')) qs('registrationPaymentMethod').value = p.payment_method || '';
           if (qs('registrationPaymentPlan')) {
