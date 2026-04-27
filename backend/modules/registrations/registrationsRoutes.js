@@ -627,15 +627,16 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
       }
     }
 
-    // Create/update installment_no=999 row for registration fee.
-    // Always inserted unconditionally — mirrors how installment placeholder rows 2..N are always created.
-    // Amount defaults to 0 when nothing provided (placeholder), user can confirm/edit later.
-    console.log('[addPayment] effectiveRegFeeAmount=%s planEarlyBird=%s — inserting reg fee row', effectiveRegFeeAmount, planEarlyBird);
-    try {
+    // Create/update reg fee row (installment_no=999) — always unconditional.
+    let regFeeInsertError = null;
+    {
+      console.log('[REG_FEE] START — existingRows count=%s regFeeAmount=%s regFeeDate=%s', (existingRows||[]).length, effectiveRegFeeAmount, regFeeDate);
+      try {
         const existingRegFeeRow = (existingRows || []).find(
           r => r.installment_no !== null && r.installment_no !== undefined && Number(r.installment_no) === 999
         ) || null;
-        console.log('[addPayment] existingRegFeeRow=%s', existingRegFeeRow?.id || 'none');
+        console.log('[REG_FEE] existingRow id=%s', existingRegFeeRow?.id || 'NONE — will INSERT');
+
         if (!existingRegFeeRow) {
           const regFeeRow = {
             registration_id: id,
@@ -650,26 +651,36 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
             payment_method: null,
             payment_plan: paymentPlan,
             payment_date: regFeeDate || null,
-            amount: effectiveRegFeeAmount,
+            amount: effectiveRegFeeAmount || 0,
             slip_received: false,
             receipt_received: false,
+            is_confirmed: false,
             created_by: createdBy
           };
-          console.log('[addPayment] inserting reg fee row installment_no=999 amount=%s', effectiveRegFeeAmount);
-          const { error: rfErr } = await sb.from('payments').insert(regFeeRow);
-          if (rfErr) throw rfErr;
-          console.log('[addPayment] reg fee row inserted OK');
+          console.log('[REG_FEE] inserting row: %j', regFeeRow);
+          const { data: rfData, error: rfErr } = await sb.from('payments').insert(regFeeRow).select('id').single();
+          if (rfErr) {
+            console.error('[REG_FEE] INSERT ERROR code=%s msg=%s details=%s', rfErr.code, rfErr.message, rfErr.details);
+            regFeeInsertError = `${rfErr.message} (code: ${rfErr.code})`;
+          } else {
+            console.log('[REG_FEE] INSERT OK id=%s', rfData?.id);
+          }
         } else {
-          // Row exists — update amount and date if they changed
-          const patch = { amount: effectiveRegFeeAmount };
+          const patch = { amount: effectiveRegFeeAmount || 0 };
           if (regFeeDate) patch.payment_date = regFeeDate;
+          console.log('[REG_FEE] updating existing row id=%s patch=%j', existingRegFeeRow.id, patch);
           const { error: rfErr } = await sb.from('payments').update(patch).eq('id', existingRegFeeRow.id);
-          if (rfErr) throw rfErr;
-          console.log('[addPayment] reg fee row updated OK');
+          if (rfErr) {
+            console.error('[REG_FEE] UPDATE ERROR code=%s msg=%s', rfErr.code, rfErr.message);
+            regFeeInsertError = `${rfErr.message} (code: ${rfErr.code})`;
+          } else {
+            console.log('[REG_FEE] UPDATE OK');
+          }
         }
-    } catch (rfCatchErr) {
-      // Log but don't fail the whole request — installments are already saved
-      console.error('[addPayment] reg fee row error:', rfCatchErr?.message || rfCatchErr);
+      } catch (rfCatchErr) {
+        console.error('[REG_FEE] EXCEPTION:', rfCatchErr?.message, rfCatchErr?.stack);
+        regFeeInsertError = rfCatchErr?.message || String(rfCatchErr);
+      }
     }
 
     // Best-effort: sync lead status in crm_leads when payment is saved
@@ -682,7 +693,7 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
       });
     } catch (_) {}
 
-    res.json({ success: true, payments: saved ? [saved] : [] });
+    res.json({ success: true, payments: saved ? [saved] : [], reg_fee_error: regFeeInsertError || undefined });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }

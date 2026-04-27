@@ -307,7 +307,11 @@
               reg_fee_amount: regFeeAmountVal > 0 ? regFeeAmountVal : 0,
               reg_fee_date: regFeeDateVal || null
             });
-            if (window.UI && UI.showToast) UI.showToast('Payment saved', 'success');
+            if (result?.reg_fee_error) {
+              alert('Payment saved but REG FEE ROW FAILED:\n' + result.reg_fee_error);
+            } else {
+              if (window.UI && UI.showToast) UI.showToast('Payment saved', 'success');
+            }
 
             // Fill fields with saved values (use the first row)
             const saved = (result && result.payments && result.payments[0]) ? result.payments[0] : null;
