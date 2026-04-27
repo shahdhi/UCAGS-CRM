@@ -490,7 +490,7 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
     let installmentCount = 1;
     let planId = null;
     let dueDates = [];
-    let planEarlyBird = true; // default: assume early bird (no reg fee)
+    let planEarlyBird = false; // default: not early bird — reg fee always applies unless plan says otherwise
     let planRegFeeAmount = 0;
 
     if (batchName) {
@@ -627,12 +627,11 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
       }
     }
 
-    // Create/update installment_no=999 row for registration fee (non-early-bird plans only).
-    // Always insert as a placeholder (amount may be 0) when plan is non-EB,
-    // just like installment 2..N placeholder rows are created unconditionally.
-    console.log('[addPayment] effectiveRegFeeAmount=%s planEarlyBird=%s', effectiveRegFeeAmount, planEarlyBird);
-    if (!planEarlyBird) {
-      try {
+    // Create/update installment_no=999 row for registration fee.
+    // Always inserted unconditionally — mirrors how installment placeholder rows 2..N are always created.
+    // Amount defaults to 0 when nothing provided (placeholder), user can confirm/edit later.
+    console.log('[addPayment] effectiveRegFeeAmount=%s planEarlyBird=%s — inserting reg fee row', effectiveRegFeeAmount, planEarlyBird);
+    try {
         const existingRegFeeRow = (existingRows || []).find(
           r => r.installment_no !== null && r.installment_no !== undefined && Number(r.installment_no) === 999
         ) || null;
@@ -668,12 +667,9 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
           if (rfErr) throw rfErr;
           console.log('[addPayment] reg fee row updated OK');
         }
-      } catch (rfCatchErr) {
-        // Log but don't fail the whole request — installments are already saved
-        console.error('[addPayment] reg fee row error:', rfCatchErr?.message || rfCatchErr);
-      }
-    } else {
-      console.log('[addPayment] skipping reg fee row — plan is early bird (planEarlyBird=%s)', planEarlyBird);
+    } catch (rfCatchErr) {
+      // Log but don't fail the whole request — installments are already saved
+      console.error('[addPayment] reg fee row error:', rfCatchErr?.message || rfCatchErr);
     }
 
     // Best-effort: sync lead status in crm_leads when payment is saved
