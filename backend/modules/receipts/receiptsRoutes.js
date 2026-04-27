@@ -203,7 +203,9 @@ function renderReceiptPdf(doc, {
   const totalAmountAll = rows.reduce((sum, p) => sum + (parseFloat(p?.amount) || 0), 0);
 
   // Reserve space for total row (fixed row height; single-line cells)
-  const maxRows = Math.max(0, Math.floor((availableBottomY - yPos - rowHeight) / rowHeight));
+  const calculatedMax = Math.max(0, Math.floor((availableBottomY - yPos - rowHeight) / rowHeight));
+  // Always show all rows when count is small (≤4) — total row uses Math.min clamp to stay in bounds
+  const maxRows = rows.length <= 4 ? rows.length : calculatedMax;
   const visibleRows = rows.slice(0, maxRows);
 
   visibleRows.forEach((payment, idx) => {
