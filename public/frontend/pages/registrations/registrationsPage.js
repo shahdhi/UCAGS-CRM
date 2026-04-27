@@ -212,10 +212,10 @@
           const isEB = opt?.getAttribute('data-early-bird') === 'true';
           const regFeeSection = qs('registrationRegFeeSection');
           if (regFeeSection) regFeeSection.style.display = (!planSelEl.value || isEB) ? 'none' : '';
-          // Auto-fill amount from plan data
+          // Always auto-fill amount from plan data when section becomes visible and field is blank
           const regFeeAmt = Number(opt?.getAttribute('data-reg-fee') || 0);
           const regFeeAmtEl = qs('registrationRegFeeAmount');
-          if (regFeeAmtEl && regFeeAmt > 0 && !regFeeAmtEl.value) regFeeAmtEl.value = String(regFeeAmt);
+          if (regFeeAmtEl && !isEB && regFeeAmt > 0) regFeeAmtEl.value = String(regFeeAmt);
         });
       }
 
@@ -290,8 +290,13 @@
             paySaveBtn.disabled = true;
             const planSel = qs('registrationPaymentPlan');
             const selectedPlanOpt = planSel?.selectedOptions?.[0];
-            const regFeeAmountVal = Number(qs('registrationRegFeeAmount')?.value || 0);
+            const isEBPlan = selectedPlanOpt?.getAttribute('data-early-bird') === 'true';
+            // Use typed value; fall back to the plan's reg-fee attr if input is blank
+            const regFeeInputVal = Number(qs('registrationRegFeeAmount')?.value || 0);
+            const regFeePlanVal = Number(selectedPlanOpt?.getAttribute('data-reg-fee') || 0);
+            const regFeeAmountVal = !isEBPlan ? (regFeeInputVal > 0 ? regFeeInputVal : regFeePlanVal) : 0;
             const regFeeDateVal = qs('registrationRegFeeDate')?.value || null;
+            console.log('[save] isEB=%s regFeeInputVal=%s regFeePlanVal=%s → regFeeAmountVal=%s', isEBPlan, regFeeInputVal, regFeePlanVal, regFeeAmountVal);
             const result = await window.API.registrations.addPayment(selectedRegistrationId, {
               payment_method: method,
               payment_plan: plan,
@@ -299,8 +304,8 @@
               amount,
               slip_received: receipt,
               receipt_received: receipt,
-              reg_fee_amount: regFeeAmountVal > 0 ? regFeeAmountVal : undefined,
-              reg_fee_date: regFeeDateVal || undefined
+              reg_fee_amount: regFeeAmountVal > 0 ? regFeeAmountVal : 0,
+              reg_fee_date: regFeeDateVal || null
             });
             if (window.UI && UI.showToast) UI.showToast('Payment saved', 'success');
 
