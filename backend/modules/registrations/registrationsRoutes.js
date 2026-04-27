@@ -463,10 +463,6 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
     const amount = Number(req.body?.amount);
     const slipReceived = !!(req.body?.slip_received || req.body?.receipt_received);
     const receiptReceived = !!req.body?.receipt_received;
-    const regFeeAmount = Number.isFinite(Number(req.body?.reg_fee_amount)) && Number(req.body.reg_fee_amount) > 0
-      ? Number(req.body.reg_fee_amount) : 0;
-    const regFeeDate = req.body?.reg_fee_date ? String(req.body.reg_fee_date).trim() : null;
-    console.log('[addPayment] plan=%s amount=%s regFeeAmount=%s regFeeDate=%s', paymentPlan, amount, regFeeAmount, regFeeDate);
 
     if (!paymentPlan) return res.status(400).json({ success: false, error: 'Payment plan is required' });
     if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ success: false, error: 'Amount must be greater than 0' });
@@ -490,42 +486,17 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
     let installmentCount = 1;
     let planId = null;
     let dueDates = [];
-    let planEarlyBird = false; // default: not early bird — reg fee always applies unless plan says otherwise
-    let planRegFeeAmount = 0;
 
     if (batchName) {
-      // Query plan row. Try full set of columns, falling back to smaller sets
-      // if newer columns don't exist yet in this deployment's schema.
-      let planRow = null;
-      const planQueries = [
-        'id,installment_count,early_bird,registration_fee',
-        'id,installment_count,registration_fee',
-        'id,installment_count'
-      ];
-      for (const cols of planQueries) {
-        try {
-          const { data, error } = await sb
-            .from('batch_payment_plans')
-            .select(cols)
-            .eq('batch_name', batchName)
-            .eq('plan_name', paymentPlan)
-            .maybeSingle();
-          if (!error) { planRow = data; break; }
-          console.warn('[addPayment] plan query (%s) error: %s', cols, error.message);
-        } catch (e) {
-          console.warn('[addPayment] plan query (%s) exception: %s', cols, e.message);
-        }
-      }
-      console.log('[addPayment] planRow=%j', planRow);
-
+      const { data: planRow } = await sb
+        .from('batch_payment_plans')
+        .select('id,installment_count')
+        .eq('batch_name', batchName)
+        .eq('plan_name', paymentPlan)
+        .maybeSingle();
       if (planRow) {
         planId = planRow.id;
         installmentCount = Math.max(Number(planRow.installment_count || 1), 1);
-        // early_bird: if column exists use it; undefined means column missing → treat as false (reg fee applies)
-        planEarlyBird = planRow.early_bird !== undefined ? !!(planRow.early_bird) : false;
-        planRegFeeAmount = Number(planRow.registration_fee || 0) > 0 ? Number(planRow.registration_fee) : 0;
-        console.log('[addPayment] planId=%s earlyBird=%s planRegFee=%s', planId, planEarlyBird, planRegFeeAmount);
-
         if (installmentCount > 1) {
           const { data: instRows } = await sb
             .from('batch_payment_installments')
@@ -536,9 +507,6 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
         }
       }
     }
-
-    // effectiveRegFeeAmount: prefer frontend-submitted value, fall back to plan's stored registration_fee
-    const effectiveRegFeeAmount = regFeeAmount > 0 ? regFeeAmount : planRegFeeAmount;
 
     // IMPORTANT: Registrations page "Payment received" should only record the FIRST payment.
     // Do NOT generate all installments here (that causes duplicates each time user saves).
@@ -627,62 +595,6 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
       }
     }
 
-    // Create/update reg fee row (installment_no=999) — always unconditional.
-    let regFeeInsertError = null;
-    {
-      console.log('[REG_FEE] START — existingRows count=%s regFeeAmount=%s regFeeDate=%s', (existingRows||[]).length, effectiveRegFeeAmount, regFeeDate);
-      try {
-        const existingRegFeeRow = (existingRows || []).find(
-          r => r.installment_no !== null && r.installment_no !== undefined && Number(r.installment_no) === 999
-        ) || null;
-        console.log('[REG_FEE] existingRow id=%s', existingRegFeeRow?.id || 'NONE — will INSERT');
-
-        if (!existingRegFeeRow) {
-          const regFeeRow = {
-            registration_id: id,
-            registration_name: registrationName,
-            batch_name: batchName,
-            program_id: programId,
-            program_name: programName,
-            payment_plan_id: planId,
-            installment_group_id: null,
-            installment_no: 999,
-            installment_due_date: null,
-            payment_method: null,
-            payment_plan: paymentPlan,
-            payment_date: regFeeDate || null,
-            amount: effectiveRegFeeAmount || 0,
-            slip_received: false,
-            receipt_received: false,
-            is_confirmed: false,
-            created_by: createdBy
-          };
-          console.log('[REG_FEE] inserting row: %j', regFeeRow);
-          const { data: rfData, error: rfErr } = await sb.from('payments').insert(regFeeRow).select('id').single();
-          if (rfErr) {
-            console.error('[REG_FEE] INSERT ERROR code=%s msg=%s details=%s', rfErr.code, rfErr.message, rfErr.details);
-            regFeeInsertError = `${rfErr.message} (code: ${rfErr.code})`;
-          } else {
-            console.log('[REG_FEE] INSERT OK id=%s', rfData?.id);
-          }
-        } else {
-          const patch = { amount: effectiveRegFeeAmount || 0 };
-          if (regFeeDate) patch.payment_date = regFeeDate;
-          console.log('[REG_FEE] updating existing row id=%s patch=%j', existingRegFeeRow.id, patch);
-          const { error: rfErr } = await sb.from('payments').update(patch).eq('id', existingRegFeeRow.id);
-          if (rfErr) {
-            console.error('[REG_FEE] UPDATE ERROR code=%s msg=%s', rfErr.code, rfErr.message);
-            regFeeInsertError = `${rfErr.message} (code: ${rfErr.code})`;
-          } else {
-            console.log('[REG_FEE] UPDATE OK');
-          }
-        }
-      } catch (rfCatchErr) {
-        console.error('[REG_FEE] EXCEPTION:', rfCatchErr?.message, rfCatchErr?.stack);
-        regFeeInsertError = rfCatchErr?.message || String(rfCatchErr);
-      }
-    }
-
     // Best-effort: sync lead status in crm_leads when payment is saved
     try {
       const { updateLeadStatusByPhoneAndBatch } = require('../crmLeads/crmLeadsService');
@@ -693,7 +605,7 @@ router.post('/:id/payments', isAdminOrOfficer, async (req, res) => {
       });
     } catch (_) {}
 
-    res.json({ success: true, payments: saved ? [saved] : [], reg_fee_error: regFeeInsertError || undefined });
+    res.json({ success: true, payments: saved ? [saved] : [] });
   } catch (e) {
     res.status(e.status || 500).json({ success: false, error: e.message });
   }

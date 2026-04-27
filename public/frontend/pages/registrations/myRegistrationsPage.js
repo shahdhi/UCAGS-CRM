@@ -143,7 +143,7 @@
             const planSelEl = qs('registrationPaymentPlan');
             const selectedPlanOpt = planSelEl?.selectedOptions?.[0];
             const planRegFee = Number(selectedPlanOpt?.getAttribute('data-reg-fee') || 0);
-            const rfResult = await window.API.registrations.addPayment(reg?.id, {
+            await window.API.registrations.addPayment(reg?.id, {
               payment_method: method,
               payment_plan: plan,
               payment_date: date || null,
@@ -152,11 +152,7 @@
               receipt_received: receipt,
               reg_fee_amount: planRegFee > 0 ? planRegFee : 0
             });
-            if (rfResult?.reg_fee_error) {
-              alert('Payment saved but REG FEE ROW FAILED:\n' + rfResult.reg_fee_error);
-            } else {
-              if (window.UI && UI.showToast) UI.showToast('Payment saved', 'success');
-            }
+            if (window.UI && UI.showToast) UI.showToast('Payment saved', 'success');
 
             if (qs('registrationPaymentAmount')) qs('registrationPaymentAmount').value = '';
             if (qs('registrationReceiptReceived')) qs('registrationReceiptReceived').checked = false;

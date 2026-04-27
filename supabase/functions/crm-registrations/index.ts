@@ -661,6 +661,34 @@ async function handleAddPayment(sb: any, id: string, body: any, user: any): Prom
     }
   }
 
+  // Always insert reg fee row (installment_no=999) unconditionally — same as installment placeholders.
+  // reg_fee_amount and reg_fee_date come from the frontend form (or fall back to plan's registration_fee).
+  const regFeeAmount = Number.isFinite(Number(body?.reg_fee_amount)) && Number(body?.reg_fee_amount) > 0
+    ? Number(body.reg_fee_amount) : 0;
+  const regFeeDate = cleanStr(body?.reg_fee_date) || null;
+  {
+    const existingRegFeeRow = (existingRows ?? []).find(
+      (r: any) => r.installment_no !== null && r.installment_no !== undefined && Number(r.installment_no) === 999
+    ) ?? null;
+    if (!existingRegFeeRow) {
+      const regFeeRow = {
+        registration_id: id, registration_name: registrationName, batch_name: batchName,
+        program_id: programId, program_name: programName, payment_plan_id: planId,
+        installment_group_id: null, installment_no: 999, installment_due_date: null,
+        payment_method: null, payment_plan: paymentPlan,
+        payment_date: regFeeDate, amount: regFeeAmount,
+        slip_received: false, receipt_received: false, created_by: createdBy ?? null,
+      };
+      const { error: rfErr } = await sb.from('payments').insert(regFeeRow);
+      if (rfErr) console.error('[REG_FEE] insert error:', rfErr.message, rfErr.code);
+    } else {
+      const patch: Record<string, any> = { amount: regFeeAmount };
+      if (regFeeDate) patch.payment_date = regFeeDate;
+      const { error: rfErr } = await sb.from('payments').update(patch).eq('id', existingRegFeeRow.id);
+      if (rfErr) console.error('[REG_FEE] update error:', rfErr.message, rfErr.code);
+    }
+  }
+
   // Sync CRM lead status → Enrolled
   await updateLeadStatusByPhoneAndBatch(sb, regRow?.phone_number, batchName ?? '', 'Enrolled');
 
