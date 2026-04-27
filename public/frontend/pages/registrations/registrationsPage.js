@@ -141,6 +141,7 @@
             <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top:10px;">
               <div class="form-group" style="margin:0;">
                 <label style="font-size:13px; color:#344054; font-weight:700;">1st Installment</label>
+                <div style="font-size:11px; color:#667085; margin-top:2px;">excluding registration fee</div>
               </div>
               <div></div>
               <div class="form-group" style="margin:0;">

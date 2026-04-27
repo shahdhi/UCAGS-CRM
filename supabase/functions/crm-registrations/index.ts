@@ -682,8 +682,7 @@ async function handleAddPayment(sb: any, id: string, body: any, user: any): Prom
       const { error: rfErr } = await sb.from('payments').insert(regFeeRow);
       if (rfErr) console.error('[REG_FEE] insert error:', rfErr.message, rfErr.code);
     } else {
-      const patch: Record<string, any> = { amount: regFeeAmount };
-      if (regFeeDate) patch.payment_date = regFeeDate;
+      const patch: Record<string, any> = { amount: regFeeAmount, payment_date: regFeeDate };
       const { error: rfErr } = await sb.from('payments').update(patch).eq('id', existingRegFeeRow.id);
       if (rfErr) console.error('[REG_FEE] update error:', rfErr.message, rfErr.code);
     }
