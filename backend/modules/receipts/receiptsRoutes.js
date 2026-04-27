@@ -513,10 +513,11 @@ router.get('/payment/:paymentId', isAdmin, async (req, res) => {
 
     const planLower = String(payment.payment_plan || '').toLowerCase();
     const isFull = planLower.includes('full payment');
-    const isRegFee = planLower.includes('registration fee');
+    const isRegFeeOnly = payment.installment_no !== null && payment.installment_no !== undefined && Number(payment.installment_no) === 0;
+    const isFirstInstallment = payment.installment_no !== null && payment.installment_no !== undefined && Number(payment.installment_no) === 1;
 
     let desc = 'Payment';
-    if (isRegFee) {
+    if (isRegFeeOnly) {
       desc = 'Registration Fee';
     } else if (isFull) {
       desc = 'Full Payment';
@@ -534,6 +535,25 @@ router.get('/payment/:paymentId', isAdmin, async (req, res) => {
         amount: Number(payment.amount || 0)
       }
     ];
+
+    // If this is the 1st installment, also include the reg fee row (installment_no=0) in the PDF
+    if (isFirstInstallment && regId) {
+      const { data: regFeeRow } = await sb
+        .from('payments')
+        .select('payment_date, amount, payment_method')
+        .eq('registration_id', regId)
+        .eq('installment_no', 0)
+        .maybeSingle();
+      if (regFeeRow && Number(regFeeRow.amount) > 0) {
+        // Prepend reg fee as the first row in the receipt
+        payments.unshift({
+          date: regFeeRow.payment_date || finalReceiptDate,
+          description: 'Registration Fee',
+          paidBy: regFeeRow.payment_method || paidBy,
+          amount: Number(regFeeRow.amount)
+        });
+      }
+    }
 
     // Generate PDF using same full template as manual receipts
     const doc = new PDFDocument({
