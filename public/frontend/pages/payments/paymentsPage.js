@@ -998,7 +998,7 @@
   }
 
   // Update Payment modal
-  async function openUpdatePaymentModal(paymentId) {
+  async function openUpdatePaymentModal(paymentId, knownRegistrationId) {
     const pid = String(paymentId || '').trim();
     if (!pid) throw new Error('Missing payment id');
 
@@ -1027,9 +1027,9 @@
       if (saveBtn) saveBtn.disabled = true;
     };
 
-    // Find registrationId from currently loaded summary (fast path)
+    // Find registrationId from currently loaded summary (fast path), or use passed-in fallback
     const sumRow = (window.__paymentsLastSummary || []).find(r => String(r.id) === String(pid));
-    const registrationId = sumRow?.registration_id;
+    const registrationId = sumRow?.registration_id || knownRegistrationId || null;
     if (!registrationId) {
       showModalError('Unable to resolve registration for this payment');
       return;
@@ -1157,7 +1157,7 @@
           if (e.target.closest('.pay-history-receipt-link')) return;
           const switchPid = tr.getAttribute('data-payment-id');
           if (switchPid && switchPid !== String(pid)) {
-            openUpdatePaymentModal(switchPid).catch(console.error);
+            openUpdatePaymentModal(switchPid, registrationId).catch(console.error);
           }
         });
       });
