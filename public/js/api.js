@@ -184,11 +184,4 @@ const API = {
         }
     },
 
-    // Leads
-    leads: {
-        async getAll(filters = {}) {
-            const params = new URLSearchParams(filters);
-            return API.request(`/leads?${params}`);
-        }
-    }
 };

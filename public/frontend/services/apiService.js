@@ -166,6 +166,14 @@ const leadsAPI = {
   },
 
   /**
+   * Get available sheets for a batch
+   * @param {string} batch - Batch name
+   */
+  getSheets: async (batch) => {
+    return fetchAPI(`/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`);
+  },
+
+  /**
    * Update my lead management (officer)
    * @param {string} batchName - Batch name
    * @param {string} sheetName - Sheet name
@@ -206,33 +214,6 @@ const leadsAPI = {
       method: 'PUT',
       body: JSON.stringify(updates)
     });
-  },
-
-  /**
-   * Delete lead
-   * @param {number} id - Lead ID
-   */
-  delete: async (id) => {
-    return fetchAPI(`/leads/${id}`, {
-      method: 'DELETE'
-    });
-  },
-
-  /**
-   * Update admin lead (Supabase)
-   */
-  updateAdminLead: async (batchName, sheetName, leadId, updates) => {
-    return fetchAPI(`/crm-leads/admin/${encodeURIComponent(batchName)}/${encodeURIComponent(sheetName)}/${encodeURIComponent(leadId)}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates)
-    });
-  },
-
-  /**
-   * Get all available batches
-   */
-  getBatches: async () => {
-    return fetchAPI('/batch-leads/batches');
   },
 
   /**
@@ -358,13 +339,6 @@ const leadsAPI = {
       method: 'POST',
       body: JSON.stringify({ batchName, sheetName, csvText })
     });
-  },
-
-  /**
-   * Get leads statistics
-   */
-  getStats: async () => {
-    return fetchAPI('/leads/stats');
   }
 };
 

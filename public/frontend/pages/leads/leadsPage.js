@@ -555,8 +555,7 @@ async function loadLeads() {
       } else {
         // First load for this batch: fetch then cache
         try {
-          const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`, { headers: authHeaders });
-          const json = await res.json();
+          const json = await API.leads.getSheets(batch);
           if (json.success && Array.isArray(json.sheets)) {
             const merged = Array.from(new Set(['Main Leads', 'Extra Leads', 'Foxes', ...json.sheets]));
             const officer = isOfficerView ? (json.sheets || []).slice() : [];
@@ -846,17 +845,7 @@ async function deleteOfficerLead(lead) {
   if (!confirm(`Are you sure you want to delete ${displayName}? This action cannot be undone.`)) return;
 
   try {
-    let authHeaders = { 'Content-Type': 'application/json' };
-    if (window.supabaseClient) {
-      const { data: { session } } = await window.supabaseClient.auth.getSession();
-      if (session?.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
-    }
-    const res = await fetch('/api/crm-leads/my/bulk-delete', {
-      method: 'POST',
-      headers: authHeaders,
-      body: JSON.stringify({ batchName, sheetName, leadIds: [String(lead.id)] })
-    });
-    const json = await res.json();
+    const json = await API.leads.bulkDelete({ batchName, sheetName, leadIds: [String(lead.id)] });
     if (!json.success) throw new Error(json.error || 'Delete failed');
 
     // Remove from local state
@@ -891,20 +880,9 @@ async function bulkDeleteOfficerLeads() {
   });
 
   try {
-    let authHeaders = { 'Content-Type': 'application/json' };
-    if (window.supabaseClient) {
-      const { data: { session } } = await window.supabaseClient.auth.getSession();
-      if (session?.access_token) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
-    }
-
     let totalDeleted = 0;
     for (const { batchName, sheetName, leadIds } of bySheet.values()) {
-      const res = await fetch('/api/crm-leads/my/bulk-delete', {
-        method: 'POST',
-        headers: authHeaders,
-        body: JSON.stringify({ batchName, sheetName, leadIds })
-      });
-      const json = await res.json();
+      const json = await API.leads.bulkDelete({ batchName, sheetName, leadIds });
       if (!json.success) throw new Error(json.error || 'Bulk delete failed');
       totalDeleted += json.deletedCount || leadIds.length;
       leadIds.forEach(id => {
@@ -1282,8 +1260,7 @@ async function openCopyLeadModal(lead) {
       return;
     }
     msgEl.textContent = 'Loading sheets...';
-    const sr = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batchName)}`, { headers: authHeaders });
-    const sj = await sr.json();
+    const sj = await API.leads.getSheets(batchName);
     const sheets = (sj.sheets || []).slice();
     sheetSel.innerHTML = sheets.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
     sheetSel.value = 'Main Leads';
@@ -1841,8 +1818,7 @@ async function bulkCopyLeads() {
       return;
     }
     msgEl.textContent = 'Loading sheets...';
-    const sr = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batchName)}`, { headers: authHeaders });
-    const sj = await sr.json();
+    const sj = await API.leads.getSheets(batchName);
     const sheets = (sj.sheets || []).slice();
     sheetSel.innerHTML = sheets.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
     sheetSel.value = 'Main Leads';
