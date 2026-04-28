@@ -652,7 +652,7 @@ function renderLeadsTable() {
   if (currentLeads.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" style="text-align: center; padding: 40px;">
+        <td colspan="7" style="text-align: center; padding: 40px;">
           <i class="fas fa-inbox" style="font-size: 48px; color: #ccc; margin-bottom: 10px;"></i>
           <p style="color: #666;">No leads found</p>
         </td>
@@ -664,7 +664,7 @@ function renderLeadsTable() {
   if (filteredLeads.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" style="text-align: center; padding: 40px;">
+        <td colspan="7" style="text-align: center; padding: 40px;">
           <i class="fas fa-search" style="font-size: 48px; color: #ccc; margin-bottom: 10px;"></i>
           <p style="color: #666;">No leads match your filters</p>
           <p style="color: #999; font-size: 14px;">Try adjusting your search or filters</p>
@@ -756,7 +756,7 @@ function renderLeadsTable() {
       lastDateLabel = dateLabel;
       rows.push(`
         <tr class="leads-date-divider" style="pointer-events:none;">
-          <td colspan="6" style="padding: 6px 12px; background: #f8f8fc; border-top: 1px solid #e9ecef; border-bottom: 1px solid #e9ecef;">
+          <td colspan="7" style="padding: 6px 12px; background: #f8f8fc; border-top: 1px solid #e9ecef; border-bottom: 1px solid #e9ecef;">
             <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#592c88; letter-spacing:0.03em;">
               <i class="fas fa-calendar-alt" style="font-size:11px; opacity:0.7;"></i>
               ${escapeHtml(formatDateLabel(dateLabel))}
