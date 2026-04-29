@@ -117,8 +117,7 @@ app.use('/api/attendance', require('./modules/attendance/attendanceRoutes'));
 // Receipt generation (Admin only)
 app.use('/api/receipts', require('./modules/receipts/receiptsRoutes'));
 
-// XP System
-app.use('/api/xp', require('./modules/xp/xpRoutes'));
+// XP System routes fully migrated to Supabase Edge Function (supabase/functions/xp/index.ts)
 
 // Notifications (update-release + future admin notifications)
 app.use('/api/notifications', require('./modules/notifications/notificationsRoutes'));

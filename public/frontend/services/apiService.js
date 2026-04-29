@@ -951,7 +951,23 @@ const xpAPI = {
     if (batchName) p.set('batchName', String(batchName));
     const qs = p.toString();
     return fetchAPI(`/xp/archives${qs ? `?${qs}` : ''}`);
-  }
+  },
+  getAdminOverrides: async (batchName = '') => {
+    const qs = batchName ? `?batchName=${encodeURIComponent(batchName)}` : '';
+    return fetchAPI(`/xp/admin/overrides${qs}`);
+  },
+  putAdminOverride: async (data) => fetchAPI('/xp/admin/overrides', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  deleteAdminOverride: async (id) => fetchAPI(`/xp/admin/overrides/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  }),
+  adminReset: async (programId, batchName) => fetchAPI('/xp/admin/reset', {
+    method: 'POST',
+    body: JSON.stringify({ programId, batchName }),
+  }),
+  cronOverdue: async () => fetchAPI('/xp/cron/overdue', { method: 'POST' }),
 };
 
 // Export all APIs - compatible with existing code
