@@ -75,6 +75,19 @@ function computeStatus(today: string, startDate: string | null, endDate: string 
 // ---------------------------------------------------------------------------
 // Auth helpers
 // ---------------------------------------------------------------------------
+
+// Mirror the email-based admin fallback from server/middleware/auth.js
+const ADMIN_EMAILS = ['admin@ucags.edu.lk', 'mohamedunais2018@gmail.com'];
+
+function resolveRole(user: any): string {
+  const metaRole = String(user?.user_metadata?.role || '').toLowerCase();
+  if (metaRole) return metaRole;
+  // Email-based admin fallback (matches Express middleware behaviour)
+  const email = String(user?.email || '').toLowerCase();
+  if (ADMIN_EMAILS.includes(email)) return 'admin';
+  return '';
+}
+
 async function requireAuth(sb: any, req: Request): Promise<any> {
   const authHeader = req.headers.get('Authorization') || '';
   const jwt = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -85,12 +98,11 @@ async function requireAuth(sb: any, req: Request): Promise<any> {
 }
 
 function requireAdmin(user: any): void {
-  const role = String(user.user_metadata?.role || '').toLowerCase();
-  if (role !== 'admin') throw mkErr('Forbidden. Admin only.', 403);
+  if (resolveRole(user) !== 'admin') throw mkErr('Forbidden. Admin only.', 403);
 }
 
 function requireAdminOrOfficer(user: any): void {
-  const role = String(user.user_metadata?.role || '').toLowerCase();
+  const role = resolveRole(user);
   if (role !== 'admin' && role !== 'officer' && role !== 'admission_officer') {
     throw mkErr('Forbidden.', 403);
   }
