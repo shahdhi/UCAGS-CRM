@@ -183,6 +183,18 @@ const leadsAPI = {
   },
 
   /**
+   * Get all followups for a batch+sheet (admin view, optionally scoped to one officer).
+   * @param {string} batch
+   * @param {string} sheet
+   * @param {string} [officerId] - optional officer UUID to scope results
+   */
+  getFollowupsAdminBatch: async (batch, sheet = 'Main Leads', officerId = '') => {
+    const params = new URLSearchParams({ batch, sheet });
+    if (officerId) params.set('officerId', officerId);
+    return fetchAPI(`/crm-leads/admin/followups?${params.toString()}`);
+  },
+
+  /**
    * Update my lead management (officer)
    * @param {string} batchName - Batch name
    * @param {string} sheetName - Sheet name

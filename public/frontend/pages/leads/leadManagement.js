@@ -221,8 +221,7 @@ async function loadLeadManagement() {
       sheets = window[mgmtSheetsCacheKey];
     } else {
       try {
-        const res = await fetch(`/api/crm-leads/meta/sheets?batch=${encodeURIComponent(batch)}`, { headers: authHeaders });
-        const json = await res.json();
+        const json = await API.leads.getSheets(batch);
         if (json.success && Array.isArray(json.sheets)) {
           sheets = Array.from(new Set([...sheets, ...json.sheets]));
           window[mgmtSheetsCacheKey] = sheets;
@@ -463,28 +462,19 @@ async function loadLeadManagement() {
     // Use officer filters when in officer mode (actual officer OR admin impersonating)
     const batchFilter = isOfficerMode ? window.officerBatchFilter : window.adminBatchFilter;
     const sheet = isOfficerMode ? (window.officerSheetFilter || 'Main Leads') : (window.adminSheetFilter || 'Main Leads');
-
-    const params = new URLSearchParams();
-    if (batchFilter && batchFilter !== 'all') params.set('batch', decodeURIComponent(batchFilter));
-    if (sheet) params.set('sheet', sheet);
-    // Pass programId to scope batch_name to the correct program
     const programIdForQuery = isOfficerMode ? window.officerProgramId : window.adminProgramId;
-    if (programIdForQuery) params.set('programId', programIdForQuery);
 
-    // If admin impersonating officer, always use admin endpoint with assignedTo filter
+    // Route through apiService.js so the call goes to the Supabase edge function
     const viewingAsName = window.currentUser?.viewingAs?.name;
-    let endpoint;
-    if (viewingAsName) {
-        // Admin viewing as officer - ALWAYS use admin endpoint with assignedTo
-        endpoint = '/api/crm-leads/admin';
-        params.set('assignedTo', viewingAsName);
-    } else {
-        // Normal case: officer uses /my, admin uses /admin
-        endpoint = isOfficerMode ? '/api/crm-leads/my' : '/api/crm-leads/admin';
-    }
+    const filters = {};
+    if (batchFilter && batchFilter !== 'all') filters.batch = decodeURIComponent(batchFilter);
+    if (sheet) filters.sheet = sheet;
+    if (programIdForQuery) filters.programId = programIdForQuery;
+    if (viewingAsName) filters.assignedTo = viewingAsName;
 
-    const res = await fetch(`${endpoint}?${params.toString()}`, { headers: authHeaders });
-    const data = await res.json();
+    const data = isOfficerMode && !viewingAsName
+      ? await API.leads.getMyLeads(filters)
+      : await API.leads.getAll(filters);
     if (!data.success) throw new Error(data.error || 'Failed to load leads');
     managementLeads = (data.leads || []).map(l => ({ ...l, status: normalizeLeadStatus(l.status) }));
 
@@ -1196,16 +1186,9 @@ async function saveLeadManagement(event, leadId) {
           }
         }
 
-        const endpoint = isAdminMode
-          ? `/api/crm-leads/admin/${encodeURIComponent(batch)}/${encodeURIComponent(sheet)}/${encodeURIComponent(lead.id)}`
-          : `/api/crm-leads/my/${encodeURIComponent(batch)}/${encodeURIComponent(sheet)}/${encodeURIComponent(lead.id)}`;
-
-        const res = await fetch(endpoint, {
-          method: 'PUT',
-          headers: authHeaders,
-          body: JSON.stringify(lead)
-        });
-        const json = await res.json();
+        const json = isAdminMode
+          ? await API.leads.update(batch, sheet, lead.id, lead)
+          : await API.leads.updateMyLead(batch, sheet, lead.id, lead);
         if (!json.success) throw new Error(json.error || 'Failed to save');
 
         if (json.lead) {

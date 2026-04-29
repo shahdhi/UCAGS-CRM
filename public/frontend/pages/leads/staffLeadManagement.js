@@ -568,42 +568,49 @@
         }
       }
 
-      // hydrate followups for each lead (admin view, officer-owned followups)
-      await Promise.all(staffLeads.map(async (lead) => {
-        try {
-          // For "All Officers" mode, use the lead's own assignedTo user ID from lead data
-          const followupOfficerId = officer.allOfficers
-            ? (lead.assignedToUserId || lead.userId || null)
-            : officer.officerUserId;
-
-          // Skip followup fetch if we can't determine the officer ID
-          if (!followupOfficerId || followupOfficerId === '__ALL__') return;
-
-          const fr = await fetch(`/api/crm-followups/admin/${encodeURIComponent(followupOfficerId)}/${encodeURIComponent(lead.batch)}/${encodeURIComponent(lead.sheet || 'Main Leads')}/${encodeURIComponent(lead.id)}`, { headers });
-          const fj = await fr.json();
-          if (!fj.success) return;
-          const followups = fj.followups || [];
-
-          followups.forEach(f => {
-            const n = Number(f.sequence);
-            if (!n) return;
-            lead[`followUp${n}Schedule`] = f.scheduled_at ? String(f.scheduled_at).slice(0, 16) : '';
-            lead[`followUp${n}Date`] = f.actual_at ? String(f.actual_at).slice(0, 16) : '';
-            lead[`followUp${n}Answered`] = (f.answered === true) ? 'Yes' : (f.answered === false ? 'No' : '');
-            lead[`followUp${n}Comment`] = (f.comment ?? '');
-          });
-
-          lead.lastFollowUpComment = getLastFollowUpComment(lead);
-        } catch {
-          // ignore
-        }
-      }));
-
-      // cache hydrated staff leads
-      if (window.Cache) window.Cache.setWithTs(cacheKey, staffLeads);
-
+      // Render table immediately, then hydrate followups in background with one bulk call
       filteredStaffLeads = [...staffLeads];
       filterStaffLeads();
+
+      // Single bulk followup fetch (replaces N per-lead calls)
+      try {
+        // For a single officer, scope to their ID. For All Officers, fetch all and group client-side.
+        const officerIdParam = officer.allOfficers ? '' : (officer.officerUserId || '');
+        const fj = await API.leads.getFollowupsAdminBatch(batch, sheet, officerIdParam);
+        if (fj.success && Array.isArray(fj.followups) && fj.followups.length > 0) {
+          // Group by officer_user_id + sheet_lead_id for O(1) lookup
+          const byKey = new Map();
+          fj.followups.forEach(f => {
+            const key = `${f.officer_user_id}||${f.sheet_lead_id}`;
+            if (!byKey.has(key)) byKey.set(key, []);
+            byKey.get(key).push(f);
+          });
+
+          staffLeads.forEach(lead => {
+            const officerId = lead.assignedToUserId || lead.userId || '';
+            const key = `${officerId}||${String(lead.id)}`;
+            const followups = byKey.get(key) || [];
+            followups.forEach(f => {
+              const n = Number(f.sequence);
+              if (!n) return;
+              lead[`followUp${n}Schedule`] = f.scheduled_at ? String(f.scheduled_at).slice(0, 16) : '';
+              lead[`followUp${n}Date`] = f.actual_at ? String(f.actual_at).slice(0, 16) : '';
+              lead[`followUp${n}Answered`] = (f.answered === true) ? 'Yes' : (f.answered === false ? 'No' : '');
+              lead[`followUp${n}Comment`] = (f.comment ?? '');
+            });
+            lead.lastFollowUpComment = getLastFollowUpComment(lead);
+          });
+
+          filteredStaffLeads = [...staffLeads];
+          filterStaffLeads();
+        }
+      } catch (e) {
+        console.warn('Failed to load admin followups batch', e);
+      }
+
+      // cache leads (followups will be re-fetched fresh next load)
+      if (window.Cache) window.Cache.setWithTs(cacheKey, staffLeads);
+
     } catch (e) {
       console.error('Error loading staff leads:', e);
       showStaffLeadError(e.message);

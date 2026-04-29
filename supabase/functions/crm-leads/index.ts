@@ -1189,6 +1189,30 @@ Deno.serve(async (req: Request) => {
     }
 
     // -----------------------------------------------------------------------
+    // GET /admin/followups?batch=...&sheet=...&officerId=...
+    // Bulk followup fetch for admin/staff view — one query for whole batch+sheet.
+    // officerId: specific officer UUID, or omit to get all officers' followups.
+    // -----------------------------------------------------------------------
+    if (method === 'GET' && afterFn === 'admin/followups') {
+      if (!user) return jsonResp({ success: false, error: 'Unauthorized' }, 401);
+      if (!isAdminOrOfficer(user)) return jsonResp({ success: false, error: 'Forbidden' }, 403);
+      const batchName = url.searchParams.get('batch') ?? '';
+      const sheetName = url.searchParams.get('sheet') ?? 'Main Leads';
+      const officerId = url.searchParams.get('officerId') ?? '';
+      if (!batchName) return jsonResp({ success: false, error: 'Missing batch param' }, 400);
+      let q = sb
+        .from('crm_lead_followups')
+        .select('*')
+        .eq('batch_name', batchName)
+        .eq('sheet_name', sheetName)
+        .order('sequence', { ascending: true });
+      if (officerId) q = q.eq('officer_user_id', officerId);
+      const { data, error } = await q;
+      if (error) return jsonResp({ success: false, error: error.message }, 500);
+      return jsonResp({ success: true, followups: data ?? [] });
+    }
+
+    // -----------------------------------------------------------------------
     // GET /my?batch=...
     // -----------------------------------------------------------------------
     if (method === 'GET' && afterFn === 'my') {
