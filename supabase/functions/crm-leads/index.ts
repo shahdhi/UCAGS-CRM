@@ -384,6 +384,165 @@ async function listAdminLeads(sb: any, { batchName, sheetName, search, status, a
 }
 
 // ---------------------------------------------------------------------------
+// XP helpers (followup rewards)
+// ---------------------------------------------------------------------------
+
+function parseDateTimeEdge(v: unknown): string | null {
+  const s = String(v ?? '').trim();
+  if (!s) return null;
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+async function insertXPEvent(sb: any, { userId, eventType, xp, referenceId, referenceType, programId, batchName, note }: any): Promise<void> {
+  const { error: evErr } = await sb.from('officer_xp_events').insert({
+    user_id: userId,
+    event_type: eventType,
+    xp,
+    reference_id: referenceId ? String(referenceId) : null,
+    reference_type: referenceType || null,
+    program_id: programId || null,
+    batch_name: batchName || null,
+    note: note || null,
+  });
+  if (evErr) throw evErr;
+
+  const { data: sumRow } = await sb.from('officer_xp_summary').select('total_xp').eq('user_id', userId).maybeSingle();
+  const currentXP = sumRow?.total_xp ?? 0;
+  const newTotal = Math.max(0, currentXP + xp);
+  await sb.from('officer_xp_summary').upsert({ user_id: userId, total_xp: newTotal, last_updated: new Date().toISOString() }, { onConflict: 'user_id' });
+}
+
+async function processFollowupXP(sb: any, { userId, officerName, batchName, sheetName, sheetLeadId, updates, prevMgmt }: any): Promise<void> {
+  try {
+    // Resolve program_id once for this batch
+    let programId: string | null = null;
+    try {
+      const { data: pb } = await sb.from('program_batches').select('program_id').eq('batch_name', batchName).limit(1).maybeSingle();
+      programId = pb?.program_id ?? null;
+    } catch (_) { /* non-fatal */ }
+
+    // Find all followup numbers present in the updates payload
+    const followupNums = new Set<number>();
+    for (const k of Object.keys(updates ?? {})) {
+      const m = k.match(/^followUp(\d+)Date$/);
+      if (m) followupNums.add(Number(m[1]));
+    }
+
+    for (const num of followupNums) {
+      try {
+        const newActualRaw = cleanStr(updates[`followUp${num}Date`]);
+        const prevActualRaw = cleanStr((prevMgmt ?? {})[`followUp${num}Date`]);
+
+        const scheduledAt = parseDateTimeEdge(updates[`followUp${num}Schedule`]);
+        const actualAt = parseDateTimeEdge(newActualRaw);
+        const answeredRaw = cleanStr(updates[`followUp${num}Answered`]);
+        const answered = answeredRaw === '' ? null : answeredRaw.toLowerCase() === 'yes';
+        const comment = cleanStr(updates[`followUp${num}Comment`]) || null;
+
+        // Upsert this followup row into crm_lead_followups
+        const followupRow: Record<string, any> = {
+          officer_user_id: userId,
+          officer_name: officerName || null,
+          batch_name: batchName,
+          sheet_name: sheetName,
+          sheet_lead_id: String(sheetLeadId),
+          sequence: num,
+          scheduled_at: scheduledAt,
+          actual_at: actualAt,
+          answered,
+          comment,
+        };
+
+        const { data: upserted } = await sb
+          .from('crm_lead_followups')
+          .upsert(followupRow, { onConflict: 'batch_name,sheet_name,sheet_lead_id,officer_user_id,sequence' })
+          .select('id, actual_at, created_at')
+          .single();
+
+        // Award XP only if actual_at was newly set in this save
+        const wasNewlyActual = actualAt && !parseDateTimeEdge(prevActualRaw);
+        if (!wasNewlyActual || !upserted?.id) continue;
+
+        // Dedup check for followup_completed
+        const { data: existingXP } = await sb
+          .from('officer_xp_events')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('event_type', 'followup_completed')
+          .eq('reference_id', String(upserted.id))
+          .maybeSingle();
+
+        if (!existingXP) {
+          const answeredYes = answered === true;
+          const xpAmount = answeredYes ? 2 : 1;
+          await insertXPEvent(sb, {
+            userId,
+            eventType: 'followup_completed',
+            xp: xpAmount,
+            referenceId: String(upserted.id),
+            referenceType: 'followup',
+            programId,
+            batchName,
+            note: `Follow-up #${num} completed (${answeredYes ? 'answered' : 'no answer'})`,
+          });
+          console.log(`[XP] followup_completed +${xpAmount} for user ${userId}, followup ${upserted.id}`);
+        }
+
+        // Speed bonus: first followup within 1h of lead assignment
+        if (num === 1) {
+          try {
+            const speedRefId = `${batchName}|${sheetName}|${sheetLeadId}`;
+            const { data: speedExisting } = await sb
+              .from('officer_xp_events')
+              .select('id')
+              .eq('user_id', userId)
+              .eq('event_type', 'lead_responded_fast')
+              .eq('reference_id', speedRefId)
+              .maybeSingle();
+
+            if (!speedExisting) {
+              const { data: lRow } = await sb
+                .from('crm_leads')
+                .select('assigned_at, created_at')
+                .eq('batch_name', batchName)
+                .eq('sheet_name', sheetName)
+                .eq('sheet_lead_id', String(sheetLeadId))
+                .maybeSingle();
+              const assignedAt = lRow?.assigned_at || lRow?.created_at;
+              if (assignedAt) {
+                const followupTime = new Date(upserted.created_at ?? Date.now()).getTime();
+                const diffMs = followupTime - new Date(assignedAt).getTime();
+                if (diffMs >= 0 && diffMs <= 60 * 60 * 1000) {
+                  await insertXPEvent(sb, {
+                    userId,
+                    eventType: 'lead_responded_fast',
+                    xp: 2,
+                    referenceId: speedRefId,
+                    referenceType: 'lead',
+                    programId,
+                    batchName,
+                    note: 'Responded within 1h of lead assignment',
+                  });
+                  console.log(`[XP] lead_responded_fast +2 for user ${userId}, lead ${speedRefId}`);
+                }
+              }
+            }
+          } catch (speedErr) {
+            console.warn('[XP] Speed bonus check failed:', speedErr?.message);
+          }
+        }
+      } catch (numErr) {
+        console.warn(`[XP] processFollowupXP error for followup #${num}:`, numErr?.message);
+      }
+    }
+  } catch (e) {
+    console.warn('[XP] processFollowupXP outer error:', e?.message ?? e);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // UPDATE helpers
 // ---------------------------------------------------------------------------
 
@@ -414,7 +573,7 @@ async function updateMyLead(sb: any, { officerName, batchName, sheetName, sheetL
 
   const { data: updated, error } = await sb.from('crm_leads').update(patch).eq('id', existing.id).select('*').single();
   if (error) throw error;
-  return rowToLead(updated);
+  return { lead: rowToLead(updated), prevMgmt: existing.management_json ?? {} };
 }
 
 async function updateAdminLead(sb: any, { batchName, sheetName, sheetLeadId, updates }: any): Promise<any> {
@@ -1273,7 +1432,9 @@ Deno.serve(async (req: Request) => {
       const [, batchName, sheetName, leadId] = parts;
       if (!batchName || !sheetName || !leadId) return jsonResp({ success: false, error: 'Missing params' }, 400);
       const body = await req.json().catch(() => ({}));
-      const lead = await updateMyLead(sb, { officerName, batchName: decodeURIComponent(batchName), sheetName: decodeURIComponent(sheetName), sheetLeadId: decodeURIComponent(leadId), updates: body });
+      const { lead, prevMgmt } = await updateMyLead(sb, { officerName, batchName: decodeURIComponent(batchName), sheetName: decodeURIComponent(sheetName), sheetLeadId: decodeURIComponent(leadId), updates: body });
+      // Award XP for followups (best-effort — never fails the main request)
+      processFollowupXP(sb, { userId: user.id, officerName, batchName: decodeURIComponent(batchName), sheetName: decodeURIComponent(sheetName), sheetLeadId: decodeURIComponent(leadId), updates: body, prevMgmt }).catch(() => {});
       return jsonResp({ success: true, lead });
     }
 
