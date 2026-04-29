@@ -4450,10 +4450,7 @@ async function initHeaderXpWidget() {
 
     // Officer: fetch XP data
     try {
-        const headers = await getAuthHeadersWithRetry();
-        const r = await fetch('/api/xp/me', { headers });
-        if (!r.ok) throw new Error('XP fetch failed');
-        const j = await r.json();
+        const j = await API.xp.getMe();
         updateHeaderXpDisplay(j.totalXp || 0);
     } catch (e) {
         console.warn('[HeaderXP] Failed to load XP:', e.message);
@@ -4560,10 +4557,7 @@ window.initHeaderXpWidget    = initHeaderXpWidget;
 setInterval(async () => {
     if (!window.currentUser || window.currentUser.role === 'admin') return;
     try {
-        const headers = await getAuthHeadersWithRetry();
-        const r = await fetch('/api/xp/me', { headers });
-        if (!r.ok) return;
-        const j = await r.json();
+        const j = await API.xp.getMe();
         const newTotal = j.totalXp || 0;
         const oldTotal = window.__hxpLastTotal ?? 0;
         if (newTotal !== oldTotal) {

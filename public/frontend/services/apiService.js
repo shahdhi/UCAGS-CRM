@@ -18,6 +18,9 @@ const EDGE_BASE_REGISTRATIONS = 'https://xddaxiwyszynjyrizkmc.supabase.co/functi
 // Supabase Edge Function base URL for crm-reports routes
 const EDGE_BASE_REPORTS = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/crm-reports';
 
+// Supabase Edge Function base URL for xp routes
+const EDGE_BASE_XP = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/xp';
+
 const EDGE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
 
 /**
@@ -62,6 +65,11 @@ async function fetchAPI(endpoint, options = {}) {
       // Route all /reports/* directly to the Supabase Edge Function (crm-reports)
       const suffix = endpoint.replace(/^\/reports\/?/, '');
       fullUrl = suffix ? `${EDGE_BASE_REPORTS}/${suffix}` : EDGE_BASE_REPORTS;
+      extraHeaders['apikey'] = EDGE_ANON_KEY;
+    } else if (endpoint.startsWith('/xp/') || endpoint === '/xp') {
+      // Route all /xp/* directly to the Supabase Edge Function
+      const suffix = endpoint.replace(/^\/xp\/?/, '');
+      fullUrl = suffix ? `${EDGE_BASE_XP}/${suffix}` : EDGE_BASE_XP;
       extraHeaders['apikey'] = EDGE_ANON_KEY;
     } else {
       fullUrl = `${API_BASE}${endpoint}`;
@@ -932,12 +940,27 @@ const healthAPI = {
   }
 };
 
+const xpAPI = {
+  getMe: async () => fetchAPI('/xp/me'),
+  getLeaderboard: async () => fetchAPI('/xp/leaderboard'),
+  getTrend: async (days = 30) => fetchAPI(`/xp/trend?days=${days}`),
+  globalTrend: async (days = 30) => fetchAPI(`/xp/global-trend?days=${days}`),
+  getArchives: async ({ programId = '', batchName = '' } = {}) => {
+    const p = new URLSearchParams();
+    if (programId) p.set('programId', String(programId));
+    if (batchName) p.set('batchName', String(batchName));
+    const qs = p.toString();
+    return fetchAPI(`/xp/archives${qs ? `?${qs}` : ''}`);
+  }
+};
+
 // Export all APIs - compatible with existing code
 window.API = {
   users: usersAPI,
   auth: authAPI,
   enquiries: enquiriesAPI,
   leads: leadsAPI,
+  xp: xpAPI,
   registrations: registrationsAPI,
   students: studentsAPI,
   payments: paymentsAPI,

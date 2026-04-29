@@ -143,10 +143,7 @@
 
   // --- Data Fetchers ---
   async function fetchXPData() {
-    const headers = await authHeaders();
-    const r = await fetch('/api/xp/me', { headers });
-    if (!r.ok) throw new Error('XP fetch failed');
-    return r.json();
+    return API.xp.getMe();
   }
 
   async function fetchAnalytics(officerId) {
@@ -158,10 +155,7 @@
   }
 
   async function fetchLeaderboardData() {
-    const headers = await authHeaders();
-    const r = await fetch('/api/xp/leaderboard', { headers });
-    if (!r.ok) return null;
-    const j = await r.json();
+    const j = await API.xp.getLeaderboard().catch(() => null);
     return j;
   }
 
@@ -800,8 +794,7 @@
         // Officer: use prefetched XP data or fetch if not available
         let j = prefetchedXP;
         if (!j) {
-          const r = await fetch('/api/xp/me', { headers });
-          j = await r.json();
+          j = await API.xp.getMe();
         }
         events = (j.recentEvents || []).slice(0, 12);
       }
@@ -1609,10 +1602,8 @@
       _xpPollTimer = null;
       if (!window.currentUser || window.currentUser.role === 'admin') return;
       try {
-        const headers = await authHeaders();
-        const r = await fetch('/api/xp/me', { headers });
-        if (!r.ok) return;
-        const j = await r.json();
+        const j = await API.xp.getMe().catch(() => null);
+        if (!j) return;
         const newTotal = j.totalXp || 0;
         const oldTotal = window.__hxpLastTotal ?? null;
 
