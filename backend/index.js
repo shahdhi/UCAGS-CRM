@@ -83,7 +83,6 @@ app.use('/api/batches', require('./modules/batches/batchSyncRoutes')); // Manual
 app.use('/api/batch-leads', require('./modules/batches/batchLeadsRoutes')); // Per-batch lead CRUD
 app.use('/api/user-leads', require('./modules/leads/userLeadsRoutes')); // User-specific leads
 app.use('/api/crm-leads', require('./modules/crmLeads/crmLeadsRoutes')); // Supabase CRM leads (fast)
-// crm-followups moved to crm-leads Supabase Edge Function (GET /my/followups, GET /admin/followups)
 app.use('/api/dashboard', require('./modules/dashboard/dashboardRoutes'));
 
 // Placeholder modules (for future implementation)
