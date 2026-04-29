@@ -321,8 +321,11 @@ Deno.serve(async (req: Request) => {
 
   try {
     const url = new URL(req.url);
-    // Strip function name prefix: /payments/... → /...
-    const rawPath = url.pathname.replace(/^\/payments/, '') || '/';
+    // Strip function name prefix: /functions/v1/payments/admin/summary → /admin/summary
+    const pathParts = url.pathname.split('/');
+    const fnIdx = pathParts.indexOf('payments');
+    const afterFn = fnIdx >= 0 ? pathParts.slice(fnIdx + 1).join('/') : '';
+    const rawPath = '/' + afterFn;
     const method = req.method.toUpperCase();
 
     const user = await requireAuth(sb, req);
