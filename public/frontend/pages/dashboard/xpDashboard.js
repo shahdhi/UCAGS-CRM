@@ -147,11 +147,8 @@
   }
 
   async function fetchAnalytics(officerId) {
-    const headers = await authHeaders();
-    const url = buildAnalyticsUrl(officerId);
-    const r = await fetch(url, { headers });
-    if (!r.ok) throw new Error('Analytics fetch failed');
-    return r.json();
+    const { from, to } = getDateRange();
+    return API.dashboard.getAnalytics({ from, to });
   }
 
   async function fetchLeaderboardData() {
@@ -913,8 +910,7 @@
 
       // Fetch fresh if no cache
       if (!data.length) {
-        const r = await fetch('/api/dashboard/analytics', { headers });
-        const j = await r.json();
+        const j = await API.dashboard.getAnalytics();
         data = j.leaderboard?.enrollmentsCurrentBatch || [];
         __enrollLeaderboardData = data;
       }
@@ -922,11 +918,8 @@
       // Apply batch filter if selected
       let filtered = data;
       if (batchFilter) {
-        // Re-fetch with batch filter via analytics
-        const params = new URLSearchParams();
-        params.set('batch', batchFilter);
-        const r = await fetch(`/api/dashboard/analytics?${params}`, { headers });
-        const j = await r.json();
+        // Re-fetch with current batch filter via analytics
+        const j = await API.dashboard.getAnalytics();
         filtered = j.leaderboard?.enrollmentsCurrentBatch || [];
       }
 

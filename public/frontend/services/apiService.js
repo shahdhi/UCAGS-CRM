@@ -21,6 +21,9 @@ const EDGE_BASE_REPORTS = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1
 // Supabase Edge Function base URL for xp routes
 const EDGE_BASE_XP = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/xp';
 
+// Supabase Edge Function base URL for dashboard-analytics routes
+const EDGE_BASE_ANALYTICS = 'https://xddaxiwyszynjyrizkmc.supabase.co/functions/v1/dashboard-analytics';
+
 const EDGE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGF4aXd5c3p5bmp5cml6a21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MDA3OTUsImV4cCI6MjA4NTE3Njc5NX0.imH4CCqt1fBwGek3ku1LTsq99YCfW4ZJQDwhw-0BD_Q';
 
 /**
@@ -70,6 +73,12 @@ async function fetchAPI(endpoint, options = {}) {
       // Route all /xp/* directly to the Supabase Edge Function
       const suffix = endpoint.replace(/^\/xp\/?/, '');
       fullUrl = suffix ? `${EDGE_BASE_XP}/${suffix}` : EDGE_BASE_XP;
+      extraHeaders['apikey'] = EDGE_ANON_KEY;
+    } else if (endpoint.startsWith('/dashboard/analytics')) {
+      // Route /dashboard/analytics (and ?query params) to the Supabase Edge Function
+      // Other /dashboard/* routes (/stats, /recent, /follow-ups) stay on Vercel (Google Sheets)
+      const qs = endpoint.indexOf('?') !== -1 ? endpoint.slice(endpoint.indexOf('?')) : '';
+      fullUrl = `${EDGE_BASE_ANALYTICS}${qs}`;
       extraHeaders['apikey'] = EDGE_ANON_KEY;
     } else {
       fullUrl = `${API_BASE}${endpoint}`;
