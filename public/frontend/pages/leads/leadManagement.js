@@ -488,46 +488,50 @@ async function loadLeadManagement() {
     if (!data.success) throw new Error(data.error || 'Failed to load leads');
     managementLeads = (data.leads || []).map(l => ({ ...l, status: normalizeLeadStatus(l.status) }));
 
-    // Load normalized followups for each lead (officer-owned) and hydrate legacy fields
-    // This keeps the current UI working while storing followups in Supabase.
-    await Promise.all(managementLeads.map(async (lead) => {
-      try {
-        const fr = await fetch(`/api/crm-followups/my/${encodeURIComponent(lead.batch)}/${encodeURIComponent(lead.sheet || 'Main Leads')}/${encodeURIComponent(lead.id)}`, { headers: authHeaders });
-        const fj = await fr.json();
-        if (!fj.success) return;
-        const followups = fj.followups || [];
-
-        // Map followups rows to legacy followUpN* fields (sequence-based)
-        followups.forEach(f => {
-          const n = Number(f.sequence);
-          if (!n) return;
-          // IMPORTANT: Do NOT fall back to existing lead fields here.
-          // If the followup row has null/empty values (e.g. officer cleared Actual Date / Comment),
-          // we must reflect that and not resurrect the old value from management_json.
-          lead[`followUp${n}Schedule`] = f.scheduled_at ? String(f.scheduled_at).slice(0, 16) : '';
-          lead[`followUp${n}Date`] = f.actual_at ? String(f.actual_at).slice(0, 16) : '';
-          lead[`followUp${n}Answered`] = (f.answered === true) ? 'Yes' : (f.answered === false ? 'No' : '');
-          lead[`followUp${n}Comment`] = (f.comment ?? '');
-        });
-
-        // Recompute derived fields
-        lead.lastFollowUpComment = getLastFollowUpComment(lead);
-      } catch (e) {
-        // ignore
-      }
-    }));
-
-    // If no leads exist, keep empty list (do NOT inject mock leads in production)
-    if (managementLeads.length === 0) {
-    }
-
-    // cache hydrated leads for faster reloads
-    if (window.Cache) window.Cache.setWithTs(cacheKey, managementLeads);
-
-    // Apply filters then render once (skipRender=true so filterManagementLeads doesn't double-render)
+    // Render the table immediately so the user sees leads on slow connections,
+    // then hydrate followup columns in the background with a single bulk request.
     filterManagementLeads(/* skipRender */ true);
     renderManagementTable();
-    
+
+    // Single bulk followup fetch for the whole batch+sheet (replaces N per-lead calls)
+    if (managementLeads.length > 0 && batchFilter && batchFilter !== 'all') {
+      try {
+        const fj = await API.leads.getFollowupsBatch(decodeURIComponent(batchFilter), sheet);
+        if (fj.success && Array.isArray(fj.followups) && fj.followups.length > 0) {
+          // Group by sheet_lead_id for O(1) lookup
+          const byLeadId = new Map();
+          fj.followups.forEach(f => {
+            if (!byLeadId.has(f.sheet_lead_id)) byLeadId.set(f.sheet_lead_id, []);
+            byLeadId.get(f.sheet_lead_id).push(f);
+          });
+
+          // Hydrate legacy followUpN* fields on each lead
+          managementLeads.forEach(lead => {
+            const followups = byLeadId.get(String(lead.id)) || [];
+            followups.forEach(f => {
+              const n = Number(f.sequence);
+              if (!n) return;
+              lead[`followUp${n}Schedule`] = f.scheduled_at ? String(f.scheduled_at).slice(0, 16) : '';
+              lead[`followUp${n}Date`] = f.actual_at ? String(f.actual_at).slice(0, 16) : '';
+              lead[`followUp${n}Answered`] = (f.answered === true) ? 'Yes' : (f.answered === false ? 'No' : '');
+              lead[`followUp${n}Comment`] = (f.comment ?? '');
+            });
+            lead.lastFollowUpComment = getLastFollowUpComment(lead);
+          });
+
+          // Re-render with followup data populated
+          filterManagementLeads(/* skipRender */ true);
+          renderManagementTable();
+        }
+      } catch (e) {
+        // Followup hydration is best-effort — table is already visible
+        console.warn('Failed to load followups batch', e);
+      }
+    }
+
+    // cache hydrated leads for faster reloads (cache is updated again after followup hydration below)
+    if (window.Cache) window.Cache.setWithTs(cacheKey, managementLeads);
+
   } catch (error) {
     console.error('Error loading management leads:', error);
     showManagementError(error.message);

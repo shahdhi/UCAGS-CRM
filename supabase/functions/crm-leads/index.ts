@@ -1169,6 +1169,26 @@ Deno.serve(async (req: Request) => {
     }
 
     // -----------------------------------------------------------------------
+    // GET /my/followups?batch=...&sheet=...
+    // Returns all followups for the officer for a whole batch+sheet in one query.
+    // -----------------------------------------------------------------------
+    if (method === 'GET' && afterFn === 'my/followups') {
+      if (!user) return jsonResp({ success: false, error: 'Unauthorized' }, 401);
+      const batchName = url.searchParams.get('batch') ?? '';
+      const sheetName = url.searchParams.get('sheet') ?? 'Main Leads';
+      if (!batchName) return jsonResp({ success: false, error: 'Missing batch param' }, 400);
+      const { data, error } = await sb
+        .from('crm_lead_followups')
+        .select('*')
+        .eq('officer_user_id', user.id)
+        .eq('batch_name', batchName)
+        .eq('sheet_name', sheetName)
+        .order('sequence', { ascending: true });
+      if (error) return jsonResp({ success: false, error: error.message }, 500);
+      return jsonResp({ success: true, followups: data ?? [] });
+    }
+
+    // -----------------------------------------------------------------------
     // GET /my?batch=...
     // -----------------------------------------------------------------------
     if (method === 'GET' && afterFn === 'my') {

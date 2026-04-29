@@ -174,6 +174,15 @@ const leadsAPI = {
   },
 
   /**
+   * Get all followups for an officer for a whole batch+sheet in one request.
+   * @param {string} batch - Batch name
+   * @param {string} sheet - Sheet name (default 'Main Leads')
+   */
+  getFollowupsBatch: async (batch, sheet = 'Main Leads') => {
+    return fetchAPI(`/crm-leads/my/followups?batch=${encodeURIComponent(batch)}&sheet=${encodeURIComponent(sheet)}`);
+  },
+
+  /**
    * Update my lead management (officer)
    * @param {string} batchName - Batch name
    * @param {string} sheetName - Sheet name
