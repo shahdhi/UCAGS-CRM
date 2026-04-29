@@ -160,14 +160,8 @@
   }
 
   async function fetchXPTrend(days) {
-    const headers = await authHeaders();
     const isAdmin = window.currentUser?.role === 'admin';
-    const url = isAdmin
-      ? `/api/xp/global-trend?days=${days}`
-      : `/api/xp/trend?days=${days}`;
-    const r = await fetch(url, { headers });
-    if (!r.ok) throw new Error('XP trend fetch failed');
-    return r.json();
+    return isAdmin ? API.xp.globalTrend(days) : API.xp.getTrend(days);
   }
 
   // --- Phase 2a: Profile Section ---
@@ -587,8 +581,7 @@
       const headers = await authHeaders();
       let j = prefetchedData;
       if (!j) {
-        const r = await fetch('/api/xp/leaderboard', { headers });
-        j = await r.json();
+        j = await API.xp.getLeaderboard();
       }
       const list = j.leaderboard || [];
 
@@ -779,8 +772,7 @@
         // Admin: use prefetched leaderboard data or fetch if not available
         let j = prefetchedLeaderboard;
         if (!j) {
-          const r = await fetch('/api/xp/leaderboard', { headers });
-          j = await r.json();
+          j = await API.xp.getLeaderboard();
         }
         const leaderboard = j.leaderboard || [];
         leaderboard.forEach(entry => {
@@ -1093,9 +1085,7 @@
     const officers = new Set();
     (leaderboard || []).forEach(e => { if (e.officer && e.officer !== 'Unassigned') officers.add(e.officer); });
     try {
-      const h = await authHeaders();
-      const r = await fetch('/api/xp/leaderboard', { headers: h });
-      const j = await r.json();
+      const j = await API.xp.getLeaderboard();
       (j.leaderboard || []).forEach(e => { if (e.name && e.name !== 'Unassigned') officers.add(e.name); });
     } catch(e) { /* ignore */ }
 
