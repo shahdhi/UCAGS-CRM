@@ -96,10 +96,17 @@
             </div>
 
             <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top:10px;">
+              <div class="form-group" style="margin:0;">
+                <label style="font-size:13px; color:#344054; font-weight:700;">1st Installment</label>
+                <div style="font-size:11px; color:#667085; margin-top:2px;">excluding registration fee</div>
+              </div>
+              <div></div>
+              <div class="form-group" style="margin:0;">
+                <label style="font-size:13px; color:#344054; font-weight:600;">Payment date</label>
                 <input id="registrationPaymentDate" type="date" class="form-control" />
               </div>
               <div class="form-group" style="margin:0;">
-                <label style="font-size:13px; color:#344054; font-weight:600;">Amount</label>
+                <label style="font-size:13px; color:#344054; font-weight:600;">Amount (LKR)</label>
                 <input id="registrationPaymentAmount" type="number" min="0" step="0.01" class="form-control" placeholder="0.00" />
               </div>
               <div class="form-group" style="margin:0; margin-top:6px; grid-column: 1 / -1; display:flex; flex-direction:row; align-items:center; gap:10px;">
