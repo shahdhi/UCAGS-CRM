@@ -31,6 +31,35 @@ async function ensureSession({ batchName, demoNumber, patch = {}, actorUserId })
   if (!b) throw Object.assign(new Error('batchName is required'), { status: 400 });
   if (!Number.isFinite(n) || n < 1) throw Object.assign(new Error('demoNumber is invalid'), { status: 400 });
 
+  // Check if session already exists
+  const { data: existing } = await sb
+    .from('demo_sessions')
+    .select('*')
+    .eq('batch_name', b)
+    .eq('demo_number', n)
+    .maybeSingle();
+
+  if (existing) {
+    // Only update fields that were explicitly provided in the patch — never overwrite with null
+    const updates = { updated_at: new Date().toISOString() };
+    if (patch.title != null) updates.title = clean(patch.title);
+    if (patch.scheduled_at != null || patch.scheduledAt != null)
+      updates.scheduled_at = patch.scheduled_at || patch.scheduledAt;
+    if (patch.meeting_link != null) updates.meeting_link = clean(patch.meeting_link);
+    if (patch.meetingLink != null) updates.meeting_link = clean(patch.meetingLink);
+    if (patch.notes != null) updates.notes = clean(patch.notes);
+
+    const { data, error } = await sb
+      .from('demo_sessions')
+      .update(updates)
+      .eq('id', existing.id)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  // Insert new session
   const payload = {
     batch_name: b,
     demo_number: n,
@@ -40,13 +69,11 @@ async function ensureSession({ batchName, demoNumber, patch = {}, actorUserId })
     notes: patch.notes != null ? clean(patch.notes) : null,
     updated_at: new Date().toISOString()
   };
-
-  // only set created_by on insert
   if (actorUserId) payload.created_by = actorUserId;
 
   const { data, error } = await sb
     .from('demo_sessions')
-    .upsert(payload, { onConflict: 'batch_name,demo_number', ignoreDuplicates: false })
+    .insert(payload)
     .select('*')
     .single();
   if (error) throw error;

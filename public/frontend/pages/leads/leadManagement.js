@@ -900,10 +900,7 @@ async function openManageLeadModal(leadId) {
               </div>
               <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px;">
                 <select id="demoInviteNumber" class="form-control" style="width:140px;">
-                  <option value="1">Demo 1</option>
-                  <option value="2">Demo 2</option>
-                  <option value="3">Demo 3</option>
-                  <option value="4">Demo 4</option>
+                  <option value="">Loading…</option>
                 </select>
                 <button type="button" class="btn btn-primary btn-sm" id="demoInviteBtn">
                   <i class="fas fa-paper-plane"></i> Invite
@@ -994,6 +991,28 @@ async function openManageLeadModal(leadId) {
 
   // Load demo session details (read-only)
   try { await loadDemoSessionDetailsIntoModal(lead); } catch (_) { /* ignore */ }
+
+  // Populate demo invite dropdown from actual sessions for this batch
+  try {
+    const sel = document.getElementById('demoInviteNumber');
+    if (sel && lead.batch) {
+      const authHeaders = await (window.getAuthHeadersWithRetry ? getAuthHeadersWithRetry() : {});
+      const res = await fetch(`/api/demo-sessions/sessions?batch=${encodeURIComponent(lead.batch)}`, { headers: authHeaders });
+      const json = await res.json();
+      const sessions = json?.sessions || [];
+      if (sessions.length > 0) {
+        sel.innerHTML = sessions
+          .sort((a, b) => (a.demo_number || 0) - (b.demo_number || 0))
+          .map(s => `<option value="${escapeHtml(String(s.demo_number || ''))}">Demo ${escapeHtml(String(s.demo_number || ''))}${s.title ? ' – ' + escapeHtml(s.title) : ''}</option>`)
+          .join('');
+      } else {
+        sel.innerHTML = '<option value="1">Demo 1</option><option value="2">Demo 2</option><option value="3">Demo 3</option><option value="4">Demo 4</option>';
+      }
+    }
+  } catch (_) {
+    const sel = document.getElementById('demoInviteNumber');
+    if (sel) sel.innerHTML = '<option value="1">Demo 1</option><option value="2">Demo 2</option><option value="3">Demo 3</option><option value="4">Demo 4</option>';
+  }
 
   // Demo invite actions
   try {
