@@ -67,6 +67,7 @@ async function ensureSession({ batchName, demoNumber, patch = {}, actorUserId })
     scheduled_at: patch.scheduled_at || patch.scheduledAt || null,
     meeting_link: patch.meeting_link != null ? clean(patch.meeting_link) : (patch.meetingLink != null ? clean(patch.meetingLink) : null),
     notes: patch.notes != null ? clean(patch.notes) : null,
+    archived: false,
     updated_at: new Date().toISOString()
   };
   if (actorUserId) payload.created_by = actorUserId;
@@ -89,7 +90,7 @@ async function listSessions({ batchName }) {
     .from('demo_sessions')
     .select('*')
     .eq('batch_name', b)
-    .eq('archived', false)
+    .neq('archived', true)
     .order('demo_number', { ascending: true });
   if (error) throw error;
   return data || [];

@@ -418,8 +418,12 @@
 
   async function refreshAll() {
     if (!state.batchName) return;
-    await loadSessions();
-    await loadInvites();
+    try { await loadSessions(); } catch (e) {
+      console.error('[demoSessions] loadSessions failed:', e?.message ?? e);
+    }
+    try { await loadInvites(); } catch (e) {
+      console.error('[demoSessions] loadInvites failed:', e?.message ?? e);
+    }
   }
 
   async function initDemoSessionsPage() {
