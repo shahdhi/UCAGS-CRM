@@ -551,7 +551,7 @@ async function updateMyLead(sb: any, { officerName, batchName, sheetName, sheetL
   if (!batchName || !sheetName || !sheetLeadId) throw mkErr('Missing batchName/sheetName/leadId', 400);
 
   const { data: existing, error: exErr } = await sb
-    .from('crm_leads').select('id, assigned_to, management_json')
+    .from('crm_leads').select('id, assigned_to, management_json, status')
     .eq('batch_name', batchName).eq('sheet_name', sheetName)
     .eq('sheet_lead_id', sheetLeadId).maybeSingle();
   if (exErr) throw exErr;
@@ -573,7 +573,7 @@ async function updateMyLead(sb: any, { officerName, batchName, sheetName, sheetL
 
   const { data: updated, error } = await sb.from('crm_leads').update(patch).eq('id', existing.id).select('*').single();
   if (error) throw error;
-  return { lead: rowToLead(updated), prevMgmt: existing.management_json ?? {} };
+  return { lead: rowToLead(updated), prevMgmt: existing.management_json ?? {}, prevStatus: cleanStr(existing.status) || 'New' };
 }
 
 async function updateAdminLead(sb: any, { batchName, sheetName, sheetLeadId, updates }: any): Promise<any> {
@@ -1432,9 +1432,29 @@ Deno.serve(async (req: Request) => {
       const [, batchName, sheetName, leadId] = parts;
       if (!batchName || !sheetName || !leadId) return jsonResp({ success: false, error: 'Missing params' }, 400);
       const body = await req.json().catch(() => ({}));
-      const { lead, prevMgmt } = await updateMyLead(sb, { officerName, batchName: decodeURIComponent(batchName), sheetName: decodeURIComponent(sheetName), sheetLeadId: decodeURIComponent(leadId), updates: body });
+      const decodedBatch = decodeURIComponent(batchName);
+      const decodedSheet = decodeURIComponent(sheetName);
+      const decodedLeadId = decodeURIComponent(leadId);
+      const { lead, prevMgmt, prevStatus } = await updateMyLead(sb, { officerName, batchName: decodedBatch, sheetName: decodedSheet, sheetLeadId: decodedLeadId, updates: body });
       // Award XP for followups (best-effort — never fails the main request)
-      processFollowupXP(sb, { userId: user.id, officerName, batchName: decodeURIComponent(batchName), sheetName: decodeURIComponent(sheetName), sheetLeadId: decodeURIComponent(leadId), updates: body, prevMgmt }).catch(() => {});
+      processFollowupXP(sb, { userId: user.id, officerName, batchName: decodedBatch, sheetName: decodedSheet, sheetLeadId: decodedLeadId, updates: body, prevMgmt }).catch(() => {});
+      // Award +2 XP: lead_contacted — status changed away from 'New' (best-effort)
+      const newStatus = cleanStr(body.status);
+      if (prevStatus === 'New' && newStatus && newStatus !== 'New') {
+        (async () => {
+          try {
+            const { data: pb } = await sb.from('program_batches').select('program_id').eq('batch_name', decodedBatch).limit(1).maybeSingle();
+            const programId = pb?.program_id ?? null;
+            const refId = `${decodedBatch}|${decodedSheet}|${decodedLeadId}`;
+            // Dedup: skip if already awarded for this lead
+            const { data: existing } = await sb.from('officer_xp_events')
+              .select('id').eq('user_id', user.id).eq('event_type', 'lead_contacted').eq('reference_id', refId).maybeSingle();
+            if (!existing) {
+              await insertXPEvent(sb, { userId: user.id, eventType: 'lead_contacted', xp: 2, referenceId: refId, referenceType: 'lead', programId, batchName: decodedBatch, note: `${cleanStr(body.name) || decodedLeadId} · Contacted (${newStatus})` });
+            }
+          } catch (_) { /* non-fatal */ }
+        })();
+      }
       return jsonResp({ success: true, lead });
     }
 
