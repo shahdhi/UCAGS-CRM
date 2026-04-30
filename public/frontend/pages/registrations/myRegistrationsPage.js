@@ -79,8 +79,23 @@
                   <option value="">Select</option>
                 </select>
               </div>
-              <div class="form-group" style="margin:0;">
-                <label style="font-size:13px; color:#344054; font-weight:600;">Payment date</label>
+            </div>
+
+            <div id="registrationRegFeeSection" style="display:none; margin-top:10px; padding:10px 12px; background:#fffaeb; border:1px solid #fde68a; border-radius:10px;">
+              <div style="font-size:12px; font-weight:700; color:#b54708; margin-bottom:8px;"><i class="fas fa-file-invoice" style="margin-right:5px;"></i>Registration Fee</div>
+              <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:13px; color:#344054; font-weight:600;">Reg fee date</label>
+                  <input id="registrationRegFeeDate" type="date" class="form-control" />
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:13px; color:#344054; font-weight:600;">Reg fee amount (LKR)</label>
+                  <input id="registrationRegFeeAmount" type="number" min="0" step="0.01" class="form-control" placeholder="0.00" />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top:10px;">
                 <input id="registrationPaymentDate" type="date" class="form-control" />
               </div>
               <div class="form-group" style="margin:0;">
@@ -116,6 +131,20 @@
         };
       }
 
+      // Show/hide reg fee section when plan changes
+      const planSelEl = qs('registrationPaymentPlan');
+      if (planSelEl) {
+        planSelEl.addEventListener('change', () => {
+          const opt = planSelEl.selectedOptions?.[0];
+          const isEB = opt?.getAttribute('data-early-bird') === 'true';
+          const regFeeSection = qs('registrationRegFeeSection');
+          if (regFeeSection) regFeeSection.style.display = (!planSelEl.value || isEB) ? 'none' : '';
+          const regFeeAmt = Number(opt?.getAttribute('data-reg-fee') || 0);
+          const regFeeAmtEl = qs('registrationRegFeeAmount');
+          if (regFeeAmtEl && !isEB && regFeeAmt > 0 && !regFeeAmtEl.value) regFeeAmtEl.value = String(regFeeAmt);
+        });
+      }
+
       if (paySaveBtn) {
         paySaveBtn.onclick = async () => {
           const method = qs('registrationPaymentMethod')?.value;
@@ -143,6 +172,8 @@
             const planSelEl = qs('registrationPaymentPlan');
             const selectedPlanOpt = planSelEl?.selectedOptions?.[0];
             const planRegFee = Number(selectedPlanOpt?.getAttribute('data-reg-fee') || 0);
+            const regFeeAmountInput = Number(qs('registrationRegFeeAmount')?.value || 0);
+            const regFeeDateVal = qs('registrationRegFeeDate')?.value || null;
             await window.API.registrations.addPayment(reg?.id, {
               payment_method: method,
               payment_plan: plan,
@@ -150,13 +181,18 @@
               amount,
               slip_received: receipt,
               receipt_received: receipt,
-              reg_fee_amount: planRegFee > 0 ? planRegFee : 0
+              reg_fee_amount: regFeeAmountInput > 0 ? regFeeAmountInput : (planRegFee > 0 ? planRegFee : 0),
+              reg_fee_date: regFeeDateVal
             });
             if (window.UI && UI.showToast) UI.showToast('Payment saved', 'success');
 
             if (qs('registrationPaymentAmount')) qs('registrationPaymentAmount').value = '';
             if (qs('registrationReceiptReceived')) qs('registrationReceiptReceived').checked = false;
             if (qs('registrationPaymentDate')) qs('registrationPaymentDate').value = '';
+            if (qs('registrationRegFeeAmount')) qs('registrationRegFeeAmount').value = '';
+            if (qs('registrationRegFeeDate')) qs('registrationRegFeeDate').value = '';
+            const regFeeSec = qs('registrationRegFeeSection');
+            if (regFeeSec) regFeeSec.style.display = 'none';
             if (paySection) paySection.style.display = 'none';
             if (payToggleBtn) payToggleBtn.innerHTML = '<i class="fas fa-money-bill-wave"></i> Payment received';
 
@@ -267,6 +303,17 @@
           if (qs('registrationPaymentDate')) qs('registrationPaymentDate').value = p.payment_date || '';
           if (qs('registrationPaymentAmount')) qs('registrationPaymentAmount').value = String(p.amount ?? '');
           if (qs('registrationReceiptReceived')) qs('registrationReceiptReceived').checked = !!(p.slip_received || p.receipt_received);
+
+          // Prefill reg fee fields if a reg fee row (installment_no=0) exists
+          const regFeeRow0 = ps.find(x => x.installment_no !== null && x.installment_no !== undefined && Number(x.installment_no) === 0) || null;
+          if (regFeeRow0) {
+            if (qs('registrationRegFeeAmount')) qs('registrationRegFeeAmount').value = String(regFeeRow0.amount ?? '');
+            if (qs('registrationRegFeeDate')) qs('registrationRegFeeDate').value = regFeeRow0.payment_date || '';
+          }
+
+          // Trigger plan change to show reg fee section
+          const pSel = qs('registrationPaymentPlan');
+          if (pSel) pSel.dispatchEvent(new Event('change'));
 
           // Auto-open payment section
           const paySection = qs('registrationPaymentSection');
