@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * CRM Reports — Supabase Edge Function (Deno)
+ * CRM Reports ï¿½ Supabase Edge Function (Deno)
  *
  * Handles all /reports/* routes previously served by the Vercel Express backend.
  * Mirrors: backend/modules/reports/reportsRoutes.js
@@ -310,17 +310,25 @@ async function submitDailyReport(sb: any, { officerUserId, officerName, slotKey,
     .select('*').single();
   if (error) throw error;
 
-  // Award 2 XP (best-effort, non-fatal)
+  // Award 2 XP for report_submitted (best-effort, non-fatal, deduplicated per slot)
   try {
-    await sb.from('xp_events').insert({
-      user_id: officerUserId,
-      event_type: 'report_submitted',
-      xp: 2,
-      reference_id: `${officerUserId}:${dateISO}:${slotKey}`,
-      reference_type: 'report',
-      note: `Daily report submitted — ${slotKey} (${dateISO})`,
-      created_at: new Date().toISOString(),
-    });
+    const refId = `${officerUserId}:${dateISO}:${slotKey}`;
+    const { data: existing } = await sb.from('officer_xp_events')
+      .select('id').eq('user_id', officerUserId).eq('event_type', 'report_submitted').eq('reference_id', refId).maybeSingle();
+    if (!existing) {
+      await sb.from('officer_xp_events').insert({
+        user_id: officerUserId,
+        event_type: 'report_submitted',
+        xp: 2,
+        reference_id: refId,
+        reference_type: 'report',
+        note: `Daily report submitted Â· ${slotKey} (${dateISO})`,
+        created_at: new Date().toISOString(),
+      });
+      const { data: sumRow } = await sb.from('officer_xp_summary').select('total_xp').eq('user_id', officerUserId).maybeSingle();
+      const newTotal = Math.max(0, (sumRow?.total_xp ?? 0) + 2);
+      await sb.from('officer_xp_summary').upsert({ user_id: officerUserId, total_xp: newTotal, last_updated: new Date().toISOString() }, { onConflict: 'user_id' });
+    }
   } catch (_) { /* non-fatal */ }
 
   return data;
@@ -399,7 +407,7 @@ async function sendSlotReminders(sb: any, nowISO?: string) {
       await createNotification(sb, {
         userId: officer.id,
         category: dedupeCategory,
-        title: `Daily report due — ${activeSlot.label || activeSlot.time}`,
+        title: `Daily report due ï¿½ ${activeSlot.label || activeSlot.time}`,
         message: `Please submit your daily report for the ${activeSlot.label || activeSlot.time} slot. Window closes at ${endTime} (SL time).`,
         type: 'warning',
       });
@@ -618,7 +626,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     // -------------------------------------------------------------------------
-    // GET /daily/schedule  — any authenticated user
+    // GET /daily/schedule  ï¿½ any authenticated user
     // -------------------------------------------------------------------------
     if (afterFn === 'daily/schedule' && method === 'GET') {
       const user = await getUser(req);
@@ -628,7 +636,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // -------------------------------------------------------------------------
-    // PUT /daily/schedule  — admin only
+    // PUT /daily/schedule  ï¿½ admin only
     // -------------------------------------------------------------------------
     if (afterFn === 'daily/schedule' && method === 'PUT') {
       const user = await getUser(req);
@@ -640,7 +648,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // -------------------------------------------------------------------------
-    // POST /daily/submit  — admin or officer
+    // POST /daily/submit  ï¿½ admin or officer
     // -------------------------------------------------------------------------
     if (afterFn === 'daily/submit' && method === 'POST') {
       const user = await getUser(req);
@@ -674,7 +682,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // -------------------------------------------------------------------------
-    // GET /daily/overview?date=YYYY-MM-DD  — admin or officer
+    // GET /daily/overview?date=YYYY-MM-DD  ï¿½ admin or officer
     // -------------------------------------------------------------------------
     if (afterFn === 'daily/overview' && method === 'GET') {
       const user = await getUser(req);
@@ -686,7 +694,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // -------------------------------------------------------------------------
-    // GET /daily?date=YYYY-MM-DD  — admin only
+    // GET /daily?date=YYYY-MM-DD  ï¿½ admin only
     // -------------------------------------------------------------------------
     if (afterFn === 'daily' && method === 'GET') {
       const user = await getUser(req);
@@ -697,7 +705,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // -------------------------------------------------------------------------
-    // POST /daily/remind  — cron secret OR any authenticated user
+    // POST /daily/remind  ï¿½ cron secret OR any authenticated user
     // -------------------------------------------------------------------------
     if (afterFn === 'daily/remind' && method === 'POST') {
       const cronSecret = Deno.env.get('CRON_SECRET');
@@ -715,7 +723,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // -------------------------------------------------------------------------
-    // PUT /daily/:id  — admin only
+    // PUT /daily/:id  ï¿½ admin only
     // -------------------------------------------------------------------------
     const dailyIdMatch = afterFn.match(/^daily\/(\d+)$/);
     if (dailyIdMatch && method === 'PUT') {
@@ -727,7 +735,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // -------------------------------------------------------------------------
-    // GET /daily-checklist?start=YYYY-MM-DD&days=7  — admin or officer
+    // GET /daily-checklist?start=YYYY-MM-DD&days=7  ï¿½ admin or officer
     // -------------------------------------------------------------------------
     if (afterFn === 'daily-checklist' && method === 'GET') {
       const user = await getUser(req);
@@ -740,7 +748,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // -------------------------------------------------------------------------
-    // POST /daily-checklist/snapshot  — admin only
+    // POST /daily-checklist/snapshot  ï¿½ admin only
     // -------------------------------------------------------------------------
     if (afterFn === 'daily-checklist/snapshot' && method === 'POST') {
       const user = await getUser(req);
@@ -768,7 +776,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // -------------------------------------------------------------------------
-    // PUT /daily-checklist/call-recording  — admin only
+    // PUT /daily-checklist/call-recording  ï¿½ admin only
     // -------------------------------------------------------------------------
     if (afterFn === 'daily-checklist/call-recording' && method === 'PUT') {
       const user = await getUser(req);
