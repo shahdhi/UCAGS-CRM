@@ -152,9 +152,9 @@
                 <label style="font-size:13px; color:#344054; font-weight:600;">Amount (LKR)</label>
                 <input id="registrationPaymentAmount" type="number" min="0" step="0.01" class="form-control" placeholder="0.00" />
               </div>
-              <div class="form-group" style="margin:0; display:flex; align-items:center; gap:10px;">
-                <input id="registrationReceiptReceived" type="checkbox" />
-                <label for="registrationReceiptReceived" style="margin:0; font-size:13px; color:#344054; font-weight:600; display:inline;">Payment receipt received</label>
+              <div class="form-group" style="margin:0; grid-column: 1 / -1; display:flex; flex-direction:row; align-items:center; gap:10px;">
+                <input id="registrationReceiptReceived" type="checkbox" style="width:16px; height:16px; flex-shrink:0; cursor:pointer;" />
+                <label for="registrationReceiptReceived" style="margin:0; font-size:13px; color:#344054; font-weight:600; cursor:pointer;">Payment receipt received</label>
               </div>
             </div>
 
