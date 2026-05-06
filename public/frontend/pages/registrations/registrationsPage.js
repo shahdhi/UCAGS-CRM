@@ -567,11 +567,12 @@
 
       if (!tbody) return;
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty">No registrations received</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">No registrations received</td></tr>';
         return;
       }
 
-      const trHtmlFn = (r) => {
+      const trHtmlFn = (r, i) => {
+        const rowNum = (typeof i === 'number' ? i : rows.indexOf(r)) + 1;
         const submittedAt = formatDateTimeLocal(r.created_at);
         const email = r.email ?? r.payload?.email ?? '';
         const assigned = r.assigned_to ?? r.payload?.assigned_to ?? '';
@@ -590,6 +591,7 @@
 
         return `
           <tr class="clickable" data-row-key="${escapeHtml(r.id)}" data-registration-id="${escapeHtml(r.id)}" style="cursor:pointer;">
+            <td style="color:#98a2b3; font-size:12px;">${rowNum}</td>
             <td>${escapeHtml(r.name)}</td>
             <td>${escapeHtml(r.phone_number)}</td>
             <td>${escapeHtml(email)}</td>
@@ -602,7 +604,7 @@
       };
 
       if (window.DOMPatcher?.patchTableBody) {
-        window.DOMPatcher.patchTableBody(tbody, rows, (x) => x.id, trHtmlFn);
+        window.DOMPatcher.patchTableBody(tbody, rows, (x) => x.id, (r) => trHtmlFn(r, rows.indexOf(r)));
       } else {
         tbody.innerHTML = rows.map(trHtmlFn).join('');
       }
@@ -623,6 +625,7 @@
       // Skeleton shimmer placeholders
       const skelRow = () => `
         <tr class="table-skel-row">
+          <td><div class="table-skel-line" style="width:30px"></div></td>
           <td><div class="table-skel-line" style="width:60%"></div></td>
           <td><div class="table-skel-line" style="width:40%"></div></td>
           <td><div class="table-skel-line" style="width:55%"></div></td>
@@ -663,7 +666,7 @@
     } catch (e) {
       console.error(e);
       if (tbody && showSkeleton) {
-        tbody.innerHTML = `<tr><td colspan="7" class="loading">${escapeHtml(e.message || 'Failed to load registrations')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="loading">${escapeHtml(e.message || 'Failed to load registrations')}</td></tr>`;
       }
       throw e;
     } finally {
